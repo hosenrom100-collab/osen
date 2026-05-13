@@ -29,34 +29,21 @@ export default function CalendarPage() {
   // For demonstration and future API integration
   // This would ideally fetch from Google Calendar API
   useEffect(() => {
-    fetchMockEvents();
+    fetchEvents();
   }, [currentDate]);
 
-  const fetchMockEvents = () => {
+  const fetchEvents = async () => {
     setLoading(true);
-    // Simulate API delay
-    setTimeout(() => {
-      const mockEvents: CalendarEvent[] = [
-        {
-          id: "1",
-          summary: "ישיבת צוות שבועית",
-          location: "חדר ישיבות קומה 2",
-          start: { dateTime: new Date(new Date().setHours(10, 0)).toISOString() },
-          end: { dateTime: new Date(new Date().setHours(11, 30)).toISOString() },
-          color: "bg-blue-500"
-        },
-        {
-          id: "2",
-          summary: "סדנת חוסן עליון",
-          location: "אולם מרכזי",
-          start: { dateTime: new Date(new Date().setHours(14, 0)).toISOString() },
-          end: { dateTime: new Date(new Date().setHours(16, 0)).toISOString() },
-          color: "bg-emerald-500"
-        }
-      ];
-      setEvents(mockEvents);
+    try {
+      const response = await fetch("/api/calendar");
+      if (!response.ok) throw new Error("Failed to fetch calendar");
+      const data = await response.json();
+      setEvents(data);
+    } catch (error) {
+      console.error("Error fetching events:", error);
+    } finally {
       setLoading(false);
-    }, 800);
+    }
   };
 
   const nextMonth = () => setCurrentDate(addMonths(currentDate, 1));
