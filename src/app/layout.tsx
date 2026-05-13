@@ -13,6 +13,15 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "חוסן-קונקט | ניהול מרכז חוסן",
   description: "אפליקציית ניהול מתקדמת לצוותי מרכז חוסן",
+  manifest: "/manifest.ts",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Hosen Connect",
+  },
+  formatDetection: {
+    telephone: false,
+  },
 };
 
 export default function RootLayout({
