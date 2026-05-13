@@ -44,67 +44,33 @@ function AttendancePageContent() {
   
   const today = format(new Date(), "yyyy-MM-dd");
 
-  useEffect(() => {
-    fetchGroups();
-  }, []);
-
-  useEffect(() => {
-    if (selectedGroup) {
-      fetchData();
-    }
-  }, [selectedGroup]);
-
-  const fetchGroups = async () => {
-    try {
-      const groupsSnap = await getDocs(query(collection(db, "groups"), orderBy("name")));
-      const groupList: Group[] = [];
-      groupsSnap.forEach(doc => groupList.push({ id: doc.id, name: doc.data().name }));
-      setGroups(groupList);
-
-      if (!selectedGroup && groupList.length > 0) {
-        setSelectedGroup(groupList[0].id);
-      } else if (groupList.length === 0) {
-        setLoading(false);
-      }
-    } catch (error) {
-      console.error("Error fetching groups:", error);
-      setLoading(false);
-    }
-  };
-
-  const fetchData = async () => {
+  // Fetch patients and attendance for a given group — params passed explicitly to avoid stale closures
+  const fetchData = async (groupId: string, groupName: string) => {
     setLoading(true);
     try {
-      const groupObj = groups.find(g => g.id === selectedGroup);
-      const groupName = groupObj?.name || "";
-
-      // Fetch ALL patients for debugging and filtering
       const patientsSnap = await getDocs(collection(db, "patients"));
       const patientsList: Patient[] = [];
-      
-      patientsSnap.forEach(doc => {
-        const data = doc.data();
-        // Be more inclusive: check if they belong to the group, status is a secondary filter
-        const matchesGroup = data.hosenType === selectedGroup || data.hosenType === groupName;
-        
-        if (matchesGroup) {
-          patientsList.push({ id: doc.id, ...data } as Patient);
+
+      patientsSnap.forEach(docSnap => {
+        const data = docSnap.data();
+        const ht = data.hosenType || "";
+        // Match by ID or by name — handles both storage conventions
+        if (ht === groupId || (groupName && ht === groupName)) {
+          patientsList.push({ id: docSnap.id, ...data } as Patient);
         }
       });
-      
-      // Sort patients by name
-      patientsList.sort((a, b) => a.firstName.localeCompare(b.firstName, "he"));
+
+      patientsList.sort((a, b) =>
+        (a.firstName || "").localeCompare(b.firstName || "", "he")
+      );
       setPatients(patientsList);
 
-      // Fetch today's attendance
-      const attendanceQuery = query(
-        collection(db, "attendance"),
-        where("date", "==", today)
+      const attendanceSnap = await getDocs(
+        query(collection(db, "attendance"), where("date", "==", today))
       );
-      const attendanceSnap = await getDocs(attendanceQuery);
       const records: AttendanceRecord = {};
-      attendanceSnap.forEach(doc => {
-        const data = doc.data();
+      attendanceSnap.forEach(docSnap => {
+        const data = docSnap.data();
         records[data.patientId] = data.status;
       });
       setAttendance(records);
@@ -113,6 +79,40 @@ function AttendancePageContent() {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Load groups on mount; then trigger fetchData with fresh data (no useEffect dependency on groups)
+  useEffect(() => {
+    const init = async () => {
+      try {
+        const groupsSnap = await getDocs(query(collection(db, "groups"), orderBy("name")));
+        const groupList: Group[] = [];
+        groupsSnap.forEach(docSnap =>
+          groupList.push({ id: docSnap.id, name: docSnap.data().name })
+        );
+        setGroups(groupList);
+
+        if (groupList.length === 0) { setLoading(false); return; }
+
+        // Respect URL param or pick first group
+        const urlGroup = searchParams.get("group");
+        const target = groupList.find(g => g.id === urlGroup) ?? groupList[0];
+        setSelectedGroup(target.id);
+        await fetchData(target.id, target.name);   // ← called with fresh data, not from closure
+      } catch (err) {
+        console.error("Error loading groups:", err);
+        setLoading(false);
+      }
+    };
+    init();
+  }, []); // runs once on mount
+
+  // When user switches group chip — groups state is guaranteed loaded at this point
+  const handleGroupChange = (groupId: string) => {
+    const g = groups.find(g => g.id === groupId);
+    if (!g) return;
+    setSelectedGroup(groupId);
+    fetchData(groupId, g.name);
   };
 
   const handleToggleAttendance = async (patientId: string, status: "present" | "absent") => {
@@ -130,8 +130,9 @@ function AttendancePageContent() {
       });
     } catch (error) {
       console.error("Error updating attendance:", error);
-      // Revert on error
-      fetchData();
+      // Revert on error — re-fetch with current group
+      const g = groups.find(g => g.id === selectedGroup);
+      if (g) fetchData(g.id, g.name);
     }
   };
 
@@ -260,7 +261,7 @@ function AttendancePageContent() {
           {groups.map((group) => (
             <button
               key={group.id}
-              onClick={() => setSelectedGroup(group.id)}
+              onClick={() => handleGroupChange(group.id)}
               className={`flex-shrink-0 px-6 py-3 rounded-2xl text-xs font-black transition-all border-2 ${
                 selectedGroup === group.id 
                   ? "bg-emerald-600 border-emerald-400 text-white shadow-xl shadow-emerald-600/30 scale-105" 
@@ -354,7 +355,7 @@ function AttendancePageContent() {
 
 export default function AttendancePage() {
   return (
-    <RoleGuard allowedRoles={["admin", "manager", "instructor", "employee"]} redirectTo="/">
+    <RoleGuard allowedRoles={["admin", "manager", "instructor", "employee", "social_worker", "logistics"]} redirectTo="/">
       <Suspense fallback={
         <div className="min-h-screen bg-slate-950 flex items-center justify-center">
           <Loader2 className="w-8 h-8 text-emerald-500 animate-spin" />

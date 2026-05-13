@@ -15,7 +15,7 @@ export default function AttendanceGatePage() {
   const isManager = isAdmin || role === "manager";
 
   return (
-    <RoleGuard allowedRoles={["admin", "manager", "instructor", "employee"]} redirectTo="/">
+    <RoleGuard allowedRoles={["admin", "manager", "instructor", "employee", "social_worker", "logistics"]} redirectTo="/">
       <main className="min-h-screen bg-slate-950 text-white flex flex-col p-4 pb-28">
         {/* Header */}
         <header className="flex items-center gap-3 pt-4 mb-8">
