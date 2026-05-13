@@ -4,18 +4,33 @@ import admin from "firebase-admin";
 if (!admin.apps.length) {
   const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
   const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
-  const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n');
+  // Handle private key formatting and potential extra quotes from env vars
+  let privateKey = process.env.FIREBASE_PRIVATE_KEY;
+  
+  if (privateKey) {
+    // Remove potential surrounding quotes
+    privateKey = privateKey.trim();
+    if (privateKey.startsWith('"') && privateKey.endsWith('"')) {
+      privateKey = privateKey.substring(1, privateKey.length - 1);
+    }
+    // Handle escaped newlines
+    privateKey = privateKey.replace(/\\n/g, '\n');
+  }
 
   if (projectId && clientEmail && privateKey) {
-    admin.initializeApp({
-      credential: admin.credential.cert({
-        projectId,
-        clientEmail,
-        privateKey,
-      }),
-    });
+    try {
+      admin.initializeApp({
+        credential: admin.credential.cert({
+          projectId,
+          clientEmail,
+          privateKey,
+        }),
+      });
+    } catch (error) {
+      console.error("Failed to initialize Firebase Admin:", error);
+    }
   } else {
-    console.warn("Firebase Admin not initialized: Missing environment variables.");
+    console.warn("Firebase Admin not initialized: Missing or invalid environment variables.");
   }
 }
 
