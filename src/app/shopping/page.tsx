@@ -9,6 +9,7 @@ import { useAuth } from "@/context/AuthContext";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
 import * as XLSX from 'xlsx';
+import { sendPush } from "@/lib/notify";
 
 interface ShoppingRequest {
   id: string;
@@ -102,7 +103,14 @@ export default function ShoppingPage() {
         requestedByName: user?.displayName || user?.email,
         createdAt: new Date(),
       });
-      
+
+      sendPush({
+        role: ["admin", "manager", "logistics"],
+        title: newPriority === "urgent" ? "🔥 בקשת רכש דחופה" : "🛒 בקשת רכש חדשה",
+        body: `${user?.displayName || "משתמש"}: ${newName}`,
+        link: "/shopping",
+      });
+
       setIsAdding(false);
       setNewName("");
       setNewQuantity("");
@@ -172,16 +180,34 @@ export default function ShoppingPage() {
   };
 
   const handleStatusChange = async (requestId: string, newStatus: 'pending' | 'approved' | 'purchased' | 'deleted', extraData = {}) => {
+    const req = requests.find(r => r.id === requestId);
     try {
       if (newStatus === 'deleted') {
         await deleteDoc(doc(db, "shopping_requests", requestId));
       } else {
-        await updateDoc(doc(db, "shopping_requests", requestId), { 
+        await updateDoc(doc(db, "shopping_requests", requestId), {
           status: newStatus,
           updatedAt: new Date(),
           updatedBy: user?.uid,
           ...extraData
         });
+
+        if (newStatus === 'approved' && req?.requestedBy) {
+          sendPush({
+            userId: req.requestedBy,
+            title: "✅ בקשת רכש אושרה",
+            body: `"${req.name}" אושרה ותצא לרכישה`,
+            link: "/shopping",
+          });
+        }
+        if (newStatus === 'purchased' && req) {
+          sendPush({
+            role: ["admin", "manager", "instructor", "employee"],
+            title: "✔️ מוצר נרכש",
+            body: `"${req.name}" נרכש ונמצא במלאי`,
+            link: "/shopping",
+          });
+        }
       }
     } catch (error) {
       console.error("Error updating status:", error);

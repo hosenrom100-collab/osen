@@ -4,12 +4,13 @@ import { RoleGuard } from "@/components/auth/RoleGuard";
 import { useState, useEffect } from "react";
 import { db } from "@/lib/firebase/config";
 import { collection, getDocs, query, where, doc, setDoc, orderBy } from "firebase/firestore";
-import { ClipboardList, ArrowRight, Calendar as CalendarIcon, Search, Loader2 } from "lucide-react";
+import { ClipboardList, ArrowRight, Calendar as CalendarIcon, Search, Loader2, Send, CheckCircle } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AttendanceItem } from "@/components/admin/attendance/AttendanceItem";
 import { format } from "date-fns";
 import { he } from "date-fns/locale";
 import { motion, AnimatePresence } from "framer-motion";
+import { sendPush } from "@/lib/notify";
 
 interface Patient {
   id: string;
@@ -37,6 +38,8 @@ function AttendancePageContent() {
   const [attendance, setAttendance] = useState<AttendanceRecord>({});
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  const [sendingSummary, setSendingSummary] = useState(false);
+  const [summarySent, setSummarySent] = useState(false);
   const router = useRouter();
   
   const today = format(new Date(), "yyyy-MM-dd");
@@ -57,12 +60,15 @@ function AttendancePageContent() {
       const groupList: Group[] = [];
       groupsSnap.forEach(doc => groupList.push({ id: doc.id, name: doc.data().name }));
       setGroups(groupList);
-      
+
       if (!selectedGroup && groupList.length > 0) {
         setSelectedGroup(groupList[0].id);
+      } else if (groupList.length === 0) {
+        setLoading(false);
       }
     } catch (error) {
       console.error("Error fetching groups:", error);
+      setLoading(false);
     }
   };
 
@@ -129,7 +135,7 @@ function AttendancePageContent() {
     }
   };
 
-  const filteredPatients = patients.filter(p => 
+  const filteredPatients = patients.filter(p =>
     `${p.firstName} ${p.lastName}`.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -140,44 +146,92 @@ function AttendancePageContent() {
     missing: patients.filter(p => !attendance[p.id] || attendance[p.id] === "unset").length
   };
 
+  const handleSendSummary = async () => {
+    setSendingSummary(true);
+    const groupName = groups.find(g => g.id === selectedGroup)?.name || selectedGroup;
+    const dateStr = format(new Date(), "d/M/yyyy");
+    await sendPush({
+      role: ["admin", "manager"],
+      title: `סיכום נוכחות – ${groupName}`,
+      body: `${dateStr}: ${stats.present} נוכחים מתוך ${stats.total} (${stats.missing} טרם נסמנו)`,
+      link: "/admin/patient-attendance",
+    });
+    setSendingSummary(false);
+    setSummarySent(true);
+    setTimeout(() => setSummarySent(false), 3000);
+  };
+
   return (
-    <main className="min-h-screen bg-slate-950 text-white p-4 pb-20">
+    <main className="min-h-screen bg-slate-950 text-white p-4 pb-28">
       <header className="max-w-4xl mx-auto mb-8 sticky top-0 bg-slate-950/80 backdrop-blur-md z-40 py-2 pt-4">
-        <div className="flex items-center gap-4 mb-6">
-          <button 
+        <div className="flex items-center gap-3 mb-6">
+          <button
             onClick={() => router.push("/")}
-            className="p-2.5 bg-white/5 border border-white/10 rounded-2xl active:scale-95 transition-all"
+            className="p-2.5 bg-white/5 border border-white/10 rounded-2xl active:scale-95 transition-all flex-shrink-0"
           >
             <ArrowRight className="w-5 h-5" />
           </button>
-          <div>
+          <div className="flex-1 min-w-0">
             <h1 className="text-xl font-bold">נוכחות מטופלים</h1>
-            <div className="flex items-center gap-2 text-slate-500 text-[10px] font-bold mt-1">
+            <div className="flex items-center gap-2 text-slate-500 text-[10px] font-bold mt-0.5">
               <CalendarIcon className="w-3 h-3" />
               {format(new Date(), "EEEE, d בMMMM yyyy", { locale: he })}
             </div>
           </div>
+          <button
+            onClick={handleSendSummary}
+            disabled={sendingSummary || stats.total === 0}
+            className={`flex items-center gap-1.5 px-3 py-2.5 rounded-2xl text-xs font-bold transition-all flex-shrink-0 ${
+              summarySent
+                ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
+                : "bg-white/5 border border-white/10 text-slate-400 hover:bg-white/10 disabled:opacity-40"
+            }`}
+          >
+            {sendingSummary ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : summarySent ? (
+              <CheckCircle className="w-3.5 h-3.5" />
+            ) : (
+              <Send className="w-3.5 h-3.5" />
+            )}
+            {summarySent ? "נשלח" : "שלח סיכום"}
+          </button>
         </div>
 
-        {/* Stats Bar - Compact for Mobile */}
-        <div className="grid grid-cols-4 gap-2 mb-6">
+        {/* Stats Bar */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
           <div className="bg-white/5 border border-white/5 p-3 rounded-2xl text-center">
-            <p className="text-slate-500 text-[9px] font-bold uppercase mb-1">סה"כ</p>
-            <h3 className="text-lg font-bold text-white">{stats.total}</h3>
+            <p className="text-slate-500 text-[10px] font-bold uppercase mb-1">סה״כ</p>
+            <h3 className="text-2xl font-bold text-white">{stats.total}</h3>
           </div>
           <div className="bg-emerald-500/5 border border-emerald-500/10 p-3 rounded-2xl text-center">
-            <p className="text-emerald-500 text-[9px] font-bold uppercase mb-1">נוכחים</p>
-            <h3 className="text-lg font-bold text-emerald-400">{stats.present}</h3>
+            <p className="text-emerald-500 text-[10px] font-bold uppercase mb-1">נוכחים</p>
+            <h3 className="text-2xl font-bold text-emerald-400">{stats.present}</h3>
           </div>
           <div className="bg-rose-500/5 border border-rose-500/10 p-3 rounded-2xl text-center">
-            <p className="text-rose-500 text-[9px] font-bold uppercase mb-1">נעדרים</p>
-            <h3 className="text-lg font-bold text-rose-400">{stats.absent}</h3>
+            <p className="text-rose-500 text-[10px] font-bold uppercase mb-1">נעדרים</p>
+            <h3 className="text-2xl font-bold text-rose-400">{stats.absent}</h3>
           </div>
           <div className="bg-blue-500/5 border border-blue-500/10 p-3 rounded-2xl text-center">
-            <p className="text-blue-500 text-[9px] font-bold uppercase mb-1">נותרו</p>
-            <h3 className="text-lg font-bold text-blue-400">{stats.missing}</h3>
+            <p className="text-blue-500 text-[10px] font-bold uppercase mb-1">נותרו</p>
+            <h3 className="text-2xl font-bold text-blue-400">{stats.missing}</h3>
           </div>
         </div>
+
+        {/* Progress Bar */}
+        {stats.total > 0 && (
+          <div className="mb-4">
+            <div className="h-2 bg-white/5 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-emerald-500 rounded-full transition-all duration-500"
+                style={{ width: `${Math.round((stats.present / stats.total) * 100)}%` }}
+              />
+            </div>
+            <p className="text-[10px] text-slate-600 font-bold mt-1 text-left">
+              {Math.round((stats.present / stats.total) * 100)}% נוכחות
+            </p>
+          </div>
+        )}
 
         {/* Group Chips - Horizontal Scroll */}
         <div className="flex gap-2 overflow-x-auto pb-4 no-scrollbar -mx-4 px-4 mb-4">

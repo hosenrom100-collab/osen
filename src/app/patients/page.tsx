@@ -4,7 +4,7 @@ import { RoleGuard } from "@/components/auth/RoleGuard";
 import { useState, useEffect } from "react";
 import { db } from "@/lib/firebase/config";
 import { collection, getDocs, query, orderBy, doc, updateDoc, where } from "firebase/firestore";
-import { Users, UserPlus, Search, ArrowRight, User, ArrowLeftRight, Loader2, Filter, Calendar, Clock, Check, X, Phone, UserCheck, ChevronLeft, MoreVertical, Briefcase, Plus, Layers, Edit3 } from "lucide-react";
+import { Users, UserPlus, Search, ArrowRight, User, ArrowLeftRight, Loader2, Filter, Calendar, Clock, Check, X, Phone, UserCheck, ChevronLeft, MoreVertical, Briefcase, Plus, Layers, Edit3, AlertCircle, RefreshCw } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/context/AuthContext";
@@ -34,6 +34,7 @@ export default function PatientsPage() {
   const [groups, setGroups] = useState<Group[]>([]);
   const [socialWorkers, setSocialWorkers] = useState<{id: string, name: string}[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterHosen, setFilterHosen] = useState<string>("all");
   const [filterWorker, setFilterWorker] = useState<string>("all");
@@ -84,21 +85,19 @@ export default function PatientsPage() {
   };
 
   const fetchPatients = async () => {
+    setLoadError(null);
     try {
       const q = query(collection(db, "patients"));
       const querySnapshot = await getDocs(q);
       const list: Patient[] = [];
       querySnapshot.forEach((doc) => {
         const data = doc.data();
-        list.push({ 
-          id: doc.id, 
-          ...data,
-          status: data.status || "active"
-        } as Patient);
+        list.push({ id: doc.id, ...data, status: data.status || "active" } as Patient);
       });
       setPatients(list);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error fetching patients:", error);
+      setLoadError(error.message || "שגיאה בטעינת הנתונים");
     } finally {
       setLoading(false);
     }
@@ -146,17 +145,26 @@ export default function PatientsPage() {
     }
   };
 
+  const resolveGroupName = (hosenType?: string): string => {
+    if (!hosenType) return "לא הוגדר";
+    const group = groups.find(g => g.id === hosenType || g.name === hosenType);
+    return group?.name || "לא הוגדר";
+  };
+
   const filtered = patients.filter(p => {
-    const matchesSearch = `${p.firstName || ""} ${p.lastName || ""}`.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    const matchesSearch = `${p.firstName || ""} ${p.lastName || ""}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          (p.idNumber || "").includes(searchTerm);
-    
-    const isVisibleByGroup = showAll || assignedGroups.includes(p.hosenType || "") || 
-                            groups.find(g => g.id === p.hosenType)?.name === groups.find(g => assignedGroups.includes(g.id))?.name;
+
+    let isVisibleByGroup = showAll;
+    if (!isVisibleByGroup) {
+      const group = groups.find(g => g.id === (p.hosenType || "") || g.name === (p.hosenType || ""));
+      isVisibleByGroup = group ? assignedGroups.includes(group.id) : false;
+    }
 
     const matchesHosen = filterHosen === "all" || p.hosenType === filterHosen;
     const matchesWorker = filterWorker === "all" || p.assignedWorkerId === filterWorker;
     const matchesStatus = filterStatus === "all" || p.status === filterStatus;
-    
+
     return matchesSearch && isVisibleByGroup && matchesHosen && matchesWorker && matchesStatus;
   });
 
@@ -177,75 +185,86 @@ export default function PatientsPage() {
     waiting_start: "ממתין להתחלה"
   };
 
+  const openEditModal = (patient: Patient) => {
+    setSelectedPatientForEdit(patient);
+    setEditForm({
+      firstName: patient.firstName,
+      lastName: patient.lastName,
+      idNumber: patient.idNumber,
+      hosenType: patient.hosenType,
+      assignedWorkerId: patient.assignedWorkerId,
+      status: patient.status
+    });
+  };
+
   return (
     <RoleGuard allowedRoles={["admin", "manager", "instructor", "social_worker", "employee"]} redirectTo="/">
-      <main className="min-h-screen bg-slate-950 text-white p-4 pb-24 md:p-8">
-        <header className="max-w-7xl mx-auto mb-8 sticky top-0 bg-slate-950/80 backdrop-blur-md z-40 py-2 pt-4">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-6">
-            <div className="flex items-center gap-4">
-              <button 
+      <main className="min-h-screen bg-slate-950 text-white p-4 pb-28 md:p-8">
+        {/* Sticky Header */}
+        <header className="max-w-7xl mx-auto mb-6 sticky top-0 bg-slate-950/90 backdrop-blur-md z-40 py-2 pt-4">
+          <div className="flex items-center justify-between gap-3 mb-4">
+            <div className="flex items-center gap-3">
+              <button
                 onClick={() => router.push("/")}
-                className="p-2.5 bg-white/5 border border-white/10 rounded-2xl active:scale-95 transition-all"
+                className="p-2.5 bg-white/5 border border-white/10 rounded-2xl active:scale-95 transition-all flex-shrink-0"
               >
                 <ArrowRight className="w-5 h-5" />
               </button>
               <div>
-                <h1 className="text-xl font-bold flex items-center gap-3">
-                  מצבת מטופלים
-                </h1>
-                <p className="text-slate-500 text-[10px] font-bold mt-1">
-                  {filtered.length} מטופלים רשומים
+                <h1 className="text-lg font-bold">מצבת מטופלים</h1>
+                <p className="text-slate-500 text-[10px] font-bold mt-0.5">
+                  {filtered.length} מטופלים
                 </p>
               </div>
             </div>
 
             <div className="flex items-center gap-2">
-
               {assignedGroups.length > 0 && (
-                <button 
+                <button
                   onClick={() => setShowAll(!showAll)}
-                  className={`p-2.5 rounded-2xl border transition-all flex items-center gap-2 ${showAll ? "bg-blue-600/20 border-blue-500 text-blue-400" : "bg-white/5 border-white/10 text-slate-400"}`}
+                  className={`p-2.5 rounded-2xl border transition-all flex items-center gap-1.5 ${showAll ? "bg-blue-600/20 border-blue-500 text-blue-400" : "bg-white/5 border-white/10 text-slate-400"}`}
                 >
                   <ArrowLeftRight className="w-4 h-4" />
-                  <span className="text-[10px] font-bold">{showAll ? "הצג רק שלי" : "הצג הכל"}</span>
+                  <span className="text-[10px] font-bold hidden sm:inline">{showAll ? "הצג רק שלי" : "הצג הכל"}</span>
                 </button>
               )}
-              <button 
+              <button
                 onClick={() => router.push("/patients/new")}
-                className="flex items-center gap-2 bg-emerald-600 text-white px-5 py-2.5 rounded-2xl font-bold transition-all text-sm shadow-lg shadow-emerald-600/20 active:scale-95"
+                className="flex items-center gap-1.5 bg-emerald-600 text-white px-3 sm:px-5 py-2.5 rounded-2xl font-bold transition-all text-sm shadow-lg shadow-emerald-600/20 active:scale-95"
               >
                 <Plus className="w-4 h-4" />
-                מטופל חדש
+                <span className="hidden sm:inline">מטופל חדש</span>
               </button>
             </div>
           </div>
 
-          <div className="relative mb-6">
+          {/* Search */}
+          <div className="relative mb-3">
             <Search className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
             <input
               type="text"
               placeholder="חיפוש לפי שם או ת.ז..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full bg-white/5 border border-white/10 rounded-[1.25rem] py-3.5 pr-11 pl-4 text-sm focus:outline-none focus:border-blue-500 transition-all shadow-xl shadow-black/20"
+              className="w-full bg-white/5 border border-white/10 rounded-[1.25rem] py-3 pr-11 pl-4 text-sm focus:outline-none focus:border-blue-500 transition-all"
             />
           </div>
 
-          {/* Filter Bar */}
-          <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar -mx-4 px-4">
-            <select 
+          {/* Filters */}
+          <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar -mx-4 px-4">
+            <select
               value={filterHosen}
               onChange={(e) => setFilterHosen(e.target.value)}
-              className="bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-xs font-bold text-slate-400 focus:outline-none focus:border-blue-500 flex-shrink-0"
+              className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs font-bold text-slate-400 focus:outline-none focus:border-blue-500 flex-shrink-0"
             >
               <option value="all">כל הקבוצות</option>
               {groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
             </select>
 
-            <select 
+            <select
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
-              className="bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-xs font-bold text-slate-400 focus:outline-none focus:border-blue-500 flex-shrink-0"
+              className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs font-bold text-slate-400 focus:outline-none focus:border-blue-500 flex-shrink-0"
             >
               <option value="all">כל הסטטוסים</option>
               {Object.entries(statusLabels).map(([value, label]) => (
@@ -253,10 +272,10 @@ export default function PatientsPage() {
               ))}
             </select>
 
-            <select 
+            <select
               value={filterWorker}
               onChange={(e) => setFilterWorker(e.target.value)}
-              className="bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-xs font-bold text-slate-400 focus:outline-none focus:border-blue-500 flex-shrink-0"
+              className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs font-bold text-slate-400 focus:outline-none focus:border-blue-500 flex-shrink-0"
             >
               <option value="all">כל העו״סים</option>
               {socialWorkers.map(worker => (
@@ -267,101 +286,189 @@ export default function PatientsPage() {
         </header>
 
         <div className="max-w-7xl mx-auto">
-          {loading ? (
+          {/* Loading State */}
+          {loading && (
             <div className="flex flex-col items-center justify-center py-20 gap-4">
               <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
               <p className="text-slate-500 text-xs animate-pulse">טוען רשימת מטופלים...</p>
             </div>
-          ) : (
-            <div className="bg-white/5 border border-white/10 rounded-3xl overflow-hidden overflow-x-auto shadow-2xl">
-              <table className="w-full text-right border-collapse min-w-[800px]">
-                <thead>
-                  <tr className="bg-white/5 border-b border-white/10">
-                    <th className="p-4 text-[11px] font-bold text-slate-500 uppercase tracking-wider">מטופל</th>
-                    <th className="p-4 text-[11px] font-bold text-slate-500 uppercase tracking-wider">ת.ז</th>
-                    <th className="p-4 text-[11px] font-bold text-slate-500 uppercase tracking-wider">קבוצה</th>
-                    <th className="p-4 text-[11px] font-bold text-slate-500 uppercase tracking-wider">עו״ס מטפל</th>
-                    <th className="p-4 text-[11px] font-bold text-slate-500 uppercase tracking-wider">סטטוס</th>
-                    <th className="p-4 text-[11px] font-bold text-slate-500 uppercase tracking-wider">תאריך התחלה</th>
-                    <th className="p-4 text-[11px] font-bold text-slate-500 uppercase tracking-wider text-left">פעולות</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filtered.map((patient) => (
-                    <tr key={patient.id} className="border-b border-white/5 hover:bg-white/5 transition-all group">
-                      <td className="p-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 bg-blue-500/10 text-blue-400 rounded-lg flex items-center justify-center">
-                            <User className="w-4 h-4" />
-                          </div>
-                          <span className="font-bold text-sm">{patient.firstName} {patient.lastName}</span>
-                        </div>
-                      </td>
-                      <td className="p-4 text-slate-500 font-mono text-xs">{patient.idNumber}</td>
-                      <td className="p-4">
-                        <span className="text-xs font-bold text-slate-400 bg-white/5 px-2 py-1 rounded-lg">
-                          {groups.find(g => g.id === patient.hosenType || g.name === patient.hosenType)?.name || "לא הוגדר"}
-                        </span>
-                      </td>
-                      <td className="p-4 text-xs text-slate-400">
-                        {socialWorkers.find(w => w.id === patient.assignedWorkerId)?.name || "—"}
-                      </td>
-                      <td className="p-4">
-                        <select
-                          value={patient.status}
-                          onChange={(e) => updatePatientStatus(patient.id, e.target.value as PatientStatus)}
-                          className={`px-2 py-1 rounded-full border bg-transparent focus:outline-none cursor-pointer font-bold text-[9px] ${getStatusStyle(patient.status)}`}
-                        >
-                          {Object.entries(statusLabels).map(([value, label]) => (
-                            <option key={value} value={value} className="bg-slate-900 text-white">{label}</option>
-                          ))}
-                        </select>
-                      </td>
-                      <td className="p-4 text-xs text-slate-500">{patient.startDate}</td>
-                      <td className="p-4">
-                        <div className="flex items-center justify-end gap-2">
-                          <button 
-                            onClick={() => fetchAttendanceHistory(patient)}
-                            className="p-2 bg-white/5 border border-white/10 rounded-lg hover:bg-emerald-500/10 text-slate-500 hover:text-emerald-400 transition-all"
-                          >
-                            <Calendar className="w-3.5 h-3.5" />
-                          </button>
-                          <button 
-                            onClick={() => {
-                              setSelectedPatientForEdit(patient);
-                              setEditForm({
-                                firstName: patient.firstName,
-                                lastName: patient.lastName,
-                                idNumber: patient.idNumber,
-                                hosenType: patient.hosenType,
-                                assignedWorkerId: patient.assignedWorkerId,
-                                status: patient.status
-                              });
-                            }}
-                            className="p-2 bg-white/5 border border-white/10 rounded-lg hover:bg-blue-500/10 text-slate-500 hover:text-blue-400 transition-all"
-                          >
-                            <Edit3 className="w-3.5 h-3.5" />
-                          </button>
-                          <button 
-                            onClick={() => router.push(`/patients/${patient.id}`)}
-                            className="p-2 bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 text-slate-500 hover:text-white transition-all"
-                          >
-                            <ChevronLeft className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+          )}
+
+          {/* Error State */}
+          {!loading && loadError && (
+            <div className="flex flex-col items-center justify-center py-20 gap-5">
+              <div className="w-16 h-16 bg-rose-500/10 rounded-3xl flex items-center justify-center">
+                <AlertCircle className="w-8 h-8 text-rose-400" />
+              </div>
+              <div className="text-center">
+                <p className="text-white font-bold">שגיאה בטעינת הנתונים</p>
+                <p className="text-slate-500 text-xs mt-1">{loadError}</p>
+              </div>
+              <button
+                onClick={() => { setLoading(true); fetchPatients(); }}
+                className="flex items-center gap-2 bg-white/5 border border-white/10 px-5 py-3 rounded-2xl text-sm font-bold hover:bg-white/10 transition-all"
+              >
+                <RefreshCw className="w-4 h-4" />
+                נסה שוב
+              </button>
             </div>
           )}
 
-          {filtered.length === 0 && !loading && (
-            <div className="col-span-full text-center py-20 bg-white/5 border border-dashed border-white/10 rounded-[2.5rem]">
+          {/* Empty State */}
+          {!loading && !loadError && filtered.length === 0 && (
+            <div className="text-center py-20 bg-white/5 border border-dashed border-white/10 rounded-[2.5rem]">
               <Users className="w-12 h-12 text-slate-700 mx-auto mb-4 opacity-20" />
               <p className="text-slate-500 text-sm">לא נמצאו מטופלים רלוונטיים</p>
             </div>
+          )}
+
+          {/* Mobile: Card View */}
+          {!loading && !loadError && filtered.length > 0 && (
+            <>
+              <div className="md:hidden space-y-3">
+                {filtered.map((patient) => (
+                  <motion.div
+                    key={patient.id}
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="bg-white/5 border border-white/10 rounded-3xl p-4 active:bg-white/[0.08] transition-all"
+                  >
+                    {/* Row 1: Avatar + Name + Status */}
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="w-10 h-10 bg-blue-500/10 text-blue-400 rounded-xl flex items-center justify-center flex-shrink-0">
+                        <User className="w-5 h-5" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-bold text-sm truncate">{patient.firstName} {patient.lastName}</p>
+                        <p className="text-[11px] text-slate-500 font-mono mt-0.5">{patient.idNumber}</p>
+                      </div>
+                      <select
+                        value={patient.status}
+                        onChange={(e) => updatePatientStatus(patient.id, e.target.value as PatientStatus)}
+                        className={`px-2.5 py-1.5 rounded-full border bg-transparent focus:outline-none cursor-pointer font-bold text-[10px] flex-shrink-0 ${getStatusStyle(patient.status)}`}
+                      >
+                        {Object.entries(statusLabels).map(([value, label]) => (
+                          <option key={value} value={value} className="bg-slate-900 text-white">{label}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Row 2: Group + Date */}
+                    <div className="flex items-center gap-2 mb-3 flex-wrap">
+                      <span className="text-[11px] font-bold text-slate-400 bg-white/5 px-2.5 py-1 rounded-lg">
+                        {resolveGroupName(patient.hosenType)}
+                      </span>
+                      {socialWorkers.find(w => w.id === patient.assignedWorkerId) && (
+                        <span className="text-[11px] text-slate-500">
+                          {socialWorkers.find(w => w.id === patient.assignedWorkerId)?.name}
+                        </span>
+                      )}
+                      {patient.startDate && (
+                        <span className="text-[11px] text-slate-600 mr-auto">{patient.startDate}</span>
+                      )}
+                    </div>
+
+                    {/* Row 3: Action Buttons */}
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => fetchAttendanceHistory(patient)}
+                        className="flex-1 py-2.5 bg-white/5 border border-white/10 rounded-xl flex items-center justify-center gap-1.5 text-[11px] font-bold text-slate-400 hover:text-emerald-400 hover:border-emerald-500/30 active:bg-white/10 transition-all"
+                      >
+                        <Calendar className="w-3.5 h-3.5" />
+                        נוכחות
+                      </button>
+                      <button
+                        onClick={() => openEditModal(patient)}
+                        className="flex-1 py-2.5 bg-white/5 border border-white/10 rounded-xl flex items-center justify-center gap-1.5 text-[11px] font-bold text-slate-400 hover:text-blue-400 hover:border-blue-500/30 active:bg-white/10 transition-all"
+                      >
+                        <Edit3 className="w-3.5 h-3.5" />
+                        עריכה
+                      </button>
+                      <button
+                        onClick={() => router.push(`/patients/${patient.id}`)}
+                        className="py-2.5 px-4 bg-white/5 border border-white/10 rounded-xl flex items-center justify-center active:bg-white/10 transition-all"
+                      >
+                        <ChevronLeft className="w-4 h-4 text-slate-400" />
+                      </button>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+
+              {/* Desktop: Table View */}
+              <div className="hidden md:block bg-white/5 border border-white/10 rounded-3xl overflow-hidden shadow-2xl">
+                <table className="w-full text-right border-collapse">
+                  <thead>
+                    <tr className="bg-white/5 border-b border-white/10">
+                      <th className="p-4 text-[11px] font-bold text-slate-500 uppercase tracking-wider">מטופל</th>
+                      <th className="p-4 text-[11px] font-bold text-slate-500 uppercase tracking-wider">ת.ז</th>
+                      <th className="p-4 text-[11px] font-bold text-slate-500 uppercase tracking-wider">קבוצה</th>
+                      <th className="p-4 text-[11px] font-bold text-slate-500 uppercase tracking-wider">עו״ס מטפל</th>
+                      <th className="p-4 text-[11px] font-bold text-slate-500 uppercase tracking-wider">סטטוס</th>
+                      <th className="p-4 text-[11px] font-bold text-slate-500 uppercase tracking-wider">תאריך התחלה</th>
+                      <th className="p-4 text-[11px] font-bold text-slate-500 uppercase tracking-wider text-left">פעולות</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filtered.map((patient) => (
+                      <tr key={patient.id} className="border-b border-white/5 hover:bg-white/5 transition-all group">
+                        <td className="p-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 bg-blue-500/10 text-blue-400 rounded-lg flex items-center justify-center">
+                              <User className="w-4 h-4" />
+                            </div>
+                            <span className="font-bold text-sm">{patient.firstName} {patient.lastName}</span>
+                          </div>
+                        </td>
+                        <td className="p-4 text-slate-500 font-mono text-xs">{patient.idNumber}</td>
+                        <td className="p-4">
+                          <span className="text-xs font-bold text-slate-400 bg-white/5 px-2 py-1 rounded-lg">
+                            {resolveGroupName(patient.hosenType)}
+                          </span>
+                        </td>
+                        <td className="p-4 text-xs text-slate-400">
+                          {socialWorkers.find(w => w.id === patient.assignedWorkerId)?.name || "—"}
+                        </td>
+                        <td className="p-4">
+                          <select
+                            value={patient.status}
+                            onChange={(e) => updatePatientStatus(patient.id, e.target.value as PatientStatus)}
+                            className={`px-2 py-1 rounded-full border bg-transparent focus:outline-none cursor-pointer font-bold text-[9px] ${getStatusStyle(patient.status)}`}
+                          >
+                            {Object.entries(statusLabels).map(([value, label]) => (
+                              <option key={value} value={value} className="bg-slate-900 text-white">{label}</option>
+                            ))}
+                          </select>
+                        </td>
+                        <td className="p-4 text-xs text-slate-500">{patient.startDate}</td>
+                        <td className="p-4">
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              onClick={() => fetchAttendanceHistory(patient)}
+                              className="p-2 bg-white/5 border border-white/10 rounded-lg hover:bg-emerald-500/10 text-slate-500 hover:text-emerald-400 transition-all"
+                            >
+                              <Calendar className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => openEditModal(patient)}
+                              className="p-2 bg-white/5 border border-white/10 rounded-lg hover:bg-blue-500/10 text-slate-500 hover:text-blue-400 transition-all"
+                            >
+                              <Edit3 className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => router.push(`/patients/${patient.id}`)}
+                              className="p-2 bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 text-slate-500 hover:text-white transition-all"
+                            >
+                              <ChevronLeft className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
         </div>
 
@@ -384,48 +491,43 @@ export default function PatientsPage() {
                 className="relative bg-slate-900 border-t sm:border border-white/10 w-full max-w-lg rounded-t-[3rem] sm:rounded-[3rem] overflow-hidden shadow-2xl"
               >
                 <div className="w-12 h-1.5 bg-white/10 rounded-full mx-auto mt-4 mb-2 sm:hidden" />
-                
-                <div className="p-8 border-b border-white/10 flex justify-between items-center">
+                <div className="p-6 border-b border-white/10 flex justify-between items-center">
                   <div>
                     <h2 className="text-xl font-bold tracking-tight">היסטוריית נוכחות</h2>
                     <p className="text-emerald-500 text-[10px] font-bold uppercase mt-1 tracking-wider">
                       {selectedPatientForAttendance.firstName} {selectedPatientForAttendance.lastName}
                     </p>
                   </div>
-                  <button 
+                  <button
                     onClick={() => setSelectedPatientForAttendance(null)}
-                    className="p-3 hover:bg-white/5 rounded-2xl transition-colors hidden sm:block"
+                    className="p-3 hover:bg-white/5 rounded-2xl transition-colors"
                   >
-                    <X className="w-6 h-6" />
+                    <X className="w-5 h-5" />
                   </button>
                 </div>
 
-                <div className="p-6 max-h-[60vh] overflow-y-auto no-scrollbar pb-12">
+                <div className="p-5 max-h-[55vh] overflow-y-auto no-scrollbar">
                   {loadingHistory ? (
-                    <div className="flex flex-col items-center justify-center py-20 gap-4">
+                    <div className="flex flex-col items-center justify-center py-16 gap-4">
                       <Loader2 className="w-8 h-8 text-emerald-500 animate-spin" />
-                      <p className="text-slate-500 text-[10px] font-bold uppercase">טוען נתונים...</p>
                     </div>
                   ) : attendanceHistory.length > 0 ? (
-                    <div className="grid grid-cols-1 gap-3">
+                    <div className="space-y-2">
                       {attendanceHistory.map((record, index) => (
-                        <div 
+                        <div
                           key={index}
-                          className="flex items-center justify-between p-5 bg-white/5 border border-white/5 rounded-[1.5rem]"
+                          className="flex items-center justify-between p-4 bg-white/5 border border-white/5 rounded-2xl"
                         >
-                          <div className="flex items-center gap-4">
-                            <div className="w-10 h-10 bg-slate-800 rounded-xl flex items-center justify-center text-slate-500">
-                              <Calendar className="w-5 h-5" />
+                          <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 bg-slate-800 rounded-xl flex items-center justify-center text-slate-500">
+                              <Calendar className="w-4 h-4" />
                             </div>
-                            <div>
-                              <p className="font-bold text-sm tracking-tight">{record.date}</p>
-                              <p className="text-[10px] text-slate-600 font-bold uppercase">רישום נוכחות</p>
-                            </div>
+                            <p className="font-bold text-sm">{record.date}</p>
                           </div>
-                          <div className={`flex items-center gap-2 px-4 py-1.5 rounded-full text-[10px] font-bold ${
-                            record.status === "present" 
-                              ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" 
-                              : "bg-rose-500/10 text-rose-400 border border-rose-500/20"
+                          <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-bold border ${
+                            record.status === "present"
+                              ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                              : "bg-rose-500/10 text-rose-400 border-rose-500/20"
                           }`}>
                             {record.status === "present" ? <Check className="w-3 h-3" /> : <X className="w-3 h-3" />}
                             {record.status === "present" ? "נוכח" : "נפקד"}
@@ -434,24 +536,25 @@ export default function PatientsPage() {
                       ))}
                     </div>
                   ) : (
-                    <div className="text-center py-20">
-                      <Calendar className="w-12 h-12 mx-auto mb-4 text-slate-800 opacity-50" />
-                      <p className="text-slate-500 text-sm italic tracking-tight">לא נמצאו רישומי נוכחות למטופל זה</p>
+                    <div className="text-center py-16">
+                      <Calendar className="w-10 h-10 mx-auto mb-3 text-slate-800 opacity-50" />
+                      <p className="text-slate-500 text-sm">לא נמצאו רישומי נוכחות</p>
                     </div>
                   )}
                 </div>
 
-                <div className="p-6 bg-slate-900 border-t border-white/5 sticky bottom-0 flex gap-3">
-                  <button 
+                <div className="p-5 border-t border-white/5">
+                  <button
                     onClick={() => setSelectedPatientForAttendance(null)}
-                    className="flex-1 py-4 bg-white/5 border border-white/10 rounded-2xl hover:bg-white/10 transition-all font-bold text-sm"
+                    className="w-full py-3.5 bg-white/5 border border-white/10 rounded-2xl hover:bg-white/10 transition-all font-bold text-sm"
                   >
-                    סגור חלונית
+                    סגור
                   </button>
                 </div>
               </motion.div>
             </div>
           )}
+
           {selectedPatientForEdit && (
             <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
               <motion.div
@@ -469,13 +572,13 @@ export default function PatientsPage() {
                 className="relative bg-slate-900 border-t sm:border border-white/10 w-full max-w-lg rounded-t-[3rem] sm:rounded-[3rem] overflow-hidden shadow-2xl"
               >
                 <div className="w-12 h-1.5 bg-white/10 rounded-full mx-auto mt-4 mb-2 sm:hidden" />
-                
-                <div className="p-8 border-b border-white/10 flex justify-between items-center">
+
+                <div className="p-6 border-b border-white/10 flex justify-between items-center">
                   <div>
                     <h3 className="font-bold text-xl tracking-tight">עריכה מהירה</h3>
-                    <p className="text-slate-500 text-[10px] font-bold uppercase mt-1">עדכון פרטי {editForm.firstName} {editForm.lastName}</p>
+                    <p className="text-slate-500 text-[10px] font-bold uppercase mt-1">{editForm.firstName} {editForm.lastName}</p>
                   </div>
-                  <button 
+                  <button
                     onClick={() => setSelectedPatientForEdit(null)}
                     className="p-3 bg-white/5 border border-white/10 rounded-2xl text-slate-500 hover:text-white transition-all"
                   >
@@ -483,19 +586,19 @@ export default function PatientsPage() {
                   </button>
                 </div>
 
-                <div className="p-8 space-y-6 max-h-[60vh] overflow-y-auto no-scrollbar">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
+                <div className="p-6 space-y-5 max-h-[55vh] overflow-y-auto no-scrollbar">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
                       <label className="text-[10px] font-bold text-slate-500 uppercase px-1">שם פרטי</label>
-                      <input 
+                      <input
                         value={editForm.firstName || ""}
                         onChange={(e) => setEditForm({ ...editForm, firstName: e.target.value })}
                         className="w-full bg-white/5 border border-white/10 rounded-2xl p-3 text-sm focus:border-blue-500 transition-all outline-none"
                       />
                     </div>
-                    <div className="space-y-2">
+                    <div className="space-y-1.5">
                       <label className="text-[10px] font-bold text-slate-500 uppercase px-1">שם משפחה</label>
-                      <input 
+                      <input
                         value={editForm.lastName || ""}
                         onChange={(e) => setEditForm({ ...editForm, lastName: e.target.value })}
                         className="w-full bg-white/5 border border-white/10 rounded-2xl p-3 text-sm focus:border-blue-500 transition-all outline-none"
@@ -503,18 +606,18 @@ export default function PatientsPage() {
                     </div>
                   </div>
 
-                  <div className="space-y-2">
+                  <div className="space-y-1.5">
                     <label className="text-[10px] font-bold text-slate-500 uppercase px-1">תעודת זהות</label>
-                    <input 
+                    <input
                       value={editForm.idNumber || ""}
                       onChange={(e) => setEditForm({ ...editForm, idNumber: e.target.value })}
                       className="w-full bg-white/5 border border-white/10 rounded-2xl p-3 text-sm focus:border-blue-500 transition-all outline-none"
                     />
                   </div>
 
-                  <div className="space-y-2">
+                  <div className="space-y-1.5">
                     <label className="text-[10px] font-bold text-slate-500 uppercase px-1">קבוצה (חוסן)</label>
-                    <select 
+                    <select
                       value={editForm.hosenType || ""}
                       onChange={(e) => setEditForm({ ...editForm, hosenType: e.target.value })}
                       className="w-full bg-white/5 border border-white/10 rounded-2xl p-3 text-sm focus:border-blue-500 transition-all outline-none"
@@ -524,9 +627,9 @@ export default function PatientsPage() {
                     </select>
                   </div>
 
-                  <div className="space-y-2">
+                  <div className="space-y-1.5">
                     <label className="text-[10px] font-bold text-slate-500 uppercase px-1">עו״ס מטפל</label>
-                    <select 
+                    <select
                       value={editForm.assignedWorkerId || ""}
                       onChange={(e) => setEditForm({ ...editForm, assignedWorkerId: e.target.value })}
                       className="w-full bg-white/5 border border-white/10 rounded-2xl p-3 text-sm focus:border-blue-500 transition-all outline-none"
@@ -536,9 +639,9 @@ export default function PatientsPage() {
                     </select>
                   </div>
 
-                  <div className="space-y-2">
+                  <div className="space-y-1.5">
                     <label className="text-[10px] font-bold text-slate-500 uppercase px-1">סטטוס</label>
-                    <select 
+                    <select
                       value={editForm.status || ""}
                       onChange={(e) => setEditForm({ ...editForm, status: e.target.value as PatientStatus })}
                       className="w-full bg-white/5 border border-white/10 rounded-2xl p-3 text-sm focus:border-blue-500 transition-all outline-none"
@@ -550,17 +653,17 @@ export default function PatientsPage() {
                   </div>
                 </div>
 
-                <div className="p-8 bg-slate-900 border-t border-white/10 flex gap-4">
-                  <button 
+                <div className="p-6 border-t border-white/10 flex gap-3">
+                  <button
                     onClick={() => setSelectedPatientForEdit(null)}
-                    className="flex-1 py-4 bg-white/5 border border-white/10 rounded-2xl hover:bg-white/10 transition-all font-bold text-sm"
+                    className="flex-1 py-3.5 bg-white/5 border border-white/10 rounded-2xl hover:bg-white/10 transition-all font-bold text-sm"
                   >
                     ביטול
                   </button>
-                  <button 
+                  <button
                     onClick={handleSaveQuickEdit}
                     disabled={isSaving}
-                    className="flex-1 py-4 bg-blue-600 rounded-2xl hover:bg-blue-500 transition-all font-bold text-sm shadow-xl shadow-blue-600/20 disabled:opacity-50 flex items-center justify-center gap-2"
+                    className="flex-1 py-3.5 bg-blue-600 rounded-2xl hover:bg-blue-500 transition-all font-bold text-sm shadow-xl shadow-blue-600/20 disabled:opacity-50 flex items-center justify-center gap-2"
                   >
                     {isSaving ? <Loader2 className="w-5 h-5 animate-spin" /> : "שמור שינויים"}
                   </button>
@@ -573,4 +676,3 @@ export default function PatientsPage() {
     </RoleGuard>
   );
 }
-

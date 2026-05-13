@@ -2,74 +2,103 @@ import { NextResponse } from "next/server";
 import admin from "firebase-admin";
 
 if (!admin.apps.length) {
-  const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
-  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
-  // Handle private key formatting and potential extra quotes from env vars
   let privateKey = process.env.FIREBASE_PRIVATE_KEY;
-  
   if (privateKey) {
-    // Remove potential surrounding quotes
     privateKey = privateKey.trim();
     if (privateKey.startsWith('"') && privateKey.endsWith('"')) {
-      privateKey = privateKey.substring(1, privateKey.length - 1);
+      privateKey = privateKey.slice(1, -1);
     }
-    // Handle escaped newlines
-    privateKey = privateKey.replace(/\\n/g, '\n');
+    privateKey = privateKey.replace(/\\n/g, "\n");
   }
+
+  const projectId    = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
+  const clientEmail  = process.env.FIREBASE_CLIENT_EMAIL;
 
   if (projectId && clientEmail && privateKey) {
     try {
       admin.initializeApp({
-        credential: admin.credential.cert({
-          projectId,
-          clientEmail,
-          privateKey,
-        }),
+        credential: admin.credential.cert({ projectId, clientEmail, privateKey }),
       });
-    } catch (error) {
-      console.error("Failed to initialize Firebase Admin:", error);
+    } catch (err) {
+      console.error("Firebase Admin init failed:", err);
     }
-  } else {
-    console.warn("Firebase Admin not initialized: Missing or invalid environment variables.");
   }
 }
 
+// Send a push notification to a specific user, or to all users matching a role.
+// Body: { userId?, role?, title, body, link? }
 export async function POST(req: Request) {
   try {
-    const { userId, title, body } = await req.json();
-    
-    // 1. Get user tokens from Firestore
-    const userDoc = await admin.firestore().collection("users").doc(userId).get();
-    const userData = userDoc.data();
-    
-    if (!userData || !userData.fcmTokens || userData.fcmTokens.length === 0) {
-      return NextResponse.json({ error: "No tokens found for user" }, { status: 404 });
+    const { userId, role, title, body, link = "/" } = await req.json();
+
+    if (!title) return NextResponse.json({ error: "title is required" }, { status: 400 });
+
+    // Map: uid → fcmTokens[]
+    const tokensByUser = new Map<string, string[]>();
+
+    if (userId) {
+      const snap = await admin.firestore().collection("users").doc(userId).get();
+      const data = snap.data();
+      if (data?.fcmTokens?.length) {
+        tokensByUser.set(userId, data.fcmTokens);
+      }
+    } else if (role) {
+      const roles = Array.isArray(role) ? role : [role];
+      const snap = await admin.firestore().collection("users").get();
+      snap.forEach((d) => {
+        const data = d.data();
+        if (roles.includes(data.role) && data.fcmTokens?.length) {
+          tokensByUser.set(d.id, data.fcmTokens);
+        }
+      });
+    } else {
+      return NextResponse.json({ error: "userId or role required" }, { status: 400 });
     }
 
-    const tokens = userData.fcmTokens;
+    const allTokens = [...tokensByUser.values()].flat();
+    if (allTokens.length === 0) {
+      return NextResponse.json({ success: true, sent: 0, note: "no tokens" });
+    }
 
-    // 2. Send notification
-    const response = await admin.messaging().sendEachForMulticast({
-      tokens,
-      notification: {
-        title,
-        body,
-      },
+    const result = await admin.messaging().sendEachForMulticast({
+      tokens: allTokens,
+      notification: { title, body: body || "" },
       webpush: {
-        fcmOptions: {
-          link: "/",
-        },
+        notification: { icon: "/icon-192.png", badge: "/icon-192.png" },
+        fcmOptions: { link },
       },
     });
 
-    return NextResponse.json({ 
-      success: true, 
-      successCount: response.successCount,
-      failureCount: response.failureCount 
-    });
+    // Clean up expired / invalid tokens
+    if (result.failureCount > 0) {
+      const staleTokens = new Set<string>();
+      result.responses.forEach((resp, idx) => {
+        const code = resp.error?.code ?? "";
+        if (
+          !resp.success &&
+          (code.includes("invalid-registration-token") ||
+            code.includes("registration-token-not-registered"))
+        ) {
+          staleTokens.add(allTokens[idx]);
+        }
+      });
 
-  } catch (error: any) {
-    console.error("Error sending notification:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+      if (staleTokens.size > 0) {
+        const db = admin.firestore();
+        const batch = db.batch();
+        for (const [uid, tokens] of tokensByUser) {
+          const clean = tokens.filter((t) => !staleTokens.has(t));
+          if (clean.length !== tokens.length) {
+            batch.update(db.collection("users").doc(uid), { fcmTokens: clean });
+          }
+        }
+        await batch.commit();
+      }
+    }
+
+    return NextResponse.json({ success: true, sent: result.successCount, failed: result.failureCount });
+  } catch (err: any) {
+    console.error("Notify error:", err);
+    return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
