@@ -146,6 +146,28 @@ function AttendancePageContent() {
     missing: patients.filter(p => !attendance[p.id] || attendance[p.id] === "unset").length
   };
 
+  const handleMarkAllPresent = async () => {
+    const unmarked = patients.filter(p => !attendance[p.id] || attendance[p.id] === "unset");
+    if (unmarked.length === 0) return;
+
+    // Optimistic update first
+    const update: AttendanceRecord = { ...attendance };
+    unmarked.forEach(p => { update[p.id] = "present"; });
+    setAttendance(update);
+
+    await Promise.all(
+      unmarked.map(p =>
+        setDoc(doc(db, "attendance", `${today}_${p.id}`), {
+          date: today,
+          patientId: p.id,
+          status: "present",
+          hosenType: selectedGroup,
+          updatedAt: new Date(),
+        })
+      )
+    );
+  };
+
   const handleSendSummary = async () => {
     setSendingSummary(true);
     const groupName = groups.find(g => g.id === selectedGroup)?.name || selectedGroup;
@@ -250,15 +272,28 @@ function AttendancePageContent() {
           ))}
         </div>
 
-        <div className="relative">
-          <Search className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-          <input
-            type="text"
-            placeholder="חיפוש מטופל ברשימה..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full bg-white/5 border border-white/10 rounded-[1.25rem] py-4 pr-11 pl-4 text-sm focus:outline-none focus:border-emerald-500 transition-all shadow-2xl shadow-black/40"
-          />
+        {/* Search + mark-all row */}
+        <div className="flex gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+            <input
+              type="text"
+              placeholder="חיפוש מטופל..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full bg-white/5 border border-white/10 rounded-[1.25rem] py-4 pr-11 pl-4 text-sm focus:outline-none focus:border-emerald-500 transition-all"
+            />
+          </div>
+          {stats.missing > 0 && (
+            <button
+              onClick={handleMarkAllPresent}
+              className="flex-shrink-0 flex items-center gap-1.5 px-4 py-4 bg-emerald-600/15 border border-emerald-500/30 rounded-[1.25rem] text-xs font-bold text-emerald-400 active:bg-emerald-600/30 transition-all"
+            >
+              <CheckCircle className="w-4 h-4" />
+              <span className="hidden sm:inline">סמן הכל נוכחים</span>
+              <span className="sm:hidden">הכל</span>
+            </button>
+          )}
         </div>
       </header>
 
@@ -269,32 +304,48 @@ function AttendancePageContent() {
             <p className="text-slate-500 text-xs animate-pulse">טוען רשימת מטופלים...</p>
           </div>
         ) : (
-          <div className="space-y-3">
-            <AnimatePresence mode="popLayout">
-              {filteredPatients.map((patient) => (
-                <motion.div
-                  key={patient.id}
-                  layout
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.95 }}
-                >
-                  <AttendanceItem
-                    patient={patient}
-                    status={attendance[patient.id] || "unset"}
-                    onToggle={(status) => handleToggleAttendance(patient.id, status)}
-                  />
-                </motion.div>
-              ))}
-            </AnimatePresence>
-
-            {filteredPatients.length === 0 && (
-              <div className="text-center py-20 bg-white/5 border border-dashed border-white/10 rounded-[2.5rem]">
-                <ClipboardList className="w-12 h-12 text-slate-700 mx-auto mb-4" />
-                <p className="text-slate-500 text-sm">לא נמצאו מטופלים רלוונטיים</p>
-              </div>
+          <>
+            {/* All-done celebration */}
+            {stats.missing === 0 && stats.total > 0 && !searchTerm && (
+              <motion.div
+                initial={{ opacity: 0, y: -8 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mb-4 text-center py-5 bg-emerald-500/8 border border-emerald-500/20 rounded-[2rem] flex items-center justify-center gap-3"
+              >
+                <CheckCircle className="w-5 h-5 text-emerald-400" />
+                <span className="text-emerald-400 font-bold text-sm">
+                  הנוכחות הושלמה — {stats.present} נוכחים, {stats.absent} נעדרים
+                </span>
+              </motion.div>
             )}
-          </div>
+
+            <div className="space-y-3">
+              <AnimatePresence mode="popLayout">
+                {filteredPatients.map((patient) => (
+                  <motion.div
+                    key={patient.id}
+                    layout
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                  >
+                    <AttendanceItem
+                      patient={patient}
+                      status={attendance[patient.id] || "unset"}
+                      onToggle={(status) => handleToggleAttendance(patient.id, status)}
+                    />
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+
+              {filteredPatients.length === 0 && !loading && (
+                <div className="text-center py-20 bg-white/5 border border-dashed border-white/10 rounded-[2.5rem]">
+                  <ClipboardList className="w-12 h-12 text-slate-700 mx-auto mb-4" />
+                  <p className="text-slate-500 text-sm">לא נמצאו מטופלים</p>
+                </div>
+              )}
+            </div>
+          </>
         )}
       </div>
     </main>
