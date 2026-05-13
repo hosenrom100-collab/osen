@@ -72,15 +72,22 @@ function AttendancePageContent() {
       const groupObj = groups.find(g => g.id === selectedGroup);
       const groupName = groupObj?.name || "";
 
-      // Fetch patients for this group (check both ID and Name for compatibility)
+      // Fetch ALL patients for debugging and filtering
       const patientsSnap = await getDocs(collection(db, "patients"));
       const patientsList: Patient[] = [];
+      
       patientsSnap.forEach(doc => {
         const data = doc.data();
-        if (data.status === "active" && (data.hosenType === selectedGroup || data.hosenType === groupName)) {
+        // Be more inclusive: check if they belong to the group, status is a secondary filter
+        const matchesGroup = data.hosenType === selectedGroup || data.hosenType === groupName;
+        
+        if (matchesGroup) {
           patientsList.push({ id: doc.id, ...data } as Patient);
         }
       });
+      
+      // Sort patients by name
+      patientsList.sort((a, b) => a.firstName.localeCompare(b.firstName, "he"));
       setPatients(patientsList);
 
       // Fetch today's attendance
@@ -104,6 +111,9 @@ function AttendancePageContent() {
 
   const handleToggleAttendance = async (patientId: string, status: "present" | "absent") => {
     try {
+      // Optimistic update for better UX
+      setAttendance(prev => ({ ...prev, [patientId]: status }));
+
       const docId = `${today}_${patientId}`;
       await setDoc(doc(db, "attendance", docId), {
         date: today,
@@ -112,9 +122,10 @@ function AttendancePageContent() {
         hosenType: selectedGroup,
         updatedAt: new Date()
       });
-      setAttendance(prev => ({ ...prev, [patientId]: status }));
     } catch (error) {
       console.error("Error updating attendance:", error);
+      // Revert on error
+      fetchData();
     }
   };
 
@@ -124,9 +135,9 @@ function AttendancePageContent() {
 
   const stats = {
     total: patients.length,
-    present: filteredPatients.filter(p => attendance[p.id] === "present").length,
-    absent: filteredPatients.filter(p => attendance[p.id] === "absent").length,
-    missing: filteredPatients.filter(p => !attendance[p.id] || attendance[p.id] === "unset").length
+    present: patients.filter(p => attendance[p.id] === "present").length,
+    absent: patients.filter(p => attendance[p.id] === "absent").length,
+    missing: patients.filter(p => !attendance[p.id] || attendance[p.id] === "unset").length
   };
 
   return (
@@ -148,25 +159,12 @@ function AttendancePageContent() {
           </div>
         </div>
 
-        {/* Group Chips - Horizontal Scroll */}
-        <div className="flex gap-2 overflow-x-auto pb-4 no-scrollbar -mx-4 px-4 mb-4">
-          {groups.map((group) => (
-            <button
-              key={group.id}
-              onClick={() => setSelectedGroup(group.id)}
-              className={`flex-shrink-0 px-5 py-2.5 rounded-2xl text-xs font-bold transition-all border ${
-                selectedGroup === group.id 
-                  ? "bg-emerald-600 border-emerald-500 text-white shadow-lg shadow-emerald-600/20" 
-                  : "bg-white/5 border-white/10 text-slate-400 hover:text-white"
-              }`}
-            >
-              {group.name}
-            </button>
-          ))}
-        </div>
-
         {/* Stats Bar - Compact for Mobile */}
-        <div className="grid grid-cols-3 gap-2 mb-6">
+        <div className="grid grid-cols-4 gap-2 mb-6">
+          <div className="bg-white/5 border border-white/5 p-3 rounded-2xl text-center">
+            <p className="text-slate-500 text-[9px] font-bold uppercase mb-1">סה"כ</p>
+            <h3 className="text-lg font-bold text-white">{stats.total}</h3>
+          </div>
           <div className="bg-emerald-500/5 border border-emerald-500/10 p-3 rounded-2xl text-center">
             <p className="text-emerald-500 text-[9px] font-bold uppercase mb-1">נוכחים</p>
             <h3 className="text-lg font-bold text-emerald-400">{stats.present}</h3>
@@ -175,10 +173,27 @@ function AttendancePageContent() {
             <p className="text-rose-500 text-[9px] font-bold uppercase mb-1">נעדרים</p>
             <h3 className="text-lg font-bold text-rose-400">{stats.absent}</h3>
           </div>
-          <div className="bg-white/5 border border-white/5 p-3 rounded-2xl text-center">
-            <p className="text-slate-500 text-[9px] font-bold uppercase mb-1">נותרו</p>
-            <h3 className="text-lg font-bold text-slate-300">{stats.missing}</h3>
+          <div className="bg-blue-500/5 border border-blue-500/10 p-3 rounded-2xl text-center">
+            <p className="text-blue-500 text-[9px] font-bold uppercase mb-1">נותרו</p>
+            <h3 className="text-lg font-bold text-blue-400">{stats.missing}</h3>
           </div>
+        </div>
+
+        {/* Group Chips - Horizontal Scroll */}
+        <div className="flex gap-2 overflow-x-auto pb-4 no-scrollbar -mx-4 px-4 mb-4">
+          {groups.map((group) => (
+            <button
+              key={group.id}
+              onClick={() => setSelectedGroup(group.id)}
+              className={`flex-shrink-0 px-6 py-3 rounded-2xl text-xs font-black transition-all border-2 ${
+                selectedGroup === group.id 
+                  ? "bg-emerald-600 border-emerald-400 text-white shadow-xl shadow-emerald-600/30 scale-105" 
+                  : "bg-white/5 border-white/10 text-slate-500"
+              }`}
+            >
+              {group.name}
+            </button>
+          ))}
         </div>
 
         <div className="relative">
@@ -188,7 +203,7 @@ function AttendancePageContent() {
             placeholder="חיפוש מטופל ברשימה..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full bg-white/5 border border-white/10 rounded-[1.25rem] py-3.5 pr-11 pl-4 text-sm focus:outline-none focus:border-emerald-500 transition-all shadow-xl shadow-black/20"
+            className="w-full bg-white/5 border border-white/10 rounded-[1.25rem] py-4 pr-11 pl-4 text-sm focus:outline-none focus:border-emerald-500 transition-all shadow-2xl shadow-black/40"
           />
         </div>
       </header>
