@@ -62,39 +62,39 @@
 .light {
   color-scheme: light;
 
-  /* Override @theme tokens */
-  --color-background:  #f8fafc;
+  /* Curated Professional Light Palette */
+  --color-background:  #fcfdfd;
   --color-surface:     #ffffff;
-  --color-surface-hi:  #f1f5f9;
-  --color-card:        #ffffff;
-  --color-border:      #e2e8f0;
-  --color-border-hi:   #cbd5e1;
+  --color-surface-hi:  #f8fafc;
+  --color-card:        rgba(255, 255, 255, 0.8);
+  --color-border:      rgba(15, 23, 42, 0.08);
+  --color-border-hi:   rgba(15, 23, 42, 0.12);
   --color-sidebar:     #ffffff;
   --color-foreground:  #0f172a;
   --color-muted:       #475569;
   --color-subtle:      #94a3b8;
-  --color-primary:     #2563eb;
-  --color-primary-faint: #eff6ff;
+  --color-primary:     #0284c7;
+  --color-primary-faint: #f0f9ff;
 
-  /* Legacy variables */
-  --background:      #f8fafc;
+  /* CSS Variable Fallbacks */
+  --background:      #fcfdfd;
   --surface:         #ffffff;
-  --surface-raised:  #f1f5f9;
-  --card-bg:         #ffffff;
-  --card-pattern:    none;
+  --surface-raised:  #f8fafc;
+  --card-bg:         rgba(255, 255, 255, 0.9);
+  --card-pattern:    repeating-linear-gradient(45deg, transparent, transparent 20px, rgba(15, 23, 42, 0.01) 20px, rgba(15, 23, 42, 0.01) 40px);
   --sidebar-bg:      #ffffff;
 
-  --border:          #e2e8f0;
-  --border-strong:   #cbd5e1;
-  --border-subtle:   #f1f5f9;
+  --border:          rgba(15, 23, 42, 0.08);
+  --border-strong:   rgba(15, 23, 42, 0.15);
+  --border-subtle:   rgba(15, 23, 42, 0.04);
 
   --foreground:      #0f172a;
   --text-secondary:  #475569;
   --text-muted:      #94a3b8;
 
-  --primary:         #2563eb;
-  --primary-rgb:     37, 99, 235;
-  --primary-faint:   rgba(37, 99, 235, 0.08);
+  --primary:         #0284c7;
+  --primary-rgb:     2, 132, 199;
+  --primary-faint:   rgba(2, 132, 199, 0.05);
 
   --scrollbar-track: #f8fafc;
   --scrollbar-thumb: #cbd5e1;

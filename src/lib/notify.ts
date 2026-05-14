@@ -1,6 +1,9 @@
 export async function sendPush(params: {
   userId?: string;
   role?: string | string[];
+  groupId?: string;
+  programId?: string;
+  everyone?: boolean;
   title: string;
   body?: string;
   link?: string;

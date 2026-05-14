@@ -25,11 +25,11 @@ if (!admin.apps.length) {
   }
 }
 
-// Send a push notification to a specific user, or to all users matching a role.
-// Body: { userId?, role?, title, body, link? }
+// Send a push notification to a specific user, or to all users matching a role/group/program.
+// Body: { userId?, role?, groupId?, programId?, everyone?, title, body, link? }
 export async function POST(req: Request) {
   try {
-    const { userId, role, title, body, link = "/" } = await req.json();
+    const { userId, role, groupId, programId, everyone, title, body, link = "/" } = await req.json();
 
     if (!title) return NextResponse.json({ error: "title is required" }, { status: 400 });
 
@@ -47,12 +47,50 @@ export async function POST(req: Request) {
       const snap = await admin.firestore().collection("users").get();
       snap.forEach((d) => {
         const data = d.data();
-        if (roles.includes(data.role) && data.fcmTokens?.length) {
+        const status = data.status ?? "approved";
+        if (status === "approved" && roles.includes(data.role) && data.fcmTokens?.length) {
+          tokensByUser.set(d.id, data.fcmTokens);
+        }
+      });
+    } else if (groupId) {
+      const snap = await admin.firestore().collection("users").get();
+      snap.forEach((d) => {
+        const data = d.data();
+        const status = data.status ?? "approved";
+        if (
+          status === "approved" &&
+          Array.isArray(data.assignedGroups) &&
+          data.assignedGroups.includes(groupId) &&
+          data.fcmTokens?.length
+        ) {
+          tokensByUser.set(d.id, data.fcmTokens);
+        }
+      });
+    } else if (programId) {
+      const snap = await admin.firestore().collection("users").get();
+      snap.forEach((d) => {
+        const data = d.data();
+        const status = data.status ?? "approved";
+        if (
+          status === "approved" &&
+          Array.isArray(data.preferredProgramIds) &&
+          data.preferredProgramIds.includes(programId) &&
+          data.fcmTokens?.length
+        ) {
+          tokensByUser.set(d.id, data.fcmTokens);
+        }
+      });
+    } else if (everyone) {
+      const snap = await admin.firestore().collection("users").get();
+      snap.forEach((d) => {
+        const data = d.data();
+        const status = data.status ?? "approved";
+        if (status === "approved" && data.fcmTokens?.length) {
           tokensByUser.set(d.id, data.fcmTokens);
         }
       });
     } else {
-      return NextResponse.json({ error: "userId or role required" }, { status: 400 });
+      return NextResponse.json({ error: "target required: userId, role, groupId, programId, or everyone=true" }, { status: 400 });
     }
 
     const allTokens = [...tokensByUser.values()].flat();

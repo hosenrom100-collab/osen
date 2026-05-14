@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, ClipboardList, Users, ShoppingCart, User, BarChart3, Settings } from "lucide-react";
+import { Home, ClipboardList, Users, ShoppingCart, User, BarChart3, Settings, Clock } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { motion } from "framer-motion";
 
@@ -16,7 +16,8 @@ const NAV = [
 ];
 
 const ADMIN_NAV = [
-  { href: "/admin",    icon: Settings, label: "ניהול" },
+  { href: "/admin",                 icon: Settings, label: "ניהול" },
+  { href: "/admin/staff-attendance", icon: Clock,    label: "נוכחות צוות" },
 ];
 
 const ROLE_HE: Record<string, string> = {

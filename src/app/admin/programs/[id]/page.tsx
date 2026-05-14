@@ -134,7 +134,7 @@ export default function ProgramDetailPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+      <div className="min-h-screen bg-[var(--background)] flex items-center justify-center">
         <Loader2 className="w-7 h-7 text-violet-400 animate-spin" />
       </div>
     );
@@ -142,7 +142,7 @@ export default function ProgramDetailPage() {
 
   return (
     <RoleGuard allowedRoles={["admin", "manager"]} redirectTo="/">
-      <div className="min-h-screen bg-slate-950 text-white">
+      <div className="min-h-screen bg-[var(--background)] text-[var(--foreground)]">
 
         {/* ── Sticky header ── */}
         <header className="sticky top-0 z-40 bg-slate-950/95 backdrop-blur-xl border-b border-white/5 px-4 py-3">

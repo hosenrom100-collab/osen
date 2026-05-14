@@ -109,7 +109,7 @@ export default function UserManagementPage() {
 
   return (
     <RoleGuard allowedRoles={["admin", "manager"]} redirectTo="/">
-      <main className="min-h-screen bg-slate-950 text-white p-6">
+      <main className="min-h-screen bg-[var(--background)] text-[var(--foreground)] p-6">
         <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
           <div className="flex items-center gap-4">
             <button 

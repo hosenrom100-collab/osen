@@ -24,7 +24,7 @@ function AttendanceRedirect() {
   }, [loading, primaryGroupId, router]);
 
   return (
-    <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+    <div className="min-h-screen bg-[var(--background)] flex items-center justify-center">
       <Loader2 className="w-7 h-7 text-emerald-400 animate-spin" />
     </div>
   );

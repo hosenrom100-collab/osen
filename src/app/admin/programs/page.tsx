@@ -78,7 +78,7 @@ export default function ProgramsPage() {
 
   return (
     <RoleGuard allowedRoles={["admin", "manager"]} redirectTo="/">
-      <div dir="rtl" className="min-h-screen bg-slate-950 text-white">
+      <div dir="rtl" className="min-h-screen bg-[var(--background)] text-[var(--foreground)]">
 
         {/* ── Header ── */}
         <header className="sticky top-0 z-40 bg-slate-950/95 backdrop-blur-xl border-b border-white/[0.07] px-4 md:px-6">

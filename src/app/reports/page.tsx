@@ -6,7 +6,7 @@ import { ArrowRight, FileText } from "lucide-react";
 export default function ReportsPlaceholder() {
   const router = useRouter();
   return (
-    <main className="min-h-screen bg-slate-950 text-white p-12 flex flex-col items-center justify-center text-center">
+    <main className="min-h-screen bg-[var(--background)] text-[var(--foreground)] p-12 flex flex-col items-center justify-center text-center">
       <div className="w-20 h-20 bg-rose-500/10 text-rose-400 rounded-3xl flex items-center justify-center mb-8">
         <FileText className="w-10 h-10" />
       </div>

@@ -1,13 +1,13 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState } from "react";
-import { onAuthStateChanged, signInWithPopup, signOut, User } from "firebase/auth";
-import { doc, getDoc, setDoc, updateDoc, serverTimestamp } from "firebase/firestore";
-import { auth, db, googleProvider } from "@/lib/firebase/config";
+import { auth, db } from "@/lib/firebase/config";
+import { onAuthStateChanged, signInWithPopup, GoogleAuthProvider, signOut, User } from "firebase/auth";
+import { createContext, useContext, useEffect, useState } from "react";
+import { doc, getDoc, updateDoc, onSnapshot } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 
-export type UserRole   = "admin" | "manager" | "logistics" | "instructor" | "employee" | "social_worker";
-export type UserStatus = "pending" | "approved" | "blocked";
+export type UserRole = "admin" | "manager" | "instructor" | "social_worker" | "employee" | "logistics";
+export type UserStatus = "pending" | "approved" | "rejected";
 
 interface AuthContextType {
   user:            User | null;
@@ -15,15 +15,12 @@ interface AuthContextType {
   role:            UserRole | null;
   status:          UserStatus | null;
   assignedGroups:  string[];
-  /** The group the user has selected as their primary view */
   primaryGroupId:  string | null;
-  setPrimaryGroupId: (id: string | null) => Promise<void>;
-  /** Programs the user chose to show in their personal dashboard */
   preferredProgramIds: string[];
+  preferredGroupIds:   string[];
+  setPrimaryGroupId: (id: string | null) => Promise<void>;
   setPreferredPrograms: (ids: string[]) => Promise<void>;
-  /** Groups the user chose to show in their personal dashboard */
-  preferredGroupIds: string[];
-  setPreferredGroups: (ids: string[]) => Promise<void>;
+  setPreferredGroups:   (ids: string[]) => Promise<void>;
   isAdmin:         boolean;
   isManager:       boolean;
   isLogistics:     boolean;
@@ -31,7 +28,8 @@ interface AuthContextType {
   isEmployee:      boolean;
   isWhitelisted:   boolean;
   phoneNumber?:    string;
-  workDays?:       number[]; // 0=Sunday, 1=Monday...
+  workSchedule?:   Record<string, { start: string, end: string }>;
+  onboardingComplete?: boolean;
   login:           () => Promise<void>;
   logout:          () => Promise<void>;
 }
@@ -54,14 +52,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isEmployee,     setIsEmployee]     = useState(false);
   const [isWhitelisted,  setIsWhitelisted]  = useState(false);
   const [phoneNumber,    setPhoneNumber]    = useState<string | undefined>();
-  const [workDays,       setWorkDays]       = useState<number[] | undefined>();
+  const [workSchedule,   setWorkSchedule]   = useState<Record<string, { start: string, end: string }> | undefined>();
+  const [onboardingComplete, setOnboardingComplete] = useState<boolean>(false);
   const router = useRouter();
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+    let unsubscribeUserDoc: (() => void) | undefined;
+
+    const unsubscribeAuth = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
-        try {
-          const snap = await getDoc(doc(db, "users", firebaseUser.uid));
+        setUser(firebaseUser);
+        
+        // Listen to user document changes in real-time
+        unsubscribeUserDoc = onSnapshot(doc(db, "users", firebaseUser.uid), (snap) => {
           if (snap.exists()) {
             const data       = snap.data();
             const userRole   = data.role as UserRole;
@@ -82,31 +85,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setIsInstructor(userRole === "instructor");
             setIsEmployee(userRole === "employee");
             setPhoneNumber(data.phone);
-            setWorkDays(data.workDays);
-            setUser(firebaseUser);
+            setWorkSchedule(data.workSchedule);
+            setOnboardingComplete(!!data.onboardingComplete);
           } else {
-            setUser(firebaseUser);
             setIsWhitelisted(false);
             setRole(null);
             setStatus("pending");
             setAssignedGroups([]);
-            setPrimaryGroupIdState(null);
-            setIsAdmin(false); setIsManager(false);
-            setIsLogistics(false); setIsInstructor(false); setIsEmployee(false);
           }
-        } catch {
-          setUser(firebaseUser);
-          setIsWhitelisted(false);
-        }
+          setLoading(false);
+        }, (err) => {
+          console.error("User doc error:", err);
+          setLoading(false);
+        });
+
       } else {
-        setUser(null); setIsWhitelisted(false); setRole(null); setStatus(null);
-        setAssignedGroups([]); setPrimaryGroupIdState(null);
-        setIsAdmin(false); setIsManager(false);
-        setIsLogistics(false); setIsInstructor(false); setIsEmployee(false);
+        setUser(null);
+        setIsWhitelisted(false);
+        setRole(null);
+        setStatus(null);
+        setLoading(false);
+        if (unsubscribeUserDoc) unsubscribeUserDoc();
       }
-      setLoading(false);
     });
-    return () => unsubscribe();
+
+    return () => {
+      unsubscribeAuth();
+      if (unsubscribeUserDoc) unsubscribeUserDoc();
+    };
   }, []);
 
   const setPrimaryGroupId = async (id: string | null) => {
@@ -125,37 +131,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const login = async () => {
-    try {
-      const result = await signInWithPopup(auth, googleProvider);
-      const snap   = await getDoc(doc(db, "users", result.user.uid));
-      if (!snap.exists()) {
-        await setDoc(doc(db, "users", result.user.uid), {
-          email:          result.user.email,
-          name:           result.user.displayName,
-          createdAt:      serverTimestamp(),
-          role:           "employee",
-          status:         "pending",
-          assignedGroups: [],
-          primaryGroupId: null,
-        });
-      }
-    } catch (err) {
-      console.error("Login failed:", err);
-    }
+    const provider = new GoogleAuthProvider();
+    await signInWithPopup(auth, provider);
   };
 
   const logout = async () => {
-    try { await signOut(auth); router.push("/login"); }
-    catch (err) { console.error("Logout failed:", err); }
+    await signOut(auth);
+    router.push("/login");
   };
 
   return (
     <AuthContext.Provider value={{
-      user, loading, role, status, assignedGroups, primaryGroupId, setPrimaryGroupId,
-      preferredProgramIds, setPreferredPrograms, preferredGroupIds, setPreferredGroups,
+      user, loading, role, status, assignedGroups, primaryGroupId,
+      preferredProgramIds, preferredGroupIds,
+      setPrimaryGroupId, setPreferredPrograms, setPreferredGroups,
       isAdmin, isManager, isLogistics, isInstructor, isEmployee, isWhitelisted,
-      phoneNumber, workDays,
-      login, logout,
+      phoneNumber, workSchedule, onboardingComplete,
+      login, logout
     }}>
       {children}
     </AuthContext.Provider>
@@ -163,7 +155,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 }
 
 export const useAuth = () => {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error("useAuth must be used within an AuthProvider");
-  return ctx;
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error("useAuth must be used within an AuthProvider");
+  }
+  return context;
 };

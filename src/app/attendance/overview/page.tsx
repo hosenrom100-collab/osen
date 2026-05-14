@@ -143,10 +143,10 @@ export default function AttendanceOverviewPage() {
 
   return (
     <RoleGuard allowedRoles={["admin","manager"]} redirectTo="/">
-      <div className="min-h-screen bg-slate-950 text-white">
+      <div className="min-h-screen bg-[var(--background)] text-[var(--foreground)]">
 
         {/* Header */}
-        <header className="sticky top-0 z-40 bg-slate-950/95 backdrop-blur-xl border-b border-white/5 px-4 py-3">
+        <header className="sticky top-0 z-40 bg-[var(--background)]/95 backdrop-blur-xl border-b border-[var(--border)] px-4 py-3">
           <div className="max-w-2xl mx-auto flex items-center gap-3">
             <button onClick={() => router.push("/")}
               className="p-2 rounded-xl bg-white/5 border border-white/10 active:scale-95 transition-all flex-shrink-0">

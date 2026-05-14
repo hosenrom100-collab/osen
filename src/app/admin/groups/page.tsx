@@ -85,7 +85,7 @@ export default function GroupManagementPage() {
 
   return (
     <RoleGuard allowedRoles={["admin", "manager"]} redirectTo="/">
-      <main className="min-h-screen bg-slate-950 text-white p-6">
+      <main className="min-h-screen bg-[var(--background)] text-[var(--foreground)] p-6">
         <header className="flex items-center gap-4 mb-10">
           <button 
             onClick={() => router.push("/admin")}

@@ -9,8 +9,8 @@ interface AttendanceItemProps {
   onToggle: (status: "present" | "absent") => void;
 }
 
-const COLORS = ["bg-blue-600","bg-violet-600","bg-rose-600","bg-amber-600","bg-teal-600","bg-indigo-600"];
-const avatarColor = (name: string) => COLORS[name.charCodeAt(0) % COLORS.length];
+const COLORS = ["bg-blue-500","bg-violet-500","bg-rose-500","bg-amber-500","bg-teal-500","bg-indigo-500"];
+const avatarColor = (name: string) => COLORS[(name?.charCodeAt(0) ?? 0) % COLORS.length];
 
 export function AttendanceItem({ patient, status, onToggle }: AttendanceItemProps) {
   const initials = `${patient.firstName?.[0] ?? ""}${patient.lastName?.[0] ?? ""}`.toUpperCase();
@@ -19,20 +19,19 @@ export function AttendanceItem({ patient, status, onToggle }: AttendanceItemProp
   const isPending = status === "unset";
 
   return (
-    <div className={`rounded-2xl overflow-hidden transition-all duration-200 ${
-      isPresent ? "ring-1 ring-emerald-500/40 shadow-lg shadow-emerald-500/5" :
-      isAbsent  ? "ring-1 ring-rose-500/40 shadow-lg shadow-rose-500/5" :
-      "ring-1 ring-[var(--border)]"
-    }`}>
-      <div className={`flex flex-col md:flex-row md:items-center transition-colors duration-200 ${
-        isPresent ? "bg-emerald-500/10" :
-        isAbsent  ? "bg-rose-500/10" :
-        "bg-[var(--foreground)]/[0.03]"
-      }`}>
+    <motion.div 
+      layout
+      className={`rounded-[2rem] overflow-hidden border transition-all duration-300 ${
+        isPresent ? "border-emerald-500/30 bg-emerald-500/5 shadow-lg shadow-emerald-500/5" :
+        isAbsent  ? "border-rose-500/30 bg-rose-500/5 shadow-lg shadow-rose-500/5" :
+        "border-[var(--border)] bg-[var(--foreground)]/[0.02]"
+      }`}
+    >
+      <div className="flex flex-col">
         {/* Main Info Area */}
-        <div className="flex items-center gap-4 px-4 py-3.5 flex-1 min-w-0">
+        <div className="flex items-center gap-4 p-5">
           {/* Avatar */}
-          <div className={`w-12 h-12 rounded-xl flex-shrink-0 flex items-center justify-center font-black text-base text-white ${
+          <div className={`w-12 h-12 rounded-2xl flex-shrink-0 flex items-center justify-center font-black text-sm text-white/90 shadow-xl transition-all ${
             isPending ? "bg-[var(--foreground)]/10" : avatarColor(patient.firstName)
           }`}>
             {initials}
@@ -40,57 +39,55 @@ export function AttendanceItem({ patient, status, onToggle }: AttendanceItemProp
 
           {/* Info */}
           <div className="flex-1 min-w-0">
-            <p className="font-bold text-[16px] leading-tight text-[var(--foreground)] truncate">
+            <p className="font-black text-sm text-[var(--foreground)] truncate">
               {patient.firstName} {patient.lastName}
             </p>
-            <p className={`text-[11px] font-semibold mt-0.5 ${
+            <p className={`text-[10px] font-black uppercase tracking-widest mt-1 transition-colors ${
               isPresent ? "text-emerald-500" :
               isAbsent  ? "text-rose-500" :
-              "text-[var(--foreground)]/40"
+              "text-[var(--foreground)]/30"
             }`}>
-              {isPresent ? "נוכח היום" : isAbsent ? "נעדר" : "טרם נסמן"}
+              {isPresent ? "נוכח" : isAbsent ? "נעדר" : "טרם סומן"}
             </p>
           </div>
 
-          {/* Status dot */}
-          <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${
-            isPresent ? "bg-emerald-500 shadow shadow-emerald-500/80" :
-            isAbsent  ? "bg-rose-500 shadow shadow-rose-500/80" :
-            "bg-[var(--foreground)]/20"
+          {/* Status Indicator */}
+          <div className={`w-3 h-3 rounded-full flex-shrink-0 transition-all border-2 border-[var(--background)] ${
+            isPresent ? "bg-emerald-500" :
+            isAbsent  ? "bg-rose-500" :
+            "bg-[var(--foreground)]/10"
           }`} />
         </div>
 
         {/* Action buttons */}
-        <div className="flex md:h-full md:border-r md:border-[var(--border)]">
-          <motion.button
-            whileTap={{ scale: 0.97 }}
+        <div className="flex border-t border-[var(--border)]">
+          <button
             onClick={() => onToggle("absent")}
-            className={`flex-1 md:w-28 h-12 flex items-center justify-center gap-2 text-sm font-black transition-colors duration-150 border-t md:border-t-0 border-[var(--border)] ${
+            className={`flex-1 h-12 flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest transition-all ${
               isAbsent
                 ? "bg-rose-600 text-white"
-                : "bg-transparent text-[var(--foreground)]/40 hover:text-rose-500 hover:bg-rose-500/10 active:bg-rose-500/20"
+                : "text-[var(--foreground)]/30 hover:text-rose-500 hover:bg-rose-500/5"
             }`}
           >
-            <X className="w-4 h-4" />
+            <X className="w-3.5 h-3.5" />
             נעדר
-          </motion.button>
+          </button>
 
           <div className="w-px bg-[var(--border)]" />
 
-          <motion.button
-            whileTap={{ scale: 0.97 }}
+          <button
             onClick={() => onToggle("present")}
-            className={`flex-1 md:w-28 h-12 flex items-center justify-center gap-2 text-sm font-black transition-colors duration-150 border-t md:border-t-0 border-[var(--border)] ${
+            className={`flex-1 h-12 flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest transition-all ${
               isPresent
                 ? "bg-emerald-600 text-white"
-                : "bg-transparent text-[var(--foreground)]/40 hover:text-emerald-500 hover:bg-emerald-500/10 active:bg-emerald-500/20"
+                : "text-[var(--foreground)]/30 hover:text-emerald-500 hover:bg-emerald-500/5"
             }`}
           >
-            <Check className="w-4 h-4" />
+            <Check className="w-3.5 h-3.5" />
             נוכח
-          </motion.button>
+          </button>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }

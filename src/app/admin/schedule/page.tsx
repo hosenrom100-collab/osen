@@ -273,21 +273,21 @@ function ActivityModal({
       <motion.div
         initial={{ y: "100%", opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: "100%", opacity: 0 }}
         transition={{ type: "spring", damping: 30, stiffness: 300 }}
-        className="relative bg-[var(--card-bg)] border-t sm:border border-[var(--border)] w-full max-w-4xl rounded-t-[2.5rem] sm:rounded-[2rem] shadow-2xl flex flex-col max-h-[95dvh] overflow-hidden">
+        className="relative bg-slate-900 border-t sm:border border-white/10 w-full max-w-5xl rounded-t-[2.5rem] sm:rounded-[2.5rem] shadow-2xl flex flex-col max-h-[90dvh] overflow-hidden">
         
         {/* Header */}
-        <div className="flex items-center justify-between px-8 py-5 border-b border-[var(--border)] bg-[var(--foreground)]/[0.02] shrink-0">
-          <div className="flex items-center gap-4">
-            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg ${initial.title ? "bg-blue-600/20 text-blue-500" : "bg-rose-600/20 text-rose-500"}`}>
-              {initial.title ? <Edit3 className="w-6 h-6" /> : <Plus className="w-6 h-6" />}
+        <div className="flex items-center justify-between px-10 py-6 border-b border-white/5 bg-white/[0.02] shrink-0">
+          <div className="flex items-center gap-5">
+            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-lg ${initial.title ? "bg-blue-500/20 text-blue-400" : "bg-emerald-500/20 text-emerald-400"}`}>
+              {initial.title ? <Edit3 className="w-7 h-7" /> : <Plus className="w-7 h-7" />}
             </div>
             <div>
-              <h2 className="font-black text-lg tracking-tight">{initial.title ? "עריכת פעילות בלו״ז" : "הוספת פעילות חדשה"}</h2>
-              <p className="text-[11px] text-[var(--foreground)]/40 font-bold uppercase tracking-widest">ניהול שיבוצים ומשימות יומיומיות</p>
+              <h2 className="font-black text-xl tracking-tight text-white">{initial.title ? "עריכת פעילות בלו״ז" : "הוספת פעילות חדשה"}</h2>
+              <p className="text-[11px] text-slate-500 font-bold uppercase tracking-widest mt-1">ניהול שיבוצים ומשימות יומיומיות • {contextId === "show_all" ? "כללי" : "קבוצתי"}</p>
             </div>
           </div>
-          <button onClick={onClose} className="p-3 rounded-2xl text-[var(--foreground)]/30 hover:text-[var(--foreground)] hover:bg-[var(--foreground)]/5 transition-all active:scale-90">
-            <X className="w-6 h-6" />
+          <button onClick={onClose} className="p-3 rounded-2xl text-slate-500 hover:text-white hover:bg-white/5 transition-all active:scale-90">
+            <X className="w-7 h-7" />
           </button>
         </div>
 
@@ -300,29 +300,29 @@ function ActivityModal({
               <div className="space-y-4">
                 <h3 className="text-[10px] font-black text-rose-500 uppercase tracking-[0.2em] mb-4">פרטי הפעילות</h3>
                 
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-bold text-[var(--foreground)]/50 pr-1">שם הפעילות / סוג שיעור</label>
+                <div className="space-y-2">
+                  <label className="block text-xs font-bold text-slate-500 pr-1">שם הפעילות / סוג שיעור</label>
                   <input value={form.title} onChange={e => set({ title: e.target.value })}
                     placeholder="פסיכודרמה, אמנות, ישיבת צוות..."
                     autoFocus
-                    className="w-full bg-[var(--foreground)]/5 border border-[var(--border)] rounded-2xl px-5 py-3.5 text-sm font-bold focus:border-rose-500/50 focus:ring-1 focus:ring-rose-500/20 outline-none transition-all" />
+                    className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-base font-bold text-white focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20 outline-none transition-all placeholder:text-slate-700" />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <label className="block text-xs font-bold text-[var(--foreground)]/50 pr-1">שעת התחלה</label>
+                <div className="grid grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <label className="block text-xs font-bold text-slate-500 pr-1">שעת התחלה</label>
                     <div className="relative">
-                      <Clock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--foreground)]/20" />
+                      <Clock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-600" />
                       <input type="time" value={form.startTime} onChange={e => set({ startTime: e.target.value })}
-                        className="w-full bg-[var(--foreground)]/5 border border-[var(--border)] rounded-2xl pl-4 pr-12 py-3.5 text-sm font-black focus:border-rose-500/50 outline-none transition-all" />
+                        className="w-full bg-white/5 border border-white/10 rounded-2xl pl-4 pr-12 py-4 text-base font-black text-white focus:border-emerald-500/50 outline-none transition-all" />
                     </div>
                   </div>
-                  <div className="space-y-1.5">
-                    <label className="block text-xs font-bold text-[var(--foreground)]/50 pr-1">שעת סיום</label>
+                  <div className="space-y-2">
+                    <label className="block text-xs font-bold text-slate-500 pr-1">שעת סיום</label>
                     <div className="relative">
-                      <Clock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--foreground)]/20" />
+                      <Clock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-600" />
                       <input type="time" value={form.endTime} onChange={e => set({ endTime: e.target.value })}
-                        className="w-full bg-[var(--foreground)]/5 border border-[var(--border)] rounded-2xl pl-4 pr-12 py-3.5 text-sm font-black focus:border-rose-500/50 outline-none transition-all" />
+                        className="w-full bg-white/5 border border-white/10 rounded-2xl pl-4 pr-12 py-4 text-base font-black text-white focus:border-emerald-500/50 outline-none transition-all" />
                     </div>
                   </div>
                 </div>

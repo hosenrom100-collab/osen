@@ -6,6 +6,7 @@ import { BottomNav } from "@/components/navigation/BottomNav";
 import { DesktopSidebar } from "@/components/navigation/DesktopSidebar";
 import { PushNotificationManager } from "@/components/notifications/PushNotificationManager";
 import { SettingsProvider } from "@/context/SettingsContext";
+import { StaffOnboardingModal } from "@/components/auth/StaffOnboardingModal";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -37,6 +38,7 @@ export default function RootLayout({
         <AuthProvider>
           <SettingsProvider>
             <PushNotificationManager />
+            <StaffOnboardingModal />
             <div className="flex min-h-screen">
               <DesktopSidebar />
               <div className="flex-1 min-w-0 pb-20 md:pb-0 md:h-screen md:overflow-y-auto">

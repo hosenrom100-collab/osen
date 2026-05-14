@@ -52,9 +52,10 @@ function AttendanceLogPageContent() {
       const patientsMap: Record<string, {name: string, hosenType: string}> = {};
       patientsSnap.forEach(doc => {
         const data = doc.data();
+        const group = groupList.find(g => g.id === data.hosenType);
         patientsMap[doc.id] = {
-          name: `${data.firstName} ${data.lastName}`,
-          hosenType: data.hosenType || "lower"
+          name: data.firstName && data.lastName ? `${data.firstName} ${data.lastName}` : (data.fullName || data.name || doc.id),
+          hosenType: group ? group.name : (data.hosenType || "כללי")
         };
       });
 
@@ -90,7 +91,7 @@ function AttendanceLogPageContent() {
   });
 
   return (
-    <main className="min-h-screen bg-slate-950 text-white p-4 pb-20">
+    <main className="min-h-screen bg-[var(--background)] text-[var(--foreground)] p-4 pb-20">
       <header className="mb-8 sticky top-0 bg-slate-950/80 backdrop-blur-md z-40 py-2 pt-4">
         <div className="flex items-center gap-3 mb-6">
           <button 
@@ -157,7 +158,7 @@ function AttendanceLogPageContent() {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95 }}
-                className="bg-white/5 border border-white/5 rounded-[1.5rem] p-4 flex items-center justify-between group active:bg-white/10 transition-colors"
+                className="bg-[var(--card-bg)] border border-[var(--border)] rounded-[1.5rem] p-4 flex items-center justify-between group active:bg-[var(--foreground)]/10 transition-colors"
               >
                 <div className="flex items-center gap-4 overflow-hidden">
                   <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${
@@ -207,7 +208,7 @@ export default function AttendanceLogPage() {
   return (
     <RoleGuard allowedRoles={["admin", "manager", "instructor", "social_worker", "employee"]} redirectTo="/">
       <Suspense fallback={
-        <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+        <div className="min-h-screen bg-[var(--background)] flex items-center justify-center">
           <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
         </div>
       }>
