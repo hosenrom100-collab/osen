@@ -279,7 +279,7 @@ export default function ProfilePage() {
 
         <footer className="max-w-4xl mx-auto px-4 py-8 border-t border-[var(--border)] mb-12">
           <p className="text-center text-[10px] text-[var(--foreground)]/20 font-mono tracking-widest uppercase">
-            Hosen-Connect CRM · Secure Profile Management · v2.4.0
+            מרכז חוסן | חוות רום · Secure Profile Management · v2.4.0
           </p>
         </footer>
 

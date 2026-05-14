@@ -13,8 +13,8 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "חוסן-קונקט | ניהול מרכז חוסן",
-  description: "אפליקציית ניהול מתקדמת לצוותי מרכז חוסן",
+  title: "מרכז חוסן | חוות רום",
+  description: "מערכת ניהול מתקדמת - מרכז חוסן, חוות רום",
   manifest: "/manifest.ts",
   appleWebApp: {
     capable: true,

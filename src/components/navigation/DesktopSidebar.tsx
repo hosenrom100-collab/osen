@@ -45,8 +45,8 @@ export function DesktopSidebar() {
           <span className="text-white font-black text-sm">H</span>
         </div>
         <div className="flex flex-col">
-          <span className="text-[15px] font-bold text-foreground tracking-tight leading-none">Hosen Connect</span>
-          <span className="text-[10px] text-emerald-500/70 font-semibold tracking-wider uppercase mt-1">Enterprise CRM</span>
+          <span className="text-[15px] font-bold text-foreground tracking-tight leading-none">מרכז חוסן</span>
+          <span className="text-[10px] text-emerald-500/70 font-semibold tracking-wider mt-1">חוות רום</span>
         </div>
       </div>
 

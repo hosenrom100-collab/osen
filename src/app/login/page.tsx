@@ -57,9 +57,9 @@ export default function LoginPage() {
             transition={{ delay: 0.2 }}
             className="text-4xl font-bold bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent mb-2"
           >
-            חוסן-קונקט
+            מרכז חוסן
           </motion.h1>
-          <p className="text-slate-400 text-lg">מרכז ניהול קהילתי חכם</p>
+          <p className="text-slate-400 text-lg font-bold tracking-widest">חוות רום</p>
         </div>
 
         <div className="space-y-6">

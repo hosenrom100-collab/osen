@@ -285,9 +285,10 @@ export default function Home() {
               <ChevronRight className="w-2.5 h-2.5 opacity-30" />
               <span>מבט על</span>
             </div>
-            <h1 className="text-lg font-bold flex items-center gap-2">
+            <h1 className="text-lg font-black flex items-center gap-2">
               <LayoutDashboard className="w-4 h-4 text-primary" />
-              מרכז שליטה "חוסן"
+              מרכז חוסן
+              <span className="text-xs font-bold text-primary/40 mr-1 opacity-50">| חוות רום</span>
             </h1>
           </div>
         </div>

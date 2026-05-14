@@ -496,7 +496,7 @@ function AttendancePageContent() {
               HC
             </div>
             <div className="flex flex-col">
-              <span className="text-[10px] font-bold">Hosen-Connect CRM</span>
+              <span className="text-[10px] font-bold">מרכז חוסן | חוות רום</span>
               <span className="text-[8px] text-[var(--foreground)]/30 font-mono">v2.4.0-enterprise</span>
             </div>
           </div>
