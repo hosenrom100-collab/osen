@@ -8,7 +8,15 @@ function buildAuth() {
   let   privateKey  = process.env.FIREBASE_PRIVATE_KEY ?? "";
 
   // Normalise: strip surrounding quotes, convert escaped \n → real newlines
-  privateKey = privateKey.replace(/^"|"$/g, "").replace(/\\n/g, "\n").trim();
+  // 1. Handle double-escaped newlines and literal newlines
+  privateKey = privateKey.replace(/\\n/g, "\n");
+  // 2. Remove any surrounding quotes that might have been included in the .env value
+  privateKey = privateKey.replace(/^"|"$/g, "");
+  // 3. If the key still has literal "\n" strings (sometimes happens with certain loaders)
+  if (privateKey.includes("\\n")) {
+    privateKey = privateKey.replace(/\\n/g, "\n");
+  }
+  privateKey = privateKey.trim();
 
   const missing = [
     !calendarId  && "GOOGLE_CALENDAR_ID",
