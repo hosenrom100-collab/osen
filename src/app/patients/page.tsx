@@ -151,7 +151,7 @@ export default function PatientsPage() {
 
         {/* ── Sticky header ── */}
         <header className="sticky top-0 z-40 bg-slate-950/95 backdrop-blur-xl border-b border-white/5">
-          <div className="max-w-3xl mx-auto px-4 pt-4 pb-3 space-y-3">
+          <div className="max-w-7xl mx-auto px-4 pt-4 pb-3 space-y-3">
 
             {/* Row 1 */}
             <div className="flex items-center gap-3">
@@ -223,7 +223,7 @@ export default function PatientsPage() {
         </header>
 
         {/* ── Content ── */}
-        <div className="max-w-3xl mx-auto px-4 pt-4 pb-28">
+        <div className="max-w-7xl mx-auto px-4 pt-4 pb-28">
 
           {loading && (
             <div className="flex flex-col items-center justify-center py-24 gap-3">
@@ -253,19 +253,19 @@ export default function PatientsPage() {
           {!loading && !loadError && filtered.length > 0 && (
             <>
               {/* Desktop table */}
-              <div className="hidden md:block bg-white/[0.03] border border-white/8 rounded-2xl overflow-hidden">
+              <div className="hidden md:block bg-white/[0.03] border border-white/8 rounded-2xl overflow-x-auto">
                 <table className="w-full text-right">
                   <thead>
                     <tr className="border-b border-white/8">
                       {["מטופל","ת.ז","קבוצה","עו״ס","סטטוס","תאריך התחלה",""].map(h => (
-                        <th key={h} className="px-4 py-3 text-[11px] font-bold text-slate-500 uppercase tracking-wider">{h}</th>
+                        <th key={h} className="px-4 py-3 text-[11px] font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">{h}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
                     {filtered.map(p => (
                       <tr key={p.id} className="border-b border-white/5 hover:bg-white/[0.02] transition-colors">
-                        <td className="px-4 py-3">
+                        <td className="px-4 py-3 whitespace-nowrap">
                           <div className="flex items-center gap-2">
                             <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-[11px] font-black text-white ${avatarColor(p.firstName)}`}>
                               {`${p.firstName?.[0] ?? ""}${p.lastName?.[0] ?? ""}`.toUpperCase()}
@@ -273,12 +273,12 @@ export default function PatientsPage() {
                             <span className="font-semibold text-sm">{p.firstName} {p.lastName}</span>
                           </div>
                         </td>
-                        <td className="px-4 py-3 text-xs text-slate-500 font-mono">{p.idNumber}</td>
-                        <td className="px-4 py-3">
+                        <td className="px-4 py-3 text-xs text-slate-500 font-mono whitespace-nowrap">{p.idNumber}</td>
+                        <td className="px-4 py-3 whitespace-nowrap">
                           <span className="text-[11px] bg-white/5 text-slate-400 px-2 py-0.5 rounded-md">{resolveGroup(p.hosenType)}</span>
                         </td>
-                        <td className="px-4 py-3 text-xs text-slate-400">{socialWorkers.find(w => w.id === p.assignedWorkerId)?.name || "—"}</td>
-                        <td className="px-4 py-3">
+                        <td className="px-4 py-3 text-xs text-slate-400 whitespace-nowrap">{socialWorkers.find(w => w.id === p.assignedWorkerId)?.name || "—"}</td>
+                        <td className="px-4 py-3 whitespace-nowrap">
                           <select value={p.status} onChange={e => updateStatus(p.id, e.target.value as PatientStatus)}
                             className={`border rounded-full px-2 py-0.5 bg-transparent text-[10px] font-bold focus:outline-none cursor-pointer ${STATUS_META[p.status].pill}`}>
                             {Object.entries(STATUS_META).map(([v, m]) => (
@@ -286,8 +286,8 @@ export default function PatientsPage() {
                             ))}
                           </select>
                         </td>
-                        <td className="px-4 py-3 text-xs text-slate-500">{p.startDate}</td>
-                        <td className="px-4 py-3">
+                        <td className="px-4 py-3 text-xs text-slate-500 whitespace-nowrap">{p.startDate}</td>
+                        <td className="px-4 py-3 whitespace-nowrap">
                           <div className="flex items-center gap-1.5">
                             <button onClick={() => fetchHistory(p)} className="p-1.5 rounded-lg bg-white/5 hover:bg-emerald-500/10 text-slate-500 hover:text-emerald-400 transition-all"><Calendar className="w-3.5 h-3.5" /></button>
                             <button onClick={() => { setEditPatient(p); setEditForm({ firstName: p.firstName, lastName: p.lastName, idNumber: p.idNumber, hosenType: p.hosenType, assignedWorkerId: p.assignedWorkerId, status: p.status }); }}

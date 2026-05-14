@@ -8,7 +8,7 @@ import {
   Calendar, Clock, MapPin, Users, User, Plus, Trash2, Save, Copy,
   Loader2, ArrowRight, ChevronLeft, ChevronRight, Edit3, X, Check,
 } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { format, addDays, subDays, parseISO } from "date-fns";
 import { he } from "date-fns/locale";

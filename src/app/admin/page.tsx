@@ -32,13 +32,13 @@ export default function AdminDashboard() {
       bg: "bg-purple-500/10",
       roles: ["admin", "manager"]
     },
-    { 
-      title: "ניהול קבוצות", 
-      desc: "הגדרת קבוצות ומסגרות פעילות", 
-      icon: Layers, 
-      path: "/admin/groups",
-      color: "text-purple-400",
-      bg: "bg-purple-500/10",
+    {
+      title: "ניהול תוכניות",
+      desc: "יצירת תוכניות, קבוצות ולוחות זמנים",
+      icon: Layers,
+      path: "/admin/programs",
+      color: "text-violet-400",
+      bg: "bg-violet-500/10",
       roles: ["admin", "manager"]
     },
     { 

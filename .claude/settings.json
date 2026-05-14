@@ -5,6 +5,9 @@
       "Read(//tmp/**)",
       "Bash(node -e ' *)",
       "Bash(npx tsc *)"
+    ],
+    "additionalDirectories": [
+      "/Users/amireyal/ hosen-connect/src/app/admin/programs"
     ]
   }
 }
