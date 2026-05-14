@@ -18,12 +18,12 @@ const DAYS = [
 ];
 
 export function StaffOnboardingModal() {
-  const { user, onboardingComplete } = useAuth();
+  const { user, onboardingComplete, role } = useAuth();
   const [isOpen, setIsOpen] = useState(!onboardingComplete && !!user);
   const [schedule, setSchedule] = useState<Record<string, { start: string, end: string }>>({});
   const [loading, setLoading] = useState(false);
 
-  if (onboardingComplete || !user || !isOpen) return null;
+  if (onboardingComplete || !user || !isOpen || role === "participant") return null;
 
   const toggleDay = (dayId: string) => {
     setSchedule(prev => {

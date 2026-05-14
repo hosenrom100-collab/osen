@@ -2,20 +2,30 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, ClipboardList, Users, ShoppingCart, User } from "lucide-react";
+import { Home, ClipboardList, Users, ShoppingCart, User, Calendar } from "lucide-react";
 import { motion } from "framer-motion";
+import { useAuth } from "@/context/AuthContext";
 
-const navItems = [
-  { href: "/",          icon: Home,          label: "בית"      },
-  { href: "/attendance", icon: ClipboardList, label: "נוכחות"  },
-  { href: "/patients",   icon: Users,         label: "מטופלים" },
-  { href: "/shopping",   icon: ShoppingCart,  label: "קניות"   },
+const staffItems = [
+  { href: "/",           icon: Home,          label: "בית"       },
+  { href: "/attendance", icon: ClipboardList, label: "נוכחות"   },
+  { href: "/patients",   icon: Users,         label: "מטופלים"  },
+  { href: "/shopping",   icon: ShoppingCart,  label: "קניות"    },
   { href: "/profile",    icon: User,          label: "אזור אישי" },
+];
+
+const participantItems = [
+  { href: "/portal",   icon: Calendar, label: "פעילויות" },
+  { href: "/profile",  icon: User,     label: "אזור אישי" },
 ];
 
 export function BottomNav() {
   const pathname = usePathname();
-  if (pathname === "/login") return null;
+  const { isParticipant } = useAuth();
+
+  if (pathname === "/login" || pathname === "/portal/join") return null;
+
+  const navItems = isParticipant ? participantItems : staffItems;
 
   return (
     <div className="fixed bottom-0 inset-x-0 z-50 px-4 pb-5 pt-2 md:hidden">

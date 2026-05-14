@@ -6,7 +6,7 @@ import { createContext, useContext, useEffect, useState } from "react";
 import { doc, getDoc, updateDoc, onSnapshot } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 
-export type UserRole = "admin" | "manager" | "instructor" | "social_worker" | "employee" | "logistics";
+export type UserRole = "admin" | "manager" | "instructor" | "social_worker" | "employee" | "logistics" | "participant";
 export type UserStatus = "pending" | "approved" | "rejected" | "blocked";
 
 interface AuthContextType {
@@ -27,6 +27,7 @@ interface AuthContextType {
   isLogistics:     boolean;
   isInstructor:    boolean;
   isEmployee:      boolean;
+  isParticipant:   boolean;
   isWhitelisted:   boolean;
   phoneNumber?:    string;
   workSchedule?:   Record<string, { start: string, end: string }>;
@@ -52,6 +53,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLogistics,    setIsLogistics]    = useState(false);
   const [isInstructor,   setIsInstructor]   = useState(false);
   const [isEmployee,     setIsEmployee]     = useState(false);
+  const [isParticipant,  setIsParticipant]  = useState(false);
   const [isWhitelisted,  setIsWhitelisted]  = useState(false);
   const [phoneNumber,    setPhoneNumber]    = useState<string | undefined>();
   const [workSchedule,   setWorkSchedule]   = useState<Record<string, { start: string, end: string }> | undefined>();
@@ -89,6 +91,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setIsLogistics(userRoles.includes("logistics"));
             setIsInstructor(userRoles.includes("instructor"));
             setIsEmployee(userRoles.includes("employee") || userRoles.includes("social_worker"));
+            setIsParticipant(userRoles.includes("participant"));
             
             setPhoneNumber(data.phone);
             setWorkSchedule(data.workSchedule);
@@ -153,7 +156,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       user, loading, role, roles, status, assignedGroups, primaryGroupId,
       preferredProgramIds, preferredGroupIds,
       setPrimaryGroupId, setPreferredPrograms, setPreferredGroups,
-      isAdmin, isManager, isLogistics, isInstructor, isEmployee, isWhitelisted,
+      isAdmin, isManager, isLogistics, isInstructor, isEmployee, isParticipant, isWhitelisted,
       phoneNumber, workSchedule, onboardingComplete,
       login, logout
     }}>

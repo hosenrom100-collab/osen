@@ -1,5 +1,5 @@
 import { UserStatus } from "@/context/AuthContext";
-import { Clock, CheckCircle2, Ban } from "lucide-react";
+import { Clock, CheckCircle2, Ban, X } from "lucide-react";
 
 interface StatusBadgeProps {
   status: UserStatus;
@@ -21,10 +21,15 @@ export function StatusBadge({ status }: StatusBadgeProps) {
       text: "חסום",
       icon: Ban,
       className: "bg-rose-500/10 text-rose-500 border-rose-500/20"
+    },
+    rejected: {
+      text: "נדחה",
+      icon: X,
+      className: "bg-slate-500/10 text-slate-500 border-slate-500/20"
     }
   };
 
-  const { text, icon: Icon, className } = config[status] || config.pending;
+  const { text, icon: Icon, className } = (config as any)[status] || config.pending;
 
   return (
     <span className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium border ${className}`}>

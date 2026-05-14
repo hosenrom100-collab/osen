@@ -126,7 +126,8 @@ export default function Home() {
 
   useEffect(() => {
     if (!loading && (!user || !isWhitelisted)) router.push("/login");
-  }, [user, loading, isWhitelisted, router]);
+    else if (!loading && role === "participant") router.replace("/portal");
+  }, [user, loading, isWhitelisted, role, router]);
 
   useEffect(() => {
     if (user && isWhitelisted) fetchAll();
