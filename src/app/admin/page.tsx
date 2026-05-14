@@ -148,21 +148,6 @@ export default function AdminDashboard() {
           </div>
         </header>
 
-        {/* Quick Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-          {[
-            { label: "עובדים במשמרת", value: "12", sub: "מתוך 45 סה״כ" },
-            { label: "מטופלים פעילים", value: "158", sub: "+12 השבוע" },
-            { label: "משימות פתוחות", value: "8", sub: "3 בדחיפות גבוהה" }
-          ].map((stat, i) => (
-            <div key={i} className="bg-white/5 border border-white/10 p-6 rounded-3xl">
-              <p className="text-slate-400 text-sm mb-1">{stat.label}</p>
-              <h3 className="text-3xl font-bold">{stat.value}</h3>
-              <p className="text-slate-500 text-xs mt-1">{stat.sub}</p>
-            </div>
-          ))}
-        </div>
-
         {/* Modules Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredModules.map((module, index) => (
