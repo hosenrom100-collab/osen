@@ -14,6 +14,8 @@ interface ToastMessage {
   title: string;
   body: string;
   link?: string;
+  receivedAt: string;
+  read: boolean;
 }
 
 export function PushNotificationManager() {
@@ -72,8 +74,29 @@ export function PushNotificationManager() {
       onMessage(instance, (payload) => {
         const title = payload.notification?.title || "הודעה חדשה";
         const body  = payload.notification?.body  || "";
-        const link  = payload.fcmOptions?.link    || payload.data?.link;
-        setToast({ id: Date.now(), title, body, link });
+        const link  = (payload.fcmOptions?.link    || payload.data?.link) as string | undefined;
+        
+        const newNotif: ToastMessage = {
+          id: Date.now(),
+          title,
+          body,
+          link,
+          receivedAt: new Date().toISOString(),
+          read: false
+        };
+
+        setToast(newNotif);
+
+        // Save to local inbox
+        try {
+          const saved = localStorage.getItem("hosen_inbox");
+          const inbox: ToastMessage[] = saved ? JSON.parse(saved) : [];
+          localStorage.setItem("hosen_inbox", JSON.stringify([newNotif, ...inbox].slice(0, 50)));
+          // Dispatch custom event for the notifications page to pick up
+          window.dispatchEvent(new Event("hosen_new_notification"));
+        } catch (e) {
+          console.error("Inbox save error:", e);
+        }
       });
     } catch (err) {
       console.error("FCM setup error:", err);

@@ -93,9 +93,9 @@ export default function UserManagementPage() {
           <div className="flex items-center gap-6">
             <button 
               onClick={() => router.push("/admin")}
-              className="p-3 bg-[var(--foreground)]/5 border border-[var(--border)] rounded-2xl hover:bg-[var(--foreground)]/10 transition-colors"
+              className="p-3 bg-slate-50 border border-slate-100 rounded-xl hover:bg-slate-100 transition-colors"
             >
-              <ArrowRight className="w-5 h-5" />
+              <ArrowRight className="w-5 h-5 text-slate-400" />
             </button>
             <div>
               <h1 className="text-3xl font-black tracking-tight flex items-center gap-3">
@@ -107,13 +107,13 @@ export default function UserManagementPage() {
           </div>
 
           <div className="relative max-w-md w-full">
-            <Search className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--foreground)]/20" />
+            <Search className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
             <input
               type="text"
               placeholder="חיפוש עובד לפי שם או אימייל..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full bg-[var(--card-bg)] border border-[var(--border)] rounded-[1.5rem] py-4 pr-12 pl-4 text-sm font-bold focus:outline-none focus:border-rose-500/50 transition-colors"
+              className="w-full bg-white border border-slate-100 rounded-xl py-3.5 pr-12 pl-4 text-xs font-bold focus:outline-none focus:border-rose-500/20 transition-colors"
             />
           </div>
         </header>

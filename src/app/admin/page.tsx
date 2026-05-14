@@ -11,18 +11,18 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 
 const MODULES = [
-  { title: "ניהול צוות",         desc: "אישור עובדים, תפקידים והרשאות",       icon: ShieldCheck,   path: "/admin/users",              color: "text-violet-400 bg-violet-500/8",  roles: ["admin","manager"] },
-  { title: "תוכניות וקבוצות",    desc: "תוכניות, קבוצות ולוחות זמנים",         icon: Layers,        path: "/admin/programs",           color: "text-blue-400 bg-blue-500/8",      roles: ["admin","manager"] },
-  { title: "מטופלים",             desc: "מאגר מטופלים ותיקי חוסן",              icon: Users,         path: "/patients",                 color: "text-teal-400 bg-teal-500/8",      roles: ["admin","manager","instructor"] },
-  { title: "נוכחות מטופלים",     desc: "סימון נוכחות יומית",                   icon: ClipboardList, path: "/admin/patient-attendance",  color: "text-emerald-400 bg-emerald-500/8",roles: ["admin","manager","instructor","employee"] },
-  { title: "נוכחות צוות",        desc: "מעקב שעות ונוכחות עובדים",             icon: Users,         path: "/admin/staff-attendance",   color: "text-orange-400 bg-orange-500/8",  roles: ["admin","manager"] },
-  { title: "בקשות היעדרות",       desc: "אישור ודחיית בקשות היעדרות",           icon: AlertCircle,   path: "/admin/leaves",             color: "text-rose-400 bg-rose-500/8",      roles: ["admin","manager"] },
-  { title: "מיקומי פעילות",       desc: "הגדרת מיקומי סדנאות ופעילויות",        icon: MapPin,        path: "/admin/locations",          color: "text-amber-400 bg-amber-500/8",    roles: ["admin","manager"] },
-  { title: "ניהול לוז יומי",      desc: "שיבוץ מדריכים ופעילויות",              icon: Calendar,      path: "/admin/schedule",           color: "text-rose-400 bg-rose-500/8",      roles: ["admin","manager"] },
-  { title: "דוחות",               desc: "ייצוא נתונים וסיכומי פעילות",          icon: BarChart3,     path: "/reports",                  color: "text-cyan-400 bg-cyan-500/8",      roles: ["admin","manager"] },
-  { title: "לוגיסטיקה ורכש",     desc: "ניהול מלאי וציוד",                    icon: Package,       path: "/admin/resources",          color: "text-amber-400 bg-amber-500/8",    roles: ["admin","manager","logistics"] },
-  { title: "הודעות לצוות",        desc: "שליחת פוש נוטיפיקציות לעובדים",       icon: Bell,          path: "/admin/notifications",      color: "text-pink-400 bg-pink-500/8",      roles: ["admin","manager"] },
-  { title: "מעקב מטופלים",        desc: "תוכניות שיקום, תאריכי סיום והארכות",   icon: ClipboardList, path: "/patients/tracking",        color: "text-teal-400 bg-teal-500/8",      roles: ["admin","manager","social_worker"] },
+  { title: "ניהול צוות",         desc: "אישור עובדים והרשאות",       icon: ShieldCheck,   path: "/admin/users",              color: "text-violet-500 bg-violet-50",  roles: ["admin","manager"] },
+  { title: "תוכניות וקבוצות",    desc: "תוכניות ולוחות זמנים",         icon: Layers,        path: "/admin/programs",           color: "text-blue-500 bg-blue-50",      roles: ["admin","manager"] },
+  { title: "מטופלים",             desc: "מאגר מטופלים ותיקי חוסן",              icon: Users,         path: "/patients",                 color: "text-teal-500 bg-teal-50",      roles: ["admin","manager","instructor"] },
+  { title: "נוכחות מטופלים",     desc: "סימון נוכחות יומית",                   icon: ClipboardList, path: "/admin/patient-attendance",  color: "text-emerald-500 bg-emerald-50",roles: ["admin","manager","instructor","employee"] },
+  { title: "נוכחות צוות",        desc: "מעקב שעות ונוכחות",             icon: Users,         path: "/admin/staff-attendance",   color: "text-orange-500 bg-orange-50",  roles: ["admin","manager"] },
+  { title: "בקשות היעדרות",       desc: "אישור ודחיית בקשות",           icon: AlertCircle,   path: "/admin/leaves",             color: "text-rose-500 bg-rose-50",      roles: ["admin","manager"] },
+  { title: "מיקומי פעילות",       desc: "הגדרת מיקומי סדנאות",        icon: MapPin,        path: "/admin/locations",          color: "text-amber-500 bg-amber-50",    roles: ["admin","manager"] },
+  { title: "ניהול לוז יומי",      desc: "שיבוץ מדריכים ופעילויות",              icon: Calendar,      path: "/admin/schedule",           color: "text-rose-500 bg-rose-50",      roles: ["admin","manager"] },
+  { title: "דוחות",               desc: "ייצוא נתונים וסיכומים",          icon: BarChart3,     path: "/reports",                  color: "text-cyan-500 bg-cyan-50",      roles: ["admin","manager"] },
+  { title: "לוגיסטיקה ורכש",     desc: "ניהול מלאי וציוד",                    icon: Package,       path: "/admin/resources",          color: "text-amber-500 bg-amber-50",    roles: ["admin","manager","logistics"] },
+  { title: "הודעות לצוות",        desc: "שליחת פוש נוטיפיקציות",       icon: Bell,          path: "/admin/notifications",      color: "text-pink-500 bg-pink-50",      roles: ["admin","manager"] },
+  { title: "מעקב מטופלים",        desc: "תוכניות שיקום והארכות",   icon: ClipboardList, path: "/patients/tracking",        color: "text-teal-500 bg-teal-50",      roles: ["admin","manager","social_worker"] },
 ];
 
 const ROLE_HE: Record<string, string> = {
@@ -56,8 +56,8 @@ export default function AdminDashboard() {
             </button>
 
             <div className="flex items-center gap-2 md:hidden">
-              <Shield className="w-4 h-4 text-violet-400" />
-              <h1 className="text-sm font-semibold">ניהול</h1>
+              <Shield className="w-4 h-4 text-slate-400" />
+              <h1 className="text-sm font-black text-slate-900">ניהול</h1>
             </div>
 
             <div className="hidden md:flex items-center gap-2">
@@ -66,7 +66,7 @@ export default function AdminDashboard() {
             </div>
 
             <div className="mr-auto">
-              <span className="text-[10px] font-medium text-violet-400 bg-violet-500/8 border border-violet-500/15 px-2.5 py-1 rounded-full uppercase tracking-wider">
+              <span className="text-[10px] font-black text-slate-500 bg-slate-50 border border-slate-100 px-3 py-1 rounded-lg uppercase tracking-widest">
                 {roleLabel}
               </span>
             </div>
@@ -85,14 +85,14 @@ export default function AdminDashboard() {
                   <button
                     key={mod.title}
                     onClick={() => router.push(mod.path)}
-                    className="group flex flex-col items-start gap-3 p-4 bg-[var(--surface)] border border-[var(--border)] rounded-xl hover:border-[var(--border-strong)] hover:bg-[var(--foreground)]/[0.02] transition-all text-right active:scale-[0.98]"
+                    className="group flex flex-col items-start gap-4 p-5 bg-white border border-slate-100 rounded-2xl hover:border-slate-300 transition-all text-right active:scale-[0.98]"
                   >
-                    <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${bgCls} ${textCls}`}>
-                      <mod.icon className="w-4.5 h-4.5" style={{ width: 18, height: 18 }} />
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${bgCls} ${textCls} border border-transparent group-hover:border-current/10`}>
+                      <mod.icon className="w-5 h-5" />
                     </div>
                     <div className="min-w-0">
-                      <p className="text-sm font-semibold leading-tight">{mod.title}</p>
-                      <p className="text-[10px] text-[var(--muted)] mt-0.5 leading-relaxed line-clamp-2">{mod.desc}</p>
+                      <p className="text-xs font-black leading-tight text-slate-900">{mod.title}</p>
+                      <p className="text-[9px] text-slate-400 mt-1.5 font-bold uppercase tracking-widest leading-relaxed line-clamp-2">{mod.desc}</p>
                     </div>
                   </button>
                 );

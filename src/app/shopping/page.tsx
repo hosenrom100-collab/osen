@@ -382,14 +382,14 @@ export default function ShoppingPage() {
         <header className="md:hidden sticky top-0 z-30 bg-background/95 backdrop-blur-lg border-b border-border px-4 py-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <button onClick={() => router.push("/")} className="p-2 rounded-xl bg-white/5 border border-white/10 active:scale-95 transition-all">
-                <ArrowRight className="w-4 h-4" />
+              <button onClick={() => router.push("/")} className="p-2 text-slate-400">
+                <ChevronRight className="w-6 h-6" />
               </button>
-              <h1 className="text-base font-bold">רשימת קניות</h1>
+              <h1 className="text-base font-black">קניות</h1>
             </div>
-            <div className="flex items-center bg-white/5 rounded-lg p-0.5">
-              <button onClick={() => setView("list")} className={`px-3 py-1 rounded text-[11px] font-bold ${view === "list" ? "bg-blue-600 text-white" : "text-slate-500"}`}>רשימה</button>
-              <button onClick={() => setView("archive")} className={`px-3 py-1 rounded text-[11px] font-bold ${view === "archive" ? "bg-slate-700 text-white" : "text-slate-500"}`}>ארכיון</button>
+            <div className="flex items-center bg-white/5 rounded-xl p-0.5 border border-white/5">
+              <button onClick={() => setView("list")} className={`px-4 py-1.5 rounded-lg text-[11px] font-black transition-all ${view === "list" ? "bg-blue-600 text-white shadow-lg shadow-blue-600/20" : "text-slate-500"}`}>רשימה</button>
+              <button onClick={() => setView("archive")} className={`px-4 py-1.5 rounded-lg text-[11px] font-black transition-all ${view === "archive" ? "bg-slate-700 text-white" : "text-slate-500"}`}>ארכיון</button>
             </div>
           </div>
         </header>
@@ -429,17 +429,17 @@ export default function ShoppingPage() {
                         </table>
                       </div>
 
-                      <div className="md:hidden space-y-4 pb-20">
+                      <div className="md:hidden space-y-6 pb-24">
                         {approved.length > 0 && (
-                          <div className="space-y-3">
-                            <p className="text-[11px] font-bold text-emerald-500 px-1 uppercase tracking-widest">ממתין לרכישה ({approved.length})</p>
-                            {approved.map(req => <MobileCard key={req.id} req={req} onStatus={changeStatus} onEdit={setEditItem} />)}
+                          <div className="space-y-2">
+                            <p className="text-[10px] font-black text-slate-500 px-1 uppercase tracking-[0.2em]">ממתין לרכישה ({approved.length})</p>
+                            {approved.map(req => <MobileCard key={req.id} req={req} onStatus={changeStatus} onEdit={setEditItem} canApprove={canApprove} />)}
                           </div>
                         )}
                         {pending.length > 0 && (
-                          <div className="space-y-3">
-                            <p className="text-[11px] font-bold text-amber-500 px-1 uppercase tracking-widest">ממתין לאישור ({pending.length})</p>
-                            {pending.map(req => <MobileCard key={req.id} req={req} onStatus={changeStatus} onEdit={setEditItem} />)}
+                          <div className="space-y-2">
+                            <p className="text-[10px] font-black text-slate-500 px-1 uppercase tracking-[0.2em]">ממתין לאישור ({pending.length})</p>
+                            {pending.map(req => <MobileCard key={req.id} req={req} onStatus={changeStatus} onEdit={setEditItem} canApprove={canApprove} />)}
                           </div>
                         )}
                       </div>
@@ -514,8 +514,8 @@ export default function ShoppingPage() {
           </aside>
         </main>
 
-        <div className="md:hidden fixed bottom-16 left-0 right-0 p-4 z-40 bg-gradient-to-t from-slate-950 via-slate-950/80 to-transparent">
-          <button onClick={() => setOverlayOpen(true)} className="w-full flex items-center justify-center gap-3 bg-blue-600 hover:bg-blue-500 text-white py-4 rounded-2xl font-black text-sm shadow-xl shadow-blue-600/30 transition-all active:scale-[0.98]">
+        <div className="md:hidden fixed bottom-6 left-4 right-4 z-40">
+          <button onClick={() => setOverlayOpen(true)} className="w-full flex items-center justify-center gap-3 bg-blue-600 hover:bg-blue-500 text-white py-4 rounded-2xl font-black text-sm transition-all active:scale-[0.98]">
             <Plus className="w-5 h-5" /> הוסף מוצר חדש
           </button>
         </div>
@@ -609,14 +609,63 @@ function DesktopRow({ req, onStatus, canApprove, onEdit, type }: {
   );
 }
 
-function MobileCard({ req, onStatus, onEdit }: { req: ShoppingRequest, onStatus: any, onEdit: any }) {
+function MobileCard({ req, onStatus, onEdit, canApprove }: { 
+  req: ShoppingRequest, onStatus: any, onEdit: any, canApprove: boolean 
+}) {
+  const isApproved = req.status === "approved";
+  
   return (
-    <div className="bg-white/[0.03] border border-white/[0.05] rounded-2xl p-4 active:bg-white/[0.05] transition-all">
-      <div className="flex justify-between items-start mb-3">
-        <div><h4 className="text-sm font-bold text-white mb-1">{req.name}</h4><div className="flex items-center gap-2"><CatBadge cat={req.category} />{req.priority === "urgent" && <span className="text-[10px] font-black text-rose-400">דחוף</span>}</div></div>
-        <div className="flex gap-1"><button onClick={() => onEdit(req)} className="p-2 bg-white/5 rounded-xl"><Edit3 className="w-4 h-4 text-slate-500" /></button><button onClick={() => onStatus(req.id, "deleted")} className="p-2 bg-white/5 rounded-xl"><Trash2 className="w-4 h-4 text-rose-500/50" /></button></div>
+    <div className="bg-white/[0.02] border border-white/[0.05] rounded-2xl px-4 py-3 flex items-center gap-4 active:bg-white/[0.04] transition-all">
+      {/* Status Bar */}
+      <div className={`w-1 h-8 rounded-full shrink-0 ${
+        isApproved ? "bg-emerald-500" : "bg-amber-500"
+      }`} />
+
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 mb-0.5">
+          <h4 className="text-[13px] font-bold text-white truncate">{req.name}</h4>
+          {req.priority === "urgent" && <Flame className="w-3 h-3 text-rose-500 shrink-0" />}
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] text-slate-500 font-medium">{req.category}</span>
+          <span className="w-1 h-1 rounded-full bg-white/10" />
+          <span className="text-[10px] text-slate-500 font-medium truncate">{req.requestedByName}</span>
+        </div>
       </div>
-      <div className="flex items-center justify-between pt-3 border-t border-white/[0.05]"><span className="text-[10px] text-slate-500">{req.requestedByName}</span>{req.status === "approved" ? <button onClick={() => onStatus(req.id, "purchased")} className="bg-emerald-600 text-white px-4 py-1.5 rounded-lg text-xs font-bold">רכשתי</button> : <button onClick={() => onStatus(req.id, "approved")} className="bg-blue-600 text-white px-4 py-1.5 rounded-lg text-xs font-bold">אשר</button>}</div>
+
+      <div className="flex items-center gap-1.5 shrink-0">
+        {isApproved ? (
+          <button 
+            onClick={() => onStatus(req.id, "purchased")}
+            className="h-8 px-3 bg-emerald-600 text-white rounded-xl text-[11px] font-black shadow-sm"
+          >
+            רכשתי
+          </button>
+        ) : (
+          canApprove && (
+            <button 
+              onClick={() => onStatus(req.id, "approved")}
+              className="h-8 px-3 bg-blue-600 text-white rounded-xl text-[11px] font-black shadow-sm"
+            >
+              אשר
+            </button>
+          )
+        )}
+        
+        <button 
+          onClick={() => onEdit(req)}
+          className="p-2 text-slate-500 hover:text-white transition-colors"
+        >
+          <Edit3 className="w-3.5 h-3.5" />
+        </button>
+        
+        <button 
+          onClick={() => onStatus(req.id, "deleted")}
+          className="p-2 text-rose-500/30 hover:text-rose-500 transition-colors"
+        >
+          <Trash2 className="w-3.5 h-3.5" />
+        </button>
+      </div>
     </div>
   );
 }

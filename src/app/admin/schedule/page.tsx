@@ -499,8 +499,8 @@ function SchedulePageInner() {
   const [newActivityGroup, setNewActivityGroup] = useState("");
 
   // ── Auto-save refs — always hold the latest values without stale closures
-  const scheduleRef = useRef(schedule);
-  const dateRef     = useRef(date);
+  const scheduleRef = useRef<DaySchedule>(schedule);
+  const dateRef     = useRef<string>(date);
   useEffect(() => { scheduleRef.current = schedule; }, [schedule]);
   useEffect(() => { dateRef.current = date; },         [date]);
 

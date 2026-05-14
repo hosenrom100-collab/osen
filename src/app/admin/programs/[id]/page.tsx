@@ -145,8 +145,10 @@ export default function ProgramDetailPage() {
     setGroups(gs => gs.filter(g => g.id !== id));
   };
 
-  const toggleDay = (d: number) =>
+  const toggleDay = (d: number) => {
     setEditDays(prev => prev.includes(d) ? prev.filter(x => x !== d) : [...prev, d].sort());
+    autoSave.trigger();
+  };
 
   const isDirty = program && (editName !== program.name || JSON.stringify(editDays) !== JSON.stringify(program.activeDays));
 
@@ -173,19 +175,27 @@ export default function ProgramDetailPage() {
               <h1 className="text-[16px] font-bold leading-tight truncate">{program?.name}</h1>
               <p className="text-[11px] text-slate-500 mt-0.5">פרטי תוכנית</p>
             </div>
-            <button
-              onClick={saveProgram}
-              disabled={saving || !isDirty}
-              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-bold transition-all border ${
-                saved        ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-400" :
-                isDirty      ? "bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-600/20 hover:bg-blue-500" :
-                               "bg-white/5 border-white/10 text-slate-600 cursor-not-allowed"
-              } disabled:opacity-50`}
-            >
-              {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> :
-               saved   ? <><Check className="w-3.5 h-3.5" /> נשמר</> :
-                         <><Save className="w-3.5 h-3.5" /> שמור</>}
-            </button>
+            <div className="flex items-center gap-2">
+              <AutoSaveIndicator
+                status={autoSave.status}
+                error={autoSave.error}
+                onRetry={autoSave.saveNow}
+              />
+              <button
+                onClick={autoSave.saveNow}
+                disabled={autoSave.status === "saving" || !isDirty}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-bold transition-all border ${
+                  autoSave.status === "saved" || saved
+                    ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-400"
+                    : isDirty
+                    ? "bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-600/20 hover:bg-blue-500"
+                    : "bg-white/5 border-white/10 text-slate-600 cursor-not-allowed"
+                } disabled:opacity-50`}
+              >
+                {autoSave.status === "saving" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                שמור
+              </button>
+            </div>
           </div>
         </header>
 
@@ -197,7 +207,7 @@ export default function ProgramDetailPage() {
               <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1.5">שם התוכנית</label>
               <input
                 value={editName}
-                onChange={e => setEditName(e.target.value)}
+                onChange={e => { setEditName(e.target.value); autoSave.trigger(); }}
                 className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-sm focus:border-violet-500 outline-none transition-colors font-semibold"
               />
             </div>

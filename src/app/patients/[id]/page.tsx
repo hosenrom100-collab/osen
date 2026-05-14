@@ -138,7 +138,7 @@ export default function PatientDetailPage() {
 
             <div className="flex items-center gap-2">
                {(isAdmin || isManager) && (
-                 <button className="hidden sm:flex items-center gap-2 bg-[var(--foreground)]/5 hover:bg-[var(--foreground)]/10 border border-[var(--border)] px-4 py-2.5 rounded-2xl text-xs font-black transition-all">
+                 <button className="hidden sm:flex items-center gap-2 bg-slate-900 text-white px-5 py-2.5 rounded-xl text-xs font-black transition-all">
                    <Edit3 className="w-4 h-4" />
                    <span>ערוך תיק</span>
                  </button>
@@ -157,27 +157,27 @@ export default function PatientDetailPage() {
                { label: "תאריך הצטרפות", value: patient.startDate ? format(new Date(patient.startDate), "dd/MM/yy") : "—", icon: Calendar, color: "text-purple-500" },
                { label: "ימי היעדרות", value: `${attendance.filter(a => a.status === 'absent').length}`, icon: AlertCircle, color: "text-rose-500" },
              ].map((stat, i) => (
-               <div key={i} className="bg-[var(--card-bg)] border border-[var(--border)] p-4 rounded-[2rem] shadow-sm">
-                 <div className={`w-8 h-8 rounded-xl bg-current/10 ${stat.color} flex items-center justify-center mb-3`}>
+               <div key={i} className="bg-white border border-slate-100 p-4 rounded-2xl">
+                 <div className={`w-8 h-8 rounded-xl bg-slate-50 ${stat.color} flex items-center justify-center mb-3`}>
                     <stat.icon className="w-4 h-4" />
                  </div>
-                 <p className="text-[10px] font-black text-[var(--foreground)]/30 uppercase tracking-widest mb-0.5">{stat.label}</p>
-                 <p className="text-lg font-black">{stat.value}</p>
+                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5">{stat.label}</p>
+                 <p className="text-base font-black text-slate-900">{stat.value}</p>
                </div>
              ))}
           </div>
 
           {/* ── Tabs ── */}
-          <div className="flex bg-[var(--foreground)]/5 p-1.5 rounded-2xl border border-[var(--border)] mb-8 w-fit">
+          <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200 mb-8 w-fit">
              {[
-               { id: "overview", label: "סקירה כללית", icon: Info },
+               { id: "overview", label: "סקירה", icon: Info },
                { id: "attendance", label: "נוכחות", icon: History },
-               { id: "reports", label: "דוחות ומסמכים", icon: FileText },
+               { id: "reports", label: "דוחות", icon: FileText },
              ].map((tab) => (
                <button 
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as any)}
-                className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-black transition-all ${activeTab === tab.id ? 'bg-emerald-600 text-white shadow-lg' : 'text-[var(--foreground)]/40 hover:text-[var(--foreground)]'}`}
+                className={`flex items-center gap-2 px-5 py-2 rounded-lg text-[11px] font-black transition-all ${activeTab === tab.id ? 'bg-white text-slate-900 border border-slate-200 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}
                >
                  <tab.icon className="w-3.5 h-3.5" />
                  {tab.label}
@@ -223,11 +223,11 @@ export default function PatientDetailPage() {
             )}
 
             {activeTab === "attendance" && (
-              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} key="attendance" className="bg-[var(--card-bg)] border border-[var(--border)] rounded-[2.5rem] overflow-hidden shadow-sm">
-                <div className="p-6 border-b border-[var(--border)] bg-[var(--foreground)]/[0.02]">
-                  <h3 className="font-black">יומן נוכחות אחרון</h3>
+              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} key="attendance" className="bg-white border border-slate-100 rounded-2xl overflow-hidden">
+                <div className="p-4 border-b border-slate-100 bg-slate-50">
+                  <h3 className="text-xs font-black uppercase tracking-widest">יומן נוכחות</h3>
                 </div>
-                <div className="divide-y divide-[var(--border)]">
+                <div className="divide-y divide-slate-100">
                   {attendance.length === 0 ? (
                     <div className="py-20 text-center opacity-20 italic">אין רישומי נוכחות זמינים</div>
                   ) : attendance.map((att) => (
@@ -293,7 +293,7 @@ export default function PatientDetailPage() {
                        <button 
                         onClick={() => generateReport('attendance')}
                         disabled={reportLoading}
-                        className="w-full bg-[var(--foreground)] text-[var(--background)] py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all hover:opacity-90 flex items-center justify-center gap-2"
+                        className="w-full bg-slate-900 text-white py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2"
                        >
                          {reportLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Printer className="w-3.5 h-3.5" />}
                          הפק דוח נוכחות חודשי

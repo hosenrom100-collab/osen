@@ -7,13 +7,14 @@ import { collection, getDocs, query, where, doc, setDoc, orderBy } from "firebas
 import {
   ClipboardList, ArrowRight, Calendar as CalendarIcon, Search,
   Loader2, Send, CheckCircle, Check, X, ChevronLeft, ChevronRight, Info,
-  Users, LayoutGrid, Calendar
+  Users, LayoutGrid, Calendar as LucideCalendar
 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AttendanceItem } from "@/components/admin/attendance/AttendanceItem";
 import {
   format, startOfMonth, endOfMonth, startOfWeek, endOfWeek,
   eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths,
+  addDays, subDays, parseISO
 } from "date-fns";
 import { he } from "date-fns/locale";
 import { motion, AnimatePresence } from "framer-motion";
@@ -35,16 +36,16 @@ function MiniCalendar({ value, onChange }: { value: string; onChange: (d: string
   const days = eachDayOfInterval({ start: startOfWeek(startOfMonth(view)), end: endOfWeek(endOfMonth(view)) });
   const WD = ["א","ב","ג","ד","ה","ו","ש"];
   return (
-    <div className="select-none bg-[var(--foreground)]/[0.02] border border-[var(--border)] rounded-[2rem] p-6 shadow-sm">
+    <div className="select-none bg-white border border-slate-100 rounded-[2rem] p-6">
       <div className="flex items-center justify-between mb-6">
-        <span className="text-sm font-black text-[var(--foreground)] uppercase tracking-tight">{format(view, "MMMM yyyy", { locale: he })}</span>
+        <span className="text-sm font-black text-slate-900 uppercase tracking-tight">{format(view, "MMMM yyyy", { locale: he })}</span>
         <div className="flex gap-1">
-          <button onClick={() => setView(subMonths(view, 1))} className="p-2 rounded-xl hover:bg-[var(--foreground)]/5 transition-colors border border-transparent hover:border-[var(--border)]"><ChevronRight className="w-4 h-4 text-[var(--foreground)]/40" /></button>
-          <button onClick={() => setView(addMonths(view, 1))} className="p-2 rounded-xl hover:bg-[var(--foreground)]/5 transition-colors border border-transparent hover:border-[var(--border)]"><ChevronLeft className="w-4 h-4 text-[var(--foreground)]/40" /></button>
+          <button onClick={() => setView(subMonths(view, 1))} className="p-2 rounded-xl hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-100"><ChevronRight className="w-4 h-4 text-slate-400" /></button>
+          <button onClick={() => setView(addMonths(view, 1))} className="p-2 rounded-xl hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-100"><ChevronLeft className="w-4 h-4 text-slate-400" /></button>
         </div>
       </div>
       <div className="grid grid-cols-7 gap-1 mb-2">
-        {WD.map(d => <div key={d} className="text-[10px] font-black text-[var(--foreground)]/30 text-center py-1 uppercase tracking-widest">{d}</div>)}
+        {WD.map(d => <div key={d} className="text-[10px] font-black text-slate-300 text-center py-1 uppercase tracking-widest">{d}</div>)}
       </div>
       <div className="grid grid-cols-7 gap-1">
         {days.map((day, i) => {
@@ -54,9 +55,9 @@ function MiniCalendar({ value, onChange }: { value: string; onChange: (d: string
           return (
             <button key={i} onClick={() => onChange(format(day, "yyyy-MM-dd"))}
               className={`aspect-square rounded-xl text-[11px] font-black flex items-center justify-center transition-all ${
-                isSel   ? "bg-emerald-600 text-white shadow-lg shadow-emerald-600/30" :
-                isToday ? "bg-[var(--foreground)]/10 text-emerald-600" :
-                inMonth ? "text-[var(--foreground)]/80 hover:bg-[var(--foreground)]/10" : "text-[var(--foreground)]/10"
+                isSel   ? "bg-slate-900 text-white shadow-lg shadow-slate-900/20" :
+                isToday ? "bg-slate-100 text-slate-900" :
+                inMonth ? "text-slate-600 hover:bg-slate-50" : "text-slate-200"
               }`}>
               {format(day, "d")}
             </button>
@@ -78,6 +79,7 @@ function AttendancePageContent() {
   const [loading,       setLoading]       = useState(true);
   const [searchTerm,    setSearchTerm]    = useState("");
   const [selectedDate,   setSelectedDate]   = useState(format(new Date(), "yyyy-MM-dd"));
+  const [showCalendar,  setShowCalendar]  = useState(false);
 
   useEffect(() => {
     getDocs(collection(db, "groups")).then(snap => {
@@ -92,7 +94,7 @@ function AttendancePageContent() {
       const gName = groups.find(g => g.id === selectedGroup)?.name || "";
       fetchData(selectedGroup, gName);
     }
-  }, [selectedGroup, selectedDate]);
+  }, [selectedGroup, selectedDate, groups]);
 
   const fetchData = async (groupId: string, groupName: string, targetDate = selectedDate) => {
     setLoading(true);
@@ -101,7 +103,7 @@ function AttendancePageContent() {
       const list: Patient[] = [];
       pSnap.forEach(d => {
         const data = d.data();
-        if (data.hosenType === groupId || data.hosenType === groupName) {
+        if (data.status === "active" && (data.hosenType === groupId || data.hosenType === groupName)) {
           list.push({ id: d.id, ...data } as Patient);
         }
       });
@@ -137,9 +139,32 @@ function AttendancePageContent() {
     } catch (err) { console.error(err); }
   };
 
+  const changeDate = (days: number) => {
+    const current = parseISO(selectedDate);
+    const next = addDays(current, days);
+    setSelectedDate(format(next, "yyyy-MM-dd"));
+  };
+
+  const markAllPresent = async () => {
+    const newAttendance = { ...attendance };
+    const updates = filteredPatients
+      .filter(p => attendance[p.id] === "unset")
+      .map(p => {
+        newAttendance[p.id] = "present";
+        return setDoc(doc(db, "attendance", `${p.id}_${selectedDate}`), {
+          patientId: p.id,
+          date: selectedDate,
+          status: "present",
+          updatedAt: new Date().toISOString()
+        });
+      });
+    setAttendance(newAttendance);
+    await Promise.all(updates);
+  };
+
   const filteredPatients = patients.filter(p => 
     `${p.firstName} ${p.lastName}`.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  ).sort((a, b) => `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`));
 
   const stats = {
     present: Object.values(attendance).filter(v => v === "present").length,
@@ -148,108 +173,151 @@ function AttendancePageContent() {
   };
 
   return (
-    <div className="min-h-screen bg-[var(--background)] text-[var(--foreground)]">
+    <div dir="rtl" className="min-h-screen bg-slate-50 text-slate-900 pb-32">
       
-      {/* ── Header ── */}
-      <header className="sticky top-0 z-40 bg-[var(--background)]/80 backdrop-blur-xl border-b border-[var(--border)]">
-        <div className="max-w-[1600px] mx-auto px-4 md:px-8 h-20 flex items-center justify-between">
-          <div className="flex items-center gap-6">
-            <button onClick={() => router.push("/")} className="w-10 h-10 rounded-2xl bg-[var(--foreground)]/5 border border-[var(--border)] flex items-center justify-center hover:bg-[var(--foreground)]/10 transition-all">
-              <ChevronLeft className="w-5 h-5 rotate-180" />
+      {/* ── Sticky Header ── */}
+      <header className="sticky top-0 z-40 bg-white border-b border-slate-100 px-4 pt-4 pb-2">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <button onClick={() => router.push("/")} className="w-10 h-10 flex items-center justify-center bg-slate-50 rounded-xl text-slate-400">
+              <ChevronRight className="w-5 h-5" />
             </button>
-            <div className="flex flex-col">
-              <h1 className="text-xl font-black tracking-tight leading-none mb-1">נוכחות מטופלים</h1>
-              <p className="text-[10px] text-[var(--foreground)]/40 font-bold uppercase tracking-widest flex items-center gap-2">
-                <span>{format(new Date(selectedDate), "dd MMMM yyyy", { locale: he })}</span>
-              </p>
+            <div>
+              <h1 className="text-sm font-black text-slate-900 leading-none">נוכחות</h1>
+              <p className="text-[10px] text-slate-400 font-bold mt-1 uppercase tracking-widest">Attendance Check</p>
             </div>
           </div>
 
-          <div className="hidden lg:flex items-center gap-3 bg-[var(--foreground)]/5 border border-[var(--border)] rounded-2xl px-4 py-2 w-[400px]">
-            <Search className="w-4 h-4 text-[var(--foreground)]/20" />
-            <input type="text" placeholder="חיפוש מטופל..."
-              value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
-              className="bg-transparent border-none outline-none text-sm w-full placeholder:text-[var(--foreground)]/20 font-medium" />
+          {/* Mobile Date Switcher: Compact arrows */}
+          <div className="flex md:hidden items-center bg-slate-50 rounded-xl p-1">
+            <button onClick={() => changeDate(-1)} className="p-2 text-slate-400">
+              <ChevronRight className="w-4 h-4" />
+            </button>
+            <span className="text-[10px] font-black text-slate-900 px-2 min-w-[70px] text-center">
+              {isSameDay(parseISO(selectedDate), new Date()) ? "היום" : format(parseISO(selectedDate), "d/MM")}
+            </span>
+            <button onClick={() => changeDate(1)} className="p-2 text-slate-400">
+              <ChevronLeft className="w-4 h-4" />
+            </button>
           </div>
+
+          {/* Desktop Calendar Toggle */}
+          <button 
+            onClick={() => setShowCalendar(!showCalendar)}
+            className="hidden md:flex items-center gap-2 px-4 h-10 bg-slate-900 rounded-xl text-xs font-black text-white shadow-lg shadow-slate-900/20 transition-all"
+          >
+            <CalendarIcon className="w-4 h-4" />
+            {format(parseISO(selectedDate), "d בMMMM", { locale: he })}
+          </button>
         </div>
+
+        {/* Group Selector - Clean Horizontal Pill Scroll */}
+        <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-1">
+          {groups.map(g => (
+            <button 
+              key={g.id} 
+              onClick={() => setSelectedGroup(g.id)}
+              className={`whitespace-nowrap px-4 h-8 rounded-xl text-[10px] font-black transition-all ${
+                selectedGroup === g.id 
+                  ? 'bg-slate-100 text-slate-900' 
+                  : 'text-slate-400'
+              }`}
+            >
+              {g.name}
+            </button>
+          ))}
+        </div>
+
+        {/* Calendar Dropdown - Desktop Only Overlay */}
+        <AnimatePresence>
+          {showCalendar && (
+            <motion.div 
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="hidden md:block absolute top-full left-0 right-0 bg-white border-b border-slate-100 shadow-xl z-50 p-4"
+            >
+              <div className="max-w-sm mx-auto">
+                <MiniCalendar value={selectedDate} onChange={(d) => { setSelectedDate(d); setShowCalendar(false); }} />
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </header>
 
-      <main className="max-w-[1600px] mx-auto p-4 md:p-8">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-          
-          {/* ── Sidebar: Filters ── */}
-          <aside className="lg:col-span-3 space-y-6">
-            <div className="bg-[var(--card-bg)] border border-[var(--border)] rounded-[2.5rem] p-8 shadow-sm">
-               <h3 className="text-sm font-black uppercase tracking-widest text-[var(--foreground)]/40 mb-6 flex items-center gap-2">
-                 <LayoutGrid className="w-4 h-4 text-emerald-500" />
-                 בחירת קבוצה
-               </h3>
-               <div className="space-y-2">
-                 {groups.map(g => (
-                   <button 
-                    key={g.id} 
-                    onClick={() => setSelectedGroup(g.id)}
-                    className={`w-full text-right px-4 py-3 rounded-2xl text-sm font-bold transition-all border ${
-                      selectedGroup === g.id 
-                        ? 'bg-emerald-600/10 border-emerald-500/30 text-emerald-600 shadow-sm' 
-                        : 'border-transparent hover:bg-[var(--foreground)]/5 text-[var(--foreground)]/60'
-                    }`}
-                   >
-                     {g.name}
-                   </button>
-                 ))}
-               </div>
+      <main className="max-w-5xl mx-auto p-4 space-y-6">
+        
+        {/* Quick Stats & Search */}
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            <div className="flex-1 relative">
+              <Search className="absolute right-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-300" />
+              <input 
+                type="text" 
+                placeholder="חפש מטופל..."
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+                className="w-full bg-white border border-slate-100 rounded-2xl pr-10 pl-4 h-12 text-[11px] font-black outline-none focus:border-slate-200"
+              />
             </div>
+            {stats.total > stats.present + stats.absent && (
+              <button 
+                onClick={markAllPresent}
+                className="w-12 h-12 bg-emerald-500 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-500/20"
+                title="סמן הכל כנוכח"
+              >
+                <CheckCircle className="w-5 h-5" />
+              </button>
+            )}
+          </div>
 
-            <MiniCalendar value={selectedDate} onChange={setSelectedDate} />
-          </aside>
-
-          {/* ── Main: Patient Grid ── */}
-          <div className="lg:col-span-9 space-y-8">
-            
-            {/* Stats Summary */}
-            <div className="grid grid-cols-3 gap-4">
-               {[
-                 { label: "נוכחים", value: stats.present, color: "text-emerald-500", bg: "bg-emerald-500/10" },
-                 { label: "נעדרים", value: stats.absent, color: "text-rose-500", bg: "bg-rose-500/10" },
-                 { label: "סה״כ", value: stats.total, color: "text-blue-500", bg: "bg-blue-500/10" },
-               ].map((s, i) => (
-                 <div key={i} className={`p-6 rounded-[2rem] border border-[var(--border)] bg-[var(--card-bg)] shadow-sm`}>
-                    <p className="text-[10px] font-black uppercase tracking-widest text-[var(--foreground)]/30 mb-1">{s.label}</p>
-                    <p className={`text-2xl font-black ${s.color}`}>{s.value}</p>
-                 </div>
-               ))}
+          <div className="flex items-center justify-between px-2">
+            <div className="flex gap-4">
+              <div className="flex flex-col">
+                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">נוכחות</span>
+                <span className="text-sm font-black text-slate-900">{stats.present} / {stats.total}</span>
+              </div>
+              <div className="flex flex-col">
+                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">היעדרות</span>
+                <span className="text-sm font-black text-rose-500">{stats.absent}</span>
+              </div>
             </div>
-
-            <div className="bg-[var(--card-bg)] border border-[var(--border)] rounded-[3rem] p-8 min-h-[500px]">
-              <AnimatePresence mode="wait">
-                {loading ? (
-                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                    className="flex flex-col items-center justify-center py-32 gap-4">
-                    <Loader2 className="w-10 h-10 text-emerald-500 animate-spin" />
-                    <p className="text-sm font-black text-[var(--foreground)]/20 uppercase tracking-widest">טוען רשימת מטופלים...</p>
-                  </motion.div>
-                ) : filteredPatients.length === 0 ? (
-                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-                    className="flex flex-col items-center justify-center py-32 opacity-20 italic">
-                    <Users className="w-12 h-12 mb-4" />
-                    <p>לא נמצאו מטופלים בקבוצה זו</p>
-                  </motion.div>
-                ) : (
-                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-                    {filteredPatients.map((p) => (
-                      <AttendanceItem 
-                        key={p.id} 
-                        patient={p} 
-                        status={attendance[p.id] || "unset"} 
-                        onToggle={(s) => handleToggle(p.id, s)} 
-                      />
-                    ))}
-                  </motion.div>
-                )}
-              </AnimatePresence>
+            <div className="h-1 flex-1 max-w-[100px] bg-slate-100 rounded-full mx-4 overflow-hidden">
+              <div 
+                className="h-full bg-slate-900 transition-all duration-500" 
+                style={{ width: `${(stats.present / stats.total) * 100}%` }}
+              />
             </div>
           </div>
+        </div>
+
+        {/* Patient List - Unified Card */}
+        <div className="bg-white border border-slate-100 rounded-[2rem] overflow-hidden shadow-sm">
+          <AnimatePresence mode="wait">
+            {loading ? (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                className="flex flex-col items-center justify-center py-20 gap-4">
+                <Loader2 className="w-8 h-8 text-slate-200 animate-spin" />
+              </motion.div>
+            ) : filteredPatients.length === 0 ? (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                className="flex flex-col items-center justify-center py-20 text-slate-300 italic text-xs gap-3">
+                <Users className="w-8 h-8 opacity-20" />
+                <p>אין מטופלים להצגה</p>
+              </motion.div>
+            ) : (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="divide-y divide-slate-50">
+                {filteredPatients.map((p) => (
+                  <AttendanceItem 
+                    key={p.id} 
+                    patient={p} 
+                    status={attendance[p.id] || "unset"} 
+                    onToggle={(s) => handleToggle(p.id, s)} 
+                  />
+                ))}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </main>
     </div>

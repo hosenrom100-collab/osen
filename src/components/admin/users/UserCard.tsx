@@ -26,30 +26,27 @@ export function UserCard({ user, index, updatingId, programs, groups, onUpdate }
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.05 }}
-      className={`bg-[var(--card-bg)] border border-[var(--border)] rounded-[2.5rem] overflow-hidden shadow-sm transition-all ${isExpanded ? 'ring-1 ring-rose-500/20 shadow-xl' : 'hover:border-[var(--foreground)]/10'}`}
+    <div
+      className={`bg-white border border-slate-100 rounded-2xl overflow-hidden transition-all ${isExpanded ? 'ring-1 ring-rose-500/10' : ''}`}
     >
       {/* Main Row */}
       <div className="p-6 md:p-8 flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="flex items-center gap-6">
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[var(--foreground)]/5 to-[var(--foreground)]/10 flex items-center justify-center text-[var(--foreground)]/20 shadow-inner">
-            <User className="w-8 h-8" />
+          <div className="w-14 h-14 rounded-xl bg-slate-50 flex items-center justify-center text-slate-300">
+            <User className="w-7 h-7" />
           </div>
           <div>
             <div className="flex items-center gap-3">
-              <h3 className="text-xl font-black tracking-tight">{user.name}</h3>
+              <h3 className="text-lg font-black tracking-tight text-slate-900">{user.name}</h3>
               <div className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest border ${
-                user.status === 'approved' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500' :
-                user.status === 'pending' ? 'bg-orange-500/10 border-orange-500/20 text-orange-500' :
-                'bg-rose-500/10 border-rose-500/20 text-rose-500'
+                user.status === 'approved' ? 'bg-emerald-50 border-emerald-100 text-emerald-500' :
+                user.status === 'pending' ? 'bg-orange-50 border-orange-100 text-orange-500' :
+                'bg-rose-50 border-rose-100 text-rose-500'
               }`}>
                 {user.status === 'approved' ? 'פעיל' : user.status === 'pending' ? 'ממתין' : 'חסום'}
               </div>
             </div>
-            <p className="text-sm font-bold text-[var(--foreground)]/30 mt-1">{user.email}</p>
+            <p className="text-xs font-bold text-slate-400 mt-0.5">{user.email}</p>
           </div>
         </div>
 
@@ -74,7 +71,7 @@ export function UserCard({ user, index, updatingId, programs, groups, onUpdate }
             <button
               onClick={() => onUpdate({ status: "approved" })}
               disabled={isUpdating}
-              className="flex items-center gap-2 px-6 py-2.5 bg-emerald-600 text-white rounded-xl text-xs font-black shadow-lg shadow-emerald-600/20 hover:bg-emerald-500 transition-all disabled:opacity-50"
+              className="flex items-center gap-2 px-6 py-2.5 bg-emerald-600 text-white rounded-xl text-xs font-black hover:bg-emerald-500 transition-all disabled:opacity-50"
             >
               <Check className="w-4 h-4" />
               אשר כניסה
@@ -159,6 +156,6 @@ export function UserCard({ user, index, updatingId, programs, groups, onUpdate }
           </motion.div>
         )}
       </AnimatePresence>
-    </motion.div>
+    </div>
   );
 }

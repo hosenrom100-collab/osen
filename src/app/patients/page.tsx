@@ -132,7 +132,7 @@ export default function PatientsPage() {
 
                <button 
                 onClick={() => router.push("/patients/new")}
-                className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-3 rounded-2xl text-sm font-black transition-all shadow-xl shadow-emerald-600/20"
+                className="flex items-center gap-2 bg-slate-900 hover:bg-slate-800 text-white px-6 py-3 rounded-2xl text-sm font-black transition-all"
                >
                  <Plus className="w-4 h-4" />
                  מטופל חדש
@@ -140,15 +140,15 @@ export default function PatientsPage() {
             </div>
           </div>
 
-          <div className="mt-8 grid grid-cols-1 md:grid-cols-12 gap-4">
+          <div className="mt-8 grid grid-cols-1 md:grid-cols-12 gap-3">
             <div className="md:col-span-5 relative group">
-              <Search className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--foreground)]/20 group-focus-within:text-emerald-500 transition-colors" />
+              <Search className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300 group-focus-within:text-slate-900 transition-colors" />
               <input 
                 type="text" 
                 placeholder="חיפוש לפי שם או תעודת זהות..."
                 value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value)}
-                className="w-full bg-[var(--card-bg)] border border-[var(--border)] rounded-2xl pr-12 pl-4 py-3.5 text-sm font-bold outline-none focus:border-emerald-500/50 transition-all"
+                className="w-full bg-white border border-slate-100 rounded-2xl pr-12 pl-4 py-3 text-sm font-bold outline-none focus:border-slate-200 transition-all"
               />
             </div>
             
@@ -156,7 +156,7 @@ export default function PatientsPage() {
               <select 
                 value={selectedGroup}
                 onChange={e => setSelectedGroup(e.target.value)}
-                className="w-full bg-[var(--card-bg)] border border-[var(--border)] rounded-2xl px-4 py-3.5 text-sm font-bold outline-none appearance-none cursor-pointer"
+                className="w-full bg-white border border-slate-100 rounded-2xl px-4 py-3 text-sm font-bold outline-none appearance-none cursor-pointer"
               >
                 <option value="all">כל התוכניות</option>
                 {groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
@@ -243,54 +243,51 @@ export default function PatientsPage() {
               </div>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            <div className="space-y-3">
               {filtered.map((p) => (
                 <motion.div 
                   key={p.id}
                   layout
                   onClick={() => router.push(`/patients/${p.id}`)}
-                  className="bg-[var(--card-bg)] border border-[var(--border)] rounded-[2.5rem] p-6 cursor-pointer hover:border-emerald-500/30 hover:shadow-2xl hover:shadow-black/20 transition-all group relative overflow-hidden"
+                  className="bg-white border border-slate-100 rounded-2xl p-4 flex items-center gap-4 active:bg-slate-50 transition-all"
                 >
-                  <div className="flex items-start justify-between mb-6">
-                    <div className="w-14 h-14 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-emerald-600 text-xl font-black">
-                      {p.firstName?.[0]}{p.lastName?.[0]}
-                    </div>
-                    <button onClick={(e) => handleDelete(p.id, e)} className="p-2 text-[var(--foreground)]/10 hover:text-rose-500 hover:bg-rose-500/10 rounded-xl transition-all">
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                  {/* Avatar/Initial */}
+                  <div className="w-12 h-12 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400 text-sm font-black shrink-0">
+                    {p.firstName?.[0]}{p.lastName?.[0]}
                   </div>
                   
-                  <div className="space-y-1 mb-6">
-                    <h3 className="text-lg font-black tracking-tight">{p.firstName} {p.lastName}</h3>
-                    <p className="text-[10px] font-black text-[var(--foreground)]/30 uppercase tracking-widest">{p.idNumber}</p>
-                  </div>
-
-                  <div className="space-y-3 mb-6">
-                    <div className="flex items-center gap-2 text-xs font-bold text-[var(--foreground)]/60">
-                       <Briefcase className="w-3.5 h-3.5 text-emerald-500" />
-                       {staff[p.assignedWorkerId || ""] || "לא שובץ"}
+                  {/* Info */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <h3 className="text-sm font-black text-slate-900 truncate">
+                        {p.firstName} {p.lastName}
+                      </h3>
+                      <div className={`w-1.5 h-1.5 rounded-full ${p.status === 'active' ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.3)]' : 'bg-slate-300'}`} />
                     </div>
-                    <div className="flex items-center gap-2 text-[10px] font-black text-[var(--foreground)]/30">
-                       <CalendarDays className="w-3.5 h-3.5" />
-                       {formatDate(p.startDate)} - {formatDate(p.endDate)}
+                    <div className="flex items-center gap-2 overflow-hidden">
+                      <span className="text-[10px] font-bold text-slate-400 whitespace-nowrap">
+                        {groups.find(g => g.id === p.hosenType)?.name || p.hosenType || "כללי"}
+                      </span>
+                      <span className="w-1 h-1 rounded-full bg-slate-200 shrink-0" />
+                      <span className="text-[10px] font-bold text-slate-400 truncate">
+                        {staff[p.assignedWorkerId || ""] || "לא שובץ"}
+                      </span>
                     </div>
                   </div>
-
-                  <div className="flex items-center gap-2 mb-6">
-                     <span className="px-3 py-1 rounded-lg bg-[var(--foreground)]/5 text-[9px] font-black uppercase tracking-widest border border-[var(--border)]">
-                       {groups.find(g => g.id === p.hosenType)?.name || p.hosenType || "כללי"}
-                     </span>
-                     <div className={`px-3 py-1 rounded-lg border text-[9px] font-black uppercase tracking-widest ${p.status === 'active' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 'bg-slate-500/10 text-slate-400 border-slate-500/20'}`}>
-                       {p.status === 'active' ? 'פעיל' : 'ממתין'}
-                     </div>
-                  </div>
-
-                  <div className="flex items-center justify-between pt-4 border-t border-[var(--border)]">
-                    <div className="flex items-center gap-2 text-[var(--foreground)]/40">
-                       <Phone className="w-3.5 h-3.5" />
-                       <span className="text-[10px] font-bold">{p.phone || "—"}</span>
+                  {/* Actions */}
+                  <div className="flex items-center gap-1 shrink-0">
+                    {p.phone && (
+                      <a 
+                        href={`tel:${p.phone}`}
+                        onClick={(e) => e.stopPropagation()}
+                        className="p-2.5 text-slate-400 hover:text-emerald-600 transition-colors"
+                      >
+                        <Phone className="w-4 h-4" />
+                      </a>
+                    )}
+                    <div className="p-2.5 text-slate-300">
+                      <ChevronLeft className="w-4 h-4" />
                     </div>
-                    <ChevronLeft className="w-4 h-4 text-emerald-500" />
                   </div>
                 </motion.div>
               ))}
