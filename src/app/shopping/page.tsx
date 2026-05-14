@@ -71,6 +71,9 @@ export default function ShoppingPage() {
   const [editCat,  setEditCat]      = useState("");
   const [editName, setEditName]     = useState("");
 
+  const [newCatName, setNewCatName] = useState("");
+  const [isAddingCat, setIsAddingCat] = useState(false);
+
   // Per-item confirm delete
   const [confirmDel, setConfirmDel] = useState<string | null>(null);
 
@@ -201,6 +204,18 @@ export default function ShoppingPage() {
   const flash = (id: string) => {
     setJustAdded(id);
     setTimeout(() => setJustAdded(null), 1600);
+  };
+
+  const handleAddCategory = async () => {
+    const name = newCatName.trim();
+    if (!name || categories.includes(name)) return;
+    const next = [...categories, name];
+    setCategories(next);
+    setNewCatName("");
+    setIsAddingCat(false);
+    try {
+      await setDoc(doc(db, "settings", "shopping"), { categories: next }, { merge: true });
+    } catch (e) { console.error(e); }
   };
 
   const handleUpdateItem = async () => {
@@ -488,6 +503,30 @@ export default function ShoppingPage() {
                           {cat}
                         </button>
                       ))}
+                      
+                      {!isAddingCat ? (
+                        <button 
+                          onClick={() => setIsAddingCat(true)}
+                          className="py-2 px-2 rounded-lg text-[11px] font-bold border border-dashed border-white/20 text-slate-500 hover:border-white/40 hover:text-slate-300 transition-all flex items-center justify-center gap-1"
+                        >
+                          <Plus className="w-3 h-3" />
+                          חדש
+                        </button>
+                      ) : (
+                        <div className="col-span-2 flex gap-1 mt-1">
+                          <input 
+                            autoFocus
+                            type="text"
+                            value={newCatName}
+                            onChange={e => setNewCatName(e.target.value)}
+                            onKeyDown={e => e.key === "Enter" && handleAddCategory()}
+                            placeholder="שם קטגוריה..."
+                            className="flex-1 bg-white/10 border border-white/20 rounded-lg py-1.5 px-3 text-[11px] outline-none focus:border-blue-500"
+                          />
+                          <button onClick={handleAddCategory} className="bg-blue-600 text-white px-3 rounded-lg text-[11px] font-bold">הוסף</button>
+                          <button onClick={() => setIsAddingCat(false)} className="bg-white/10 text-slate-400 px-2 rounded-lg"><X className="w-3 h-3" /></button>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
