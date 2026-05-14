@@ -7,22 +7,22 @@
    ════════════════════════════════════════════════════════════════════ */
 @theme {
   /* Layout tokens */
-  --color-background:   #07071a;
-  --color-surface:      #0d0d24;
-  --color-surface-hi:   #131330;
-  --color-card:         #0d0d24;
-  --color-border:       rgba(255,255,255,0.07);
-  --color-border-hi:    rgba(255,255,255,0.13);
-  --color-sidebar:      #07071a;
+  --color-background:   #020617;
+  --color-surface:      #0f172a;
+  --color-surface-hi:   #1e293b;
+  --color-card:         rgba(15, 23, 42, 0.4);
+  --color-border:       rgba(255, 255, 255, 0.08);
+  --color-border-hi:    rgba(255, 255, 255, 0.15);
+  --color-sidebar:      #020617;
 
   /* Text tokens */
-  --color-foreground:   #eaeaf8;
-  --color-muted:        #8080a4;
-  --color-subtle:       #3e3e5e;
+  --color-foreground:   #f8fafc;
+  --color-muted:        #94a3b8;
+  --color-subtle:       #475569;
 
   /* Brand tokens */
-  --color-primary:      #4f73ff;
-  --color-primary-faint:#111840;
+  --color-primary:      #3b82f6;
+  --color-primary-faint:rgba(59, 130, 246, 0.1);
 }
 
 /* ════════════════════════════════════════════════════════════════════
@@ -31,26 +31,29 @@
 :root {
   color-scheme: dark;
 
-  --background:      #07071a;
-  --surface:         #0d0d24;
-  --surface-raised:  #131330;
-  --card-bg:         #0d0d24;
-  --sidebar-bg:      #07071a;
+  --background:      #020617;
+  --surface:         #0f172a;
+  --surface-raised:  #1e293b;
+  --card-bg:         rgba(15, 23, 42, 0.4);
+  /* Striped pattern for cards */
+  --card-pattern:    repeating-linear-gradient(45deg, transparent, transparent 20px, rgba(255,255,255,0.01) 20px, rgba(255,255,255,0.01) 40px);
+  
+  --sidebar-bg:      #020617;
 
-  --border:          rgba(255,255,255,0.07);
-  --border-strong:   rgba(255,255,255,0.13);
-  --border-subtle:   rgba(255,255,255,0.035);
+  --border:          rgba(255, 255, 255, 0.08);
+  --border-strong:   rgba(255, 255, 255, 0.15);
+  --border-subtle:   rgba(255, 255, 255, 0.04);
 
-  --foreground:      #eaeaf8;
-  --text-secondary:  #8080a4;
-  --text-muted:      #3e3e5e;
+  --foreground:      #f8fafc;
+  --text-secondary:  #94a3b8;
+  --text-muted:      #475569;
 
-  --primary:         #4f73ff;
-  --primary-rgb:     79, 115, 255;
-  --primary-faint:   rgba(79,115,255,0.10);
+  --primary:         #3b82f6;
+  --primary-rgb:     59, 130, 246;
+  --primary-faint:   rgba(59, 130, 246, 0.1);
 
-  --scrollbar-track: #07071a;
-  --scrollbar-thumb: #1a1a40;
+  --scrollbar-track: #020617;
+  --scrollbar-thumb: #1e293b;
 }
 
 /* ════════════════════════════════════════════════════════════════════
@@ -59,41 +62,42 @@
 .light {
   color-scheme: light;
 
-  /* Override @theme tokens so Tailwind classes respond */
-  --color-background:  #f0f0f9;
+  /* Override @theme tokens */
+  --color-background:  #f8fafc;
   --color-surface:     #ffffff;
-  --color-surface-hi:  #ffffff;
+  --color-surface-hi:  #f1f5f9;
   --color-card:        #ffffff;
-  --color-border:      #dedee8;
-  --color-border-hi:   #c4c4d8;
-  --color-sidebar:     #f8f8fd;
-  --color-foreground:  #0d0d24;
-  --color-muted:       #8888a8;
-  --color-subtle:      #b8b8d8;
-  --color-primary:     #3354e8;
-  --color-primary-faint: #eef1fd;
+  --color-border:      #e2e8f0;
+  --color-border-hi:   #cbd5e1;
+  --color-sidebar:     #ffffff;
+  --color-foreground:  #0f172a;
+  --color-muted:       #475569;
+  --color-subtle:      #94a3b8;
+  --color-primary:     #2563eb;
+  --color-primary-faint: #eff6ff;
 
-  /* Legacy variables used by older pages */
-  --background:      #f0f0f9;
+  /* Legacy variables */
+  --background:      #f8fafc;
   --surface:         #ffffff;
-  --surface-raised:  #ffffff;
+  --surface-raised:  #f1f5f9;
   --card-bg:         #ffffff;
-  --sidebar-bg:      #f8f8fd;
+  --card-pattern:    none;
+  --sidebar-bg:      #ffffff;
 
-  --border:          #dedee8;
-  --border-strong:   #c4c4d8;
-  --border-subtle:   #ebebf5;
+  --border:          #e2e8f0;
+  --border-strong:   #cbd5e1;
+  --border-subtle:   #f1f5f9;
 
-  --foreground:      #0d0d24;
-  --text-secondary:  #5858789;
-  --text-muted:      #a0a0bc;
+  --foreground:      #0f172a;
+  --text-secondary:  #475569;
+  --text-muted:      #94a3b8;
 
-  --primary:         #3354e8;
-  --primary-rgb:     51, 84, 232;
-  --primary-faint:   rgba(51,84,232,0.08);
+  --primary:         #2563eb;
+  --primary-rgb:     37, 99, 235;
+  --primary-faint:   rgba(37, 99, 235, 0.08);
 
-  --scrollbar-track: #f0f0f9;
-  --scrollbar-thumb: #d0d0e4;
+  --scrollbar-track: #f8fafc;
+  --scrollbar-thumb: #cbd5e1;
 }
 
 /* ════════════════════════════════════════════════════════════════════
@@ -111,12 +115,20 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* ── Card Styling with Pattern ────────────────────────────────────── */
+[class*="bg-[var(--card-bg)]"], 
+.bg-card {
+  background-image: var(--card-pattern) !important;
+  background-blend-mode: overlay;
+}
+
 /* ── Tailwind v4: fix default border color ────────────────────────── */
-/* Without this, bare "border" / "border-b" etc. inherit currentColor  */
-/* causing unwanted colored stripes throughout the layout.             */
+/* Explicitly set border-color globally to prevent currentColor inheritance */
 @layer base {
   *, ::before, ::after {
     border-color: var(--border);
+    border-width: 0;
+    border-style: solid;
   }
 }
 
@@ -128,7 +140,7 @@ body {
   /* Backgrounds */
   & .bg-slate-950  { background-color: var(--background) !important; }
   & .bg-slate-900  { background-color: var(--surface) !important; }
-  & .bg-slate-800  { background-color: #eeeef6 !important; }
+  & .bg-slate-800  { background-color: #f1f5f9 !important; }
   & .min-h-screen.bg-slate-950 { background-color: var(--background); }
 
   /* Text */
@@ -139,7 +151,7 @@ body {
   & .text-slate-600 { color: var(--text-muted) !important; }
   & .text-slate-700 { color: var(--text-muted) !important; }
 
-  /* Borders — opacity-based whites → proper light borders */
+  /* Borders */
   & .border-white\/5,
   & .border-white\/\[0\.05\] { border-color: var(--border-subtle) !important; }
   & .border-white\/8,
@@ -148,21 +160,28 @@ body {
   & .border-white\/10,
   & .border-white\/\[0\.1\]  { border-color: var(--border-strong) !important; }
 
-  /* Semi-transparent backgrounds → solid */
+  /* Semi-transparent backgrounds → Solid clean backgrounds for light mode */
   & .bg-white\/\[0\.03\],
   & .bg-white\/\[0\.04\],
   & .bg-white\/\[0\.05\],
   & .bg-white\/5 {
     background-color: var(--surface) !important;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    border: 1px solid var(--border-subtle);
   }
-  & .bg-white\/\[0\.02\] { background-color: #f6f6fc !important; }
+  & .bg-white\/\[0\.02\] { background-color: var(--background) !important; }
 
-  /* Input backgrounds */
+  /* Input styling */
   & input, & select, & textarea {
     background-color: var(--surface) !important;
     color: var(--foreground) !important;
-    border-color: var(--border) !important;
+    border: 1px solid var(--border) !important;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+  }
+
+  /* Specific fix for card-like elements */
+  & .bg-white\/5.backdrop-blur-xl {
+    background-color: var(--surface) !important;
+    backdrop-filter: none !important;
   }
 }
 
