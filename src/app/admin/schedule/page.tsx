@@ -5,137 +5,391 @@ import { useState, useEffect, useMemo } from "react";
 import { db } from "@/lib/firebase/config";
 import { collection, getDocs, setDoc, doc, query, orderBy, getDoc } from "firebase/firestore";
 import {
-  Calendar, Clock, MapPin, Users, User, Plus, Trash2, Save, Copy,
-  Loader2, ArrowRight, ChevronLeft, ChevronRight, Edit3, X, Check,
+  Clock, MapPin, Users, User, Plus, Trash2, Save, Copy,
+  Loader2, ChevronLeft, ChevronRight, Edit3, X, Check, Calendar,
 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { format, addDays, subDays, parseISO } from "date-fns";
+import {
+  format, addDays, subDays, parseISO, startOfMonth, endOfMonth,
+  startOfWeek, endOfWeek, eachDayOfInterval, isSameDay, isSameMonth,
+  addMonths, subMonths, startOfWeek as soW,
+} from "date-fns";
 import { he } from "date-fns/locale";
+import { Suspense } from "react";
 
-/* ─────────────────── Types ─────────────────── */
+/* ─── Types ─────────────────────────────────────────────────────────────── */
 
 interface Activity {
-  id: string;
-  title: string;
-  startTime: string;
-  endTime: string;
-  locationId: string;
-  staffIds: string[];
-  /** group.id | "all" (joint) | "staff_only" */
-  groupId: string;
-  notes?: string;
+  id: string; title: string; startTime: string; endTime: string;
+  locationId: string; staffIds: string[]; groupId: string; notes?: string;
 }
-
-interface DaySchedule {
-  dutyInstructorId: string;
-  activities: Activity[];
-}
-
+interface DaySchedule { dutyInstructorId: string; activities: Activity[] }
 interface Group    { id: string; name: string }
 interface Person   { id: string; name: string }
 interface Location { id: string; name: string }
 
-const EMPTY_SCHEDULE: DaySchedule = { dutyInstructorId: "", activities: [] };
-
+const EMPTY: DaySchedule = { dutyInstructorId: "", activities: [] };
 const DAY_NAMES = ["ראשון","שני","שלישי","רביעי","חמישי","שישי","שבת"];
-
-/* ─────────────────── Helpers ─────────────────── */
-
 const uid = () => Math.random().toString(36).slice(2, 9);
 
-/** Migrate old single-instructor field to staffIds array */
-const migrateActivity = (a: any): Activity => ({
-  id:         a.id            || uid(),
-  title:      a.title         || a.activityType || "",
-  startTime:  a.startTime     || "09:00",
-  endTime:    a.endTime       || "10:00",
-  locationId: a.locationId    || "",
-  staffIds:   a.staffIds      || (a.instructorId ? [a.instructorId] : []),
-  groupId:    a.groupId       || a.hosenType || "all",
-  notes:      a.notes         || "",
+const migrate = (a: any): Activity => ({
+  id:         a.id         || uid(),
+  title:      a.title      || a.activityType || "",
+  startTime:  a.startTime  || "09:00",
+  endTime:    a.endTime    || "10:00",
+  locationId: a.locationId || "",
+  staffIds:   a.staffIds   || (a.instructorId ? [a.instructorId] : []),
+  groupId:    a.groupId    || a.hosenType || "all",
+  notes:      a.notes      || "",
 });
 
-/* ─────────────────── Component ─────────────────── */
+// Group color palette — index 0 = "all", then groups, last = staff_only
+const PALETTE = [
+  { dot: "bg-blue-500",   border: "border-blue-500/40",   bg: "bg-blue-500/8",   text: "text-blue-400",   chip: "bg-blue-500/10 text-blue-400"   },
+  { dot: "bg-violet-500", border: "border-violet-500/40", bg: "bg-violet-500/8", text: "text-violet-400", chip: "bg-violet-500/10 text-violet-400" },
+  { dot: "bg-teal-500",   border: "border-teal-500/40",   bg: "bg-teal-500/8",   text: "text-teal-400",   chip: "bg-teal-500/10 text-teal-400"   },
+  { dot: "bg-amber-500",  border: "border-amber-500/40",  bg: "bg-amber-500/8",  text: "text-amber-400",  chip: "bg-amber-500/10 text-amber-400"  },
+  { dot: "bg-rose-500",   border: "border-rose-500/40",   bg: "bg-rose-500/8",   text: "text-rose-400",   chip: "bg-rose-500/10 text-rose-400"   },
+  { dot: "bg-slate-500",  border: "border-slate-500/40",  bg: "bg-slate-500/8",  text: "text-slate-400",  chip: "bg-slate-500/10 text-slate-400"  },
+];
 
-import { Suspense } from "react";
+/* ─── Mini Calendar ─────────────────────────────────────────────────────── */
+
+function MiniCal({ value, onChange }: { value: string; onChange: (d: string) => void }) {
+  const sel  = parseISO(value);
+  const [view, setView] = useState(new Date(value));
+  const days = eachDayOfInterval({ start: startOfWeek(startOfMonth(view)), end: endOfWeek(endOfMonth(view)) });
+  const WD   = ["א","ב","ג","ד","ה","ו","ש"];
+  return (
+    <div className="select-none">
+      <div className="flex items-center justify-between mb-2 px-0.5">
+        <span className="text-xs font-semibold text-slate-300">{format(view, "MMMM yyyy", { locale: he })}</span>
+        <div className="flex gap-0.5">
+          <button onClick={() => setView(subMonths(view, 1))} className="p-1 rounded hover:bg-white/8 transition-colors"><ChevronRight className="w-3.5 h-3.5 text-slate-500" /></button>
+          <button onClick={() => setView(addMonths(view, 1))} className="p-1 rounded hover:bg-white/8 transition-colors"><ChevronLeft  className="w-3.5 h-3.5 text-slate-500" /></button>
+        </div>
+      </div>
+      <div className="grid grid-cols-7 gap-0.5 mb-0.5">
+        {WD.map(d => <div key={d} className="text-[9px] font-bold text-slate-600 text-center py-0.5">{d}</div>)}
+      </div>
+      <div className="grid grid-cols-7 gap-0.5">
+        {days.map((day, i) => {
+          const isSel   = isSameDay(day, sel);
+          const isToday = isSameDay(day, new Date());
+          const inM     = isSameMonth(day, view);
+          return (
+            <button key={i} onClick={() => onChange(format(day, "yyyy-MM-dd"))}
+              className={`aspect-square rounded text-[10px] font-bold flex items-center justify-center transition-all ${
+                isSel   ? "bg-rose-600 text-white shadow-sm" :
+                isToday ? "ring-1 ring-rose-500/50 text-rose-400" :
+                inM     ? "text-slate-300 hover:bg-white/8" : "text-slate-700 hover:bg-white/5"
+              }`}>
+              {format(day, "d")}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* ─── Week Strip ────────────────────────────────────────────────────────── */
+
+function WeekStrip({ date, onChange }: { date: string; onChange: (d: string) => void }) {
+  const sel  = parseISO(date);
+  const week = eachDayOfInterval({ start: soW(sel), end: addDays(soW(sel), 6) });
+  const HE_SHORT = ["א׳","ב׳","ג׳","ד׳","ה׳","ו׳","ש׳"];
+  return (
+    <div className="flex gap-1">
+      {week.map((day, i) => {
+        const isSel   = isSameDay(day, sel);
+        const isToday = isSameDay(day, new Date());
+        return (
+          <button key={i} onClick={() => onChange(format(day, "yyyy-MM-dd"))}
+            className={`flex-1 flex flex-col items-center py-2 rounded-lg transition-all ${
+              isSel
+                ? "bg-rose-600 text-white"
+                : isToday
+                ? "bg-white/5 ring-1 ring-rose-500/30 text-rose-400"
+                : "text-slate-500 hover:bg-white/5 hover:text-slate-300"
+            }`}>
+            <span className={`text-[9px] font-bold uppercase ${isSel ? "text-rose-200" : ""}`}>{HE_SHORT[i]}</span>
+            <span className="text-sm font-black mt-0.5">{format(day, "d")}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ─── Activity Card (timeline) ──────────────────────────────────────────── */
+
+function ActivityCard({
+  activity, palIdx, groupLabel, onEdit, onDelete, nameOf, locName,
+}: {
+  activity: Activity; palIdx: number; groupLabel: string;
+  onEdit: () => void; onDelete: () => void;
+  nameOf: (id: string) => string; locName: (id: string) => string;
+}) {
+  const pal = PALETTE[palIdx] ?? PALETTE[0];
+  return (
+    <motion.div layout initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}
+      className={`flex gap-3 px-3 py-2.5 rounded-lg border ${pal.border} ${pal.bg} group transition-colors`}>
+      {/* Left stripe */}
+      <div className={`w-0.5 rounded-full shrink-0 ${pal.dot}`} />
+      {/* Time */}
+      <div className="shrink-0 text-right w-14">
+        <span className={`text-xs font-black ${pal.text}`}>{activity.startTime}</span>
+        <p className="text-[9px] text-slate-600 leading-none mt-0.5">{activity.endTime}</p>
+      </div>
+      {/* Content */}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-start justify-between gap-2">
+          <p className="font-semibold text-sm leading-tight truncate text-white">
+            {activity.title || <span className="text-slate-600 italic text-xs">ללא שם</span>}
+          </p>
+          <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded shrink-0 ${pal.chip}`}>{groupLabel}</span>
+        </div>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-1">
+          {activity.locationId && (
+            <span className="flex items-center gap-1 text-[10px] text-slate-500">
+              <MapPin className="w-2.5 h-2.5" />{locName(activity.locationId)}
+            </span>
+          )}
+          {activity.staffIds.length > 0 && (
+            <span className="flex items-center gap-1 text-[10px] text-slate-500">
+              <Users className="w-2.5 h-2.5" />{activity.staffIds.map(nameOf).join(", ")}
+            </span>
+          )}
+          {activity.notes && (
+            <span className="text-[10px] text-slate-600 truncate max-w-[200px]">{activity.notes}</span>
+          )}
+        </div>
+      </div>
+      {/* Actions — visible on hover */}
+      <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+        <button onClick={onEdit}   className="p-1.5 rounded hover:bg-blue-500/15 text-slate-600 hover:text-blue-400 transition-colors"><Edit3  className="w-3 h-3" /></button>
+        <button onClick={onDelete} className="p-1.5 rounded hover:bg-rose-500/15 text-slate-600 hover:text-rose-400 transition-colors"><Trash2 className="w-3 h-3" /></button>
+      </div>
+    </motion.div>
+  );
+}
+
+/* ─── Activity Modal ────────────────────────────────────────────────────── */
+
+function ActivityModal({
+  initial, groups, staff, locations, onSave, onClose,
+}: {
+  initial: Activity; groups: Group[]; staff: Person[]; locations: Location[];
+  onSave: (a: Activity) => void; onClose: () => void;
+}) {
+  const [form,  setForm]  = useState<Activity>(initial);
+  const [search, setSrch] = useState("");
+  const set = (p: Partial<Activity>) => setForm(f => ({ ...f, ...p }));
+  const toggleStaff = (id: string) =>
+    set({ staffIds: form.staffIds.includes(id) ? form.staffIds.filter(x => x !== id) : [...form.staffIds, id] });
+
+  const groupOptions = [
+    { id: "all",        label: "משותף לכל" },
+    ...groups.map(g => ({ id: g.id, label: g.name })),
+    { id: "staff_only", label: "צוות בלבד" },
+  ];
+  const filteredStaff = staff.filter(p => p.name.toLowerCase().includes(search.toLowerCase()));
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+        onClick={onClose} className="absolute inset-0 bg-black/75 backdrop-blur-sm" />
+      <motion.div
+        initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
+        transition={{ type: "spring", damping: 28, stiffness: 280 }}
+        className="relative bg-slate-900 border-t sm:border border-white/10 w-full max-w-lg rounded-t-3xl sm:rounded-2xl shadow-2xl flex flex-col max-h-[92dvh]">
+        <div className="w-8 h-1 bg-white/10 rounded-full mx-auto mt-3 sm:hidden shrink-0" />
+
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-3.5 border-b border-white/[0.07] shrink-0">
+          <h2 className="font-semibold text-sm">{initial.title ? "עריכת פעילות" : "פעילות חדשה"}</h2>
+          <button onClick={onClose} className="p-1.5 rounded text-slate-500 hover:text-white hover:bg-white/5 transition-colors"><X className="w-4 h-4" /></button>
+        </div>
+
+        {/* Body */}
+        <div className="p-5 space-y-4 overflow-y-auto flex-1">
+
+          {/* Title */}
+          <div>
+            <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5">שם הפעילות *</label>
+            <input value={form.title} onChange={e => set({ title: e.target.value })}
+              placeholder="פסיכודרמה, אמנות, ישיבת צוות..."
+              autoFocus
+              className="w-full bg-white/5 border border-white/[0.07] rounded-lg p-2.5 text-sm focus:border-blue-500 outline-none transition-colors" />
+          </div>
+
+          {/* Time */}
+          <div>
+            <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5">שעות</label>
+            <div className="flex items-center gap-2">
+              <input type="time" value={form.startTime} onChange={e => set({ startTime: e.target.value })}
+                className="flex-1 bg-white/5 border border-white/[0.07] rounded-lg p-2.5 text-sm focus:border-blue-500 outline-none transition-colors" />
+              <span className="text-slate-600 text-xs font-medium shrink-0">עד</span>
+              <input type="time" value={form.endTime} onChange={e => set({ endTime: e.target.value })}
+                className="flex-1 bg-white/5 border border-white/[0.07] rounded-lg p-2.5 text-sm focus:border-blue-500 outline-none transition-colors" />
+            </div>
+          </div>
+
+          {/* Group */}
+          <div>
+            <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5">קהל יעד</label>
+            <div className="flex flex-wrap gap-1.5">
+              {groupOptions.map((g, i) => {
+                const pal = PALETTE[i === 0 ? 0 : i <= groups.length ? i : PALETTE.length - 1] ?? PALETTE[0];
+                return (
+                  <button key={g.id} type="button" onClick={() => set({ groupId: g.id })}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
+                      form.groupId === g.id
+                        ? `${pal.bg} ${pal.border} ${pal.text}`
+                        : "bg-white/5 border-white/[0.07] text-slate-500 hover:bg-white/8"
+                    }`}>
+                    {g.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Location */}
+          <div>
+            <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5">מיקום</label>
+            <select value={form.locationId} onChange={e => set({ locationId: e.target.value })}
+              className="w-full bg-slate-800 border border-white/[0.07] rounded-lg p-2.5 text-sm focus:border-blue-500 outline-none transition-colors">
+              <option value="">בחר מיקום...</option>
+              {locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+            </select>
+          </div>
+
+          {/* Staff */}
+          <div>
+            <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
+              אנשי צוות {form.staffIds.length > 0 && <span className="text-blue-400">({form.staffIds.length})</span>}
+            </label>
+            <input value={search} onChange={e => setSrch(e.target.value)} placeholder="חיפוש שם..."
+              className="w-full bg-white/5 border border-white/[0.07] rounded-lg p-2 text-xs mb-1.5 focus:border-blue-500 outline-none transition-colors" />
+            <div className="space-y-1 max-h-32 overflow-y-auto">
+              {filteredStaff.map(p => (
+                <button key={p.id} type="button" onClick={() => toggleStaff(p.id)}
+                  className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all ${
+                    form.staffIds.includes(p.id)
+                      ? "bg-blue-600/15 border border-blue-500/25 text-blue-300"
+                      : "bg-white/[0.03] border border-white/[0.05] text-slate-400 hover:bg-white/6"
+                  }`}>
+                  <div className={`w-3.5 h-3.5 rounded-sm flex items-center justify-center shrink-0 border ${form.staffIds.includes(p.id) ? "bg-blue-600 border-blue-500" : "border-white/20"}`}>
+                    {form.staffIds.includes(p.id) && <Check className="w-2.5 h-2.5 text-white" />}
+                  </div>
+                  {p.name}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Notes */}
+          <div>
+            <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5">הערות</label>
+            <textarea value={form.notes || ""} onChange={e => set({ notes: e.target.value })}
+              placeholder="פרטים נוספים..." rows={2}
+              className="w-full bg-white/5 border border-white/[0.07] rounded-lg p-2.5 text-sm focus:border-blue-500 outline-none transition-colors resize-none" />
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="flex gap-2.5 px-5 py-4 border-t border-white/[0.07] shrink-0">
+          <button onClick={onClose} className="flex-1 py-2.5 bg-white/5 rounded-lg font-medium text-sm hover:bg-white/8 transition-all">ביטול</button>
+          <button onClick={() => onSave(form)} disabled={!form.title.trim()}
+            className="flex-1 py-2.5 bg-blue-600 rounded-lg font-semibold text-sm hover:bg-blue-500 transition-all disabled:opacity-40">
+            שמור פעילות
+          </button>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
+/* ─── Main page ─────────────────────────────────────────────────────────── */
 
 function SchedulePageInner() {
   const router       = useRouter();
   const searchParams = useSearchParams();
 
   const [date,      setDate]      = useState(format(new Date(), "yyyy-MM-dd"));
-  const [schedule,  setSchedule]  = useState<DaySchedule>(EMPTY_SCHEDULE);
+  const [schedule,  setSchedule]  = useState<DaySchedule>(EMPTY);
   const [staff,     setStaff]     = useState<Person[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
   const [groups,    setGroups]    = useState<Group[]>([]);
   const [loading,   setLoading]   = useState(true);
   const [saving,    setSaving]    = useState(false);
   const [saved,     setSaved]     = useState(false);
-
-  /** "show_all" | "staff_only" | group.id  — initialized from ?group= param */
   const [viewFilter, setViewFilter] = useState(searchParams.get("group") || "show_all");
-
-  /** null = hidden, "new" = new activity modal, Activity = edit */
   const [editingActivity, setEditingActivity] = useState<Activity | null | "new">(null);
-  /** Which group to pre-select when opening "new" */
   const [newActivityGroup, setNewActivityGroup] = useState("all");
 
   /* ── Load reference data once ── */
   useEffect(() => {
-    const init = async () => {
-      const [usersSnap, locsSnap, groupsSnap] = await Promise.all([
+    (async () => {
+      const [u, l, g] = await Promise.all([
         getDocs(collection(db, "users")),
         getDocs(collection(db, "locations")),
         getDocs(query(collection(db, "groups"), orderBy("name"))),
       ]);
-      setStaff(usersSnap.docs.map(d => ({ id: d.id, name: d.data().name || d.data().email })));
-      setLocations(locsSnap.docs.map(d => ({ id: d.id, name: d.data().name })));
-      setGroups(groupsSnap.docs.map(d => ({ id: d.id, name: d.data().name })));
-    };
-    init();
+      setStaff(u.docs.map(d => ({ id: d.id, name: d.data().name || d.data().email })));
+      setLocations(l.docs.map(d => ({ id: d.id, name: d.data().name })));
+      setGroups(g.docs.map(d => ({ id: d.id, name: d.data().name })));
+    })();
   }, []);
 
   /* ── Load schedule for selected date ── */
   useEffect(() => {
-    const load = async () => {
+    (async () => {
       setLoading(true);
       try {
         const snap = await getDoc(doc(db, "schedules", date));
         if (snap.exists()) {
-          const data = snap.data();
-          setSchedule({
-            dutyInstructorId: data.dutyInstructorId || data.dutyId || "",
-            activities: (data.activities || []).map(migrateActivity),
-          });
+          const d = snap.data();
+          setSchedule({ dutyInstructorId: d.dutyInstructorId || d.dutyId || "", activities: (d.activities || []).map(migrate) });
         } else {
           const dow = new Date(date).getDay();
           const tpl = await getDoc(doc(db, "scheduleTemplates", String(dow)));
           if (tpl.exists()) {
-            const data = tpl.data();
-            setSchedule({
-              dutyInstructorId: data.dutyInstructorId || data.dutyId || "",
-              activities: (data.activities || []).map(migrateActivity),
-            });
-          } else {
-            setSchedule(EMPTY_SCHEDULE);
-          }
+            const d = tpl.data();
+            setSchedule({ dutyInstructorId: d.dutyInstructorId || d.dutyId || "", activities: (d.activities || []).map(migrate) });
+          } else { setSchedule(EMPTY); }
         }
-      } finally {
-        setLoading(false);
-      }
-    };
-    load();
+      } finally { setLoading(false); }
+    })();
   }, [date]);
 
   /* ── Derived ── */
-  const nameOf  = (id: string) => staff.find(s => s.id === id)?.name     || id;
-  const locName = (id: string) => locations.find(l => l.id === id)?.name || "—";
+  const nameOf     = (id: string) => staff.find(s => s.id === id)?.name     || id;
+  const locName    = (id: string) => locations.find(l => l.id === id)?.name || "—";
   const groupLabel = (gid: string) =>
-    gid === "all"        ? "משותף לכל הקבוצות" :
-    gid === "staff_only" ? "צוות בלבד" :
+    gid === "all"        ? "משותף" :
+    gid === "staff_only" ? "צוות"  :
     groups.find(g => g.id === gid)?.name || gid;
 
+  // Palette index for a groupId
+  const palIdx = (gid: string) => {
+    if (gid === "all") return 0;
+    const gi = groups.findIndex(g => g.id === gid);
+    if (gi >= 0) return gi + 1;
+    return PALETTE.length - 1; // staff_only
+  };
+
+  // All sections in order: all, ...groups, staff_only
+  const sections = useMemo(() => [
+    { id: "all",        label: "משותף",    palIdx: 0 },
+    ...groups.map((g, i) => ({ id: g.id, label: g.name, palIdx: i + 1 })),
+    { id: "staff_only", label: "צוות בלבד", palIdx: PALETTE.length - 1 },
+  ], [groups]);
+
+  // Activities for the current view, sorted by time
   const visibleActivities = useMemo(() =>
     schedule.activities
       .filter(a => viewFilter === "show_all" || a.groupId === viewFilter)
@@ -143,11 +397,8 @@ function SchedulePageInner() {
     [schedule.activities, viewFilter]
   );
 
-  const sections: { id: string; label: string; color: string }[] = [
-    { id: "all",        label: "משותף", color: "border-blue-500/40" },
-    ...groups.map((g, i) => ({ id: g.id, label: g.name, color: i === 0 ? "border-purple-500/40" : "border-teal-500/40" })),
-    { id: "staff_only", label: "צוות בלבד", color: "border-slate-500/40" },
-  ];
+  // Count per section (for badges)
+  const countFor = (id: string) => schedule.activities.filter(a => a.groupId === id).length;
 
   /* ── Mutations ── */
   const upsertActivity = (a: Activity) => {
@@ -159,7 +410,6 @@ function SchedulePageInner() {
     }));
     setEditingActivity(null);
   };
-
   const deleteActivity = (id: string) =>
     setSchedule(s => ({ ...s, activities: s.activities.filter(a => a.id !== id) }));
 
@@ -167,197 +417,319 @@ function SchedulePageInner() {
     setSaving(true);
     try {
       await setDoc(doc(db, "schedules", date), schedule);
-      setSaved(true);
-      setTimeout(() => setSaved(false), 2500);
-    } finally {
-      setSaving(false);
-    }
+      setSaved(true); setTimeout(() => setSaved(false), 2500);
+    } finally { setSaving(false); }
   };
-
   const saveAsTemplate = async () => {
     const dow = new Date(date).getDay();
     setSaving(true);
     try {
       await setDoc(doc(db, "scheduleTemplates", String(dow)), schedule);
-      setSaved(true);
-      setTimeout(() => setSaved(false), 2500);
-    } finally {
-      setSaving(false);
-    }
+      setSaved(true); setTimeout(() => setSaved(false), 2500);
+    } finally { setSaving(false); }
   };
-
-  const openNew = (groupId = "all") => {
+  const openNew = (groupId = viewFilter === "show_all" ? "all" : viewFilter) => {
     setNewActivityGroup(groupId);
     setEditingActivity("new");
   };
 
-  /* ── Render ── */
   const dateObj  = parseISO(date);
-  const dateLabel = format(dateObj, "EEEE, d בMMMM yyyy", { locale: he });
+  const dateLabel = format(dateObj, "EEEE, d בMMMM", { locale: he });
+  const isToday  = date === format(new Date(), "yyyy-MM-dd");
 
   return (
     <RoleGuard allowedRoles={["admin", "manager"]} redirectTo="/">
-      <div className="min-h-screen bg-slate-950 text-white">
+      <div dir="rtl" className="min-h-screen bg-background text-foreground flex flex-col">
 
-        {/* ── Sticky header ── */}
-        <header className="sticky top-0 z-40 bg-slate-950/95 backdrop-blur-xl border-b border-white/5">
-          <div className="max-w-4xl mx-auto px-4 pt-4 pb-3 space-y-3">
+        {/* ══ HEADER ══════════════════════════════════════════════════════════ */}
+        <header className="sticky top-0 z-40 bg-background/95 backdrop-blur-xl border-b border-border px-4 md:px-5">
+          <div className="flex items-center gap-3 h-12">
+            {/* Title */}
+            <div className="flex items-center gap-2 shrink-0">
+              <Calendar className="w-4 h-4 text-rose-400" />
+              <h1 className="text-[14px] font-semibold">ניהול לו״ז</h1>
+            </div>
 
-            {/* Row 1: back · title · date nav */}
-            <div className="flex items-center gap-3">
-              <button onClick={() => router.push("/admin")}
-                className="p-2 rounded-xl bg-white/5 border border-white/10 active:scale-95 transition-all flex-shrink-0">
-                <ArrowRight className="w-4 h-4" />
+            {/* Mobile date nav */}
+            <div className="md:hidden flex items-center gap-1 mr-auto">
+              <button onClick={() => setDate(format(subDays(dateObj, 1), "yyyy-MM-dd"))}
+                className="p-1.5 rounded hover:bg-white/5 text-slate-500 transition-colors"><ChevronRight className="w-4 h-4" /></button>
+              <span className="text-xs font-medium text-slate-300 whitespace-nowrap">{dateLabel}</span>
+              <button onClick={() => setDate(format(addDays(dateObj, 1), "yyyy-MM-dd"))}
+                className="p-1.5 rounded hover:bg-white/5 text-slate-500 transition-colors"><ChevronLeft className="w-4 h-4" /></button>
+            </div>
+
+            {/* Save actions — desktop inline */}
+            <div className="hidden md:flex items-center gap-2 mr-auto">
+              <button onClick={saveAsTemplate} disabled={saving}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 border border-white/[0.07] rounded text-xs font-medium text-slate-400 hover:text-white hover:bg-white/8 transition-colors disabled:opacity-40">
+                <Copy className="w-3.5 h-3.5" />
+                שמור כתבנית ל{DAY_NAMES[new Date(date).getDay()]}
               </button>
-              <div className="flex-1">
-                <h1 className="text-[17px] font-bold flex items-center gap-2">
-                  <Calendar className="w-4 h-4 text-rose-400" /> ניהול לו״ז
-                </h1>
-                <p className="text-[11px] text-slate-500 mt-0.5">{dateLabel}</p>
-              </div>
-              {/* Date navigation */}
-              <div className="flex items-center gap-1">
-                <button onClick={() => setDate(format(subDays(dateObj, 1), "yyyy-MM-dd"))}
-                  className="p-2 rounded-xl bg-white/5 border border-white/10 active:scale-95 transition-all">
-                  <ChevronRight className="w-4 h-4" />
-                </button>
-                <input type="date" value={date} onChange={e => setDate(e.target.value)}
-                  className="bg-white/5 border border-white/10 rounded-xl px-2 py-1.5 text-xs font-bold text-blue-400 focus:outline-none focus:border-blue-500 w-28" />
-                <button onClick={() => setDate(format(addDays(dateObj, 1), "yyyy-MM-dd"))}
-                  className="p-2 rounded-xl bg-white/5 border border-white/10 active:scale-95 transition-all">
-                  <ChevronLeft className="w-4 h-4" />
-                </button>
-              </div>
+              <button onClick={saveSchedule} disabled={saving}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-semibold transition-all disabled:opacity-40 ${
+                  saved
+                    ? "bg-emerald-600 text-white"
+                    : "bg-blue-600 hover:bg-blue-500 text-white"
+                }`}>
+                {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : saved ? <Check className="w-3.5 h-3.5" /> : <Save className="w-3.5 h-3.5" />}
+                {saved ? "נשמר!" : "שמור לו״ז"}
+              </button>
             </div>
 
-            {/* Row 2: view filter tabs */}
-            <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-4 px-4">
-              {[{ id: "show_all", label: "הכל" }, ...sections.map(s => ({ id: s.id, label: s.label }))].map(tab => (
-                <button key={tab.id} onClick={() => setViewFilter(tab.id)}
-                  className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all border ${
-                    viewFilter === tab.id
-                      ? "bg-rose-600 border-rose-500 text-white"
-                      : "bg-white/5 border-white/10 text-slate-400"
-                  }`}>
-                  {tab.label}
-                </button>
-              ))}
-            </div>
-
+            {/* Mobile: add button */}
+            <button onClick={() => openNew()} className="md:hidden p-2 rounded-lg bg-rose-600 text-white transition-colors">
+              <Plus className="w-4 h-4" />
+            </button>
           </div>
         </header>
 
-        {/* ── Content ── */}
-        <div className="max-w-4xl mx-auto px-4 pt-4 pb-32">
+        {/* ══ BODY ════════════════════════════════════════════════════════════ */}
+        <div className="flex flex-1 min-h-0">
 
-          {loading ? (
-            <div className="flex flex-col items-center justify-center py-24 gap-3">
-              <Loader2 className="w-7 h-7 text-rose-400 animate-spin" />
-              <p className="text-slate-500 text-sm">טוען לו״ז...</p>
-            </div>
-          ) : (
-            <div className="space-y-6">
+          {/* ── LEFT SIDEBAR (desktop only) ── */}
+          <aside className="hidden md:flex w-56 shrink-0 flex-col border-l border-border bg-sidebar-bg">
+            <div className="flex-1 overflow-y-auto p-4 space-y-5">
+
+              {/* Mini calendar */}
+              <div>
+                <p className="text-[9px] font-bold uppercase tracking-widest text-slate-600 mb-2">תאריך</p>
+                <MiniCal value={date} onChange={setDate} />
+                {/* Today link */}
+                {!isToday && (
+                  <button onClick={() => setDate(format(new Date(), "yyyy-MM-dd"))}
+                    className="mt-2 w-full text-center text-[10px] text-rose-400 hover:text-rose-300 font-medium transition-colors">
+                    → חזור להיום
+                  </button>
+                )}
+              </div>
 
               {/* Duty instructor */}
-              <div className="flex items-center gap-3 bg-rose-500/8 border border-rose-500/20 rounded-2xl px-4 py-3">
-                <User className="w-4 h-4 text-rose-400 flex-shrink-0" />
-                <span className="text-[12px] font-bold text-rose-300 flex-shrink-0">מדריך תורן:</span>
+              <div>
+                <p className="text-[9px] font-bold uppercase tracking-widest text-slate-600 mb-2">מדריך תורן</p>
                 <select
                   value={schedule.dutyInstructorId}
                   onChange={e => setSchedule(s => ({ ...s, dutyInstructorId: e.target.value }))}
-                  className="flex-1 bg-transparent text-sm font-semibold focus:outline-none text-white">
-                  <option value="" className="bg-slate-900 text-slate-400">בחר מדריך תורן...</option>
+                  className="w-full bg-white/5 border border-white/[0.07] rounded-lg px-2.5 py-2 text-xs font-medium focus:outline-none focus:border-rose-500 transition-colors appearance-none">
+                  <option value="" className="bg-slate-900 text-slate-400">ללא תורן</option>
                   {staff.map(p => <option key={p.id} value={p.id} className="bg-slate-900">{p.name}</option>)}
                 </select>
               </div>
 
-              {/* Sections — when viewing "show_all", render each section; otherwise render filtered list */}
-              {viewFilter === "show_all" ? (
-                sections.map(section => {
-                  const acts = schedule.activities
-                    .filter(a => a.groupId === section.id)
-                    .sort((a, b) => a.startTime.localeCompare(b.startTime));
-                  return (
-                    <SectionBlock
-                      key={section.id}
-                      label={section.label}
-                      color={section.color}
-                      activities={acts}
-                      staff={staff}
-                      locations={locations}
-                      onEdit={a => setEditingActivity(a)}
-                      onDelete={deleteActivity}
-                      onAdd={() => openNew(section.id)}
-                      nameOf={nameOf}
-                      locName={locName}
-                    />
-                  );
-                })
-              ) : (
-                <SectionBlock
-                  label={sections.find(s => s.id === viewFilter)?.label || ""}
-                  color={sections.find(s => s.id === viewFilter)?.color || "border-white/20"}
-                  activities={visibleActivities}
-                  staff={staff}
-                  locations={locations}
-                  onEdit={a => setEditingActivity(a)}
-                  onDelete={deleteActivity}
-                  onAdd={() => openNew(viewFilter)}
-                  nameOf={nameOf}
-                  locName={locName}
-                />
-              )}
+              {/* Section/group filters */}
+              <div>
+                <p className="text-[9px] font-bold uppercase tracking-widest text-slate-600 mb-2">סינון לפי קבוצה</p>
+                <div className="space-y-0.5">
+                  {/* "All" option */}
+                  <button onClick={() => setViewFilter("show_all")}
+                    className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs font-medium transition-all ${
+                      viewFilter === "show_all"
+                        ? "bg-white/8 text-white"
+                        : "text-slate-500 hover:bg-white/5 hover:text-slate-300"
+                    }`}>
+                    <span className="w-2 h-2 rounded-full bg-slate-500 shrink-0" />
+                    <span className="flex-1 text-right">כל הקבוצות</span>
+                    <span className="text-[9px] text-slate-600 shrink-0">{schedule.activities.length}</span>
+                  </button>
 
+                  {sections.map(sec => {
+                    const pal   = PALETTE[sec.palIdx] ?? PALETTE[0];
+                    const cnt   = countFor(sec.id);
+                    const actv  = viewFilter === sec.id;
+                    return (
+                      <button key={sec.id} onClick={() => setViewFilter(sec.id)}
+                        className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs font-medium transition-all ${
+                          actv ? `${pal.bg} ${pal.text}` : "text-slate-500 hover:bg-white/5 hover:text-slate-300"
+                        }`}>
+                        <span className={`w-2 h-2 rounded-full shrink-0 ${pal.dot}`} />
+                        <span className="flex-1 text-right">{sec.label}</span>
+                        {cnt > 0 && <span className={`text-[9px] shrink-0 ${actv ? pal.text : "text-slate-600"}`}>{cnt}</span>}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
-          )}
+
+            {/* Sidebar footer: save actions (desktop already in header, this is extra hint) */}
+            <div className="p-3 border-t border-white/[0.06] shrink-0">
+              <p className="text-[9px] text-slate-700 text-center leading-relaxed">
+                שינויים נשמרים ידנית בלחיצה על "שמור"
+              </p>
+            </div>
+          </aside>
+
+          {/* ── MAIN CONTENT ── */}
+          <main className="flex-1 min-w-0 flex flex-col overflow-hidden">
+
+            {/* Week strip + date header */}
+            <div className="px-4 md:px-5 pt-3 pb-0 border-b border-border bg-background/30 shrink-0">
+              {/* Week navigation */}
+              <WeekStrip date={date} onChange={setDate} />
+
+              {/* Date label + add button row */}
+              <div className="flex items-center justify-between py-2 mt-1">
+                <div className="flex items-center gap-2">
+                  <button onClick={() => setDate(format(subDays(dateObj, 1), "yyyy-MM-dd"))}
+                    className="p-1 rounded hover:bg-white/8 text-slate-600 hover:text-slate-300 transition-colors">
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </button>
+                  <span className={`text-sm font-semibold ${isToday ? "text-rose-400" : "text-slate-300"}`}>
+                    {dateLabel}
+                    {isToday && <span className="text-[10px] text-rose-500 font-bold mr-1.5">• היום</span>}
+                  </span>
+                  <button onClick={() => setDate(format(addDays(dateObj, 1), "yyyy-MM-dd"))}
+                    className="p-1 rounded hover:bg-white/8 text-slate-600 hover:text-slate-300 transition-colors">
+                    <ChevronLeft className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+                <button onClick={() => openNew()}
+                  className="hidden md:flex items-center gap-1.5 px-3 py-1.5 bg-rose-600/10 border border-rose-500/20 rounded-lg text-xs font-semibold text-rose-400 hover:bg-rose-600/15 transition-colors">
+                  <Plus className="w-3.5 h-3.5" /> הוסף פעילות
+                </button>
+              </div>
+
+              {/* Mobile: section tabs */}
+              <div className="md:hidden flex gap-1.5 overflow-x-auto no-scrollbar pb-2">
+                <button onClick={() => setViewFilter("show_all")}
+                  className={`shrink-0 px-3 py-1 rounded text-[11px] font-semibold border transition-all ${viewFilter === "show_all" ? "bg-white/10 border-white/20 text-white" : "bg-white/5 border-white/[0.07] text-slate-500"}`}>
+                  הכל
+                </button>
+                {sections.map(sec => {
+                  const pal = PALETTE[sec.palIdx] ?? PALETTE[0];
+                  return (
+                    <button key={sec.id} onClick={() => setViewFilter(sec.id)}
+                      className={`shrink-0 flex items-center gap-1.5 px-3 py-1 rounded text-[11px] font-semibold border transition-all ${
+                        viewFilter === sec.id
+                          ? `${pal.bg} ${pal.border} ${pal.text}`
+                          : "bg-white/5 border-white/[0.07] text-slate-500"
+                      }`}>
+                      <span className={`w-1.5 h-1.5 rounded-full ${pal.dot}`} />
+                      {sec.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Activities list */}
+            <div className="flex-1 overflow-y-auto px-4 md:px-5 py-4 pb-28 md:pb-8">
+              {loading ? (
+                <div className="flex flex-col items-center justify-center py-20 gap-3">
+                  <Loader2 className="w-6 h-6 text-rose-400 animate-spin" />
+                  <p className="text-slate-500 text-sm">טוען לו״ז...</p>
+                </div>
+              ) : viewFilter === "show_all" ? (
+                /* Show all sections */
+                <div className="space-y-5">
+                  {sections.map(sec => {
+                    const acts = schedule.activities
+                      .filter(a => a.groupId === sec.id)
+                      .sort((a, b) => a.startTime.localeCompare(b.startTime));
+                    const pal  = PALETTE[sec.palIdx] ?? PALETTE[0];
+                    return (
+                      <section key={sec.id}>
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className={`w-2 h-2 rounded-full ${pal.dot}`} />
+                          <span className={`text-[11px] font-bold uppercase tracking-wider ${pal.text}`}>{sec.label}</span>
+                          <span className="text-[10px] text-slate-600">{acts.length > 0 ? `${acts.length}` : ""}</span>
+                          <div className={`flex-1 h-px ${pal.border} border-b`} />
+                          <button onClick={() => openNew(sec.id)}
+                            className={`flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium ${pal.chip} hover:opacity-80 transition-opacity`}>
+                            <Plus className="w-2.5 h-2.5" /> הוסף
+                          </button>
+                        </div>
+                        {acts.length === 0 ? (
+                          <button onClick={() => openNew(sec.id)}
+                            className="w-full py-4 border border-dashed border-white/[0.07] rounded-lg text-slate-700 text-xs flex items-center justify-center gap-2 hover:border-white/15 hover:text-slate-500 transition-all">
+                            <Plus className="w-3.5 h-3.5" /> הוסף פעילות ל{sec.label}
+                          </button>
+                        ) : (
+                          <div className="space-y-1.5">
+                            <AnimatePresence>
+                              {acts.map(a => (
+                                <ActivityCard key={a.id}
+                                  activity={a}
+                                  palIdx={sec.palIdx}
+                                  groupLabel={sec.label}
+                                  onEdit={() => setEditingActivity(a)}
+                                  onDelete={() => deleteActivity(a.id)}
+                                  nameOf={nameOf}
+                                  locName={locName}
+                                />
+                              ))}
+                            </AnimatePresence>
+                          </div>
+                        )}
+                      </section>
+                    );
+                  })}
+                </div>
+              ) : (
+                /* Single section */
+                <div>
+                  {visibleActivities.length === 0 ? (
+                    <button onClick={() => openNew()}
+                      className="w-full py-16 border border-dashed border-white/[0.07] rounded-xl text-slate-600 text-sm flex flex-col items-center justify-center gap-2 hover:border-white/15 hover:text-slate-400 transition-all">
+                      <Plus className="w-5 h-5" />
+                      אין פעילויות — לחץ להוספה
+                    </button>
+                  ) : (
+                    <div className="space-y-1.5">
+                      <AnimatePresence>
+                        {visibleActivities.map(a => (
+                          <ActivityCard key={a.id}
+                            activity={a}
+                            palIdx={palIdx(a.groupId)}
+                            groupLabel={groupLabel(a.groupId)}
+                            onEdit={() => setEditingActivity(a)}
+                            onDelete={() => deleteActivity(a.id)}
+                            nameOf={nameOf}
+                            locName={locName}
+                          />
+                        ))}
+                      </AnimatePresence>
+                      <button onClick={() => openNew()}
+                        className="w-full mt-2 py-3 border border-dashed border-white/[0.07] rounded-lg text-slate-600 text-xs flex items-center justify-center gap-1.5 hover:border-white/15 hover:text-slate-400 transition-all">
+                        <Plus className="w-3.5 h-3.5" /> הוסף פעילות נוספת
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </main>
         </div>
 
-        {/* ── Floating action buttons ── */}
-        <div className="fixed bottom-24 left-4 z-30 md:bottom-8">
-          <button onClick={() => openNew()}
-            className="w-14 h-14 bg-rose-600 text-white rounded-2xl flex items-center justify-center shadow-xl shadow-rose-600/30 active:scale-95 transition-all">
-            <Plus className="w-6 h-6" />
-          </button>
-        </div>
-
-        {/* ── Save bar ── */}
-        <div className="fixed bottom-0 inset-x-0 z-30 bg-slate-950/95 backdrop-blur-xl border-t border-white/5 px-4 py-3 md:pb-4">
-          <div className="max-w-4xl mx-auto flex gap-3">
-            <button onClick={saveAsTemplate}
-              className="flex items-center gap-2 px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-xs font-bold text-slate-400 hover:bg-white/10 transition-all flex-shrink-0">
+        {/* Mobile save bar */}
+        <div className="md:hidden fixed bottom-0 inset-x-0 z-30 bg-background/95 backdrop-blur-xl border-t border-border px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+          <div className="flex gap-2">
+            <button onClick={saveAsTemplate} disabled={saving}
+              className="flex items-center gap-1.5 px-3 py-2.5 bg-white/5 border border-white/[0.07] rounded-xl text-xs font-medium text-slate-400 hover:bg-white/8 transition-colors shrink-0 disabled:opacity-40">
               <Copy className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">שמור כתבנית ל{DAY_NAMES[new Date(date).getDay()]}</span>
-              <span className="sm:hidden">תבנית</span>
+              תבנית
             </button>
             <button onClick={saveSchedule} disabled={saving}
-              className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm transition-all ${
-                saved
-                  ? "bg-emerald-600 text-white"
-                  : "bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-600/20 disabled:opacity-50"
+              className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl font-semibold text-sm transition-all ${
+                saved ? "bg-emerald-600 text-white" : "bg-blue-600 hover:bg-blue-500 text-white disabled:opacity-50"
               }`}>
-              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> :
-               saved   ? <><Check className="w-4 h-4" /> נשמר!</> :
-                         <><Save className="w-4 h-4" /> שמור לו״ז</>}
+              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : saved ? <><Check className="w-4 h-4" />נשמר!</> : <><Save className="w-4 h-4" />שמור לו״ז</>}
             </button>
           </div>
         </div>
 
-        {/* ── Add / Edit modal ── */}
+        {/* Activity Modal */}
         <AnimatePresence>
           {editingActivity !== null && (
             <ActivityModal
               initial={editingActivity === "new"
                 ? { id: uid(), title: "", startTime: "09:00", endTime: "10:00", locationId: "", staffIds: [], groupId: newActivityGroup, notes: "" }
                 : editingActivity}
-              groups={groups}
-              staff={staff}
-              locations={locations}
-              onSave={upsertActivity}
-              onClose={() => setEditingActivity(null)}
+              groups={groups} staff={staff} locations={locations}
+              onSave={upsertActivity} onClose={() => setEditingActivity(null)}
             />
           )}
         </AnimatePresence>
-
       </div>
     </RoleGuard>
   );
@@ -366,266 +738,11 @@ function SchedulePageInner() {
 export default function SchedulePage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
-        <Loader2 className="w-7 h-7 text-rose-400 animate-spin" />
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="w-6 h-6 text-rose-400 animate-spin" />
       </div>
     }>
       <SchedulePageInner />
     </Suspense>
-  );
-}
-
-/* ─────────────────── SectionBlock ─────────────────── */
-
-interface SectionBlockProps {
-  label: string;
-  color: string;
-  activities: Activity[];
-  staff: Person[];
-  locations: Location[];
-  onEdit: (a: Activity) => void;
-  onDelete: (id: string) => void;
-  onAdd: () => void;
-  nameOf: (id: string) => string;
-  locName: (id: string) => string;
-}
-
-function SectionBlock({ label, color, activities, onEdit, onDelete, onAdd, nameOf, locName }: SectionBlockProps) {
-  return (
-    <div>
-      <div className="flex items-center justify-between mb-2 px-1">
-        <div className="flex items-center gap-2">
-          <div className={`w-1 h-5 rounded-full border-l-2 ${color}`} />
-          <span className="text-[12px] font-bold text-slate-400">{label}</span>
-          <span className="text-[10px] text-slate-600 font-bold">({activities.length})</span>
-        </div>
-        <button onClick={onAdd}
-          className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-white/5 border border-white/10 text-[11px] font-bold text-slate-400 hover:text-white hover:bg-white/10 transition-all active:scale-95">
-          <Plus className="w-3 h-3" /> הוסף
-        </button>
-      </div>
-
-      <div className="space-y-2">
-        {activities.length === 0 ? (
-          <button onClick={onAdd}
-            className="w-full py-6 border border-dashed border-white/8 rounded-xl text-slate-600 text-sm flex items-center justify-center gap-2 hover:border-white/20 hover:text-slate-400 transition-all">
-            <Plus className="w-4 h-4" /> הוסף פעילות ל{label}
-          </button>
-        ) : activities.map(a => (
-          <ActivityCard key={a.id} activity={a} onEdit={() => onEdit(a)} onDelete={() => onDelete(a.id)} nameOf={nameOf} locName={locName} />
-        ))}
-      </div>
-    </div>
-  );
-}
-
-/* ─────────────────── ActivityCard ─────────────────── */
-
-interface ActivityCardProps {
-  activity: Activity;
-  onEdit: () => void;
-  onDelete: () => void;
-  nameOf: (id: string) => string;
-  locName: (id: string) => string;
-}
-
-function ActivityCard({ activity, onEdit, onDelete, nameOf, locName }: ActivityCardProps) {
-  return (
-    <motion.div
-      layout
-      initial={{ opacity: 0, y: 4 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="bg-white/[0.03] border border-white/8 rounded-xl overflow-hidden"
-    >
-      <div className="flex items-center gap-3 px-4 py-3">
-        {/* Time */}
-        <div className="flex-shrink-0 text-center">
-          <div className="text-[12px] font-black text-blue-400">{activity.startTime}</div>
-          <div className="w-px h-3 bg-white/10 mx-auto" />
-          <div className="text-[11px] text-slate-600">{activity.endTime}</div>
-        </div>
-
-        {/* Info */}
-        <div className="flex-1 min-w-0">
-          <p className="font-bold text-[14px] leading-tight truncate">{activity.title || <span className="text-slate-600 italic">ללא שם</span>}</p>
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-1">
-            {activity.locationId && (
-              <span className="flex items-center gap-1 text-[11px] text-slate-500">
-                <MapPin className="w-3 h-3" />{locName(activity.locationId)}
-              </span>
-            )}
-            {activity.staffIds.length > 0 && (
-              <span className="flex items-center gap-1 text-[11px] text-slate-500">
-                <Users className="w-3 h-3" />{activity.staffIds.map(nameOf).join(", ")}
-              </span>
-            )}
-          </div>
-          {activity.notes && <p className="text-[11px] text-slate-600 mt-0.5 truncate">{activity.notes}</p>}
-        </div>
-
-        {/* Actions */}
-        <div className="flex items-center gap-1 flex-shrink-0">
-          <button onClick={onEdit} className="p-1.5 rounded-lg hover:bg-blue-500/10 text-slate-500 hover:text-blue-400 transition-colors">
-            <Edit3 className="w-3.5 h-3.5" />
-          </button>
-          <button onClick={onDelete} className="p-1.5 rounded-lg hover:bg-rose-500/10 text-slate-500 hover:text-rose-400 transition-colors">
-            <Trash2 className="w-3.5 h-3.5" />
-          </button>
-        </div>
-      </div>
-    </motion.div>
-  );
-}
-
-/* ─────────────────── ActivityModal ─────────────────── */
-
-interface ActivityModalProps {
-  initial: Activity;
-  groups: Group[];
-  staff: Person[];
-  locations: Location[];
-  onSave: (a: Activity) => void;
-  onClose: () => void;
-}
-
-function ActivityModal({ initial, groups, staff, locations, onSave, onClose }: ActivityModalProps) {
-  const [form, setForm] = useState<Activity>(initial);
-  const [staffSearch, setStaffSearch] = useState("");
-
-  const set = (patch: Partial<Activity>) => setForm(f => ({ ...f, ...patch }));
-
-  const toggleStaff = (id: string) =>
-    set({ staffIds: form.staffIds.includes(id) ? form.staffIds.filter(x => x !== id) : [...form.staffIds, id] });
-
-  const filteredStaff = staff.filter(p => p.name.toLowerCase().includes(staffSearch.toLowerCase()));
-
-  const groupOptions = [
-    { id: "all",        label: "משותף לכל הקבוצות", color: "text-blue-400"   },
-    ...groups.map((g, i) => ({ id: g.id, label: g.name, color: i === 0 ? "text-purple-400" : "text-teal-400" })),
-    { id: "staff_only", label: "צוות בלבד",           color: "text-slate-400" },
-  ];
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-        onClick={onClose} className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
-
-      <motion.div
-        initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
-        transition={{ type: "spring", damping: 26, stiffness: 260 }}
-        className="relative bg-slate-900 border-t sm:border border-white/10 w-full max-w-lg rounded-t-3xl sm:rounded-2xl overflow-hidden shadow-2xl"
-      >
-        <div className="w-10 h-1 bg-white/10 rounded-full mx-auto mt-3 mb-1 sm:hidden" />
-
-        {/* Modal header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-white/8">
-          <h2 className="font-bold text-base">{initial.title ? "עריכת פעילות" : "פעילות חדשה"}</h2>
-          <button onClick={onClose} className="p-2 rounded-xl hover:bg-white/5 text-slate-500 hover:text-white transition-colors">
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-
-        {/* Modal body */}
-        <div className="p-5 space-y-5 max-h-[65vh] overflow-y-auto">
-
-          {/* Title */}
-          <div>
-            <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1.5">שם הפעילות</label>
-            <input value={form.title} onChange={e => set({ title: e.target.value })}
-              placeholder="למשל: פסיכודרמה, אמנות, ישיבת צוות..."
-              className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-sm focus:border-blue-500 outline-none transition-colors" />
-          </div>
-
-          {/* Time */}
-          <div>
-            <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1.5">שעות</label>
-            <div className="flex items-center gap-3">
-              <input type="time" value={form.startTime} onChange={e => set({ startTime: e.target.value })}
-                className="flex-1 bg-white/5 border border-white/10 rounded-xl p-3 text-sm focus:border-blue-500 outline-none transition-colors" />
-              <span className="text-slate-500 font-bold">עד</span>
-              <input type="time" value={form.endTime} onChange={e => set({ endTime: e.target.value })}
-                className="flex-1 bg-white/5 border border-white/10 rounded-xl p-3 text-sm focus:border-blue-500 outline-none transition-colors" />
-            </div>
-          </div>
-
-          {/* Group */}
-          <div>
-            <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1.5">קבוצה / קהל יעד</label>
-            <div className="flex flex-wrap gap-2">
-              {groupOptions.map(g => (
-                <button key={g.id} type="button" onClick={() => set({ groupId: g.id })}
-                  className={`px-3 py-1.5 rounded-lg text-[11px] font-bold border transition-all ${
-                    form.groupId === g.id
-                      ? `bg-white/15 border-white/30 ${g.color}`
-                      : "bg-white/5 border-white/10 text-slate-500"
-                  }`}>
-                  {g.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Location */}
-          <div>
-            <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1.5">מיקום</label>
-            <select value={form.locationId} onChange={e => set({ locationId: e.target.value })}
-              className="w-full bg-slate-800 border border-white/10 rounded-xl p-3 text-sm focus:border-blue-500 outline-none transition-colors">
-              <option value="">בחר מיקום...</option>
-              {locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
-            </select>
-          </div>
-
-          {/* Staff */}
-          <div>
-            <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1.5">
-              אנשי צוות {form.staffIds.length > 0 && `(${form.staffIds.length} נבחרו)`}
-            </label>
-            <input value={staffSearch} onChange={e => setStaffSearch(e.target.value)}
-              placeholder="חיפוש שם..."
-              className="w-full bg-white/5 border border-white/10 rounded-xl p-2.5 text-xs mb-2 focus:border-blue-500 outline-none transition-colors" />
-            <div className="space-y-1 max-h-36 overflow-y-auto">
-              {filteredStaff.map(p => (
-                <button key={p.id} type="button" onClick={() => toggleStaff(p.id)}
-                  className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all ${
-                    form.staffIds.includes(p.id)
-                      ? "bg-blue-600/20 border border-blue-500/30 text-blue-300"
-                      : "bg-white/[0.03] border border-white/5 text-slate-400 hover:bg-white/8"
-                  }`}>
-                  <div className={`w-4 h-4 rounded flex items-center justify-center flex-shrink-0 border ${
-                    form.staffIds.includes(p.id) ? "bg-blue-600 border-blue-500" : "border-white/20"
-                  }`}>
-                    {form.staffIds.includes(p.id) && <Check className="w-3 h-3 text-white" />}
-                  </div>
-                  {p.name}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Notes */}
-          <div>
-            <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1.5">הערות (אופציונלי)</label>
-            <textarea value={form.notes || ""} onChange={e => set({ notes: e.target.value })}
-              placeholder="פרטים נוספים, הוראות מיוחדות..."
-              rows={2}
-              className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-sm focus:border-blue-500 outline-none transition-colors resize-none" />
-          </div>
-
-        </div>
-
-        {/* Modal footer */}
-        <div className="flex gap-3 p-5 border-t border-white/8">
-          <button onClick={onClose}
-            className="flex-1 py-3 bg-white/5 rounded-xl font-bold text-sm hover:bg-white/10 transition-all">
-            ביטול
-          </button>
-          <button onClick={() => onSave(form)}
-            disabled={!form.title.trim()}
-            className="flex-1 py-3 bg-blue-600 rounded-xl font-bold text-sm hover:bg-blue-500 transition-all shadow-lg shadow-blue-600/20 disabled:opacity-40">
-            שמור פעילות
-          </button>
-        </div>
-      </motion.div>
-    </div>
   );
 }
