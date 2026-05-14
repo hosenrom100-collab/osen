@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Home, ClipboardList, Users, ShoppingCart, User, Calendar } from "lucide-react";
-import { motion } from "framer-motion";
 import { useAuth } from "@/context/AuthContext";
 
 const staffItems = [
@@ -28,8 +27,8 @@ export function BottomNav() {
   const navItems = isParticipant ? participantItems : staffItems;
 
   return (
-    <div className="fixed bottom-0 inset-x-0 z-50 px-4 pb-5 pt-2 md:hidden">
-      <nav className="bg-[var(--card-bg)]/85 backdrop-blur-2xl border border-[var(--border)] rounded-[2.5rem] flex items-center justify-around h-16 px-2 shadow-2xl shadow-black/20">
+    <div className="fixed bottom-0 inset-x-0 z-50 md:hidden bg-[var(--background)] border-t border-[var(--border)]">
+      <nav className="flex items-center justify-around h-16 px-2">
         {navItems.map((item) => {
           const isActive =
             item.href === "/"
@@ -40,33 +39,31 @@ export function BottomNav() {
             <Link
               key={item.href}
               href={item.href}
-              className="relative flex flex-col items-center justify-center gap-1 px-3 py-1.5 rounded-2xl min-w-[52px] transition-colors duration-200"
+              className="flex-1 flex flex-col items-center justify-center gap-1.5 h-full transition-colors duration-200"
             >
-              {/* Active pill background */}
-              {isActive && (
-                <motion.div
-                  layoutId="nav-active"
-                  className="absolute inset-0 bg-emerald-500/15 rounded-2xl border border-emerald-500/25"
-                  transition={{ type: "spring", damping: 24, stiffness: 300 }}
-                />
-              )}
-
               <item.icon
-                className={`w-5 h-5 relative z-10 transition-colors duration-200 ${
-                  isActive ? "text-emerald-500" : "text-[var(--foreground)]/40"
+                className={`w-5 h-5 transition-colors duration-200 ${
+                  isActive ? "text-emerald-500" : "text-[var(--foreground)]/30"
                 }`}
               />
               <span
-                className={`text-[10px] font-bold tracking-tight relative z-10 transition-colors duration-200 ${
-                  isActive ? "text-emerald-500" : "text-[var(--foreground)]/40"
+                className={`text-[9px] font-black uppercase tracking-widest transition-colors duration-200 ${
+                  isActive ? "text-emerald-500" : "text-[var(--foreground)]/30"
                 }`}
               >
                 {item.label}
               </span>
+              
+              {/* Simple active indicator dot */}
+              {isActive && (
+                <div className="absolute bottom-1 w-1 h-1 bg-emerald-500 rounded-full" />
+              )}
             </Link>
           );
         })}
       </nav>
+      {/* Safe Area Inset for modern mobile devices */}
+      <div className="h-[env(safe-area-inset-bottom)]" />
     </div>
   );
 }

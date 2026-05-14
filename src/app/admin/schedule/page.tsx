@@ -7,7 +7,10 @@ import { collection, getDocs, setDoc, doc, query, orderBy, getDoc } from "fireba
 import {
   MapPin, Users, Plus, Trash2, Save, Copy, Clock, Search, CheckCircle,
   Loader2, ChevronLeft, ChevronRight, Edit3, X, Check, Calendar, CopyPlus,
+  AlertCircle,
 } from "lucide-react";
+import { useAutoSave } from "@/hooks/useAutoSave";
+import { AutoSaveIndicator } from "@/components/ui/AutoSaveIndicator";
 import { useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
