@@ -1,7 +1,7 @@
 "use client";
 
 import { RoleGuard } from "@/components/auth/RoleGuard";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { db } from "@/lib/firebase/config";
 import {
   doc, getDoc, updateDoc, collection, getDocs,
@@ -11,6 +11,8 @@ import {
   ArrowRight, Save, Trash2, Plus, Loader2, Calendar,
   Users, Edit3, Check, X, ChevronLeft, Layers
 } from "lucide-react";
+import { useAutoSave } from "@/hooks/useAutoSave";
+import { AutoSaveIndicator } from "@/components/ui/AutoSaveIndicator";
 import { useRouter, useParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -48,6 +50,22 @@ export default function ProgramDetailPage() {
   // Editing program fields
   const [editName,   setEditName]   = useState("");
   const [editDays,   setEditDays]   = useState<number[]>([]);
+
+  // Refs for the auto-save closure (avoids stale state reads)
+  const editNameRef = useRef(editName);
+  const editDaysRef = useRef(editDays);
+  useEffect(() => { editNameRef.current = editName; }, [editName]);
+  useEffect(() => { editDaysRef.current = editDays; }, [editDays]);
+
+  const autoSave = useAutoSave(async () => {
+    const name = editNameRef.current.trim();
+    if (!name || !progId) return;
+    await updateDoc(doc(db, "programs", progId), {
+      name,
+      activeDays: editDaysRef.current,
+    });
+    setProgram(p => p ? { ...p, name, activeDays: editDaysRef.current } : p);
+  }, 1200);
 
   // New group
   const [newGroupName, setNewGroupName] = useState("");

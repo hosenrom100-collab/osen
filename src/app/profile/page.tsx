@@ -20,7 +20,7 @@ import { format } from "date-fns";
 import { he } from "date-fns/locale";
 
 export default function ProfilePage() {
-  const { user, logout, role, workSchedule } = useAuth();
+  const { user, logout, role, workSchedule, photoURL } = useAuth();
   const { theme, setTheme, fontSize, setFontSize } = useSettings();
   const router = useRouter();
 
@@ -137,9 +137,17 @@ export default function ProfilePage() {
             <div className="space-y-6">
               <div className="bg-[var(--card-bg)] border border-[var(--border)] rounded-[3rem] p-10 text-center shadow-sm">
                 <div className="relative inline-block mb-8">
-                  <div className="w-32 h-32 rounded-[2.5rem] bg-gradient-to-br from-rose-500 to-rose-600 flex items-center justify-center text-4xl font-black text-white shadow-2xl shadow-rose-500/30">
-                    {initials}
-                  </div>
+                  {photoURL ? (
+                    <img 
+                      src={photoURL} 
+                      alt={displayName} 
+                      className="w-32 h-32 rounded-[2.5rem] object-cover shadow-2xl shadow-rose-500/30 border-4 border-[var(--card-bg)]"
+                    />
+                  ) : (
+                    <div className="w-32 h-32 rounded-[2.5rem] bg-gradient-to-br from-rose-500 to-rose-600 flex items-center justify-center text-4xl font-black text-white shadow-2xl shadow-rose-500/30">
+                      {initials}
+                    </div>
+                  )}
                   <button className="absolute -bottom-2 -left-2 w-10 h-10 rounded-2xl bg-[var(--foreground)] text-[var(--background)] flex items-center justify-center border-4 border-[var(--card-bg)] hover:scale-110 transition-transform">
                     <Camera className="w-5 h-5" />
                   </button>

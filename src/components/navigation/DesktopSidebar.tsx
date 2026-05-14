@@ -36,7 +36,7 @@ const ROLE_HE: Record<string, string> = {
 
 export function DesktopSidebar() {
   const pathname = usePathname();
-  const { user, roles, role, isManager } = useAuth();
+  const { user, roles, role, isManager, photoURL } = useAuth();
 
   if (pathname === "/login") return null;
 
@@ -115,10 +115,18 @@ export function DesktopSidebar() {
       <div className="mt-auto border-t border-[var(--border)] p-6 bg-[var(--foreground)]/[0.01]">
         <Link href="/profile"
           className="flex items-center gap-4 p-3 rounded-2xl hover:bg-[var(--foreground)]/[0.04] transition-all group border border-transparent hover:border-[var(--border)]">
-          <div className="relative">
-            <div className="w-10 h-10 rounded-2xl bg-rose-600/10 border border-rose-500/20 flex items-center justify-center text-sm font-black text-rose-600 shadow-inner">
-              {initials}
-            </div>
+          <div className="relative shrink-0">
+            {photoURL ? (
+              <img 
+                src={photoURL} 
+                alt={user?.displayName || "Profile"} 
+                className="w-10 h-10 rounded-2xl object-cover border border-rose-500/20 shadow-inner"
+              />
+            ) : (
+              <div className="w-10 h-10 rounded-2xl bg-rose-600/10 border border-rose-500/20 flex items-center justify-center text-sm font-black text-rose-600 shadow-inner">
+                {initials}
+              </div>
+            )}
             <div className="absolute -bottom-1 -left-1 w-3.5 h-3.5 bg-emerald-500 border-2 border-[var(--background)] rounded-full" />
           </div>
           <div className="flex-1 min-w-0">

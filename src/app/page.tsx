@@ -102,7 +102,7 @@ function TimelineRow({
 // ── Main ──────────────────────────────────────────────────────────────────────
 export default function Home() {
   const {
-    user, loading, isWhitelisted, logout,
+    user, loading, isWhitelisted, logout, photoURL,
     isAdmin, isManager, role, assignedGroups, primaryGroupId, setPrimaryGroupId,
   } = useAuth();
   const router = useRouter();
@@ -291,9 +291,17 @@ export default function Home() {
             <span className="text-sm font-semibold hidden md:inline">{greeting()}, {firstName}</span>
             {/* Mobile greeting */}
             <div className="flex items-center gap-2 md:hidden">
-              <div className="w-7 h-7 rounded-full bg-[var(--primary)] flex items-center justify-center text-xs font-bold text-white shrink-0">
-                {firstName.charAt(0)}
-              </div>
+              {photoURL ? (
+                <img 
+                  src={photoURL} 
+                  alt={firstName} 
+                  className="w-7 h-7 rounded-full object-cover border border-rose-500/20"
+                />
+              ) : (
+                <div className="w-7 h-7 rounded-full bg-rose-600 flex items-center justify-center text-xs font-bold text-white shrink-0">
+                  {firstName.charAt(0)}
+                </div>
+              )}
               <span className="text-sm font-semibold">{greeting()}, {firstName}</span>
             </div>
           </div>

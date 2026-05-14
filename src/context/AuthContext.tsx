@@ -29,6 +29,7 @@ interface AuthContextType {
   isEmployee:      boolean;
   isParticipant:   boolean;
   isWhitelisted:   boolean;
+  photoURL?:       string;
   phoneNumber?:    string;
   workSchedule?:   Record<string, { start: string, end: string }>;
   onboardingComplete?: boolean;
@@ -56,6 +57,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isParticipant,  setIsParticipant]  = useState(false);
   const [isWhitelisted,  setIsWhitelisted]  = useState(false);
   const [phoneNumber,    setPhoneNumber]    = useState<string | undefined>();
+  const [photoURL,       setPhotoURL]       = useState<string | undefined>();
   const [workSchedule,   setWorkSchedule]   = useState<Record<string, { start: string, end: string }> | undefined>();
   const [onboardingComplete, setOnboardingComplete] = useState<boolean>(false);
   const router = useRouter();
@@ -67,7 +69,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (firebaseUser) {
         setUser(firebaseUser);
         
-        unsubscribeUserDoc = onSnapshot(doc(db, "users", firebaseUser.uid), (snap) => {
+        unsubscribeUserDoc = onSnapshot(doc(db, "users", firebaseUser.uid), async (snap) => {
           if (snap.exists()) {
             const data       = snap.data();
             const userRole   = data.role as UserRole;
@@ -94,8 +96,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setIsParticipant(userRoles.includes("participant"));
             
             setPhoneNumber(data.phone);
+            setPhotoURL(data.photoURL || firebaseUser.photoURL || undefined);
             setWorkSchedule(data.workSchedule);
             setOnboardingComplete(!!data.onboardingComplete);
+
+            // Sync profile info if missing or outdated
+            if (!data.photoURL && firebaseUser.photoURL) {
+              await updateDoc(doc(db, "users", firebaseUser.uid), { 
+                photoURL: firebaseUser.photoURL,
+                displayName: data.displayName || firebaseUser.displayName,
+                email: data.email || firebaseUser.email
+              });
+            }
           } else {
             setIsWhitelisted(false);
             setRole(null);
@@ -157,7 +169,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       preferredProgramIds, preferredGroupIds,
       setPrimaryGroupId, setPreferredPrograms, setPreferredGroups,
       isAdmin, isManager, isLogistics, isInstructor, isEmployee, isParticipant, isWhitelisted,
-      phoneNumber, workSchedule, onboardingComplete,
+      phoneNumber, photoURL, workSchedule, onboardingComplete,
       login, logout
     }}>
       {children}

@@ -1,7 +1,7 @@
 "use client";
 
 import { RoleGuard } from "@/components/auth/RoleGuard";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { db } from "@/lib/firebase/config";
 import { collection, getDocs, setDoc, doc, query, orderBy, getDoc } from "firebase/firestore";
 import {
@@ -498,6 +498,20 @@ function SchedulePageInner() {
   const [editingActivity, setEditingActivity] = useState<Activity | null | "new">(null);
   const [newActivityGroup, setNewActivityGroup] = useState("");
 
+  // ── Auto-save refs — always hold the latest values without stale closures
+  const scheduleRef = useRef(schedule);
+  const dateRef     = useRef(date);
+  useEffect(() => { scheduleRef.current = schedule; }, [schedule]);
+  useEffect(() => { dateRef.current = date; },         [date]);
+
+  const autoSave = useAutoSave(async () => {
+    await setDoc(doc(db, "schedules", dateRef.current), scheduleRef.current);
+  });
+
+  // Cancel any pending save when the selected date changes (prevents
+  // writing yesterday's activities into today's slot)
+  useEffect(() => { autoSave.reset(); }, [date]); // eslint-disable-line react-hooks/exhaustive-deps
+
   /* ── Load reference data once ── */
   useEffect(() => {
     (async () => {
@@ -626,12 +640,17 @@ function SchedulePageInner() {
         : [...s.activities, a],
     }));
     setEditingActivity(null);
+    autoSave.trigger();
   };
-  const deleteActivity = (id: string) =>
+  const deleteActivity = (id: string) => {
     setSchedule(s => ({ ...s, activities: s.activities.filter(a => a.id !== id) }));
+    autoSave.trigger();
+  };
 
-  const duplicateActivity = (a: Activity) =>
+  const duplicateActivity = (a: Activity) => {
     setSchedule(s => ({ ...s, activities: [...s.activities, { ...a, id: uid() }] }));
+    autoSave.trigger();
+  };
 
   const copyFromPrevDay = async () => {
     const prevDate = format(subDays(dateObj, 1), "yyyy-MM-dd");
@@ -643,15 +662,9 @@ function SchedulePageInner() {
       ...prev,
       activities: (d.activities || []).map((x: Activity) => migrate({ ...x, id: uid() })),
     }));
+    autoSave.trigger();
   };
 
-  const saveSchedule = async () => {
-    setSaving(true);
-    try {
-      await setDoc(doc(db, "schedules", date), schedule);
-      setSaved(true); setTimeout(() => setSaved(false), 2500);
-    } finally { setSaving(false); }
-  };
   const saveAsTemplate = async () => {
     const dow = new Date(date).getDay();
     setSaving(true);
@@ -698,7 +711,12 @@ function SchedulePageInner() {
 
             {/* Save actions — desktop inline */}
             <div className="hidden md:flex items-center gap-2 mr-auto">
-              <button onClick={copyFromPrevDay} disabled={saving}
+              <AutoSaveIndicator
+                status={autoSave.status}
+                error={autoSave.error}
+                onRetry={autoSave.saveNow}
+              />
+              <button onClick={copyFromPrevDay} disabled={saving || autoSave.status === "saving"}
                 className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 border border-white/[0.07] rounded text-xs font-medium text-slate-400 hover:text-emerald-400 hover:bg-emerald-500/8 transition-colors disabled:opacity-40">
                 <CopyPlus className="w-3.5 h-3.5" />
                 העתק מאתמול
@@ -708,14 +726,14 @@ function SchedulePageInner() {
                 <Copy className="w-3.5 h-3.5" />
                 שמור כתבנית ל{DAY_NAMES[new Date(date).getDay()]}
               </button>
-              <button onClick={saveSchedule} disabled={saving}
+              <button onClick={autoSave.saveNow} disabled={autoSave.status === "saving"}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-semibold transition-all disabled:opacity-40 ${
-                  saved
+                  saved || autoSave.status === "saved"
                     ? "bg-emerald-600 text-white"
                     : "bg-blue-600 hover:bg-blue-500 text-white"
                 }`}>
-                {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : saved ? <Check className="w-3.5 h-3.5" /> : <Save className="w-3.5 h-3.5" />}
-                {saved ? "נשמר!" : "שמור לו״ז"}
+                <Save className="w-3.5 h-3.5" />
+                שמור
               </button>
             </div>
 
@@ -751,7 +769,10 @@ function SchedulePageInner() {
                 <p className="text-[9px] font-bold uppercase tracking-widest text-slate-600 mb-2">מדריך תורן</p>
                 <select
                   value={schedule.dutyInstructorId}
-                  onChange={e => setSchedule(s => ({ ...s, dutyInstructorId: e.target.value }))}
+                  onChange={e => {
+                    setSchedule(s => ({ ...s, dutyInstructorId: e.target.value }));
+                    autoSave.trigger();
+                  }}
                   className="w-full bg-white/5 border border-white/[0.07] rounded-lg px-2.5 py-2 text-xs font-medium focus:outline-none focus:border-rose-500 transition-colors appearance-none">
                   <option value="" className="bg-slate-900 text-slate-400">ללא מדריך תורן</option>
                   {staff.map(p => <option key={p.id} value={p.id} className="bg-slate-900">{p.name}</option>)}
@@ -976,18 +997,22 @@ function SchedulePageInner() {
 
         {/* Mobile save bar */}
         <div className="md:hidden fixed bottom-0 inset-x-0 z-30 bg-background/95 backdrop-blur-xl border-t border-border px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-          <div className="flex gap-2">
-            <button onClick={saveAsTemplate} disabled={saving}
-              className="flex items-center gap-1.5 px-3 py-2.5 bg-white/5 border border-white/[0.07] rounded-xl text-xs font-medium text-slate-400 hover:bg-white/8 transition-colors shrink-0 disabled:opacity-40">
-              <Copy className="w-3.5 h-3.5" />
-              תבנית
-            </button>
-            <button onClick={saveSchedule} disabled={saving}
-              className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl font-semibold text-sm transition-all ${
-                saved ? "bg-emerald-600 text-white" : "bg-blue-600 hover:bg-blue-500 text-white disabled:opacity-50"
-              }`}>
-              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : saved ? <><Check className="w-4 h-4" />נשמר!</> : <><Save className="w-4 h-4" />שמור לו״ז</>}
-            </button>
+          <div className="flex items-center gap-2">
+            <AutoSaveIndicator status={autoSave.status} error={autoSave.error} onRetry={autoSave.saveNow} />
+            <div className="flex gap-2 mr-auto">
+              <button onClick={saveAsTemplate} disabled={saving}
+                className="flex items-center gap-1.5 px-3 py-2.5 bg-white/5 border border-white/[0.07] rounded-xl text-xs font-medium text-slate-400 hover:bg-white/8 transition-colors shrink-0 disabled:opacity-40">
+                <Copy className="w-3.5 h-3.5" />
+                תבנית
+              </button>
+              <button onClick={autoSave.saveNow} disabled={autoSave.status === "saving"}
+                className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-sm transition-all disabled:opacity-50 ${
+                  autoSave.status === "saved" ? "bg-emerald-600 text-white" : "bg-blue-600 hover:bg-blue-500 text-white"
+                }`}>
+                <Save className="w-4 h-4" />
+                שמור
+              </button>
+            </div>
           </div>
         </div>
 
