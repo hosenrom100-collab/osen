@@ -3,15 +3,23 @@
 :root {
   --background: #020617;
   --foreground: #f8fafc;
-  --card-bg: rgba(255, 255, 255, 0.03);
-  --border: rgba(255, 255, 255, 0.1);
+  --card-bg: rgba(15, 23, 42, 0.4);
+  --border: rgba(255, 255, 255, 0.08);
+  --primary: #3b82f6;
+  --primary-foreground: #ffffff;
+  --accent: rgba(59, 130, 246, 0.1);
+  --sidebar-bg: #020617;
 }
 
 .light {
-  --background: #f8fafc;
+  --background: #ffffff;
   --foreground: #0f172a;
   --card-bg: #ffffff;
   --border: #e2e8f0;
+  --primary: #2563eb;
+  --primary-foreground: #ffffff;
+  --accent: #eff6ff;
+  --sidebar-bg: #f8fafc;
 }
 
 body {

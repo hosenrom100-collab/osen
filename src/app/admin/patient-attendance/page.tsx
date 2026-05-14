@@ -6,7 +6,7 @@ import { db } from "@/lib/firebase/config";
 import { collection, getDocs, query, where, doc, setDoc, orderBy } from "firebase/firestore";
 import {
   ClipboardList, ArrowRight, Calendar as CalendarIcon, Search,
-  Loader2, Send, CheckCircle, Check, X, ChevronLeft, ChevronRight,
+  Loader2, Send, CheckCircle, Check, X, ChevronLeft, ChevronRight, Info
 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AttendanceItem } from "@/components/admin/attendance/AttendanceItem";
@@ -201,306 +201,327 @@ function AttendancePageContent() {
   const allDone = stats.total > 0 && stats.missing === 0;
 
   return (
-    <div dir="rtl" className="min-h-screen bg-slate-950 text-white">
+    <div dir="rtl" className="flex h-screen bg-[#020617] text-slate-200 overflow-hidden">
+      <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
+        
+        {/* ── Enterprise Header ── */}
+        <header className="h-16 shrink-0 bg-slate-900/40 border-b border-white/[0.05] flex items-center justify-between px-6 backdrop-blur-xl z-30">
+          <div className="flex items-center gap-6">
+            {/* Breadcrumbs */}
+            <div className="flex items-center gap-2 text-xs font-medium">
+              <span className="text-slate-500 hover:text-slate-300 cursor-pointer" onClick={() => router.push("/")}>ראשי</span>
+              <ChevronLeft className="w-3 h-3 text-slate-600" />
+              <span className="text-white font-bold tracking-tight">ניהול נוכחות</span>
+            </div>
+            
+            <div className="h-4 w-px bg-white/10 mx-2 hidden md:block" />
 
-      {/* ══ HEADER ══════════════════════════════════════════════════════════════ */}
-      <header className="sticky top-0 z-40 bg-slate-950/95 backdrop-blur-xl border-b border-white/[0.07]">
-
-        {/* Row 1: title + stats */}
-        <div className="px-4 md:px-5 flex items-center gap-3 h-12">
-
-          {/* Back — mobile only */}
-          <button onClick={() => router.push("/")} aria-label="חזרה"
-            className="md:hidden p-2 rounded-xl bg-white/5 border border-white/10 active:scale-95 transition-all shrink-0">
-            <ArrowRight className="w-4 h-4" />
-          </button>
-
-          {/* Title */}
-          <div className="flex items-center gap-2 shrink-0">
-            <ClipboardList className="w-4 h-4 text-emerald-400" />
-            <h1 className="text-[14px] font-semibold">נוכחות מטופלים</h1>
-            <span className="text-[11px] text-slate-500 hidden md:inline">
-              {format(new Date(selectedDate + "T12:00:00"), "EEEE, d בMMMM", { locale: he })}
-            </span>
+            {/* Title & Group Switcher */}
+            <div className="flex items-center gap-4">
+              <h1 className="text-sm font-black text-white uppercase tracking-wider hidden lg:block">מעקב יומי</h1>
+              <select 
+                value={selectedGroup} 
+                onChange={e => handleGroupChange(e.target.value)}
+                className="bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-xs font-bold text-white focus:outline-none focus:ring-1 focus:ring-emerald-500 transition-all cursor-pointer"
+              >
+                {groups.map(g => (
+                  <option key={g.id} value={g.id} className="bg-slate-900">{g.name}</option>
+                ))}
+              </select>
+            </div>
           </div>
 
-          {/* Desktop inline stats */}
-          {stats.total > 0 && (
-            <div className="hidden md:flex items-center gap-3 text-xs font-semibold mr-4">
-              <span className="text-slate-400">{stats.total} סה"כ</span>
-              <span className="text-emerald-400">✓ {stats.present} נוכחים</span>
-              <span className="text-rose-400">✗ {stats.absent} נעדרים</span>
-              {stats.missing > 0 && <span className="text-blue-400">○ {stats.missing} נותרו</span>}
-            </div>
-          )}
-
-          {/* Send summary */}
-          <button onClick={handleSendSummary} disabled={sendingSummary || stats.total === 0}
-            className={`mr-auto flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-semibold transition-all border shrink-0 ${
-              summarySent
-                ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
-                : "bg-white/5 border-white/[0.07] text-slate-400 disabled:opacity-40"
-            }`}>
-            {sendingSummary ? <Loader2 className="w-3 h-3 animate-spin" />
-             : summarySent   ? <CheckCircle className="w-3 h-3" />
-             :                 <Send className="w-3 h-3" />}
-            {summarySent ? "נשלח" : "שלח סיכום"}
-          </button>
-        </div>
-
-        {/* Progress + mobile stats */}
-        {stats.total > 0 && (
-          <div className="px-4 md:px-5 pb-1">
-            {/* Mobile stats grid */}
-            <div className="grid grid-cols-4 gap-1.5 mb-2 md:hidden">
-              {[
-                { label: "סה״כ",   value: stats.total,   cls: "text-white",       bg: "bg-white/5" },
-                { label: "נוכחים", value: stats.present, cls: "text-emerald-400", bg: "bg-emerald-500/5" },
-                { label: "נעדרים", value: stats.absent,  cls: "text-rose-400",    bg: "bg-rose-500/5" },
-                { label: "נותרו",  value: stats.missing, cls: "text-blue-400",    bg: "bg-blue-500/5" },
-              ].map(s => (
-                <div key={s.label} className={`${s.bg} rounded-xl py-1.5 text-center`}>
-                  <div className={`text-lg font-black ${s.cls}`}>{s.value}</div>
-                  <div className="text-[9px] text-slate-500 font-bold uppercase">{s.label}</div>
-                </div>
-              ))}
-            </div>
-            {/* Progress bar */}
-            <div className="h-1 bg-white/5 rounded-full overflow-hidden">
-              <motion.div className="h-full bg-emerald-500 rounded-full"
-                initial={{ width: 0 }}
-                animate={{ width: `${pct}%` }}
-                transition={{ duration: 0.4, ease: "easeOut" }}
+          <div className="flex items-center gap-3">
+            {/* Search */}
+            <div className="relative hidden sm:block">
+              <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
+              <input 
+                type="text" 
+                placeholder="חיפוש מהיר..." 
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+                className="bg-white/5 border border-white/10 rounded-lg pr-9 pl-4 py-1.5 text-xs focus:outline-none focus:border-emerald-500/50 w-48 lg:w-64 transition-all"
               />
             </div>
-            <div className="flex justify-between mt-0.5 md:hidden">
-              <span className="text-[9px] text-slate-600 font-semibold">{pct}% נוכחות</span>
-              {stats.missing > 0 && <span className="text-[9px] text-blue-500 font-semibold">{stats.missing} נותרו</span>}
-            </div>
-          </div>
-        )}
 
-        {/* Group chips + search + mark all */}
-        <div className="px-4 md:px-5 pb-2 flex flex-wrap items-center gap-2">
-          {/* Group chips */}
-          {groups.length > 1 && (
-            <div className="flex gap-1.5 overflow-x-auto no-scrollbar shrink-0">
-              {groups.map(g => (
-                <button key={g.id} onClick={() => handleGroupChange(g.id)}
-                  className={`shrink-0 px-3 py-1.5 rounded text-xs font-semibold transition-all border ${
-                    selectedGroup === g.id
-                      ? "bg-emerald-600 border-emerald-500 text-white"
-                      : "bg-white/5 border-white/[0.07] text-slate-400 hover:border-white/20"
-                  }`}>
-                  {g.name}
-                </button>
-              ))}
-            </div>
-          )}
+            <div className="w-px h-6 bg-white/5 mx-1" />
 
-          {/* Search */}
-          <div className="relative flex-1 min-w-[160px]">
-            <Search className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500 pointer-events-none" />
-            <input type="text" placeholder="חיפוש מטופל..."
-              value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
-              className="w-full bg-white/5 border border-white/[0.07] rounded py-1.5 pr-8 pl-3 text-sm focus:outline-none focus:border-emerald-500 transition-colors"
-            />
-          </div>
-
-          {/* Mark all present */}
-          {stats.missing > 0 && !searchTerm && (
-            <button onClick={handleMarkAllPresent}
-              className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600/10 border border-emerald-500/20 rounded text-xs font-semibold text-emerald-400 hover:bg-emerald-600/15 transition-all">
-              <CheckCircle className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">סמן הכל נוכחים</span>
-              <span className="sm:hidden">הכל</span>
+            {/* Actions */}
+            <button 
+              onClick={handleSendSummary}
+              disabled={sendingSummary || stats.total === 0}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all shadow-lg ${
+                summarySent 
+                  ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30" 
+                  : "bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-900/20"
+              }`}
+            >
+              {sendingSummary ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+              {summarySent ? "נשלח בהצלחה" : "שלח סיכום"}
             </button>
-          )}
+          </div>
+        </header>
 
-          {/* Date — desktop compact */}
-          <span className="hidden md:inline text-[11px] text-slate-600 mr-auto">
-            {selectedDate === today ? "היום" : format(new Date(selectedDate + "T12:00:00"), "dd/MM/yyyy")}
-          </span>
-        </div>
-      </header>
+        {/* ── Sub-header / Filter Bar ── */}
+        <div className="h-14 shrink-0 bg-slate-950/40 border-b border-white/[0.03] flex items-center justify-between px-6 z-20">
+          <div className="flex items-center gap-6">
+            <div className="flex items-center gap-2">
+              <CalendarIcon className="w-4 h-4 text-slate-500" />
+              <span className="text-xs font-bold text-slate-400">
+                {format(new Date(selectedDate + "T12:00:00"), "EEEE, d בMMMM yyyy", { locale: he })}
+              </span>
+            </div>
 
-      {/* ══ CONTENT ═════════════════════════════════════════════════════════════ */}
-      <div className="flex max-w-[1400px] mx-auto w-full px-4 md:px-5 gap-6 pt-4 pb-28">
+            <div className="flex items-center gap-2 bg-white/5 px-2 py-1 rounded-lg border border-white/5">
+              <div className="flex -space-x-1 rtl:space-x-reverse">
+                {[...Array(3)].map((_, i) => (
+                  <div key={i} className={`w-5 h-5 rounded-full border-2 border-slate-900 bg-slate-700 flex items-center justify-center text-[8px] font-bold`}>
+                    {String.fromCharCode(65 + i)}
+                  </div>
+                ))}
+              </div>
+              <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{stats.total} מטופלים רשומים</span>
+            </div>
+          </div>
 
-        {/* ── Main area ── */}
-        <main className="flex-1 min-w-0">
-
-          {/* Completion banner */}
-          <AnimatePresence>
-            {allDone && !searchTerm && (
-              <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-                className="mb-4 flex items-center justify-center gap-2 py-2.5 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-sm font-semibold text-emerald-400">
-                <CheckCircle className="w-4 h-4" />
-                הנוכחות הושלמה · {stats.present} נוכחים, {stats.absent} נעדרים
-              </motion.div>
+          <div className="flex items-center gap-2">
+            {stats.missing > 0 && !searchTerm && (
+              <button 
+                onClick={handleMarkAllPresent}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-emerald-500/10 text-slate-400 hover:text-emerald-400 text-[10px] font-black uppercase tracking-widest transition-all border border-white/5"
+              >
+                <CheckCircle className="w-3.5 h-3.5" />
+                סמן הכל כנוכח
+              </button>
             )}
-          </AnimatePresence>
+          </div>
+        </div>
 
-          {loading ? (
-            <div className="flex flex-col items-center justify-center py-24 gap-3">
-              <Loader2 className="w-7 h-7 text-emerald-500 animate-spin" />
-              <p className="text-slate-500 text-sm">טוען מטופלים...</p>
-            </div>
-          ) : displayed.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-24 gap-3">
-              <ClipboardList className="w-10 h-10 text-slate-700" />
-              <p className="text-slate-500 text-sm">{searchTerm ? "לא נמצאו תוצאות" : "לא נמצאו מטופלים בקבוצה זו"}</p>
-            </div>
-          ) : (
-            <>
-              {/* ── Desktop table ── */}
-              <div className="hidden md:block border border-white/[0.07] rounded-lg overflow-hidden">
-                <table className="w-full text-right">
+        {/* ── Main Scrollable Area ── */}
+        <main className="flex-1 overflow-y-auto p-6 scrollbar-hide bg-[#020617]">
+          <div className="max-w-7xl mx-auto space-y-6">
+            
+            {/* Completion Banner */}
+            <AnimatePresence>
+              {allDone && !searchTerm && (
+                <motion.div 
+                  initial={{ opacity: 0, y: -20 }} 
+                  animate={{ opacity: 1, y: 0 }}
+                  className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-4 flex items-center justify-between"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center">
+                      <CheckCircle className="w-5 h-5 text-emerald-400" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-bold text-white">הרישום הושלם בהצלחה</h3>
+                      <p className="text-xs text-emerald-400/70 font-medium">כל המטופלים סומנו להיום. ניתן לשלוח סיכום להנהלה.</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-xl font-black text-white">{pct}%</div>
+                    <div className="text-[9px] font-black text-emerald-400 uppercase tracking-widest">שיעור נוכחות</div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {loading ? (
+              <div className="flex flex-col items-center justify-center py-32 gap-4">
+                <div className="relative">
+                  <Loader2 className="w-10 h-10 text-emerald-500 animate-spin" />
+                  <div className="absolute inset-0 blur-xl bg-emerald-500/20 animate-pulse" />
+                </div>
+                <p className="text-sm font-bold text-slate-500 animate-pulse">מסנכרן נתונים מהענן...</p>
+              </div>
+            ) : displayed.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-32 gap-6 bg-slate-900/20 border border-dashed border-white/10 rounded-3xl">
+                <div className="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center">
+                  <Search className="w-8 h-8 text-slate-700" />
+                </div>
+                <div className="text-center">
+                  <h3 className="text-lg font-bold text-white mb-1">{searchTerm ? "לא נמצאו תוצאות" : "אין מטופלים בקבוצה"}</h3>
+                  <p className="text-sm text-slate-500">נסה לשנות את פרמטרי החיפוש או לבחור קבוצה אחרת.</p>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-slate-950/40 border border-white/[0.05] rounded-2xl overflow-hidden shadow-2xl">
+                <table className="w-full text-right border-collapse">
                   <thead>
-                    <tr className="border-b border-white/[0.07] bg-white/[0.02]">
-                      <th className="px-3 py-2 text-[10px] font-bold text-slate-500 uppercase tracking-wider w-8">#</th>
-                      <th className="px-3 py-2 text-[10px] font-bold text-slate-500 uppercase tracking-wider">שם מטופל</th>
-                      <th className="px-3 py-2 text-[10px] font-bold text-slate-500 uppercase tracking-wider text-center w-28">סטטוס</th>
-                      <th className="px-3 py-2 text-[10px] font-bold text-slate-500 uppercase tracking-wider text-center w-24">נוכח</th>
-                      <th className="px-3 py-2 text-[10px] font-bold text-slate-500 uppercase tracking-wider text-center w-24">נפקד</th>
+                    <tr className="bg-slate-900/40 border-b border-white/[0.05]">
+                      <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest w-16">#</th>
+                      <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">מטופל</th>
+                      <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest text-center">סטטוס נוכחות</th>
+                      <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest text-center w-64">פעולות רישום</th>
                     </tr>
                   </thead>
-                  <tbody>
+                  <tbody className="divide-y divide-white/[0.03]">
                     {displayed.map((p, idx) => {
-                      const status    = attendance[p.id] || "unset";
+                      const status = attendance[p.id] || "unset";
                       const isPresent = status === "present";
-                      const isAbsent  = status === "absent";
-                      const ini       = initials(p);
+                      const isAbsent = status === "absent";
+                      const ini = initials(p);
+                      
                       return (
-                        <tr key={p.id}
-                          className={`border-b border-white/[0.04] transition-colors ${
-                            isPresent ? "bg-emerald-500/[0.03] hover:bg-emerald-500/[0.05]" :
-                            isAbsent  ? "bg-rose-500/[0.03]    hover:bg-rose-500/[0.05]" :
-                                        "hover:bg-white/[0.02]"
-                          }`}>
-                          {/* # */}
-                          <td className="px-3 py-2 text-[11px] text-slate-600 font-mono">{idx + 1}</td>
-
-                          {/* Name */}
-                          <td className="px-3 py-2.5">
-                            <div className="flex items-center gap-2.5">
-                              <div className={`w-7 h-7 rounded shrink-0 flex items-center justify-center text-[10px] font-black text-white ${
-                                status === "unset" ? "bg-slate-700" : avatarColor(p.firstName)
-                              }`}>{ini}</div>
-                              <span className="text-sm font-medium">{p.firstName} {p.lastName}</span>
+                        <tr key={p.id} className="group hover:bg-white/[0.02] transition-colors">
+                          <td className="px-6 py-4 text-xs font-mono text-slate-600">{String(idx + 1).padStart(2, '0')}</td>
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-3">
+                              <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-xs font-black text-white shadow-lg transition-transform group-hover:scale-105 ${
+                                status === "unset" ? "bg-slate-800" : avatarColor(p.firstName)
+                              }`}>
+                                {ini}
+                              </div>
+                              <div className="flex flex-col">
+                                <span className="text-sm font-bold text-white tracking-tight">{p.firstName} {p.lastName}</span>
+                                <span className="text-[10px] text-slate-500 font-medium">{p.hosenType}</span>
+                              </div>
                             </div>
                           </td>
-
-                          {/* Status */}
-                          <td className="px-3 py-2 text-center">
-                            <span className={`inline-flex items-center gap-1.5 text-[11px] font-semibold px-2 py-0.5 rounded ${
-                              isPresent ? "text-emerald-400 bg-emerald-500/10" :
-                              isAbsent  ? "text-rose-400 bg-rose-500/10" :
-                                          "text-slate-600 bg-white/5"
-                            }`}>
-                              <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${
-                                isPresent ? "bg-emerald-400" : isAbsent ? "bg-rose-400" : "bg-slate-700"
-                              }`} />
-                              {isPresent ? "נוכח" : isAbsent ? "נפקד" : "טרם נסמן"}
-                            </span>
-                          </td>
-
-                          {/* Present btn */}
-                          <td className="px-2 py-2 text-center">
-                            <button onClick={() => handleToggle(p.id, "present")}
-                              className={`inline-flex items-center gap-1 px-3 h-7 rounded text-[11px] font-semibold transition-all ${
-                                isPresent
-                                  ? "bg-emerald-600 text-white"
-                                  : "bg-white/5 text-slate-500 hover:bg-emerald-500/10 hover:text-emerald-400"
+                          <td className="px-6 py-4">
+                            <div className="flex justify-center">
+                              <span className={`inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-lg border transition-all ${
+                                isPresent ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" :
+                                isAbsent ? "bg-rose-500/10 text-rose-400 border-rose-500/20" :
+                                "bg-white/5 text-slate-500 border-white/5"
                               }`}>
-                              <Check className="w-3 h-3" /> נוכח
-                            </button>
+                                <div className={`w-1.5 h-1.5 rounded-full ${
+                                  isPresent ? "bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.5)]" : 
+                                  isAbsent ? "bg-rose-400" : "bg-slate-700"
+                                }`} />
+                                {isPresent ? "נוכח במרכז" : isAbsent ? "נפקד / חסר" : "טרם דווח"}
+                              </span>
+                            </div>
                           </td>
-
-                          {/* Absent btn */}
-                          <td className="px-2 py-2 text-center">
-                            <button onClick={() => handleToggle(p.id, "absent")}
-                              className={`inline-flex items-center gap-1 px-3 h-7 rounded text-[11px] font-semibold transition-all ${
-                                isAbsent
-                                  ? "bg-rose-600 text-white"
-                                  : "bg-white/5 text-slate-500 hover:bg-rose-500/10 hover:text-rose-400"
-                              }`}>
-                              <X className="w-3 h-3" /> נפקד
-                            </button>
+                          <td className="px-6 py-4">
+                            <div className="flex items-center justify-center gap-2">
+                              <button 
+                                onClick={() => handleToggle(p.id, "present")}
+                                className={`flex-1 flex items-center justify-center gap-2 h-9 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${
+                                  isPresent 
+                                    ? "bg-emerald-600 text-white shadow-lg shadow-emerald-900/40" 
+                                    : "bg-white/5 text-slate-500 hover:bg-emerald-500/10 hover:text-emerald-400 border border-white/5"
+                                }`}
+                              >
+                                <Check className="w-3.5 h-3.5" /> נוכח
+                              </button>
+                              <button 
+                                onClick={() => handleToggle(p.id, "absent")}
+                                className={`flex-1 flex items-center justify-center gap-2 h-9 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${
+                                  isAbsent 
+                                    ? "bg-rose-600 text-white shadow-lg shadow-rose-900/40" 
+                                    : "bg-white/5 text-slate-500 hover:bg-rose-500/10 hover:text-rose-400 border border-white/5"
+                                }`}
+                              >
+                                <X className="w-3.5 h-3.5" /> נפקד
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       );
                     })}
                   </tbody>
                 </table>
-                {/* Table footer summary */}
-                {displayed.length > 0 && (
-                  <div className="px-4 py-2 bg-white/[0.015] border-t border-white/[0.05] flex items-center gap-4 text-[11px] text-slate-500">
-                    <span>{stats.total} מטופלים</span>
-                    <span className="text-emerald-500">{stats.present} נוכחים</span>
-                    <span className="text-rose-500">{stats.absent} נעדרים</span>
-                    {stats.missing > 0 && <span className="text-blue-500">{stats.missing} טרם נסמנו</span>}
-                    <span className="mr-auto font-semibold text-white">{pct}%</span>
+                
+                {/* Table Footer */}
+                <div className="bg-slate-900/40 border-t border-white/[0.05] px-6 py-4 flex items-center justify-between">
+                  <div className="flex items-center gap-6">
+                    <div className="flex flex-col">
+                      <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-0.5">סה"כ נוכחים</span>
+                      <span className="text-sm font-black text-emerald-400">{stats.present}</span>
+                    </div>
+                    <div className="w-px h-6 bg-white/5" />
+                    <div className="flex flex-col">
+                      <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-0.5">סה"כ נפקדים</span>
+                      <span className="text-sm font-black text-rose-400">{stats.absent}</span>
+                    </div>
                   </div>
-                )}
+                  
+                  <div className="flex items-center gap-4">
+                    <div className="flex flex-col text-left">
+                      <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-0.5">אחוז התייצבות</span>
+                      <span className="text-sm font-black text-white">{pct}%</span>
+                    </div>
+                    <div className="w-12 h-12 relative">
+                      <svg className="w-full h-full -rotate-90">
+                        <circle cx="24" cy="24" r="20" fill="none" stroke="currentColor" strokeWidth="4" className="text-white/5" />
+                        <circle cx="24" cy="24" r="20" fill="none" stroke="currentColor" strokeWidth="4" strokeDasharray={125.6} strokeDashoffset={125.6 - (125.6 * pct / 100)} className="text-emerald-500 transition-all duration-1000" />
+                      </svg>
+                    </div>
+                  </div>
+                </div>
               </div>
-
-              {/* ── Mobile cards ── */}
-              <div className="md:hidden space-y-2">
-                <AnimatePresence mode="popLayout">
-                  {displayed.map(p => (
-                    <motion.div key={p.id} layout="position"
-                      initial={{ opacity: 0, y: 4 }}
-                      animate={{ opacity: attendance[p.id] === "present" ? 0.75 : 1, y: 0 }}
-                      exit={{ opacity: 0, scale: 0.97 }}
-                      transition={{ duration: 0.15 }}>
-                      <AttendanceItem
-                        patient={p}
-                        status={attendance[p.id] || "unset"}
-                        onToggle={s => handleToggle(p.id, s)}
-                      />
-                    </motion.div>
-                  ))}
-                </AnimatePresence>
-              </div>
-            </>
-          )}
+            )}
+          </div>
         </main>
+      </div>
 
-        {/* ── Calendar sidebar — desktop only ── */}
-        <aside className="hidden lg:block w-60 shrink-0 pt-0">
-          <div className="sticky top-[130px] bg-white/[0.03] border border-white/[0.07] rounded-lg p-4">
-            <div className="flex items-center gap-2 mb-3">
-              <CalendarIcon className="w-3.5 h-3.5 text-emerald-400" />
-              <span className="text-xs font-semibold text-slate-300">בחר תאריך</span>
-            </div>
-            <MiniCalendar
-              value={selectedDate}
+      {/* ── CRM Right Sidebar ── */}
+      <aside className="w-80 shrink-0 bg-slate-900/20 border-r border-white/[0.05] flex flex-col h-full z-40">
+        <div className="p-6 border-b border-white/[0.05]">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-xs font-black text-white uppercase tracking-widest">יומן עזר</h2>
+            <button onClick={() => setSelectedDate(today)} className="text-[10px] font-bold text-emerald-400 hover:underline">חזור להיום</button>
+          </div>
+          
+          <div className="bg-slate-950/40 border border-white/10 rounded-2xl p-4 shadow-inner">
+            <MiniCalendar 
+              value={selectedDate} 
               onChange={(d) => {
                 setSelectedDate(d);
                 const g = groups.find(g => g.id === selectedGroup);
                 if (g) fetchData(selectedGroup, g.name, d);
-              }}
+              }} 
             />
-            <div className="mt-3 pt-3 border-t border-white/[0.07]">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] text-slate-600 font-semibold uppercase">סטטוס</span>
-                <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${
-                  selectedDate === today
-                    ? "bg-emerald-500/10 text-emerald-400"
-                    : "bg-blue-500/10 text-blue-400"
-                }`}>
-                  {selectedDate === today ? "היום" : "היסטוריה"}
-                </span>
-              </div>
-              <p className="mt-2 text-[10px] text-slate-600 leading-relaxed">
-                נתוני {format(new Date(selectedDate + "T12:00:00"), "d בMMMM", { locale: he })}.
-                שינויים נשמרים אוטומטית.
-              </p>
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-6 space-y-8 scrollbar-hide">
+          {/* Quick Stats Widget */}
+          <div className="space-y-4">
+            <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest">סטטיסטיקה יומית</h3>
+            <div className="grid grid-cols-1 gap-3">
+              {[
+                { label: "נוכחות", value: `${pct}%`, sub: `${stats.present} מתוך ${stats.total}`, color: "emerald" },
+                { label: "חסרים", value: stats.missing, sub: "ממתינים לדיווח", color: "blue" },
+                { label: "היעדרות", value: stats.absent, sub: "דיווחו על אי הגעה", color: "rose" },
+              ].map(s => (
+                <div key={s.label} className="bg-white/5 border border-white/5 rounded-2xl p-4 transition-transform hover:scale-[1.02] cursor-default">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{s.label}</span>
+                    <div className={`w-1.5 h-1.5 rounded-full bg-${s.color}-500 shadow-[0_0_8px_rgba(0,0,0,0.5)]`} />
+                  </div>
+                  <div className="text-xl font-black text-white mb-0.5">{s.value}</div>
+                  <div className="text-[10px] font-bold text-slate-600">{s.sub}</div>
+                </div>
+              ))}
             </div>
           </div>
-        </aside>
-      </div>
+
+          {/* Action Guide */}
+          <div className="bg-emerald-500/5 border border-emerald-500/10 rounded-2xl p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <Info className="w-3.5 h-3.5 text-emerald-400" />
+              <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">טיפ ניהולי</span>
+            </div>
+            <p className="text-[11px] text-slate-400 leading-relaxed font-medium">
+              מומלץ לשלוח סיכום יומי לאחר סיום כלל הדיווחים. הסיכום נשלח אוטומטית למנהלים ולרכזי התוכניות הרלוונטיים.
+            </p>
+          </div>
+        </div>
+
+        <div className="p-4 bg-slate-950/40 border-t border-white/[0.05]">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-[10px] font-black text-slate-500">
+              HC
+            </div>
+            <div className="flex flex-col">
+              <span className="text-[10px] font-bold text-white">Hosen-Connect CRM</span>
+              <span className="text-[8px] text-slate-600 font-mono">v2.4.0-enterprise</span>
+            </div>
+          </div>
+        </div>
+      </aside>
     </div>
   );
 }
@@ -511,8 +532,11 @@ export default function AttendancePage() {
   return (
     <RoleGuard allowedRoles={["admin","manager","instructor","employee","social_worker","logistics"]} redirectTo="/">
       <Suspense fallback={
-        <div className="min-h-screen bg-slate-950 flex items-center justify-center">
-          <Loader2 className="w-8 h-8 text-emerald-500 animate-spin" />
+        <div className="min-h-screen bg-[#020617] flex items-center justify-center">
+          <div className="flex flex-col items-center gap-4">
+            <Loader2 className="w-10 h-10 text-emerald-500 animate-spin" />
+            <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest animate-pulse">מכין את שולחן העבודה...</span>
+          </div>
         </div>
       }>
         <AttendancePageContent />

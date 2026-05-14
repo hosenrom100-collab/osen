@@ -15,6 +15,7 @@ import {
 import { useAuth } from "@/context/AuthContext";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import * as XLSX from "xlsx";
 import { sendPush } from "@/lib/notify";
 
@@ -49,7 +50,7 @@ const CAT_COLOR: Record<string, string> = {
 function CatBadge({ cat }: { cat: string }) {
   const cls = CAT_COLOR[cat] ?? CAT_COLOR["כללי"];
   return (
-    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${cls}`}>{cat}</span>
+    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border border-current opacity-80 ${cls}`}>{cat}</span>
   );
 }
 
@@ -83,8 +84,8 @@ export default function ShoppingPage() {
     "טואלטיקה והיגיינה","בשר ודגים","קפואים","כללי",
   ]);
 
-  const inputRef       = useRef<HTMLInputElement>(null); // desktop header input
-  const mobileInputRef = useRef<HTMLInputElement>(null); // mobile bottom bar
+  const inputRef       = useRef<HTMLInputElement>(null);
+  const mobileInputRef = useRef<HTMLInputElement>(null);
   const overlayRef     = useRef<HTMLDivElement>(null);
 
   const canApprove  = isAdmin || role === "manager" || role === "logistics";
@@ -114,11 +115,6 @@ export default function ShoppingPage() {
     setPool(list);
   };
 
-  // ── Status change ──────────────────────────────────────────────────────────
-  // Push policy:
-  //   approved  → notify requester only (skip if self-approved)
-  //   purchased → notify all only when the last approved item is purchased
-  //   deleted   → silent
   const changeStatus = useCallback(async (
     id: string,
     next: "pending" | "approved" | "purchased" | "deleted",
@@ -158,8 +154,6 @@ export default function ShoppingPage() {
     } catch (e) { console.error(e); }
   }, [requests, user]);
 
-  // ── Approve all pending ────────────────────────────────────────────────────
-  // Batch update — one summary push to logistics instead of N individual pushes
   const approveAll = async () => {
     const pendingItems = requests.filter((r) => r.status === "pending");
     if (pendingItems.length === 0) return;
@@ -178,8 +172,6 @@ export default function ShoppingPage() {
     });
   };
 
-  // ── Add item ───────────────────────────────────────────────────────────────
-  // Push policy: urgent only — normal additions are silent (managers review on demand)
   const addProduct = async (name: string, category = "כללי", priority: "normal" | "urgent" = "normal") => {
     const dup = requests.some((r) => r.name === name && r.status !== "purchased");
     if (dup) { flash(pool.find((p) => p.name === name)?.id ?? "dup"); return; }
@@ -222,19 +214,15 @@ export default function ShoppingPage() {
   const handleUpdateItem = async () => {
     if (!editItem) return;
     try {
-      // Update the request
       await updateDoc(doc(db, "shopping_requests", editItem.id), {
         name: editName,
         category: editCat,
       });
-
-      // Update the global pool
       const docId = editName.replace(/\//g, "-");
       await setDoc(doc(db, "product_pool", docId), {
         name: editName,
         category: editCat,
       }, { merge: true });
-
       setEditItem(null);
       fetchPool();
     } catch (e) { console.error(e); }
@@ -250,7 +238,6 @@ export default function ShoppingPage() {
     inputRef.current?.blur();
   };
 
-  // ── Export ─────────────────────────────────────────────────────────────────
   const exportXlsx = () => {
     const data = requests.filter((r) => r.status === "purchased").map((r) => {
       const d = r.createdAt?.toDate ? r.createdAt.toDate() : new Date(r.createdAt);
@@ -262,7 +249,6 @@ export default function ShoppingPage() {
     XLSX.writeFile(wb, `ארכיון_רכש_${new Date().toLocaleDateString("he-IL").replace(/\//g, "-")}.xlsx`);
   };
 
-  // ── Filtered data ──────────────────────────────────────────────────────────
   const pending  = requests.filter((r) => r.status === "pending");
   const approved = requests.filter((r) => r.status === "approved");
   const purchased = requests.filter((r) => r.status === "purchased");
@@ -275,7 +261,6 @@ export default function ShoppingPage() {
   const exactMatch = pool.some((p) => p.name === inputVal.trim());
   const alreadyInList = (name: string) => requests.some((r) => r.name === name && r.status !== "purchased");
 
-  // ── Archive grouped ────────────────────────────────────────────────────────
   const archiveByDate = purchased.reduce((acc, item) => {
     const d = item.createdAt?.toDate ? item.createdAt.toDate() : new Date(item.createdAt);
     const key = d.toLocaleDateString("he-IL", { day: "2-digit", month: "2-digit", year: "numeric" });
@@ -285,27 +270,26 @@ export default function ShoppingPage() {
 
   return (
     <RoleGuard allowedRoles={["admin","manager","instructor","social_worker","employee","logistics"]} redirectTo="/">
-      <div dir="rtl" className="min-h-screen bg-slate-950 text-white flex flex-col">
-
-        {/* ── Header ── */}
-        <header className="sticky top-0 z-30 bg-slate-950/95 backdrop-blur border-b border-white/[0.07] px-4 md:px-5">
-          <div className="flex items-center gap-3 h-12">
-
-            {/* Back — mobile only */}
-            <button onClick={() => router.push("/")} aria-label="חזרה"
-              className="md:hidden min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl bg-white/5 transition-colors shrink-0">
-              <ArrowRight className="w-5 h-5" />
-            </button>
-
-            {/* Title */}
-            <div className="flex items-center gap-2 shrink-0">
-              <ShoppingCart className="w-4 h-4 text-blue-400 shrink-0" />
-              <h1 className="text-[14px] font-semibold">רשימת קניות</h1>
+      <div dir="rtl" className="flex flex-col h-screen bg-background text-foreground overflow-hidden font-sans selection:bg-blue-500/30">
+        
+        {/* ── Desktop CRM Header ── */}
+        <header className="hidden md:flex items-center justify-between px-8 h-16 shrink-0 border-b border-border bg-card-bg/40 backdrop-blur-md z-30">
+          <div className="flex items-center gap-6">
+            <div className="flex flex-col">
+              <div className="flex items-center gap-2 text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-0.5">
+                <Link href="/" className="hover:text-blue-400 transition-colors">בית</Link>
+                <ChevronRight className="w-2.5 h-2.5 opacity-30" />
+                <span className="text-slate-400">לוגיסטיקה</span>
+              </div>
+              <h1 className="text-lg font-bold text-white flex items-center gap-2">
+                <ShoppingCart className="w-4 h-4 text-blue-400" />
+                רשימת קניות
+              </h1>
             </div>
 
-            {/* Desktop inline add input */}
-            <div className="hidden md:flex flex-1 max-w-xs relative">
-              <Search className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500 pointer-events-none" />
+            {/* Desktop Search/Add */}
+            <div className="relative w-80 group">
+              <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500 group-focus-within:text-blue-400 transition-colors" />
               <input
                 ref={inputRef}
                 type="search"
@@ -316,317 +300,279 @@ export default function ShoppingPage() {
                   if (e.key === "Enter") { handleAddInput(); }
                   if (e.key === "Escape") { setOverlayOpen(false); inputRef.current?.blur(); }
                 }}
-                placeholder="הוסף מוצר..."
-                aria-label="הוספת מוצר"
-                className="w-full bg-white/5 border border-white/[0.07] rounded py-1.5 pr-8 pl-3 text-sm focus:outline-none focus:border-blue-500 transition-colors placeholder:text-slate-600"
+                placeholder="הוסף מוצר (לדוגמה: לחם, חלב...)"
+                className="w-full bg-white/[0.03] border border-white/[0.08] rounded-lg py-1.5 pr-9 pl-4 text-xs focus:outline-none focus:border-blue-500/50 focus:bg-white/[0.05] transition-all placeholder:text-slate-600"
               />
-            </div>
-
-            {/* View toggle */}
-            <div className="flex items-center bg-white/5 md:bg-transparent rounded-xl md:rounded-none p-0.5 md:p-0 text-xs font-semibold shrink-0 mr-auto md:mr-0 gap-0 md:gap-3 md:border-0">
-              <button onClick={() => setView("list")}
-                className={`px-3 py-1.5 rounded md:rounded-none transition-colors md:border-b-2 md:border-transparent ${
-                  view === "list"
-                    ? "bg-blue-600 md:bg-transparent text-white md:border-blue-500"
-                    : "text-slate-500 hover:text-slate-300"
-                }`}>
-                רשימה
-                {(pending.length + approved.length) > 0 && (
-                  <span className={`mr-1 ${view === "list" ? "text-blue-200 md:text-blue-400" : "text-slate-600"}`}>
-                    ({pending.length + approved.length})
-                  </span>
+              
+              <AnimatePresence>
+                {overlayOpen && inputVal.trim() && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 8 }}
+                    className="absolute top-full right-0 left-0 mt-2 bg-slate-900 border border-white/[0.1] rounded-xl shadow-2xl overflow-hidden z-50 backdrop-blur-xl"
+                  >
+                    <div className="max-h-64 overflow-y-auto p-1.5 no-scrollbar">
+                      {!exactMatch && (
+                        <button onClick={handleAddInput}
+                          className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-bold text-blue-400 bg-blue-500/10 hover:bg-blue-500/20 transition-all mb-1 text-right">
+                          <Plus className="w-3.5 h-3.5 shrink-0" />
+                          הוסף "{inputVal.trim()}" לרשימה
+                        </button>
+                      )}
+                      {suggestions.map((p) => {
+                        const inList = alreadyInList(p.name);
+                        return (
+                          <button key={p.id}
+                            onClick={() => { if (!inList) { addProduct(p.name, p.category); setInputVal(""); setOverlayOpen(false); } }}
+                            disabled={inList}
+                            className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs transition-all text-right ${
+                              inList ? "opacity-40 cursor-default" : "text-slate-300 hover:bg-white/[0.05]"
+                            }`}>
+                            {inList ? <Check className="w-3.5 h-3.5 text-slate-500" /> : <Plus className="w-3.5 h-3.5 text-slate-600" />}
+                            <span className="flex-1 font-medium text-right">{p.name}</span>
+                            <CatBadge cat={p.category} />
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </motion.div>
                 )}
+              </AnimatePresence>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <div className="flex items-center bg-white/[0.03] p-1 rounded-lg border border-white/[0.05]">
+              <button onClick={() => setView("list")}
+                className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all ${
+                  view === "list" ? "bg-blue-600 text-white shadow-lg shadow-blue-600/20" : "text-slate-500 hover:text-slate-300"
+                }`}>
+                רשימה פעילה
               </button>
               <button onClick={() => setView("archive")}
-                className={`px-3 py-1.5 rounded md:rounded-none transition-colors md:border-b-2 md:border-transparent ${
-                  view === "archive"
-                    ? "bg-slate-700 md:bg-transparent text-white md:border-slate-500"
-                    : "text-slate-500 hover:text-slate-300"
+                className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all ${
+                  view === "archive" ? "bg-slate-700 text-white" : "text-slate-500 hover:text-slate-300"
                 }`}>
-                ארכיון
+                ארכיון רכישות
               </button>
+            </div>
+
+            <div className="w-px h-6 bg-white/[0.07] mx-1" />
+
+            {view === "list" && canApprove && pending.length > 0 && (
+              <button onClick={approveAll}
+                className="flex items-center gap-2 px-4 py-1.5 bg-emerald-600/10 hover:bg-emerald-600/20 text-emerald-400 border border-emerald-500/20 rounded-lg text-xs font-bold transition-all">
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                אשר הכל
+              </button>
+            )}
+
+            {view === "archive" && (
+              <button onClick={exportXlsx}
+                className="flex items-center gap-2 px-4 py-1.5 bg-white/[0.03] hover:bg-white/[0.08] text-slate-300 border border-white/[0.07] rounded-lg text-xs font-bold transition-all">
+                <Download className="w-3.5 h-3.5" />
+                ייצוא Excel
+              </button>
+            )}
+          </div>
+        </header>
+
+        {/* ── Mobile Header ── */}
+        <header className="md:hidden sticky top-0 z-30 bg-background/95 backdrop-blur-lg border-b border-border px-4 py-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <button onClick={() => router.push("/")} className="p-2 rounded-xl bg-white/5 border border-white/10 active:scale-95 transition-all">
+                <ArrowRight className="w-4 h-4" />
+              </button>
+              <h1 className="text-base font-bold">רשימת קניות</h1>
+            </div>
+            <div className="flex items-center bg-white/5 rounded-lg p-0.5">
+              <button onClick={() => setView("list")} className={`px-3 py-1 rounded text-[11px] font-bold ${view === "list" ? "bg-blue-600 text-white" : "text-slate-500"}`}>רשימה</button>
+              <button onClick={() => setView("archive")} className={`px-3 py-1 rounded text-[11px] font-bold ${view === "archive" ? "bg-slate-700 text-white" : "text-slate-500"}`}>ארכיון</button>
             </div>
           </div>
         </header>
 
-        {/* ── Desktop suggestions dropdown ── */}
-        <AnimatePresence>
-          {overlayOpen && inputVal.trim() && (
-            <motion.div
-              key="desktop-sugg"
-              initial={{ opacity: 0, y: -4 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -4 }}
-              transition={{ duration: 0.1 }}
-              className="hidden md:block fixed top-12 z-50 bg-slate-900 border border-white/10 rounded-lg shadow-2xl overflow-hidden"
-              style={{ right: "220px", width: "320px" }}
-            >
-              <div className="max-h-72 overflow-y-auto p-1">
-                {inputVal.trim() && !exactMatch && (
-                  <button onClick={handleAddInput}
-                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded text-sm font-medium text-blue-300 bg-blue-600/10 hover:bg-blue-600/20 transition-colors mb-1">
-                    <Plus className="w-3.5 h-3.5 shrink-0" />
-                    הוסף "{inputVal.trim()}"
-                  </button>
-                )}
-                {suggestions.length > 0 ? (
-                  suggestions.map((p) => {
-                    const inList = alreadyInList(p.name);
-                    const added  = justAdded === p.id || justAdded === p.name.replace(/\//g, "-");
-                    return (
-                      <button key={p.id}
-                        onClick={() => { if (!inList) { addProduct(p.name, p.category); setInputVal(""); setOverlayOpen(false); inputRef.current?.blur(); } }}
-                        disabled={inList}
-                        className={`w-full flex items-center gap-2.5 px-3 py-2 rounded text-sm transition-colors text-right ${
-                          added    ? "bg-emerald-500/10 text-emerald-300" :
-                          inList   ? "text-slate-600 cursor-default" :
-                                     "text-slate-300 hover:bg-white/5"
-                        }`}>
-                        {added ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                               : inList ? <Check className="w-3.5 h-3.5 text-slate-600 shrink-0" />
-                               : <Plus className="w-3.5 h-3.5 text-slate-500 shrink-0" />}
-                        <span className="flex-1">{p.name}</span>
-                        <CatBadge cat={p.category} />
-                      </button>
-                    );
-                  })
-                ) : (
-                  <p className="text-center text-slate-600 text-xs py-4">לא נמצאו תוצאות</p>
-                )}
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+        <main className="flex-1 overflow-hidden flex flex-col md:flex-row relative">
+          <div className="flex-1 overflow-y-auto custom-scrollbar bg-background/20 no-scrollbar">
+            <div className="max-w-[1400px] mx-auto p-4 md:p-8">
+              {loading ? (
+                <div className="flex flex-col items-center justify-center py-32 gap-4">
+                  <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
+                  <p className="text-slate-500 text-sm animate-pulse">טוען רשימה...</p>
+                </div>
+              ) : view === "list" ? (
+                <div className="space-y-8">
+                  {(pending.length > 0 || approved.length > 0) ? (
+                    <div className="space-y-6">
+                      <div className="hidden md:block bg-white/[0.02] border border-white/[0.05] rounded-xl overflow-hidden backdrop-blur-sm">
+                        <table className="w-full text-right border-collapse">
+                          <thead>
+                            <tr className="bg-white/[0.02] border-b border-white/[0.05]">
+                              <th className="px-6 py-4 text-[11px] font-black text-slate-500 uppercase tracking-widest">סטטוס</th>
+                              <th className="px-6 py-4 text-[11px] font-black text-slate-500 uppercase tracking-widest">מוצר</th>
+                              <th className="px-6 py-4 text-[11px] font-black text-slate-500 uppercase tracking-widest">קטגוריה</th>
+                              <th className="px-6 py-4 text-[11px] font-black text-slate-500 uppercase tracking-widest">עדיפות</th>
+                              <th className="px-6 py-4 text-[11px] font-black text-slate-500 uppercase tracking-widest">מבקש</th>
+                              <th className="px-6 py-4 text-[11px] font-black text-slate-500 uppercase tracking-widest text-left">פעולות</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-white/[0.03]">
+                            {approved.map(req => (
+                              <DesktopRow key={req.id} req={req} onStatus={changeStatus} canApprove={canApprove} onEdit={setEditItem} type="approved" />
+                            ))}
+                            {pending.map(req => (
+                              <DesktopRow key={req.id} req={req} onStatus={changeStatus} canApprove={canApprove} onEdit={setEditItem} type="pending" />
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
 
-        {/* Desktop click-outside to close */}
-        {overlayOpen && (
-          <div className="hidden md:block fixed inset-0 z-40"
-            onClick={() => { setOverlayOpen(false); inputRef.current?.blur(); }} />
-        )}
-
-        {/* ── Main ── */}
-        <main className="flex-1 max-w-2xl w-full mx-auto px-4 sm:px-6 py-5 pb-28 overflow-y-auto">
-          {loading ? (
-            <div className="flex justify-center py-24">
-              <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
-            </div>
-          ) : view === "list" ? (
-            <ListView
-              pending={pending}
-              approved={approved}
-              canApprove={canApprove}
-              canPurchase={canPurchase}
-              userId={user?.uid}
-              confirmDel={confirmDel}
-              setConfirmDel={setConfirmDel}
-              onStatusChange={changeStatus}
-              onApproveAll={approveAll}
-              onEdit={(item) => {
-                setEditItem(item);
-                setEditName(item.name);
-                setEditCat(item.category);
-              }}
-            />
-          ) : (
-            <ArchiveView items={purchased} byDate={archiveByDate} onDelete={changeStatus} onExport={exportXlsx} />
-          )}
-        </main>
-
-        {/* ── Bottom add-bar — mobile only ── */}
-        <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-slate-950 border-t border-white/10 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-          <div className="max-w-2xl mx-auto flex gap-2 items-center">
-            <div className="flex-1 relative">
-              <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 pointer-events-none" />
-              <input
-                ref={mobileInputRef}
-                type="search"
-                value={inputVal}
-                onChange={(e) => setInputVal(e.target.value)}
-                onFocus={() => setOverlayOpen(true)}
-                onKeyDown={(e) => { if (e.key === "Enter") handleAddInput(); if (e.key === "Escape") { setOverlayOpen(false); mobileInputRef.current?.blur(); } }}
-                placeholder="הוסף מוצר לרשימה..."
-                aria-label="הוספת מוצר"
-                className="w-full bg-white/8 border border-white/10 rounded-xl py-3 pr-9 pl-4 text-sm focus:outline-none focus:border-blue-500 focus:bg-white/10 transition-all placeholder:text-slate-600"
-              />
-            </div>
-            <button
-              onClick={handleAddInput}
-              disabled={!inputVal.trim()}
-              aria-label="הוסף"
-              className="min-w-[48px] min-h-[48px] flex items-center justify-center bg-blue-600 hover:bg-blue-500 disabled:bg-white/5 disabled:text-slate-600 text-white rounded-xl transition-all active:scale-95 shrink-0"
-            >
-              <Plus className="w-5 h-5" />
-            </button>
-          </div>
-        </div>
-
-        {/* ── Suggestions overlay ── */}
-        <AnimatePresence>
-          {overlayOpen && (
-            <>
-              <motion.div
-                key="sb"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="fixed inset-0 z-30 bg-black/50"
-                onClick={() => { setOverlayOpen(false); inputRef.current?.blur(); }}
-                aria-hidden="true"
-              />
-              <motion.div
-                key="sugg"
-                ref={overlayRef}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 10 }}
-                transition={{ type: "spring", damping: 30, stiffness: 300 }}
-                className="fixed bottom-[76px] left-0 right-0 z-40 max-h-[55dvh] overflow-y-auto bg-slate-900 border-t border-white/10 rounded-t-2xl shadow-2xl"
-              >
-                <div className="max-w-2xl mx-auto px-4 py-3">
-                  {/* No-match: offer custom add */}
-                  {inputVal.trim() && !exactMatch && (
-                    <button
-                      onClick={handleAddInput}
-                      className="w-full flex items-center gap-3 py-3 px-4 mb-2 rounded-xl bg-blue-600/15 border border-blue-500/25 text-blue-300 text-sm font-medium hover:bg-blue-600/25 transition-colors active:scale-[.98]"
-                    >
-                      <Plus className="w-4 h-4 shrink-0" />
-                      הוסף "<span className="text-white">{inputVal.trim()}</span>" לרשימה
-                    </button>
-                  )}
-
-                  {/* Suggestions list */}
-                  {suggestions.length > 0 ? (
-                    <ul className="space-y-1">
-                      {suggestions.map((p) => {
-                        const inList = alreadyInList(p.name);
-                        const added  = justAdded === p.id || justAdded === p.name.replace(/\//g, "-");
-                        return (
-                          <li key={p.id}>
-                            <button
-                              onClick={() => {
-                                if (!inList) { addProduct(p.name, p.category); setInputVal(""); setOverlayOpen(false); inputRef.current?.blur(); }
-                              }}
-                              disabled={inList}
-                              aria-label={inList ? `${p.name} כבר ברשימה` : `הוסף ${p.name}`}
-                              className={`w-full flex items-center gap-3 py-3 px-3 rounded-xl text-sm transition-all ${
-                                added    ? "bg-emerald-500/15 text-emerald-300" :
-                                inList   ? "text-slate-600 cursor-default" :
-                                           "text-slate-200 hover:bg-white/8 active:scale-[.98]"
-                              }`}
-                            >
-                              <span className={`w-7 h-7 flex items-center justify-center rounded-lg shrink-0 ${
-                                added  ? "bg-emerald-500/20 text-emerald-400" :
-                                inList ? "bg-white/5 text-slate-600" :
-                                         "bg-white/5 text-slate-500"
-                              }`}>
-                                {added ? <CheckCircle2 className="w-4 h-4" /> : inList ? <Check className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
-                              </span>
-                              <span className="flex-1 text-right">{p.name}</span>
-                              <CatBadge cat={p.category} />
-                            </button>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  ) : inputVal.trim() ? null : (
-                    <p className="text-center text-slate-600 text-sm py-6">התחל להקליד כדי לחפש מוצר</p>
+                      <div className="md:hidden space-y-4 pb-20">
+                        {approved.length > 0 && (
+                          <div className="space-y-3">
+                            <p className="text-[11px] font-bold text-emerald-500 px-1 uppercase tracking-widest">ממתין לרכישה ({approved.length})</p>
+                            {approved.map(req => <MobileCard key={req.id} req={req} onStatus={changeStatus} onEdit={setEditItem} />)}
+                          </div>
+                        )}
+                        {pending.length > 0 && (
+                          <div className="space-y-3">
+                            <p className="text-[11px] font-bold text-amber-500 px-1 uppercase tracking-widest">ממתין לאישור ({pending.length})</p>
+                            {pending.map(req => <MobileCard key={req.id} req={req} onStatus={changeStatus} onEdit={setEditItem} />)}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center py-40 text-center opacity-40 grayscale group">
+                      <div className="w-20 h-20 rounded-full bg-white/[0.02] flex items-center justify-center mb-6 border border-white/[0.05] group-hover:scale-110 transition-transform duration-500">
+                        <ShoppingCart className="w-8 h-8 text-slate-400" />
+                      </div>
+                      <h3 className="text-xl font-bold text-white mb-2">הרשימה ריקה</h3>
+                      <p className="text-sm text-slate-500 max-w-xs mx-auto leading-relaxed">הקלד שם מוצר בתיבת החיפוש למעלה כדי להוסיף פריטים חדשים.</p>
+                    </div>
                   )}
                 </div>
-              </motion.div>
-            </>
-          )}
-        </AnimatePresence>
+              ) : (
+                <div className="space-y-8">
+                  <div className="flex items-center justify-between mb-2">
+                    <h2 className="text-xl font-black text-white">ארכיון רכישות</h2>
+                    <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{purchased.length} מוצרים נרכשו</div>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {Object.entries(archiveByDate).sort((a, b) => b[0].localeCompare(a[0])).map(([date, items]) => (
+                      <div key={date} className="bg-white/[0.02] border border-white/[0.05] rounded-2xl overflow-hidden backdrop-blur-sm group hover:border-white/[0.1] transition-all">
+                        <div className="bg-white/[0.03] px-4 py-3 border-b border-white/[0.05] flex items-center justify-between">
+                          <span className="text-xs font-bold text-slate-300">{date}</span>
+                          <span className="text-[10px] font-bold text-slate-500 bg-white/5 px-2 py-0.5 rounded-full">{items.length} פריטים</span>
+                        </div>
+                        <div className="p-4 space-y-2">
+                          {items.map(item => (
+                            <div key={item.id} className="flex items-center justify-between group/item">
+                              <span className="text-sm text-slate-300 font-medium">{item.name}</span>
+                              <CatBadge cat={item.category} />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
 
-        {/* ── Edit Modal ── */}
+          <aside className="hidden xl:flex w-80 shrink-0 border-r border-border bg-card-bg/40 p-6 flex-col gap-8">
+            <div>
+              <h3 className="text-[11px] font-black text-slate-500 uppercase tracking-widest mb-4">סטטיסטיקה מהירה</h3>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-3">
+                  <p className="text-[10px] font-bold text-blue-400/70 mb-1 uppercase">ממתינים</p>
+                  <p className="text-2xl font-black text-white leading-none">{pending.length}</p>
+                </div>
+                <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-3">
+                  <p className="text-[10px] font-bold text-emerald-400/70 mb-1 uppercase">מאושרים</p>
+                  <p className="text-2xl font-black text-white leading-none">{approved.length}</p>
+                </div>
+              </div>
+            </div>
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-[11px] font-black text-slate-500 uppercase tracking-widest">קטגוריות</h3>
+                <button onClick={() => setIsAddingCat(true)} className="p-1 hover:bg-white/5 rounded transition-colors"><Plus className="w-3 h-3 text-slate-400" /></button>
+              </div>
+              <div className="space-y-1.5 max-h-[40vh] overflow-y-auto no-scrollbar pr-1">
+                {categories.map(cat => (
+                  <div key={cat} className="group flex items-center justify-between py-2 px-3 rounded-lg bg-white/[0.02] border border-white/[0.03] hover:bg-white/[0.05] transition-all cursor-default">
+                    <span className="text-xs font-bold text-slate-400 group-hover:text-slate-200">{cat}</span>
+                    <span className="text-[10px] text-slate-600 bg-black/20 px-1.5 py-0.5 rounded">{requests.filter(r => r.category === cat && r.status !== "purchased").length}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </aside>
+        </main>
+
+        <div className="md:hidden fixed bottom-16 left-0 right-0 p-4 z-40 bg-gradient-to-t from-slate-950 via-slate-950/80 to-transparent">
+          <button onClick={() => setOverlayOpen(true)} className="w-full flex items-center justify-center gap-3 bg-blue-600 hover:bg-blue-500 text-white py-4 rounded-2xl font-black text-sm shadow-xl shadow-blue-600/30 transition-all active:scale-[0.98]">
+            <Plus className="w-5 h-5" /> הוסף מוצר חדש
+          </button>
+        </div>
+
         <AnimatePresence>
           {editItem && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-              <motion.div 
-                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                onClick={() => setEditItem(null)}
-                className="absolute inset-0 bg-black/80 backdrop-blur-sm" 
-              />
-              <motion.div 
-                initial={{ opacity: 0, scale: 0.95, y: 20 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.95, y: 10 }}
-                className="relative bg-slate-900 border border-white/10 rounded-3xl w-full max-w-sm p-6 shadow-2xl"
-              >
-                <h3 className="text-lg font-bold mb-5 flex items-center gap-2">
-                  <Edit3 className="w-5 h-5 text-blue-400" />
-                  עריכת מוצר
-                </h3>
-                
-                <div className="space-y-4">
+            <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setEditItem(null)} className="absolute inset-0 bg-black/80 backdrop-blur-md" />
+              <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 10 }} className="relative bg-slate-900 border border-white/[0.1] rounded-3xl w-full max-w-md overflow-hidden shadow-2xl">
+                <div className="px-6 py-5 border-b border-white/[0.07] flex items-center justify-between bg-white/[0.02]">
+                  <h3 className="text-lg font-bold text-white flex items-center gap-2"><Edit3 className="w-4 h-4 text-blue-400" /> עריכת מוצר</h3>
+                  <button onClick={() => setEditItem(null)} className="p-2 hover:bg-white/5 rounded-xl transition-colors"><X className="w-4 h-4" /></button>
+                </div>
+                <div className="p-6 space-y-6">
                   <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-slate-500 mr-2">שם המוצר</label>
-                    <input 
-                      type="text"
-                      value={editName}
-                      onChange={e => setEditName(e.target.value)}
-                      className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-sm focus:border-blue-500 outline-none"
-                    />
+                    <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest px-1">שם המוצר</label>
+                    <input type="text" value={editName} onChange={e => setEditName(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-xl py-3.5 px-4 text-sm font-medium focus:border-blue-500/50 outline-none transition-all" />
                   </div>
-
                   <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-slate-500 mr-2">קטגוריה</label>
-                    <div className="grid grid-cols-2 gap-2 max-h-[40vh] overflow-y-auto p-1">
+                    <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest px-1">קטגוריה</label>
+                    <div className="grid grid-cols-2 gap-2 max-h-[30vh] overflow-y-auto custom-scrollbar pr-1">
                       {categories.map(cat => (
-                        <button
-                          key={cat}
-                          onClick={() => setEditCat(cat)}
-                          className={`py-2 px-2 rounded-lg text-[11px] font-bold border transition-all ${
-                            editCat === cat 
-                              ? "bg-blue-600 border-blue-500 text-white" 
-                              : "bg-white/5 border-white/5 text-slate-500 hover:border-white/10"
-                          }`}
-                        >
-                          {cat}
-                        </button>
+                        <button key={cat} onClick={() => setEditCat(cat)} className={`py-2.5 px-3 rounded-xl text-xs font-bold border transition-all ${editCat === cat ? "bg-blue-600 border-blue-500 text-white" : "bg-white/[0.03] border-white/5 text-slate-500"}`}>{cat}</button>
                       ))}
-                      
-                      {!isAddingCat ? (
-                        <button 
-                          onClick={() => setIsAddingCat(true)}
-                          className="py-2 px-2 rounded-lg text-[11px] font-bold border border-dashed border-white/20 text-slate-500 hover:border-white/40 hover:text-slate-300 transition-all flex items-center justify-center gap-1"
-                        >
-                          <Plus className="w-3 h-3" />
-                          חדש
-                        </button>
-                      ) : (
-                        <div className="col-span-2 flex gap-1 mt-1">
-                          <input 
-                            autoFocus
-                            type="text"
-                            value={newCatName}
-                            onChange={e => setNewCatName(e.target.value)}
-                            onKeyDown={e => e.key === "Enter" && handleAddCategory()}
-                            placeholder="שם קטגוריה..."
-                            className="flex-1 bg-white/10 border border-white/20 rounded-lg py-1.5 px-3 text-[11px] outline-none focus:border-blue-500"
-                          />
-                          <button onClick={handleAddCategory} className="bg-blue-600 text-white px-3 rounded-lg text-[11px] font-bold">הוסף</button>
-                          <button onClick={() => setIsAddingCat(false)} className="bg-white/10 text-slate-400 px-2 rounded-lg"><X className="w-3 h-3" /></button>
-                        </div>
-                      )}
                     </div>
                   </div>
                 </div>
-
-                <div className="flex gap-3 mt-8">
-                  <button 
-                    onClick={() => setEditItem(null)}
-                    className="flex-1 py-3 bg-white/5 rounded-xl font-bold text-sm text-slate-400 hover:bg-white/10 transition-all"
-                  >
-                    ביטול
-                  </button>
-                  <button 
-                    onClick={handleUpdateItem}
-                    className="flex-1 py-3 bg-blue-600 rounded-xl font-bold text-sm text-white shadow-lg shadow-blue-600/20 hover:bg-blue-500 transition-all"
-                  >
-                    שמור שינויים
-                  </button>
+                <div className="p-6 border-t border-white/[0.07] bg-white/[0.01] flex gap-3">
+                  <button onClick={() => setEditItem(null)} className="flex-1 py-3.5 bg-white/5 hover:bg-white/10 rounded-2xl font-bold text-sm text-slate-400">ביטול</button>
+                  <button onClick={handleUpdateItem} className="flex-1 py-3.5 bg-blue-600 hover:bg-blue-500 rounded-2xl font-bold text-sm text-white shadow-lg shadow-blue-600/20">שמור</button>
                 </div>
               </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+
+        <AnimatePresence>
+          {overlayOpen && !inputRef.current?.matches(":focus") && (
+            <div className="md:hidden fixed inset-0 z-50 flex flex-col bg-slate-950">
+              <div className="flex items-center gap-3 px-4 py-4 border-b border-white/[0.07]">
+                <button onClick={() => { setOverlayOpen(false); setInputVal(""); }} className="p-2"><ArrowRight className="w-5 h-5" /></button>
+                <div className="flex-1 relative">
+                   <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                   <input autoFocus type="text" value={inputVal} onChange={(e) => setInputVal(e.target.value)} placeholder="חפש או הוסף..." className="w-full bg-white/5 border-0 rounded-xl py-2.5 pr-10 pl-4 text-base focus:ring-0" />
+                </div>
+              </div>
+              <div className="flex-1 overflow-y-auto p-4 space-y-2">
+                {inputVal.trim() && !exactMatch && (
+                  <button onClick={handleAddInput} className="w-full flex items-center gap-3 p-4 rounded-2xl bg-blue-600/10 border border-blue-500/20 text-blue-400 font-bold text-sm text-right"><Plus className="w-5 h-5" /> הוסף "{inputVal.trim()}"</button>
+                )}
+                {suggestions.map(p => (
+                   <button key={p.id} onClick={() => { addProduct(p.name, p.category); setOverlayOpen(false); setInputVal(""); }} className="w-full flex items-center justify-between p-4 rounded-2xl bg-white/5 border border-white/5 text-right active:bg-white/10 transition-all">
+                     <span className="font-bold text-slate-200">{p.name}</span>
+                     <CatBadge cat={p.category} />
+                   </button>
+                ))}
+              </div>
             </div>
           )}
         </AnimatePresence>
@@ -635,308 +581,42 @@ export default function ShoppingPage() {
   );
 }
 
-// ─── ListView ────────────────────────────────────────────────────────────────
-
-function ListView({
-  pending, approved, canApprove, canPurchase, userId,
-  confirmDel, setConfirmDel, onStatusChange, onApproveAll, onEdit,
-}: {
-  pending: ShoppingRequest[];
-  approved: ShoppingRequest[];
-  canApprove: boolean;
-  canPurchase: boolean;
-  userId?: string;
-  confirmDel: string | null;
-  setConfirmDel: (id: string | null) => void;
-  onStatusChange: (id: string, s: any, extra?: any) => void;
-  onApproveAll: () => void;
-  onEdit: (item: ShoppingRequest) => void;
+function DesktopRow({ req, onStatus, canApprove, onEdit, type }: { 
+  req: ShoppingRequest, onStatus: any, canApprove: boolean, onEdit: any, type: "pending" | "approved"
 }) {
-  if (pending.length === 0 && approved.length === 0) {
-    return (
-      <div className="text-center py-24 text-slate-600 select-none">
-        <ShoppingCart className="w-14 h-14 mx-auto mb-4 opacity-20" />
-        <p className="text-lg font-semibold mb-1">הרשימה ריקה</p>
-        <p className="text-sm">הקלד מוצר בשורה למטה כדי להוסיף</p>
-      </div>
-    );
-  }
-
   return (
-    <div className="space-y-6">
-
-      {/* ── Approved checklist ── */}
-      {approved.length > 0 && (
-        <section>
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-              <h2 className="text-sm font-semibold text-emerald-400">לרכישה — {approved.length} מוצרים</h2>
-            </div>
-            {/* Progress pill */}
-            <span className="text-xs text-slate-600">לחץ על שורה לסימון נרכש</span>
-          </div>
-
-          <ul className="space-y-1.5" role="list" aria-label="רשימת מוצרים לרכישה">
-            {approved.map((req) => (
-              <ChecklistRow
-                key={req.id}
-                req={req}
-                canPurchase={canPurchase}
-                onPurchase={() => onStatusChange(req.id, "purchased")}
-              />
-            ))}
-          </ul>
-        </section>
-      )}
-
-      {/* ── Pending for approval ── */}
-      {pending.length > 0 && (
-        <section>
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <Clock className="w-4 h-4 text-amber-400" />
-              <h2 className="text-sm font-semibold text-amber-400">ממתין לאישור — {pending.length}</h2>
-            </div>
-            {canApprove && pending.length > 1 && (
-              <button
-                onClick={onApproveAll}
-                className="flex items-center gap-1.5 text-xs font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5 rounded-lg hover:bg-emerald-500/20 transition-colors min-h-[36px]"
-              >
-                <Check className="w-3.5 h-3.5" />
-                אשר הכל
-              </button>
-            )}
-          </div>
-
-          <ul className="space-y-1.5" role="list" aria-label="בקשות ממתינות לאישור">
-            {pending.map((req) => (
-              <PendingRow
-                key={req.id}
-                req={req}
-                canApprove={canApprove}
-                userId={userId}
-                confirmDel={confirmDel}
-                onApprove={() => onStatusChange(req.id, "approved")}
-                onDelete={() => { onStatusChange(req.id, "deleted"); setConfirmDel(null); }}
-                onCancelDel={() => setConfirmDel(null)}
-                onConfirmDel={() => setConfirmDel(req.id)}
-                onEdit={() => onEdit(req)}
-              />
-            ))}
-          </ul>
-        </section>
-      )}
-    </div>
-  );
-}
-
-// ─── ChecklistRow ─────────────────────────────────────────────────────────────
-
-function ChecklistRow({ req, canPurchase, onPurchase }: {
-  req: ShoppingRequest;
-  canPurchase: boolean;
-  onPurchase: () => void;
-}) {
-  const [pressed, setPressed] = useState(false);
-
-  const handleClick = () => {
-    if (!canPurchase) return;
-    setPressed(true);
-    setTimeout(onPurchase, 180);
-  };
-
-  return (
-    <motion.li
-      layout
-      initial={{ opacity: 0, x: -8 }}
-      animate={{ opacity: pressed ? 0.4 : 1, x: 0 }}
-      exit={{ opacity: 0, x: 8, scale: 0.97 }}
-      transition={{ duration: 0.15 }}
-    >
-      <button
-        onClick={handleClick}
-        disabled={!canPurchase}
-        aria-label={`סמן ${req.name} כנרכש`}
-        className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl border transition-all text-right ${
-          canPurchase
-            ? "bg-emerald-500/5 border-emerald-500/15 hover:bg-emerald-500/10 active:scale-[.98] cursor-pointer"
-            : "bg-white/5 border-white/5 cursor-default"
-        }`}
-      >
-        {/* Checkbox circle */}
-        <div className={`w-6 h-6 rounded-full border-2 shrink-0 flex items-center justify-center transition-colors ${
-          canPurchase ? "border-emerald-500/50 group-hover:border-emerald-400" : "border-white/15"
-        }`} aria-hidden="true" />
-
-        {/* Content */}
-        <div className="flex-1 min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="font-semibold text-sm text-white">{req.name}</span>
-            {req.priority === "urgent" && (
-              <span className="inline-flex items-center gap-1 text-xs font-semibold text-rose-400 bg-rose-500/10 px-2 py-0.5 rounded-full">
-                <Flame className="w-3 h-3" />דחוף
-              </span>
-            )}
-          </div>
-          <div className="flex flex-wrap items-center gap-2 mt-0.5">
-            <CatBadge cat={req.category} />
-            {req.quantity && <span className="text-xs text-slate-500">× {req.quantity}</span>}
-            <span className="text-xs text-slate-600 flex items-center gap-1">
-              <User className="w-3 h-3" />{req.requestedByName || "אנונימי"}
-            </span>
-          </div>
-        </div>
-
-        {canPurchase && (
-          <ChevronRight className="w-4 h-4 text-slate-700 shrink-0" aria-hidden="true" />
+    <motion.tr layout initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="group hover:bg-white/[0.02] transition-colors">
+      <td className="px-6 py-4">
+        {type === "approved" ? (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 text-[10px] font-black uppercase tracking-wider border border-emerald-500/20"><CheckCircle2 className="w-3 h-3" /> מאושר</span>
+        ) : (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-400 text-[10px] font-black uppercase tracking-wider border border-amber-500/20"><Clock className="w-3 h-3" /> ממתין</span>
         )}
-      </button>
-    </motion.li>
+      </td>
+      <td className="px-6 py-4"><span className="text-sm font-bold text-white group-hover:text-blue-400 transition-colors">{req.name}</span></td>
+      <td className="px-6 py-4"><CatBadge cat={req.category} /></td>
+      <td className="px-6 py-4">{req.priority === "urgent" ? <span className="flex items-center gap-1 text-[10px] font-black text-rose-400 bg-rose-500/10 px-2 py-0.5 rounded-md border border-rose-500/20 w-fit"><Flame className="w-3 h-3" /> דחוף</span> : <span className="text-[10px] font-black text-slate-500 uppercase">רגיל</span>}</td>
+      <td className="px-6 py-4"><div className="flex items-center gap-2"><div className="w-6 h-6 rounded-full bg-slate-800 flex items-center justify-center text-[10px] font-bold text-slate-400">{req.requestedByName?.charAt(0)}</div><span className="text-xs font-medium text-slate-400">{req.requestedByName}</span></div></td>
+      <td className="px-6 py-4 text-left">
+        <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+          {type === "pending" && canApprove && <button onClick={() => onStatus(req.id, "approved")} className="p-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 rounded-lg"><Check className="w-4 h-4" /></button>}
+          {type === "approved" && <button onClick={() => onStatus(req.id, "purchased")} className="p-2 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 rounded-lg"><ShoppingCart className="w-4 h-4" /></button>}
+          <button onClick={() => onEdit(req)} className="p-2 bg-white/5 hover:bg-white/10 text-slate-400 rounded-lg"><Edit3 className="w-4 h-4" /></button>
+          <button onClick={() => onStatus(req.id, "deleted")} className="p-2 bg-rose-500/5 hover:bg-rose-500/15 text-rose-400/50 hover:text-rose-400 rounded-lg"><Trash2 className="w-4 h-4" /></button>
+        </div>
+      </td>
+    </motion.tr>
   );
 }
 
-// ─── PendingRow ───────────────────────────────────────────────────────────────
-
-function PendingRow({ req, canApprove, userId, confirmDel, onApprove, onDelete, onCancelDel, onConfirmDel, onEdit }: {
-  req: ShoppingRequest;
-  canApprove: boolean;
-  userId?: string;
-  confirmDel: string | null;
-  onApprove: () => void;
-  onDelete: () => void;
-  onCancelDel: () => void;
-  onConfirmDel: () => void;
-  onEdit: () => void;
-}) {
-  const isUrgent     = req.priority === "urgent";
-  const isConfirming = confirmDel === req.id;
-  const canDelete    = canApprove || req.requestedBy === userId;
-
+function MobileCard({ req, onStatus, onEdit }: { req: ShoppingRequest, onStatus: any, onEdit: any }) {
   return (
-    <motion.li
-      layout
-      initial={{ opacity: 0, y: 6 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, scale: 0.97 }}
-      className={`rounded-2xl border bg-white/5 transition-colors ${isUrgent ? "border-rose-500/30" : "border-white/5"}`}
-    >
-      <div className="flex items-center gap-3 px-4 py-3">
-        {/* Info */}
-        <div className="flex-1 min-w-0">
-          <div className="flex flex-wrap items-center gap-2 mb-1">
-            <span className="font-semibold text-sm text-white">{req.name}</span>
-            {isUrgent && (
-              <span className="inline-flex items-center gap-1 text-xs font-semibold text-rose-400 bg-rose-500/10 px-2 py-0.5 rounded-full">
-                <Flame className="w-3 h-3" />דחוף
-              </span>
-            )}
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <CatBadge cat={req.category} />
-            {req.quantity && <span className="text-xs text-slate-500">× {req.quantity}</span>}
-            <span className="text-xs text-slate-600 flex items-center gap-1">
-              <User className="w-3 h-3" />{req.requestedByName || "אנונימי"}
-            </span>
-          </div>
-          {req.notes && <p className="mt-1 text-xs text-slate-500 italic">{req.notes}</p>}
-        </div>
-
-        {/* Actions */}
-        <div className="flex items-center gap-1.5 shrink-0">
-          {isConfirming ? (
-            <>
-              <button onClick={onDelete} className="min-w-[44px] min-h-[44px] px-3 rounded-xl bg-rose-500 text-white text-xs font-semibold hover:bg-rose-400 transition-colors">
-                מחק
-              </button>
-              <button onClick={onCancelDel} aria-label="ביטול" className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl bg-white/10 text-slate-400 hover:bg-white/15 transition-colors">
-                <X className="w-4 h-4" />
-              </button>
-            </>
-          ) : (
-            <>
-              {canApprove && (
-                <button onClick={onApprove} aria-label={`אשר ${req.name}`} className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20 transition-colors">
-                  <Check className="w-4 h-4" />
-                </button>
-              )}
-              {canDelete && (
-                <button onClick={onConfirmDel} aria-label={`מחק ${req.name}`} className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl text-slate-600 hover:text-rose-400 hover:bg-rose-500/10 transition-colors">
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              )}
-              <button onClick={onEdit} aria-label={`ערוך ${req.name}`} className="min-w-[44px] min-h-[44px] flex items-center justify-center text-slate-600 hover:text-blue-400 hover:bg-blue-500/10 transition-colors">
-                <Edit3 className="w-4 h-4" />
-              </button>
-            </>
-          )}
-        </div>
+    <div className="bg-white/[0.03] border border-white/[0.05] rounded-2xl p-4 active:bg-white/[0.05] transition-all">
+      <div className="flex justify-between items-start mb-3">
+        <div><h4 className="text-sm font-bold text-white mb-1">{req.name}</h4><div className="flex items-center gap-2"><CatBadge cat={req.category} />{req.priority === "urgent" && <span className="text-[10px] font-black text-rose-400">דחוף</span>}</div></div>
+        <div className="flex gap-1"><button onClick={() => onEdit(req)} className="p-2 bg-white/5 rounded-xl"><Edit3 className="w-4 h-4 text-slate-500" /></button><button onClick={() => onStatus(req.id, "deleted")} className="p-2 bg-white/5 rounded-xl"><Trash2 className="w-4 h-4 text-rose-500/50" /></button></div>
       </div>
-    </motion.li>
-  );
-}
-
-// ─── ArchiveView ──────────────────────────────────────────────────────────────
-
-function ArchiveView({ items, byDate, onDelete, onExport }: {
-  items: ShoppingRequest[];
-  byDate: Record<string, ShoppingRequest[]>;
-  onDelete: (id: string, s: any) => void;
-  onExport: () => void;
-}) {
-  const [confirmDel, setConfirmDel] = useState<string | null>(null);
-
-  if (items.length === 0) {
-    return (
-      <div className="text-center py-24 text-slate-600">
-        <Clock className="w-14 h-14 mx-auto mb-4 opacity-20" />
-        <p className="text-lg font-semibold">הארכיון ריק</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-6">
-      <div className="flex justify-end">
-        <button onClick={onExport} className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded-xl hover:bg-emerald-500/20 transition-colors min-h-[44px]">
-          <Download className="w-4 h-4" />
-          ייצוא לאקסל
-        </button>
-      </div>
-
-      {Object.entries(byDate).sort(([a],[b]) => b.localeCompare(a)).map(([date, list]) => (
-        <section key={date}>
-          <div className="flex items-center gap-2 mb-2 text-xs font-semibold text-blue-400">
-            <Clock className="w-3.5 h-3.5" />
-            {date}
-            <span className="text-slate-600 font-normal">— {list.length} מוצרים</span>
-          </div>
-          <ul className="space-y-1.5">
-            {list.map((req) => (
-              <li key={req.id} className="flex items-center gap-3 bg-white/5 border border-white/5 rounded-xl px-4 py-3">
-                <CheckCircle2 className="w-4 h-4 text-emerald-700 shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <span className="text-sm font-medium text-slate-500 line-through decoration-slate-700 block truncate">{req.name}</span>
-                  <div className="flex items-center gap-2 mt-0.5">
-                    <CatBadge cat={req.category} />
-                    {req.quantity && <span className="text-xs text-slate-600">× {req.quantity}</span>}
-                  </div>
-                </div>
-                {confirmDel === req.id ? (
-                  <div className="flex items-center gap-1">
-                    <button onClick={() => { onDelete(req.id, "deleted"); setConfirmDel(null); }} className="text-xs font-semibold text-rose-400 bg-rose-500/10 px-3 py-2 rounded-lg min-h-[44px]">מחק</button>
-                    <button onClick={() => setConfirmDel(null)} className="text-xs text-slate-500 px-3 py-2 min-h-[44px]">ביטול</button>
-                  </div>
-                ) : (
-                  <button onClick={() => setConfirmDel(req.id)} aria-label={`מחק ${req.name}`} className="min-w-[44px] min-h-[44px] flex items-center justify-center text-slate-700 hover:text-rose-500 transition-colors">
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                )}
-              </li>
-            ))}
-          </ul>
-        </section>
-      ))}
+      <div className="flex items-center justify-between pt-3 border-t border-white/[0.05]"><span className="text-[10px] text-slate-500">{req.requestedByName}</span>{req.status === "approved" ? <button onClick={() => onStatus(req.id, "purchased")} className="bg-emerald-600 text-white px-4 py-1.5 rounded-lg text-xs font-bold">רכשתי</button> : <button onClick={() => onStatus(req.id, "approved")} className="bg-blue-600 text-white px-4 py-1.5 rounded-lg text-xs font-bold">אשר</button>}</div>
     </div>
   );
 }

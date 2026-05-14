@@ -4,22 +4,16 @@ import { useAuth } from "@/context/AuthContext";
 import { RoleGuard } from "@/components/auth/RoleGuard";
 import { motion } from "framer-motion";
 import { 
-  Users, 
-  ShieldCheck, 
-  ClipboardList, 
-  Package, 
-  Calendar, 
-  BarChart3, 
-  Settings,
-  ArrowLeft,
-  AlertCircle,
-  MapPin,
-  Layers
+  Users, ShieldCheck, ClipboardList, Package, 
+  Calendar, BarChart3, Settings, ArrowRight,
+  AlertCircle, MapPin, Layers, ChevronRight,
+  Shield, LayoutGrid, Activity, ExternalLink
 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 export default function AdminDashboard() {
-  const { user, isAdmin, isManager, isLogistics, isInstructor, role } = useAuth();
+  const { user, role } = useAuth();
   const router = useRouter();
 
   const adminModules = [
@@ -115,7 +109,6 @@ export default function AdminDashboard() {
     }
   ];
 
-  // Filter modules based on user role
   const filteredModules = adminModules.filter(m => role && m.roles.includes(role));
 
   const roleLabel = {
@@ -129,45 +122,116 @@ export default function AdminDashboard() {
 
   return (
     <RoleGuard allowedRoles={["admin", "manager", "logistics", "instructor"]} redirectTo="/">
-      <main className="min-h-screen bg-slate-950 text-white p-6">
-        <header className="flex justify-between items-center mb-10">
-          <div className="flex items-center gap-4">
-            <button 
-              onClick={() => router.push("/")}
-              className="p-2 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-colors"
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </button>
-            <div>
-              <h1 className="text-2xl font-bold">ממשק ניהול</h1>
-              <p className="text-slate-400 text-sm">מרכז חוסן - שליטה ובקרה</p>
+      <div dir="rtl" className="flex flex-col h-screen bg-background text-foreground overflow-hidden font-sans">
+        
+        {/* ── Desktop CRM Header ── */}
+        <header className="hidden md:flex items-center justify-between px-8 h-16 shrink-0 border-b border-border bg-card-bg/40 backdrop-blur-md z-30">
+          <div className="flex items-center gap-6">
+            <div className="flex flex-col">
+              <div className="flex items-center gap-2 text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-0.5">
+                <Link href="/" className="hover:text-purple-400 transition-colors">בית</Link>
+                <ChevronRight className="w-2.5 h-2.5 opacity-30" />
+                <span className="text-slate-400">ניהול מערכת</span>
+              </div>
+              <h1 className="text-lg font-bold text-white flex items-center gap-2">
+                <Shield className="w-4 h-4 text-purple-400" />
+                ממשק ניהול ובקרה
+              </h1>
             </div>
           </div>
-          <div className="px-4 py-1.5 bg-purple-500/20 border border-purple-500/30 rounded-full text-purple-400 text-xs font-bold uppercase tracking-wider">
-            {roleLabel}
+
+          <div className="flex items-center gap-4">
+             <div className="px-3 py-1 bg-purple-500/10 border border-purple-500/20 rounded-full text-purple-400 text-[10px] font-black uppercase tracking-widest">
+                {roleLabel}
+             </div>
+             <button onClick={() => router.push("/")} className="p-2 text-slate-500 hover:text-white transition-colors">
+                <ArrowRight className="w-4 h-4" />
+             </button>
           </div>
         </header>
 
-        {/* Modules Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredModules.map((module, index) => (
-            <motion.div
-              key={module.title}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.1 }}
-              onClick={() => router.push(module.path)}
-              className="group bg-white/5 border border-white/10 p-6 rounded-3xl hover:bg-white/10 transition-all cursor-pointer"
-            >
-              <div className={`w-12 h-12 ${module.bg} ${module.color} rounded-2xl flex items-center justify-center mb-4 transition-transform group-hover:scale-110`}>
-                <module.icon className="w-6 h-6" />
+        {/* ── Mobile Header ── */}
+        <header className="md:hidden sticky top-0 z-30 bg-background/95 backdrop-blur-lg border-b border-border px-4 py-3 flex items-center justify-between">
+           <div className="flex items-center gap-3">
+              <button onClick={() => router.push("/")} className="p-2 bg-white/5 rounded-xl"><ArrowRight className="w-4 h-4" /></button>
+              <h1 className="text-base font-bold">ניהול</h1>
+           </div>
+           <div className="text-[10px] font-bold text-purple-400 uppercase tracking-widest">{roleLabel}</div>
+        </header>
+
+        <main className="flex-1 overflow-y-auto no-scrollbar custom-scrollbar">
+           <div className="max-w-[1400px] mx-auto p-4 md:p-12">
+              
+              <div className="mb-10">
+                 <h2 className="text-2xl md:text-4xl font-black text-white mb-2">מרכז שליטה "חוסן"</h2>
+                 <p className="text-slate-500 font-medium max-w-2xl leading-relaxed">ברוכים הבאים לממשק הניהול. מכאן ניתן לנהל את כל היבטי המערכת - החל מכוח אדם ותוכניות עבודה ועד לוגיסטיקה ודוחות ביצוע.</p>
               </div>
-              <h3 className="text-xl font-bold mb-1">{module.title}</h3>
-              <p className="text-slate-500 text-sm">{module.desc}</p>
-            </motion.div>
-          ))}
-        </div>
-      </main>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
+                {filteredModules.map((module, index) => (
+                  <motion.div
+                    key={module.title}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.05 }}
+                    onClick={() => router.push(module.path)}
+                    className="group bg-white/[0.02] border border-white/[0.05] p-6 rounded-[2rem] hover:bg-white/[0.05] hover:border-white/[0.1] transition-all cursor-pointer flex flex-col justify-between min-h-[180px] relative overflow-hidden"
+                  >
+                    <div className="relative z-10">
+                      <div className={`w-12 h-12 ${module.bg} ${module.color} rounded-2xl flex items-center justify-center mb-4 transition-transform group-hover:scale-110 group-hover:rotate-3`}>
+                        <module.icon className="w-6 h-6" />
+                      </div>
+                      <h3 className="text-xl font-bold mb-1.5 text-white group-hover:text-blue-400 transition-colors">{module.title}</h3>
+                      <p className="text-slate-500 text-xs font-medium leading-relaxed">{module.desc}</p>
+                    </div>
+                    
+                    <div className="flex items-center justify-between mt-6 relative z-10">
+                       <span className="text-[10px] font-black uppercase tracking-widest text-slate-600 group-hover:text-slate-400 transition-colors">ניהול מודול</span>
+                       <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-blue-600 group-hover:text-white transition-all">
+                          <ChevronRight className="w-4 h-4 -rotate-180" />
+                       </div>
+                    </div>
+
+                    {/* Subtle Background Glow */}
+                    <div className={`absolute -right-4 -bottom-4 w-24 h-24 blur-3xl opacity-0 group-hover:opacity-10 transition-opacity rounded-full ${module.bg}`} />
+                  </motion.div>
+                ))}
+              </div>
+
+              {/* System Health Section (CRM Feel) */}
+              <div className="mt-16 pt-10 border-t border-white/[0.05]">
+                 <div className="flex items-center gap-2 mb-6">
+                    <Activity className="w-4 h-4 text-emerald-400" />
+                    <h3 className="text-xs font-black text-slate-500 uppercase tracking-[0.2em]">מצב מערכת</h3>
+                 </div>
+                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="bg-white/[0.02] border border-white/[0.05] p-5 rounded-2xl flex items-center gap-4">
+                       <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+                       <div>
+                          <p className="text-[10px] font-black text-slate-500 uppercase">שרת מסד נתונים</p>
+                          <p className="text-xs font-bold text-slate-300">Firebase Realtime: פעיל</p>
+                       </div>
+                    </div>
+                    <div className="bg-white/[0.02] border border-white/[0.05] p-5 rounded-2xl flex items-center gap-4">
+                       <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+                       <div>
+                          <p className="text-[10px] font-black text-slate-500 uppercase">סנכרון יומנים</p>
+                          <p className="text-xs font-bold text-slate-300">Google API: מחובר</p>
+                       </div>
+                    </div>
+                    <div className="bg-white/[0.02] border border-white/[0.05] p-5 rounded-2xl flex items-center gap-4">
+                       <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+                       <div>
+                          <p className="text-[10px] font-black text-slate-500 uppercase">הרשאות גישה</p>
+                          <p className="text-xs font-bold text-slate-300">RBAC: מאובטח</p>
+                       </div>
+                    </div>
+                 </div>
+              </div>
+
+           </div>
+        </main>
+      </div>
     </RoleGuard>
   );
 }

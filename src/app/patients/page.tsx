@@ -217,227 +217,230 @@ export default function PatientsPage() {
   /* ── Render ── */
   return (
     <RoleGuard allowedRoles={["admin","manager","instructor","social_worker","employee"]} redirectTo="/">
-      <div dir="rtl" className="min-h-screen bg-slate-950 text-white">
+      <div dir="rtl" className="flex flex-col h-screen bg-[#020617] text-slate-200 overflow-hidden">
 
-        {/* ── Header ── */}
-        <header className="sticky top-0 z-40 bg-slate-950/95 backdrop-blur-xl border-b border-white/[0.07]">
-          <div className="px-4 md:px-5 pt-4 md:pt-0 pb-3 md:pb-0 space-y-3 md:space-y-0 md:flex md:items-center md:gap-3 md:h-12">
-
-            {/* Back — mobile only */}
-            <button onClick={() => router.push("/")}
-              className="md:hidden p-2.5 rounded-xl bg-white/5 border border-white/10 active:scale-95 transition-all shrink-0 min-w-[40px] min-h-[40px] flex items-center justify-center">
-              <ArrowRight className="w-4 h-4" />
-            </button>
-
-            {/* Title */}
-            <div className="flex items-center gap-3 md:shrink-0">
-              <h1 className="text-[15px] font-semibold text-white">מצבת מטופלים</h1>
-              <span className="text-[11px] text-slate-500 hidden md:inline">{filtered.length} מטופלים</span>
-              {/* mobile subtitle */}
-              <p className="text-[11px] text-slate-500 md:hidden">{filtered.length} מטופלים</p>
+        {/* ── CRM Top Bar ── */}
+        <header className="h-16 border-b border-white/[0.05] bg-slate-950/50 backdrop-blur-md flex items-center justify-between px-6 shrink-0 z-40">
+          <div className="flex items-center gap-6">
+            <div className="flex flex-col">
+              <h1 className="text-lg font-bold text-white tracking-tight leading-none mb-1">מצבת מטופלים</h1>
+              <div className="flex items-center gap-2 text-[10px] text-slate-500 font-medium uppercase tracking-wider">
+                <span>מערכת</span>
+                <ChevronLeft className="w-2.5 h-2.5" />
+                <span>מטופלים</span>
+                <ChevronLeft className="w-2.5 h-2.5" />
+                <span className="text-emerald-500">{filtered.length} רשומות</span>
+              </div>
             </div>
 
-            {/* Search — flex-1 on desktop */}
-            <div className="relative flex-1 md:max-w-sm">
-              <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500 pointer-events-none" />
-              <input type="text" placeholder="חיפוש לפי שם או ת.ז..."
+            <div className="hidden md:flex items-center gap-1.5 bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 w-80 focus-within:border-emerald-500/50 focus-within:bg-white/[0.07] transition-all">
+              <Search className="w-4 h-4 text-slate-500" />
+              <input type="text" placeholder="חיפוש מהיר (שם, ת.ז...)"
                 value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
-                className="w-full bg-white/5 border border-white/[0.07] rounded md:rounded py-2 md:py-1.5 pr-9 pl-3 text-sm focus:outline-none focus:border-blue-500 transition-colors"
-              />
-            </div>
-
-            {/* Actions */}
-            <div className="flex items-center gap-2 md:mr-auto">
-              {assignedGroups.length > 0 && (
-                <button onClick={() => setShowAll(v => !v)}
-                  aria-label={showAll ? "הצג קבוצות שלי בלבד" : "הצג הכל"}
-                  className={`p-2 rounded border transition-all min-w-[32px] min-h-[32px] flex items-center justify-center text-xs ${showAll ? "bg-blue-600/15 border-blue-500/30 text-blue-400" : "bg-white/5 border-white/[0.07] text-slate-500"}`}>
-                  <ArrowLeftRight className="w-3.5 h-3.5" />
-                </button>
-              )}
-              <button onClick={() => router.push("/patients/new")}
-                className="flex items-center gap-1.5 bg-emerald-600 text-white px-3 py-1.5 rounded text-xs font-semibold active:scale-95 transition-all">
-                <Plus className="w-3.5 h-3.5" />
-                <span>מטופל חדש</span>
-              </button>
+                className="bg-transparent border-none outline-none text-sm w-full placeholder:text-slate-600" />
             </div>
           </div>
 
-          {/* Status + Program chips — full row on both */}
-          <div className="flex gap-1.5 overflow-x-auto no-scrollbar px-4 md:px-5 pb-2 md:pb-2 md:border-t md:border-white/[0.05] md:pt-1.5">
-              {[
-                { key: "all",           label: "הכל" },
-                { key: "active",        label: "פעיל" },
-                { key: "waiting_intake",label: "ממתין לאינטייק" },
-                { key: "waiting_start", label: "ממתין להתחלה" },
-                { key: "finished",      label: "סיים" },
-              ].map(f => (
-                <button key={f.key} onClick={() => setFilterStatus(f.key)}
-                  className={`shrink-0 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all border ${
-                    filterStatus === f.key
-                      ? "bg-blue-600 border-blue-500 text-white"
-                      : "bg-white/5 border-white/10 text-slate-400 hover:border-white/20"
-                  }`}>
-                  {f.label}
-                </button>
-              ))}
-
-              {(activePrograms.length > 0 || hasUnassigned) && (
-                <div className="w-px bg-white/10 shrink-0 mx-1 self-stretch" />
-              )}
-
-              {activePrograms.map((pr, i) => {
-                const pal    = PROGRAM_PALETTE[i % PROGRAM_PALETTE.length];
-                const active = filterProgram === pr.id;
-                return (
-                  <button key={pr.id} onClick={() => setFilterProgram(active ? "all" : pr.id)}
-                    className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all border ${
-                      active ? `${pal.chip} text-white` : "bg-white/5 border-white/10 text-slate-400 hover:border-white/20"
-                    }`}>
-                    <Users className="w-3 h-3" />
-                    {pr.name}
-                  </button>
-                );
-              })}
-
-              {hasUnassigned && (
-                <button onClick={() => setFilterProgram(filterProgram === NO_PROGRAM_ID ? "all" : NO_PROGRAM_ID)}
-                  className={`shrink-0 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all border ${
-                    filterProgram === NO_PROGRAM_ID
-                      ? "bg-slate-600 border-slate-500 text-white"
-                      : "bg-white/5 border-white/10 text-slate-400 hover:border-white/20"
-                  }`}>
-                  ללא תוכנית
-                </button>
-              )}
-          </div>
-        </header>
-
-        {/* ── Content ── */}
-        <div className="max-w-7xl mx-auto px-4 pt-4 pb-28">
-
-          {loading && (
-            <div className="flex flex-col items-center justify-center py-24 gap-3">
-              <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
-              <p className="text-slate-500 text-sm">טוען מטופלים...</p>
-            </div>
-          )}
-
-          {!loading && loadError && (
-            <div className="flex flex-col items-center py-24 gap-4">
-              <AlertCircle className="w-10 h-10 text-rose-400" />
-              <p className="text-slate-400 text-sm">{loadError}</p>
-              <button onClick={() => { setLoading(true); fetchPatients(); }}
-                className="flex items-center gap-2 px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm font-bold hover:bg-white/10 transition-all">
-                <RefreshCw className="w-4 h-4" /> נסה שוב
+          <div className="flex items-center gap-3">
+            <div className="hidden md:flex items-center gap-1 p-1 bg-white/5 border border-white/10 rounded-lg">
+              <button onClick={() => setFilterStatus("all")}
+                className={`px-3 py-1 rounded-md text-[11px] font-bold transition-all ${filterStatus === "all" ? "bg-white/10 text-white shadow-sm" : "text-slate-500 hover:text-slate-300"}`}>
+                הכל
+              </button>
+              <button onClick={() => setFilterStatus("active")}
+                className={`px-3 py-1 rounded-md text-[11px] font-bold transition-all ${filterStatus === "active" ? "bg-emerald-500/10 text-emerald-400" : "text-slate-500 hover:text-slate-300"}`}>
+                פעיל
               </button>
             </div>
-          )}
 
-          {!loading && !loadError && filtered.length === 0 && (
-            <div className="flex flex-col items-center py-24 gap-3">
-              <User className="w-10 h-10 text-slate-700" />
-              <p className="text-slate-500 text-sm">לא נמצאו מטופלים</p>
-            </div>
-          )}
+            <button onClick={() => window.location.reload()}
+              className="p-2 rounded-lg bg-white/5 border border-white/10 text-slate-400 hover:text-white transition-colors">
+              <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+            </button>
+            
+            <button onClick={() => router.push("/patients/new")}
+              className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-lg text-sm font-bold transition-all shadow-lg shadow-emerald-600/20 active:scale-95">
+              <Plus className="w-4 h-4" />
+              <span className="hidden sm:inline">מטופל חדש</span>
+            </button>
+          </div>
 
-          {!loading && !loadError && filtered.length > 0 && (
-            <div className="space-y-5">
-              {programSections.map(([pid, { program, pal, groupMap }]) => {
-                const total     = Array.from(groupMap.values()).reduce((s, g) => s + g.patients.length, 0);
-                const isOpen    = !collapsed.has(pid);
-                const label     = program?.name ?? "ללא תוכנית";
+        {/* ── Filters Bar (Desktop Secondary) ── */}
+        <div className="hidden md:flex items-center gap-4 px-6 py-3 border-b border-white/[0.05] bg-slate-900/20 shrink-0 overflow-x-auto no-scrollbar">
+          <div className="flex items-center gap-2 text-xs font-bold text-slate-500 whitespace-nowrap">
+            <Users className="w-3.5 h-3.5" />
+            <span>סינון לפי תוכנית:</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <button onClick={() => setFilterProgram("all")}
+              className={`px-3 py-1 rounded-full text-[11px] font-bold border transition-all ${
+                filterProgram === "all" ? "bg-white text-slate-900 border-white" : "border-white/10 text-slate-400 hover:border-white/30"
+              }`}>
+              הכל
+            </button>
+            {activePrograms.map(pr => (
+              <button key={pr.id} onClick={() => setFilterProgram(pr.id)}
+                className={`px-3 py-1 rounded-full text-[11px] font-bold border transition-all ${
+                  filterProgram === pr.id ? "bg-emerald-500 text-white border-emerald-500" : "border-white/10 text-slate-400 hover:border-white/30"
+                }`}>
+                {pr.name}
+              </button>
+            ))}
+          </div>
 
-                return (
-                  <section key={pid}>
+          <div className="mr-auto flex items-center gap-4">
+            {isAdmin && (
+              <label className="flex items-center gap-2 cursor-pointer group">
+                <div className={`w-8 h-4 rounded-full p-0.5 transition-colors ${showAll ? "bg-emerald-500" : "bg-slate-700"}`}>
+                  <input type="checkbox" className="hidden" checked={showAll} onChange={() => setShowAll(!showAll)} />
+                  <div className={`w-3 h-3 bg-white rounded-full transition-transform ${showAll ? "-translate-x-4" : "translate-x-0"}`} />
+                </div>
+                <span className="text-[11px] font-bold text-slate-500 group-hover:text-slate-300 transition-colors">צפייה בכל המטופלים</span>
+              </label>
+            )}
+          </div>
+        </div>
+      </header>
 
-                    {/* Program header — card on mobile, compact label on desktop */}
-                    <button onClick={() => toggleCollapse(pid)}
-                      className={`w-full flex items-center justify-between mb-2 transition-all
-                        px-4 py-3 rounded-2xl border hover:brightness-110 ${pal.bg} ${pal.border}
-                        md:px-2 md:py-1.5 md:rounded md:bg-transparent md:border-0 md:border-b md:border-white/[0.07] md:hover:brightness-100 md:hover:bg-transparent`}>
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <span className={`w-2 h-2 rounded-full shrink-0 hidden md:block ${pal.text.replace("text-","bg-")}`} />
-                        <Users className={`w-4 h-4 shrink-0 md:hidden ${pal.text}`} />
-                        <span className={`font-semibold text-sm truncate md:text-xs md:font-bold md:uppercase md:tracking-wider ${pal.text}`}>{label}</span>
-                        <span className="text-xs text-slate-500 font-medium shrink-0">{total}</span>
+        {/* ── Main Content Area ── */}
+        <main className="flex-1 overflow-y-auto overflow-x-hidden relative bg-[#020617]">
+          <div className="p-6">
+            {loading ? (
+              <div className="flex flex-col items-center justify-center py-24 gap-4">
+                <div className="relative">
+                  <div className="w-12 h-12 border-4 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin" />
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
+                  </div>
+                </div>
+                <p className="text-slate-400 text-sm font-medium animate-pulse">טוען נתונים מהשרת...</p>
+              </div>
+            ) : loadError ? (
+              <div className="flex flex-col items-center py-20 gap-4 bg-rose-500/5 border border-rose-500/10 rounded-2xl">
+                <div className="w-12 h-12 rounded-full bg-rose-500/10 flex items-center justify-center">
+                  <AlertCircle className="w-6 h-6 text-rose-500" />
+                </div>
+                <div className="text-center">
+                  <p className="text-white font-bold">שגיאה בטעינת נתונים</p>
+                  <p className="text-slate-400 text-sm mt-1">{loadError}</p>
+                </div>
+                <button onClick={() => { setLoading(true); fetchPatients(); }}
+                  className="mt-2 flex items-center gap-2 px-6 py-2 bg-rose-500 text-white rounded-lg text-sm font-bold hover:bg-rose-600 transition-all shadow-lg shadow-rose-500/20">
+                  <RefreshCw className="w-4 h-4" /> ניסיון חוזר
+                </button>
+              </div>
+            ) : filtered.length === 0 ? (
+              <div className="flex flex-col items-center py-32 gap-4">
+                <div className="w-20 h-20 rounded-full bg-slate-900 border border-white/5 flex items-center justify-center">
+                  <Users className="w-8 h-8 text-slate-700" />
+                </div>
+                <div className="text-center">
+                  <p className="text-slate-400 font-bold">לא נמצאו רשומות</p>
+                  <p className="text-slate-600 text-xs mt-1">נסה לשנות את מסנני החיפוש או להוסיף מטופל חדש</p>
+                </div>
+              </div>
+            ) : (
+
+              <div className="space-y-8">
+                {programSections.map(([pid, { program, pal, groupMap }]) => {
+                  const total = Array.from(groupMap.values()).reduce((s, g) => s + g.patients.length, 0);
+                  const isOpen = !collapsed.has(pid);
+                  const label = program?.name ?? "ללא תוכנית";
+
+                  return (
+                    <section key={pid} className="space-y-4">
+                      {/* Section Header */}
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className={`w-1 h-5 rounded-full ${pal.text.replace("text-", "bg-")}`} />
+                          <h2 className="text-sm font-black text-white uppercase tracking-widest">{label}</h2>
+                          <span className="bg-white/5 border border-white/10 px-2 py-0.5 rounded text-[10px] font-bold text-slate-500">{total} רשומות</span>
+                        </div>
+                        <button onClick={() => toggleCollapse(pid)} className="p-1 hover:bg-white/5 rounded transition-colors text-slate-600 hover:text-slate-400">
+                          {isOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                        </button>
                       </div>
-                      {isOpen
-                        ? <ChevronUp   className="w-4 h-4 text-slate-500 shrink-0" />
-                        : <ChevronDown className="w-4 h-4 text-slate-500 shrink-0" />
-                      }
-                    </button>
 
-                    <AnimatePresence initial={false}>
                       {isOpen && (
-                        <motion.div key="body"
-                          initial={{ opacity: 0, height: 0 }}
-                          animate={{ opacity: 1, height: "auto" }}
-                          exit={{ opacity: 0, height: 0 }}
-                          transition={{ duration: 0.18 }}
-                          className="overflow-hidden"
-                        >
-                          {/* Desktop table */}
-                          <div className="hidden md:block bg-white/[0.03] border border-white/8 rounded-2xl overflow-hidden">
-                            <table className="w-full text-right">
+                        <div className="space-y-6">
+                          {/* Desktop Table View */}
+                          <div className="hidden lg:block bg-slate-950/40 border border-white/[0.05] rounded-xl overflow-hidden shadow-2xl">
+                            <table className="w-full text-right border-collapse">
                               <thead>
-                                <tr className="border-b border-white/8 bg-white/[0.015]">
-                                  {["מטופל","ת.ז","תוכנית","קבוצה","עו״ס","סטטוס","תאריך התחלה",""].map(h => (
-                                    <th key={h} className="px-4 py-2.5 text-[10px] font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">{h}</th>
-                                  ))}
+                                <tr className="bg-slate-900/40 border-b border-white/[0.05]">
+                                  <th className="px-5 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest w-1/4">שם המטופל</th>
+                                  <th className="px-5 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">ת.ז</th>
+                                  <th className="px-5 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">קבוצה</th>
+                                  <th className="px-5 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">עו״ס מטפל</th>
+                                  <th className="px-5 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">סטטוס</th>
+                                  <th className="px-5 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">תאריך התחלה</th>
+                                  <th className="px-5 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest w-40">פעולות</th>
                                 </tr>
                               </thead>
-                              <tbody>
+                              <tbody className="divide-y divide-white/[0.03]">
                                 {Array.from(groupMap.entries()).map(([gid, { group, patients }]) => (
                                   <Fragment key={gid}>
                                     {groupMap.size > 1 && (
-                                      <tr key={`gh-${gid}`}>
-                                        <td colSpan={8} className={`px-4 py-2 text-[10px] font-bold uppercase tracking-widest ${pal.text} opacity-60 bg-white/[0.01]`}>
-                                          {group?.name ?? "ללא קבוצה"} — {patients.length}
+                                      <tr className="bg-white/[0.01]">
+                                        <td colSpan={7} className="px-5 py-2">
+                                          <div className="flex items-center gap-2">
+                                            <span className={`text-[10px] font-black uppercase tracking-tighter px-2 py-0.5 rounded ${pal.bg} ${pal.text}`}>
+                                              {group?.name || "ללא קבוצה"}
+                                            </span>
+                                            <span className="w-1 h-1 rounded-full bg-slate-700" />
+                                            <span className="text-[10px] font-bold text-slate-600">{patients.length} רשומות</span>
+                                          </div>
                                         </td>
                                       </tr>
                                     )}
                                     {patients.map(p => (
-                                      <tr key={p.id} className="border-b border-white/5 hover:bg-white/[0.02] transition-colors">
-                                        <td className="px-4 py-3 whitespace-nowrap">
-                                          <div className="flex items-center gap-2">
-                                            <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-[11px] font-black text-white shrink-0 ${avatarColor(p.firstName)}`}>
+                                      <tr key={p.id} className="group hover:bg-white/[0.02] transition-colors">
+                                        <td className="px-5 py-4">
+                                          <div className="flex items-center gap-3">
+                                            <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-xs font-black text-white/90 shadow-lg ${avatarColor(p.firstName)}`}>
                                               {`${p.firstName?.[0] ?? ""}${p.lastName?.[0] ?? ""}`.toUpperCase()}
                                             </div>
-                                            <span className="font-semibold text-sm">{p.firstName} {p.lastName}</span>
+                                            <div className="flex flex-col min-w-0">
+                                              <span className="text-sm font-bold text-white truncate">{p.firstName} {p.lastName}</span>
+                                              <span className="text-[10px] text-slate-500 font-medium">{p.hosenType || "כללי"}</span>
+                                            </div>
                                           </div>
                                         </td>
-                                        <td className="px-4 py-3 text-xs text-slate-500 font-mono whitespace-nowrap">{p.idNumber}</td>
-                                        <td className="px-4 py-3 whitespace-nowrap">
-                                          <span className="text-[11px] font-bold text-slate-400">
-                                            {program?.name || "—"}
-                                          </span>
+                                        <td className="px-5 py-4 font-mono text-[11px] text-slate-500">{p.idNumber}</td>
+                                        <td className="px-5 py-4">
+                                          <span className="text-xs font-bold text-slate-400">{group?.name || "—"}</span>
                                         </td>
-                                        <td className="px-4 py-3 whitespace-nowrap">
-                                          <span className={`text-[11px] px-2 py-0.5 rounded-md font-medium ${pal.bg} ${pal.text}`}>
-                                            {group?.name ?? resolveGroup(p.hosenType)?.name ?? "—"}
-                                          </span>
+                                        <td className="px-5 py-4">
+                                          <div className="flex items-center gap-2">
+                                            <User className="w-3 h-3 text-slate-600" />
+                                            <span className="text-xs font-medium text-slate-400">
+                                              {socialWorkers.find(w => w.id === p.assignedWorkerId)?.name || "טרם שובץ"}
+                                            </span>
+                                          </div>
                                         </td>
-                                        <td className="px-4 py-3 text-xs text-slate-400 whitespace-nowrap">
-                                          {socialWorkers.find(w => w.id === p.assignedWorkerId)?.name || "—"}
-                                        </td>
-                                        <td className="px-4 py-3 whitespace-nowrap">
+                                        <td className="px-5 py-4">
                                           <select value={p.status} onChange={e => updateStatus(p.id, e.target.value as PatientStatus)}
-                                            className={`border rounded-full px-2 py-0.5 bg-transparent text-[10px] font-bold focus:outline-none cursor-pointer ${STATUS_META[p.status].pill}`}>
+                                            className={`border rounded-lg px-2.5 py-1 bg-transparent text-[10px] font-black focus:outline-none cursor-pointer transition-all ${STATUS_META[p.status].pill}`}>
                                             {Object.entries(STATUS_META).map(([v, m]) => (
-                                              <option key={v} value={v} className="bg-slate-900 text-white">{m.label}</option>
+                                              <option key={v} value={v} className="bg-slate-900 text-white font-bold">{m.label}</option>
                                             ))}
                                           </select>
                                         </td>
-                                        <td className="px-4 py-3 text-xs text-slate-500 whitespace-nowrap">
+                                        <td className="px-5 py-4 text-[11px] font-mono text-slate-500">
                                           {p.startDate ? format(new Date(p.startDate + "T12:00:00"), "dd/MM/yyyy") : "—"}
                                         </td>
-                                        <td className="px-4 py-3 whitespace-nowrap">
-                                          <div className="flex items-center gap-1.5">
-                                            <button onClick={() => fetchHistory(p)} aria-label="נוכחות" className="p-1.5 rounded-lg bg-white/5 hover:bg-emerald-500/10 text-slate-500 hover:text-emerald-400 transition-all"><Calendar className="w-3.5 h-3.5" /></button>
+                                        <td className="px-5 py-4">
+                                          <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity justify-end">
+                                            <button onClick={() => fetchHistory(p)} className="p-2 rounded-lg bg-white/5 hover:bg-emerald-500/10 text-slate-500 hover:text-emerald-400 transition-all border border-white/5" title="נוכחות">
+                                              <Calendar className="w-4 h-4" />
+                                            </button>
                                             <button onClick={() => { setEditPatient(p); setEditForm({ firstName: p.firstName, lastName: p.lastName, idNumber: p.idNumber, hosenType: p.hosenType, assignedWorkerId: p.assignedWorkerId, status: p.status, startDate: p.startDate, endDate: p.endDate }); }}
-                                              aria-label="עריכה" className="p-1.5 rounded-lg bg-white/5 hover:bg-blue-500/10 text-slate-500 hover:text-blue-400 transition-all"><Edit3 className="w-3.5 h-3.5" /></button>
-                                            <button onClick={() => router.push(`/patients/${p.id}`)} aria-label="פרופיל" className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-500 hover:text-white transition-all"><ChevronLeft className="w-3.5 h-3.5" /></button>
+                                              className="p-2 rounded-lg bg-white/5 hover:bg-blue-500/10 text-slate-500 hover:text-blue-400 transition-all border border-white/5" title="עריכה">
+                                              <Edit3 className="w-4 h-4" />
+                                            </button>
+                                            <button onClick={() => router.push(`/patients/${p.id}`)} className="p-2 rounded-lg bg-white/5 hover:bg-white/10 text-slate-500 hover:text-white transition-all border border-white/5" title="פרופיל">
+                                              <ChevronLeft className="w-4 h-4" />
+                                            </button>
                                           </div>
                                         </td>
                                       </tr>
@@ -448,75 +451,53 @@ export default function PatientsPage() {
                             </table>
                           </div>
 
-                          {/* Mobile cards */}
-                          <div className="md:hidden space-y-4">
-                            {Array.from(groupMap.entries()).map(([gid, { group, patients }]) => (
-                              <div key={gid}>
-                                {groupMap.size > 1 && (
-                                  <p className={`text-[10px] font-bold uppercase tracking-widest mb-2 px-1 ${pal.text} opacity-70`}>
-                                    {group?.name ?? "ללא קבוצה"} — {patients.length}
-                                  </p>
-                                )}
-                                <div className="space-y-2">
-                                  {patients.map(p => {
-                                    const initials = `${p.firstName?.[0] ?? ""}${p.lastName?.[0] ?? ""}`.toUpperCase();
-                                    return (
-                                      <motion.div key={p.id}
-                                        initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}
-                                        className="bg-white/[0.03] border border-white/8 rounded-2xl overflow-hidden">
-                                        <div className="flex items-center gap-3 px-4 py-3.5">
-                                          <div className={`w-11 h-11 rounded-xl shrink-0 flex items-center justify-center text-sm font-black text-white ${avatarColor(p.firstName)}`}>
-                                            {initials}
-                                          </div>
-                                          <div className="flex-1 min-w-0">
-                                            <p className="font-bold text-[15px] leading-tight truncate">{p.firstName} {p.lastName}</p>
-                                            <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                                              <span className="text-[11px] text-slate-500 font-mono">{p.idNumber}</span>
-                                              {group && (
-                                                <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-md ${pal.bg} ${pal.text}`}>
-                                                  {group.name}
-                                                </span>
-                                              )}
-                                            </div>
-                                          </div>
-                                          <select value={p.status} onChange={e => updateStatus(p.id, e.target.value as PatientStatus)}
-                                            className={`border rounded-full px-2.5 py-1 bg-transparent text-[10px] font-bold focus:outline-none cursor-pointer shrink-0 ${STATUS_META[p.status].pill}`}>
-                                            {Object.entries(STATUS_META).map(([v, m]) => (
-                                              <option key={v} value={v} className="bg-slate-900 text-white">{m.label}</option>
-                                            ))}
-                                          </select>
-                                        </div>
-                                        <div className="flex border-t border-white/5">
-                                          <button onClick={() => fetchHistory(p)} className="flex-1 h-10 flex items-center justify-center gap-1.5 text-[11px] font-bold text-slate-500 hover:text-emerald-400 hover:bg-emerald-500/5 transition-colors">
-                                            <Calendar className="w-3.5 h-3.5" /> נוכחות
-                                          </button>
-                                          <div className="w-px bg-white/5" />
-                                          <button onClick={() => { setEditPatient(p); setEditForm({ firstName: p.firstName, lastName: p.lastName, idNumber: p.idNumber, hosenType: p.hosenType, assignedWorkerId: p.assignedWorkerId, status: p.status, startDate: p.startDate, endDate: p.endDate }); }}
-                                            className="flex-1 h-10 flex items-center justify-center gap-1.5 text-[11px] font-bold text-slate-500 hover:text-blue-400 hover:bg-blue-500/5 transition-colors">
-                                            <Edit3 className="w-3.5 h-3.5" /> עריכה
-                                          </button>
-                                          <div className="w-px bg-white/5" />
-                                          <button onClick={() => router.push(`/patients/${p.id}`)}
-                                            className="w-10 h-10 flex items-center justify-center text-slate-500 hover:text-white hover:bg-white/5 transition-colors">
-                                            <ChevronLeft className="w-4 h-4" />
-                                          </button>
-                                        </div>
-                                      </motion.div>
-                                    );
-                                  })}
+                          {/* Mobile/Small Tablet Cards */}
+                          <div className="lg:hidden grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            {Array.from(groupMap.values()).flatMap(g => g.patients).map(p => (
+                              <div key={p.id} className="bg-slate-900/40 border border-white/[0.05] rounded-2xl p-4 flex flex-col gap-4">
+                                <div className="flex items-start justify-between">
+                                  <div className="flex items-center gap-3">
+                                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-black text-white ${avatarColor(p.firstName)}`}>
+                                      {`${p.firstName?.[0] ?? ""}${p.lastName?.[0] ?? ""}`.toUpperCase()}
+                                    </div>
+                                    <div className="flex flex-col">
+                                      <span className="text-sm font-bold text-white">{p.firstName} {p.lastName}</span>
+                                      <span className="text-[10px] text-slate-500 font-mono">{p.idNumber}</span>
+                                    </div>
+                                  </div>
+                                  <select value={p.status} onChange={e => updateStatus(p.id, e.target.value as PatientStatus)}
+                                    className={`border rounded-full px-2 py-0.5 bg-transparent text-[9px] font-black focus:outline-none ${STATUS_META[p.status].pill}`}>
+                                    {Object.entries(STATUS_META).map(([v, m]) => (
+                                      <option key={v} value={v} className="bg-slate-900 text-white">{m.label}</option>
+                                    ))}
+                                  </select>
+                                </div>
+                                <div className="grid grid-cols-2 gap-2 text-[10px] font-bold">
+                                  <div className="bg-white/5 p-2 rounded-lg border border-white/5">
+                                    <p className="text-slate-600 mb-0.5 uppercase tracking-tighter">קבוצה</p>
+                                    <p className="text-slate-400 truncate">{resolveGroup(p.hosenType)?.name || "—"}</p>
+                                  </div>
+                                  <div className="bg-white/5 p-2 rounded-lg border border-white/5">
+                                    <p className="text-slate-600 mb-0.5 uppercase tracking-tighter">עו״ס</p>
+                                    <p className="text-slate-400 truncate">{socialWorkers.find(w => w.id === p.assignedWorkerId)?.name || "—"}</p>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2 mt-auto pt-2 border-t border-white/5">
+                                  <button onClick={() => fetchHistory(p)} className="flex-1 py-2 rounded-lg bg-white/5 text-[10px] font-black text-slate-400 hover:text-white transition-all uppercase tracking-widest">נוכחות</button>
+                                  <button onClick={() => router.push(`/patients/${p.id}`)} className="flex-1 py-2 rounded-lg bg-emerald-600 text-[10px] font-black text-white hover:bg-emerald-500 transition-all uppercase tracking-widest">תיק מטופל</button>
                                 </div>
                               </div>
                             ))}
                           </div>
-                        </motion.div>
+                        </div>
                       )}
-                    </AnimatePresence>
-                  </section>
-                );
-              })}
-            </div>
-          )}
-        </div>
+                    </section>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </main>
 
         {/* ── History modal ── */}
         <AnimatePresence>

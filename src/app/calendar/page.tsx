@@ -5,10 +5,11 @@ import { useState, useEffect, useCallback } from "react";
 import {
   Calendar as CalendarIcon, ChevronLeft, ChevronRight, Clock, MapPin,
   Plus, Loader2, ArrowRight, ExternalLink, AlertTriangle, RefreshCw,
-  CheckCircle, Info, Trash2, X, Check,
+  CheckCircle, Info, Trash2, X, Check, Search, Filter, MoreVertical
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import {
   format, startOfMonth, endOfMonth, startOfWeek, endOfWeek,
   eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, parseISO,
@@ -47,7 +48,7 @@ interface NewEventForm {
 const SERVICE_ACCOUNT = process.env.NEXT_PUBLIC_FIREBASE_CLIENT_EMAIL
   || "firebase-adminsdk-fbsvc@hosen-550dc.iam.gserviceaccount.com";
 
-const DAY_NAMES = ["א", "ב", "ג", "ד", "ה", "ו", "ש"];
+const DAY_NAMES = ["א'", "ב'", "ג'", "ד'", "ה'", "ו'", "שבת"];
 
 const getEventStart = (e: CalendarEvent) =>
   new Date(e.start.dateTime || e.start.date || new Date().toISOString());
@@ -81,7 +82,7 @@ export default function CalendarPage() {
   /* ── Fetch for a month ── */
   const fetchMonth = useCallback(async (date: Date, force = false) => {
     const key  = format(date, "yyyy-MM");
-    if (!force && cache[key]) return; // already cached
+    if (!force && cache[key]) return; 
 
     setSyncStatus("loading");
     setSyncError(null);
@@ -107,16 +108,13 @@ export default function CalendarPage() {
     }
   }, [cache]);
 
-  /* ── Load month on change ── */
   useEffect(() => { fetchMonth(currentDate); }, [currentDate]);
 
-  /* ── Sync selectedDate start fields when selected changes ── */
   useEffect(() => {
     const d = format(selectedDate, "yyyy-MM-dd");
     setForm(f => ({ ...f, startDate: d, endDate: d }));
   }, [selectedDate]);
 
-  /* ── Derived ── */
   const monthKey   = format(currentDate, "yyyy-MM");
   const events     = cache[monthKey] ?? [];
 
@@ -127,7 +125,6 @@ export default function CalendarPage() {
     getEventStart(a).getTime() - getEventStart(b).getTime()
   );
 
-  /* ── Create event ── */
   const handleCreate = async () => {
     if (!form.title.trim()) return;
     setCreating(true);
@@ -141,7 +138,6 @@ export default function CalendarPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.hint || data.error || "שגיאה ביצירת האירוע");
 
-      // Invalidate cache for affected month and re-fetch
       const affectedKey = format(parseISO(form.startDate), "yyyy-MM");
       setCache(c => { const n = { ...c }; delete n[affectedKey]; return n; });
       setShowCreate(false);
@@ -154,7 +150,6 @@ export default function CalendarPage() {
     }
   };
 
-  /* ── Delete event ── */
   const handleDelete = async (eventId: string) => {
     setDeletingId(eventId);
     try {
@@ -166,363 +161,279 @@ export default function CalendarPage() {
     }
   };
 
-  /* ── Render ── */
   return (
     <RoleGuard allowedRoles={["admin","manager","instructor","social_worker","employee"]} redirectTo="/">
-      <div className="min-h-screen bg-slate-950 text-white">
-
-        {/* ── Sticky header ── */}
-        <header className="sticky top-0 z-40 bg-slate-950/95 backdrop-blur-xl border-b border-white/5 px-4 pt-4 pb-3">
-          <div className="max-w-2xl mx-auto flex items-center gap-3">
-            <button onClick={() => router.push("/")}
-              className="p-2 rounded-xl bg-white/5 border border-white/10 active:scale-95 transition-all flex-shrink-0">
-              <ArrowRight className="w-4 h-4" />
-            </button>
-            <div className="flex-1">
-              <h1 className="text-[17px] font-bold flex items-center gap-2">
-                <CalendarIcon className="w-4 h-4 text-rose-400" /> יומן
-              </h1>
-              {/* Connection status */}
-              <div className="flex items-center gap-1.5 mt-0.5">
-                {syncStatus === "loading" && <Loader2 className="w-2.5 h-2.5 text-slate-500 animate-spin" />}
-                {syncStatus === "ok"      && <CheckCircle className="w-2.5 h-2.5 text-emerald-400" />}
-                {syncStatus === "error"   && <AlertTriangle className="w-2.5 h-2.5 text-amber-400" />}
-                <span className={`text-[10px] font-bold ${
-                  syncStatus === "ok"    ? "text-emerald-400" :
-                  syncStatus === "error" ? "text-amber-400"   : "text-slate-500"
-                }`}>
-                  {syncStatus === "loading" ? "מסנכרן..." :
-                   syncStatus === "ok"      ? "מסונכרן עם Google Calendar" :
-                   syncStatus === "error"   ? "שגיאת סנכרון" : "Google Calendar"}
-                </span>
+      <div dir="rtl" className="flex flex-col h-screen bg-background text-foreground overflow-hidden font-sans selection:bg-rose-500/30">
+        
+        {/* ── Desktop CRM Header ── */}
+        <header className="hidden md:flex items-center justify-between px-8 h-16 shrink-0 border-b border-border bg-card-bg/40 backdrop-blur-md z-30">
+          <div className="flex items-center gap-6">
+            <div className="flex flex-col">
+              <div className="flex items-center gap-2 text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-0.5">
+                <Link href="/" className="hover:text-rose-400 transition-colors">בית</Link>
+                <ChevronRight className="w-2.5 h-2.5 opacity-30" />
+                <span className="text-slate-400">יומן ושיבוצים</span>
               </div>
+              <h1 className="text-lg font-bold text-white flex items-center gap-2">
+                <CalendarIcon className="w-4 h-4 text-rose-400" />
+                ניהול יומן עבודה
+              </h1>
             </div>
 
-            {/* Actions */}
-            <div className="flex items-center gap-1.5">
-              <button onClick={() => fetchMonth(currentDate, true)} disabled={syncStatus === "loading"}
-                className="p-2 rounded-xl bg-white/5 border border-white/10 disabled:opacity-40 active:scale-95 transition-all">
-                <RefreshCw className={`w-3.5 h-3.5 ${syncStatus === "loading" ? "animate-spin" : ""}`} />
-              </button>
-              <button onClick={() => window.open("https://calendar.google.com", "_blank")}
-                className="p-2 rounded-xl bg-white/5 border border-white/10 active:scale-95 transition-all">
-                <ExternalLink className="w-3.5 h-3.5" />
-              </button>
-              <button onClick={() => setShowCreate(true)}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold shadow-lg shadow-emerald-600/20 active:scale-95 transition-all">
-                <Plus className="w-3.5 h-3.5" /> אירוע
-              </button>
+            {/* Sync Status Badge */}
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-white/[0.03] border border-white/[0.08] rounded-full">
+              {syncStatus === "loading" && <Loader2 className="w-3 h-3 text-slate-500 animate-spin" />}
+              {syncStatus === "ok"      && <CheckCircle className="w-3 h-3 text-emerald-400" />}
+              {syncStatus === "error"   && <AlertTriangle className="w-3 h-3 text-amber-400" />}
+              <span className={`text-[10px] font-black uppercase tracking-tight ${
+                syncStatus === "ok" ? "text-emerald-400/80" : 
+                syncStatus === "error" ? "text-amber-400/80" : "text-slate-500"
+              }`}>
+                {syncStatus === "loading" ? "מסנכרן..." : syncStatus === "ok" ? "Google Cal Connected" : "Connection Error"}
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <div className="flex items-center bg-white/[0.03] p-1 rounded-lg border border-white/[0.05]">
+              <button onClick={() => setCurrentDate(d => subMonths(d, 1))} className="p-1.5 hover:bg-white/5 rounded transition-all text-slate-400 hover:text-white"><ChevronRight className="w-4 h-4" /></button>
+              <button onClick={() => { setCurrentDate(new Date()); setSelectedDate(new Date()); }} className="px-3 py-1 text-xs font-bold text-slate-300 hover:text-white transition-all">היום</button>
+              <button onClick={() => setCurrentDate(d => addMonths(d, 1))} className="p-1.5 hover:bg-white/5 rounded transition-all text-slate-400 hover:text-white"><ChevronLeft className="w-4 h-4" /></button>
+            </div>
+
+            <div className="w-px h-6 bg-white/[0.07] mx-1" />
+
+            <button onClick={() => fetchMonth(currentDate, true)} disabled={syncStatus === "loading"}
+              className="p-2 bg-white/[0.03] hover:bg-white/[0.08] text-slate-300 border border-white/[0.07] rounded-lg transition-all" title="רענן סנכרון">
+              <RefreshCw className={`w-3.5 h-3.5 ${syncStatus === "loading" ? "animate-spin" : ""}`} />
+            </button>
+
+            <button onClick={() => setShowCreate(true)}
+              className="flex items-center gap-2 px-4 py-1.5 bg-rose-600 hover:bg-rose-500 text-white rounded-lg text-xs font-bold shadow-lg shadow-rose-600/20 transition-all active:scale-[0.98]">
+              <Plus className="w-3.5 h-3.5" />
+              אירוע חדש
+            </button>
+          </div>
+        </header>
+
+        {/* ── Mobile Header ── */}
+        <header className="md:hidden sticky top-0 z-30 bg-background/95 backdrop-blur-lg border-b border-border px-4 py-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <button onClick={() => router.push("/")} className="p-2 rounded-xl bg-white/5 border border-white/10"><ArrowRight className="w-4 h-4" /></button>
+              <h1 className="text-base font-bold">יומן</h1>
+            </div>
+            <div className="flex items-center gap-2">
+              <button onClick={() => fetchMonth(currentDate, true)} className="p-2 bg-white/5 rounded-lg"><RefreshCw className={`w-3.5 h-3.5 ${syncStatus === "loading" ? "animate-spin" : ""}`} /></button>
+              <button onClick={() => setShowCreate(true)} className="bg-rose-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold">חדש</button>
             </div>
           </div>
         </header>
 
-        <div className="max-w-2xl mx-auto px-4 pt-4 pb-28 space-y-4">
-
-          {/* ── Error / Setup banner ── */}
-          <AnimatePresence>
-            {syncError && (
-              <motion.div
-                initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }}
-                className="bg-amber-500/10 border border-amber-500/25 rounded-2xl overflow-hidden"
-              >
-                <div className="flex items-start gap-3 p-4">
-                  <AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-amber-400 text-[13px] font-bold">{syncError.message}</p>
-                    {syncError.hint && (
-                      <p className="text-amber-400/70 text-[11px] mt-1 leading-relaxed">{syncError.hint}</p>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    <button onClick={() => setShowSetup(s => !s)}
-                      className="p-1.5 rounded-lg bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 transition-colors">
-                      <Info className="w-3.5 h-3.5" />
-                    </button>
-                    <button onClick={() => fetchMonth(currentDate, true)}
-                      className="px-2.5 py-1.5 rounded-lg bg-amber-500/15 text-amber-400 text-[11px] font-bold hover:bg-amber-500/25 transition-colors">
-                      נסה שוב
-                    </button>
-                  </div>
+        {/* ── Content Area ── */}
+        <main className="flex-1 overflow-hidden flex flex-col md:flex-row">
+          
+          {/* Left Sidebar (Desktop Only) */}
+          <aside className="hidden lg:flex w-72 shrink-0 border-l border-border bg-card-bg/40 p-6 flex-col gap-8 overflow-y-auto custom-scrollbar">
+            
+            {/* Mini Calendar Navigation */}
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-[11px] font-black text-slate-500 uppercase tracking-widest">ניווט מהיר</h3>
+                <div className="flex gap-1">
+                   <button onClick={() => setCurrentDate(subMonths(currentDate, 1))} className="p-1 hover:bg-white/5 rounded"><ChevronRight className="w-3 h-3" /></button>
+                   <button onClick={() => setCurrentDate(addMonths(currentDate, 1))} className="p-1 hover:bg-white/5 rounded"><ChevronLeft className="w-3 h-3" /></button>
                 </div>
-
-                {/* Expandable setup guide */}
-                <AnimatePresence>
-                  {showSetup && (
-                    <motion.div
-                      initial={{ height: 0 }} animate={{ height: "auto" }} exit={{ height: 0 }}
-                      className="overflow-hidden border-t border-amber-500/15"
-                    >
-                      <div className="p-4 space-y-3">
-                        <p className="text-amber-300 text-[12px] font-bold">הוראות חיבור יומן גוגל:</p>
-                        <ol className="space-y-2 text-[11px] text-amber-400/80 leading-relaxed list-decimal list-inside">
-                          <li>פתח <strong>הגדרות יומן גוגל</strong> ← בחר את היומן הרצוי</li>
-                          <li>עבור ל-<strong>שיתוף אנשים</strong> ← הוסף:</li>
-                        </ol>
-                        <code className="block bg-black/30 text-amber-300 text-[10px] p-2 rounded-lg font-mono break-all">
-                          {SERVICE_ACCOUNT}
-                        </code>
-                        <ol start={3} className="space-y-2 text-[11px] text-amber-400/80 list-decimal list-inside">
-                          <li>הרשאה לקריאה: <em>ראה פרטי כל האירועים</em></li>
-                          <li>הרשאה לכתיבה: <em>בצע שינויים לאירועים</em></li>
-                          <li>ודא ש-<code className="text-amber-300 font-mono">GOOGLE_CALENDAR_ID</code> ב-.env.local נכון</li>
-                        </ol>
-                        <button onClick={() => navigator.clipboard?.writeText(SERVICE_ACCOUNT)}
-                          className="text-[10px] text-amber-400 underline">
-                          העתק אימייל חשבון השירות
-                        </button>
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {/* ── Month calendar grid ── */}
-          <div className="bg-white/[0.03] border border-white/8 rounded-2xl p-4">
-            {/* Month nav */}
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-base font-black">
-                {format(currentDate, "MMMM yyyy", { locale: he })}
-              </h2>
-              <div className="flex items-center gap-1">
-                <button onClick={() => setCurrentDate(d => subMonths(d, 1))}
-                  className="p-2 rounded-xl bg-white/5 hover:bg-white/10 transition-colors">
-                  <ChevronRight className="w-4 h-4" />
-                </button>
-                <button onClick={() => { setCurrentDate(new Date()); setSelectedDate(new Date()); }}
-                  className="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-[11px] font-bold transition-colors">
-                  היום
-                </button>
-                <button onClick={() => setCurrentDate(d => addMonths(d, 1))}
-                  className="p-2 rounded-xl bg-white/5 hover:bg-white/10 transition-colors">
-                  <ChevronLeft className="w-4 h-4" />
-                </button>
+              </div>
+              <div className="bg-white/[0.02] border border-white/[0.05] rounded-xl p-3">
+                <p className="text-xs font-bold text-center mb-3 text-slate-300">{format(currentDate, "MMMM yyyy", { locale: he })}</p>
+                <div className="grid grid-cols-7 gap-1 mb-2">
+                  {DAY_NAMES.map(d => <div key={d} className="text-[9px] font-black text-slate-600 text-center">{d[0]}</div>)}
+                </div>
+                <div className="grid grid-cols-7 gap-1">
+                  {calDays.map((day, i) => {
+                    const isSelected = isSameDay(day, selectedDate);
+                    const isToday = isSameDay(day, new Date());
+                    const inMonth = isSameMonth(day, monthStart);
+                    return (
+                      <button key={i} onClick={() => { setSelectedDate(day); if(!inMonth) setCurrentDate(day); }}
+                        className={`aspect-square flex items-center justify-center text-[10px] rounded-lg transition-all ${
+                          isSelected ? "bg-rose-600 text-white font-black" : 
+                          isToday ? "text-rose-400 bg-rose-500/10" :
+                          inMonth ? "text-slate-400 hover:bg-white/5" : "text-slate-700"
+                        }`}>
+                        {format(day, "d")}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             </div>
 
-            {/* Day names */}
-            <div className="grid grid-cols-7 mb-1">
-              {DAY_NAMES.map(d => (
-                <div key={d} className="text-center text-[10px] font-black text-slate-600 py-1">{d}</div>
-              ))}
-            </div>
-
-            {/* Days */}
-            <div className="grid grid-cols-7 gap-0.5">
-              {calDays.map((day, i) => {
-                const evs        = dayEvents(day);
-                const isSelected = isSameDay(day, selectedDate);
-                const isToday    = isSameDay(day, new Date());
-                const inMonth    = isSameMonth(day, monthStart);
-                return (
-                  <motion.button
-                    key={i} whileTap={{ scale: 0.9 }}
-                    onClick={() => setSelectedDate(day)}
-                    className={`
-                      relative aspect-square rounded-xl flex flex-col items-center justify-center gap-0.5 transition-colors
-                      ${!inMonth ? "opacity-20" : ""}
-                      ${isSelected ? "bg-blue-600 shadow-lg shadow-blue-600/30" : "hover:bg-white/5 active:bg-white/8"}
-                    `}
-                  >
-                    <span className={`text-xs font-bold leading-none ${isToday && !isSelected ? "text-blue-400" : ""}`}>
-                      {format(day, "d")}
-                    </span>
-                    {evs.length > 0 && (
-                      <div className="flex gap-0.5">
-                        {evs.slice(0, 3).map((_, j) => (
-                          <div key={j} className={`w-1 h-1 rounded-full ${isSelected ? "bg-white" : "bg-blue-400"}`} />
-                        ))}
-                      </div>
-                    )}
-                    {isToday && !isSelected && (
-                      <div className="absolute top-1 right-1 w-1 h-1 bg-blue-400 rounded-full" />
-                    )}
-                  </motion.button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* ── Day event list ── */}
-          <div>
-            <div className="flex items-center justify-between mb-3 px-1">
-              <h3 className="text-[13px] font-bold text-slate-400 flex items-center gap-2">
-                <Clock className="w-3.5 h-3.5" />
-                {format(selectedDate, "EEEE, d בMMMM", { locale: he })}
-              </h3>
-              <button onClick={() => setShowCreate(true)}
-                className="text-[11px] font-bold text-emerald-400 flex items-center gap-1 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-full">
-                <Plus className="w-3 h-3" /> הוסף
-              </button>
-            </div>
-
-            {syncStatus === "loading" && !events.length ? (
-              <div className="flex justify-center py-10">
-                <Loader2 className="w-6 h-6 text-blue-500 animate-spin" />
+            {/* Upcoming Section */}
+            <div>
+              <h3 className="text-[11px] font-black text-slate-500 uppercase tracking-widest mb-4">אירועים קרובים</h3>
+              <div className="space-y-3">
+                {events.filter(e => getEventStart(e) >= new Date()).slice(0, 5).map(e => (
+                   <div key={e.id} className="p-3 bg-white/[0.02] border border-white/[0.05] rounded-xl group hover:border-white/[0.1] transition-all cursor-default">
+                      <p className="text-xs font-bold text-slate-200 line-clamp-1 group-hover:text-rose-400 transition-colors">{e.summary}</p>
+                      <p className="text-[10px] text-slate-500 mt-1">{format(getEventStart(e), "d בMMM, HH:mm", { locale: he })}</p>
+                   </div>
+                ))}
               </div>
-            ) : selectedEvs.length === 0 ? (
-              <div className="text-center py-10 bg-white/[0.02] border border-dashed border-white/8 rounded-2xl">
-                <CalendarIcon className="w-8 h-8 text-slate-800 mx-auto mb-2" />
-                <p className="text-slate-600 text-sm">
-                  {syncError ? "לא ניתן לטעון אירועים" : "אין אירועים ביום זה"}
-                </p>
+            </div>
+
+            {/* Sync Help */}
+            <div className="mt-auto p-4 bg-amber-500/5 border border-amber-500/10 rounded-2xl">
+              <div className="flex items-center gap-2 mb-2">
+                <Info className="w-3.5 h-3.5 text-amber-400" />
+                <span className="text-[10px] font-bold text-amber-400 uppercase tracking-tight">סנכרון יומן</span>
               </div>
-            ) : (
-              <div className="space-y-2">
-                {selectedEvs.map(event => {
-                  const isAllDay = !event.start.dateTime;
-                  return (
-                    <motion.div key={event.id}
-                      initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}
-                      className="bg-white/[0.03] border border-white/8 rounded-2xl flex items-center gap-3 px-4 py-3 group"
-                    >
-                      <div className="w-1 self-stretch bg-blue-500 rounded-full flex-shrink-0" />
-                      <div className="flex-1 min-w-0">
-                        <p className="font-bold text-[14px] leading-tight truncate">{event.summary}</p>
-                        <div className="flex flex-wrap items-center gap-2 mt-1">
-                          <span className="flex items-center gap-1 text-[11px] text-slate-500">
-                            <Clock className="w-3 h-3" />
-                            {isAllDay ? "כל היום" :
-                              `${format(new Date(event.start.dateTime!), "HH:mm")} – ${format(new Date(event.end.dateTime!), "HH:mm")}`
-                            }
-                          </span>
-                          {event.location && (
-                            <span className="flex items-center gap-1 text-[11px] text-slate-500 truncate">
-                              <MapPin className="w-3 h-3 flex-shrink-0" />
-                              {event.location}
-                            </span>
-                          )}
+              <p className="text-[10px] text-amber-400/60 leading-relaxed">
+                היומן מסונכרן אוטומטית עם Google Calendar. שינויים שתבצע כאן יתעדכנו ביומן המשותף של המרכז.
+              </p>
+            </div>
+          </aside>
+
+          {/* Main Grid Area */}
+          <div className="flex-1 flex flex-col overflow-hidden bg-background/20">
+            
+            {/* Calendar Desktop Grid */}
+            <div className="hidden md:flex flex-col h-full overflow-hidden">
+               {/* Day Names Grid */}
+               <div className="grid grid-cols-7 border-b border-white/[0.07] bg-white/[0.02]">
+                 {DAY_NAMES.map(d => (
+                   <div key={d} className="px-4 py-3 text-[11px] font-black text-slate-500 uppercase tracking-[0.2em] border-l border-white/[0.03] text-center last:border-l-0">{d}</div>
+                 ))}
+               </div>
+               
+               {/* Days Cells */}
+               <div className="flex-1 grid grid-cols-7 auto-rows-fr overflow-y-auto custom-scrollbar no-scrollbar">
+                  {calDays.map((day, i) => {
+                    const isSelected = isSameDay(day, selectedDate);
+                    const isToday = isSameDay(day, new Date());
+                    const inMonth = isSameMonth(day, monthStart);
+                    const evs = dayEvents(day).sort((a,b) => getEventStart(a).getTime() - getEventStart(b).getTime());
+                    
+                    return (
+                      <div key={i} onClick={() => setSelectedDate(day)}
+                        className={`min-h-[120px] p-2 border-b border-l border-white/[0.03] last:border-l-0 transition-all flex flex-col gap-1 cursor-default ${
+                          !inMonth ? "bg-white/[0.01] opacity-30" : "bg-transparent hover:bg-white/[0.02]"
+                        } ${isSelected ? "bg-rose-500/[0.03] ring-1 ring-inset ring-rose-500/20" : ""}`}>
+                        
+                        <div className="flex items-center justify-between mb-1">
+                          <span className={`text-xs font-black w-6 h-6 flex items-center justify-center rounded-full ${
+                            isToday ? "bg-rose-600 text-white shadow-lg shadow-rose-600/20" : 
+                            isSelected ? "text-rose-400" : "text-slate-600"
+                          }`}>{format(day, "d")}</span>
+                          {evs.length > 0 && <span className="text-[9px] font-bold text-slate-700 bg-white/5 px-1.5 py-0.5 rounded uppercase tracking-tighter">{evs.length} אירועים</span>}
                         </div>
-                        {event.description && (
-                          <p className="text-[11px] text-slate-600 mt-1 line-clamp-2">{event.description}</p>
-                        )}
+
+                        <div className="space-y-1 overflow-y-auto no-scrollbar max-h-32">
+                          {evs.map(e => (
+                             <div key={e.id} className="px-2 py-1 bg-white/[0.04] border border-white/[0.05] rounded text-[10px] text-slate-300 font-bold truncate hover:bg-white/[0.08] transition-colors cursor-pointer group">
+                                <span className="text-rose-400/80 mr-1 text-[9px]">{format(getEventStart(e), "HH:mm")}</span>
+                                <span>{e.summary}</span>
+                             </div>
+                          ))}
+                        </div>
                       </div>
-                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        {event.htmlLink && (
-                          <a href={event.htmlLink} target="_blank" rel="noreferrer"
-                            className="p-1.5 rounded-lg hover:bg-white/5 text-slate-500 hover:text-blue-400 transition-colors">
-                            <ExternalLink className="w-3.5 h-3.5" />
-                          </a>
-                        )}
-                        <button onClick={() => handleDelete(event.id)} disabled={deletingId === event.id}
-                          className="p-1.5 rounded-lg hover:bg-rose-500/10 text-slate-600 hover:text-rose-400 transition-colors disabled:opacity-40">
-                          {deletingId === event.id
-                            ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            : <Trash2 className="w-3.5 h-3.5" />
-                          }
-                        </button>
-                      </div>
-                    </motion.div>
-                  );
-                })}
-              </div>
-            )}
+                    );
+                  })}
+               </div>
+            </div>
+
+            {/* Mobile List View */}
+            <div className="md:hidden flex-1 flex flex-col overflow-hidden">
+               {/* Mini Strip Cal */}
+               <div className="bg-slate-900/50 border-b border-white/[0.07] px-2 py-3 flex gap-2 overflow-x-auto no-scrollbar shrink-0">
+                  {calDays.slice(0, 14).map((day, i) => {
+                    const isSelected = isSameDay(day, selectedDate);
+                    const isToday = isSameDay(day, new Date());
+                    return (
+                      <button key={i} onClick={() => setSelectedDate(day)}
+                        className={`flex flex-col items-center min-w-[48px] py-2 rounded-xl transition-all ${
+                          isSelected ? "bg-rose-600 text-white" : "bg-white/5 text-slate-400"
+                        }`}>
+                        <span className="text-[10px] font-bold uppercase">{format(day, "eee", { locale: he })}</span>
+                        <span className="text-sm font-black">{format(day, "d")}</span>
+                        {isToday && !isSelected && <div className="w-1 h-1 bg-rose-500 rounded-full mt-1" />}
+                      </button>
+                    );
+                  })}
+               </div>
+               
+               {/* Selected Day Events */}
+               <div className="flex-1 overflow-y-auto p-4 space-y-4 pb-24">
+                  <h3 className="text-xs font-black text-slate-500 uppercase tracking-widest">{format(selectedDate, "EEEE, d בMMMM", { locale: he })}</h3>
+                  {selectedEvs.length === 0 ? (
+                    <div className="py-20 text-center opacity-30 grayscale flex flex-col items-center">
+                       <CalendarIcon className="w-12 h-12 mb-4" />
+                       <p className="text-sm">אין אירועים רשומים ליום זה</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                       {selectedEvs.map(e => (
+                          <div key={e.id} className="bg-white/5 border border-white/5 rounded-2xl p-4 flex gap-4">
+                             <div className="w-1 bg-rose-600 rounded-full shrink-0" />
+                             <div className="flex-1">
+                                <p className="font-bold text-sm text-white mb-1">{e.summary}</p>
+                                <div className="flex items-center gap-3 text-xs text-slate-500">
+                                   <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {format(getEventStart(e), "HH:mm")}</span>
+                                   {e.location && <span className="flex items-center gap-1"><MapPin className="w-3 h-3" /> {e.location}</span>}
+                                </div>
+                             </div>
+                             <button onClick={() => handleDelete(e.id)} className="p-2 text-slate-700 active:text-rose-500 transition-colors"><Trash2 className="w-4 h-4" /></button>
+                          </div>
+                       ))}
+                    </div>
+                  )}
+               </div>
+            </div>
+
           </div>
 
-        </div>
+        </main>
 
-        {/* ── Create event modal ── */}
+        {/* ── Modals (Create Event) ── */}
         <AnimatePresence>
           {showCreate && (
-            <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                onClick={() => setShowCreate(false)}
-                className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
-
-              <motion.div
-                initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
-                transition={{ type: "spring", damping: 26, stiffness: 260 }}
-                className="relative bg-slate-900 border-t sm:border border-white/10 w-full max-w-md rounded-t-3xl sm:rounded-2xl shadow-2xl"
-              >
-                <div className="w-10 h-1 bg-white/10 rounded-full mx-auto mt-3 mb-1 sm:hidden" />
-                <div className="flex items-center justify-between px-5 py-4 border-b border-white/8">
-                  <h2 className="font-bold text-base">אירוע חדש</h2>
-                  <button onClick={() => setShowCreate(false)} className="p-2 rounded-xl hover:bg-white/5 text-slate-500 transition-colors">
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
-
-                <div className="p-5 space-y-4 max-h-[65vh] overflow-y-auto">
-                  {createError && (
-                    <div className="bg-rose-500/10 border border-rose-500/20 rounded-xl p-3 text-[12px] text-rose-400 flex items-start gap-2">
-                      <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
-                      {createError}
-                    </div>
-                  )}
-
-                  {/* Title */}
-                  <div>
-                    <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1.5">כותרת *</label>
-                    <input autoFocus value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
-                      placeholder="שם האירוע..."
-                      className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-sm focus:border-blue-500 outline-none transition-colors" />
+            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowCreate(false)} className="absolute inset-0 bg-black/80 backdrop-blur-md" />
+               <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 10 }} className="relative bg-slate-900 border border-white/[0.1] rounded-3xl w-full max-w-md overflow-hidden shadow-2xl">
+                  <div className="px-6 py-5 border-b border-white/[0.07] flex items-center justify-between bg-white/[0.02]">
+                    <h3 className="text-lg font-bold text-white flex items-center gap-2"><Plus className="w-4 h-4 text-rose-500" /> אירוע חדש</h3>
+                    <button onClick={() => setShowCreate(false)} className="p-2 hover:bg-white/5 rounded-xl transition-colors"><X className="w-4 h-4" /></button>
                   </div>
+                  <div className="p-6 space-y-4">
+                    <div className="space-y-1.5">
+                      <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest px-1">כותרת האירוע</label>
+                      <input autoFocus value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder="לדוגמה: ישיבת צוות שבועית" className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-sm font-medium focus:border-rose-500/50 outline-none transition-all" />
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                       <div className="space-y-1.5">
+                        <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest px-1">תאריך</label>
+                        <input type="date" value={form.startDate} onChange={e => setForm(f => ({ ...f, startDate: e.target.value }))} className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-sm font-medium focus:border-rose-500/50 outline-none transition-all" />
+                       </div>
+                       <div className="space-y-1.5">
+                        <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest px-1">שעה</label>
+                        <input type="time" value={form.startTime} onChange={e => setForm(f => ({ ...f, startTime: e.target.value }))} className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-sm font-medium focus:border-rose-500/50 outline-none transition-all" />
+                       </div>
+                    </div>
 
-                  {/* All-day toggle */}
-                  <div className="flex items-center gap-3">
-                    <button type="button" onClick={() => setForm(f => ({ ...f, allDay: !f.allDay }))}
-                      className={`w-10 h-6 rounded-full transition-colors ${form.allDay ? "bg-blue-600" : "bg-white/10"}`}>
-                      <div className={`w-4 h-4 bg-white rounded-full mx-1 transition-transform ${form.allDay ? "translate-x-4" : ""}`} />
+                    <div className="space-y-1.5">
+                      <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest px-1">מיקום (אופציונלי)</label>
+                      <input value={form.location} onChange={e => setForm(f => ({ ...f, location: e.target.value }))} placeholder="חדר ישיבות, זום..." className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-sm font-medium focus:border-rose-500/50 outline-none transition-all" />
+                    </div>
+                  </div>
+                  <div className="p-6 border-t border-white/[0.07] bg-white/[0.01] flex gap-3">
+                    <button onClick={() => setShowCreate(false)} className="flex-1 py-3.5 bg-white/5 hover:bg-white/10 rounded-2xl font-bold text-sm text-slate-400">ביטול</button>
+                    <button onClick={handleCreate} disabled={!form.title.trim() || creating} className="flex-1 py-3.5 bg-rose-600 hover:bg-rose-500 rounded-2xl font-bold text-sm text-white shadow-lg shadow-rose-600/20 flex items-center justify-center gap-2">
+                      {creating ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Check className="w-4 h-4" /> צור אירוע</>}
                     </button>
-                    <span className="text-sm text-slate-400">אירוע כל היום</span>
                   </div>
-
-                  {/* Dates / times */}
-                  <div className={`grid gap-3 ${form.allDay ? "grid-cols-2" : "grid-cols-1"}`}>
-                    <div>
-                      <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1.5">תאריך התחלה</label>
-                      <input type="date" value={form.startDate} onChange={e => setForm(f => ({ ...f, startDate: e.target.value }))}
-                        className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-sm focus:border-blue-500 outline-none transition-colors" />
-                    </div>
-                    {form.allDay ? (
-                      <div>
-                        <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1.5">תאריך סיום</label>
-                        <input type="date" value={form.endDate} onChange={e => setForm(f => ({ ...f, endDate: e.target.value }))}
-                          className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-sm focus:border-blue-500 outline-none transition-colors" />
-                      </div>
-                    ) : (
-                      <div>
-                        <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1.5">שעות</label>
-                        <div className="flex items-center gap-2">
-                          <input type="time" value={form.startTime} onChange={e => setForm(f => ({ ...f, startTime: e.target.value }))}
-                            className="flex-1 bg-white/5 border border-white/10 rounded-xl p-3 text-sm focus:border-blue-500 outline-none transition-colors" />
-                          <span className="text-slate-500 text-sm">–</span>
-                          <input type="time" value={form.endTime} onChange={e => setForm(f => ({ ...f, endTime: e.target.value }))}
-                            className="flex-1 bg-white/5 border border-white/10 rounded-xl p-3 text-sm focus:border-blue-500 outline-none transition-colors" />
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Location */}
-                  <div>
-                    <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1.5">מיקום (אופציונלי)</label>
-                    <input value={form.location} onChange={e => setForm(f => ({ ...f, location: e.target.value }))}
-                      placeholder="כתובת או שם מקום..."
-                      className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-sm focus:border-blue-500 outline-none transition-colors" />
-                  </div>
-
-                  {/* Description */}
-                  <div>
-                    <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1.5">תיאור (אופציונלי)</label>
-                    <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
-                      placeholder="פרטים נוספים..." rows={2}
-                      className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-sm focus:border-blue-500 outline-none transition-colors resize-none" />
-                  </div>
-                </div>
-
-                <div className="flex gap-3 p-5 border-t border-white/8">
-                  <button onClick={() => setShowCreate(false)}
-                    className="flex-1 py-3 bg-white/5 rounded-xl font-bold text-sm hover:bg-white/10 transition-all">
-                    ביטול
-                  </button>
-                  <button onClick={handleCreate} disabled={!form.title.trim() || creating}
-                    className="flex-1 py-3 bg-emerald-600 rounded-xl font-bold text-sm hover:bg-emerald-500 transition-all shadow-lg shadow-emerald-600/20 disabled:opacity-40 flex items-center justify-center gap-2">
-                    {creating ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Check className="w-4 h-4" /> צור אירוע</>}
-                  </button>
-                </div>
-              </motion.div>
+               </motion.div>
             </div>
           )}
         </AnimatePresence>
