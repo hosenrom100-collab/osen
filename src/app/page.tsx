@@ -8,6 +8,7 @@ import {
   LogOut, Users, Calendar, ShoppingCart, CheckCircle,
   Shield, MapPin, Edit3, ChevronLeft, Clock,
   ClipboardList, Layers, X, Check, ChevronDown, Plus,
+  AlertTriangle,
 } from "lucide-react";
 import Link from "next/link";
 import { db } from "@/lib/firebase/config";

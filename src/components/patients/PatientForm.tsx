@@ -19,6 +19,15 @@ interface Group   { id: string; name: string; programId?: string }
 const FIELD = "w-full bg-[var(--background)] border border-[var(--border)] rounded-2xl px-4 py-3.5 text-sm font-bold outline-none focus:border-emerald-500/50 transition-all text-[var(--foreground)]";
 const LABEL = "text-[10px] font-black uppercase tracking-widest text-[var(--foreground)]/40 mb-2 mr-1 flex items-center gap-2";
 
+function autoEndDate(startDate: string): string {
+  if (!startDate) return "";
+  try {
+    const d = new Date(startDate);
+    d.setMonth(d.getMonth() + 3);
+    return d.toISOString().split("T")[0];
+  } catch { return ""; }
+}
+
 export function PatientForm() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -29,20 +38,30 @@ export function PatientForm() {
 
   const [selectedProgramId, setSelectedProgramId] = useState("");
   const [formData, setFormData] = useState({
-    firstName:        "",
-    lastName:         "",
-    idNumber:         "",
-    phone:            "",
-    startDate:        new Date().toISOString().split("T")[0],
-    endDate:          "",
-    hosenType:        "",   
-    programId:        "",   
-    status:           "active" as const,
-    assignedWorkerId: "",
+    firstName:          "",
+    lastName:           "",
+    idNumber:           "",
+    phone:              "",
+    startDate:          new Date().toISOString().split("T")[0],
+    endDate:            autoEndDate(new Date().toISOString().split("T")[0]),
+    hosenType:          "",
+    programId:          "",
+    status:             "active" as const,
+    assignedWorkerId:   "",
+    rehabPlan:          "",
+    rehabPlanCompleted: false,
   });
 
   const set = (patch: Partial<typeof formData>) =>
     setFormData(f => ({ ...f, ...patch }));
+
+  const handleStartDateChange = (val: string) => {
+    const patch: Partial<typeof formData> = { startDate: val };
+    if (!formData.endDate || formData.endDate === autoEndDate(formData.startDate)) {
+      patch.endDate = autoEndDate(val);
+    }
+    set(patch);
+  };
 
   useEffect(() => {
     const load = async () => {
