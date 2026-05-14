@@ -9,7 +9,7 @@ import {
 } from "firebase/firestore";
 import { 
   User, Phone, Mail, Calendar, Clock, CheckCircle2, AlertCircle, 
-  ChevronLeft, Loader2, LogOut, Save, Send, MapPin, Power
+  ChevronLeft, Loader2, LogOut, Save, Send, MapPin, Power, Edit3, Check
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";

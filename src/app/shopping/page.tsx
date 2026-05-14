@@ -74,7 +74,7 @@ export default function ShoppingPage() {
   // Per-item confirm delete
   const [confirmDel, setConfirmDel] = useState<string | null>(null);
 
-  const [categories] = useState([
+  const [categories, setCategories] = useState([
     "גבינות ומחלבה","לחם ומאפים","חומרי ניקוי",
     "מוצרי נייר וחד פעמי","שימורים ובישול","פירות וירקות",
     "טואלטיקה והיגיינה","בשר ודגים","קפואים","כללי",
