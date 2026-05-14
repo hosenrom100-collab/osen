@@ -42,10 +42,11 @@ function AttendancePageContent() {
   const [summarySent, setSummarySent] = useState(false);
   const router = useRouter();
   
+  const [selectedDate, setSelectedDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const today = format(new Date(), "yyyy-MM-dd");
 
   // Fetch patients and attendance for a given group — params passed explicitly to avoid stale closures
-  const fetchData = async (groupId: string, groupName: string) => {
+  const fetchData = async (groupId: string, groupName: string, targetDate: string = selectedDate) => {
     setLoading(true);
     try {
       const patientsSnap = await getDocs(collection(db, "patients"));
@@ -66,7 +67,7 @@ function AttendancePageContent() {
       setPatients(patientsList);
 
       const attendanceSnap = await getDocs(
-        query(collection(db, "attendance"), where("date", "==", today))
+        query(collection(db, "attendance"), where("date", "==", targetDate))
       );
       const records: AttendanceRecord = {};
       attendanceSnap.forEach(docSnap => {
@@ -120,9 +121,9 @@ function AttendancePageContent() {
       // Optimistic update for better UX
       setAttendance(prev => ({ ...prev, [patientId]: status }));
 
-      const docId = `${today}_${patientId}`;
+      const docId = `${selectedDate}_${patientId}`;
       await setDoc(doc(db, "attendance", docId), {
-        date: today,
+        date: selectedDate,
         patientId,
         status,
         hosenType: selectedGroup,
@@ -158,8 +159,8 @@ function AttendancePageContent() {
 
     await Promise.all(
       unmarked.map(p =>
-        setDoc(doc(db, "attendance", `${today}_${p.id}`), {
-          date: today,
+        setDoc(doc(db, "attendance", `${selectedDate}_${p.id}`), {
+          date: selectedDate,
           patientId: p.id,
           status: "present",
           hosenType: selectedGroup,
@@ -314,65 +315,173 @@ function AttendancePageContent() {
         </div>
       </header>
 
-      {/* ── Content ── */}
-      <div className="max-w-7xl mx-auto px-4 pt-4 pb-28">
-        {loading ? (
-          <div className="flex flex-col items-center justify-center py-24 gap-3">
-            <Loader2 className="w-8 h-8 text-emerald-500 animate-spin" />
-            <p className="text-slate-500 text-sm">טוען מטופלים...</p>
-          </div>
-        ) : sortedPatients.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-24 gap-3">
-            <ClipboardList className="w-10 h-10 text-slate-700" />
-            <p className="text-slate-500 text-sm">
-              {searchTerm ? "לא נמצאו תוצאות" : "לא נמצאו מטופלים בקבוצה זו"}
-            </p>
-          </div>
-        ) : (
-          <>
-            {/* Completion banner */}
-            <AnimatePresence>
-              {allDone && !searchTerm && (
-                <motion.div
-                  initial={{ opacity: 0, y: -6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0 }}
-                  className="mb-6 flex items-center justify-center gap-2 py-3.5 bg-emerald-500/10 border border-emerald-500/25 rounded-xl"
-                >
-                  <CheckCircle className="w-4 h-4 text-emerald-400" />
-                  <span className="text-emerald-400 font-bold text-sm">
-                    הנוכחות הושלמה · {stats.present} נוכחים, {stats.absent} נעדרים
-                  </span>
-                </motion.div>
-              )}
-            </AnimatePresence>
+      {/* ── Content Area with Sidebar ── */}
+      <div className="flex-1 flex max-w-[1440px] mx-auto w-full px-4 lg:px-8 gap-8">
+        {/* Sidebar - Desktop Only */}
+        <aside className="hidden lg:block w-72 pt-8 sticky top-20 h-[calc(100vh-80px)] overflow-y-auto no-scrollbar">
+          <div className="bg-white/5 border border-white/10 rounded-[2rem] p-5 shadow-xl">
+            <h3 className="text-sm font-bold mb-4 flex items-center gap-2">
+              <CalendarIcon className="w-4 h-4 text-emerald-400" />
+              בחר תאריך
+            </h3>
+            <MiniCalendar 
+              value={selectedDate} 
+              onChange={(d) => {
+                setSelectedDate(d);
+                const g = groups.find(g => g.id === selectedGroup);
+                if (g) fetchData(selectedGroup, g.name, d);
+              }} 
+            />
             
-            {/* Grid container - responsive columns */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              <AnimatePresence mode="popLayout">
-                {sortedPatients.map(patient => (
-                  <motion.div
-                    key={patient.id}
-                    layout="position"
-                    initial={{ opacity: 0, y: 6 }}
-                    animate={{
-                      opacity: attendance[patient.id] === "present" ? 0.7 : 1,
-                      y: 0
-                    }}
-                    exit={{ opacity: 0, scale: 0.96 }}
-                    transition={{ duration: 0.2 }}
-                  >
-                    <AttendanceItem
-                      patient={patient}
-                      status={attendance[patient.id] || "unset"}
-                      onToggle={s => handleToggleAttendance(patient.id, s)}
-                    />
-                  </motion.div>
-                ))}
-              </AnimatePresence>
+            <div className="mt-6 pt-6 border-t border-white/5">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold text-slate-500 uppercase">סטטוס יום</span>
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${selectedDate === today ? "bg-emerald-500/10 text-emerald-400" : "bg-blue-500/10 text-blue-400"}`}>
+                    {selectedDate === today ? "היום" : "היסטוריה"}
+                  </span>
+                </div>
+                <div className="p-3 bg-white/5 rounded-2xl border border-white/5">
+                  <p className="text-[11px] text-slate-400 leading-relaxed">
+                    מציג נתוני נוכחות עבור {format(new Date(selectedDate), "d בMMMM", { locale: he })}. שינויים נשמרים אוטומטית.
+                  </p>
+                </div>
+              </div>
             </div>
-          </>
-        )}
+          </div>
+        </aside>
+
+        {/* ── Main Content ── */}
+        <main className="flex-1 py-8 pb-28">
+          {loading ? (
+            <div className="flex flex-col items-center justify-center py-24 gap-3">
+              <Loader2 className="w-8 h-8 text-emerald-500 animate-spin" />
+              <p className="text-slate-500 text-sm">טוען מטופלים...</p>
+            </div>
+          ) : sortedPatients.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-24 gap-3">
+              <ClipboardList className="w-10 h-10 text-slate-700" />
+              <p className="text-slate-500 text-sm">
+                {searchTerm ? "לא נמצאו תוצאות" : "לא נמצאו מטופלים בקבוצה זו"}
+              </p>
+            </div>
+          ) : (
+            <>
+              {/* Completion banner */}
+              <AnimatePresence>
+                {allDone && !searchTerm && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0 }}
+                    className="mb-6 flex items-center justify-center gap-2 py-3.5 bg-emerald-500/10 border border-emerald-500/25 rounded-xl"
+                  >
+                    <CheckCircle className="w-4 h-4 text-emerald-400" />
+                    <span className="text-emerald-400 font-bold text-sm">
+                      הנוכחות הושלמה · {stats.present} נוכחים, {stats.absent} נעדרים
+                    </span>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+              
+              {/* Grid container - responsive columns */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <AnimatePresence mode="popLayout">
+                  {sortedPatients.map(patient => (
+                    <motion.div
+                      key={patient.id}
+                      layout="position"
+                      initial={{ opacity: 0, y: 6 }}
+                      animate={{
+                        opacity: attendance[patient.id] === "present" ? 0.7 : 1,
+                        y: 0
+                      }}
+                      exit={{ opacity: 0, scale: 0.96 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      <AttendanceItem
+                        patient={patient}
+                        status={attendance[patient.id] || "unset"}
+                        onToggle={s => handleToggleAttendance(patient.id, s)}
+                      />
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
+              </div>
+            </>
+          )}
+        </main>
+      </div>
+    </div>
+  );
+}
+
+// ─── MiniCalendar Component ──────────────────────────────────────────────────
+
+import { startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths } from "date-fns";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+
+function MiniCalendar({ value, onChange }: { value: string, onChange: (d: string) => void }) {
+  const selectedDate = new Date(value);
+  const [viewDate, setViewDate] = useState(new Date(value));
+  
+  const start = startOfWeek(startOfMonth(viewDate));
+  const end = endOfWeek(endOfMonth(viewDate));
+  const days = eachDayOfInterval({ start, end });
+
+  const weekDays = ["א", "ב", "ג", "ד", "ה", "ו", "ש"];
+
+  return (
+    <div className="select-none">
+      <div className="flex items-center justify-between mb-4 px-1">
+        <span className="text-xs font-black text-white">
+          {format(viewDate, "MMMM yyyy", { locale: he })}
+        </span>
+        <div className="flex gap-1">
+          <button 
+            onClick={() => setViewDate(subMonths(viewDate, 1))}
+            className="p-1 hover:bg-white/10 rounded-lg transition-colors"
+          >
+            <ChevronRight className="w-4 h-4 text-slate-400" />
+          </button>
+          <button 
+            onClick={() => setViewDate(addMonths(viewDate, 1))}
+            className="p-1 hover:bg-white/10 rounded-lg transition-colors"
+          >
+            <ChevronLeft className="w-4 h-4 text-slate-400" />
+          </button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-7 gap-1 mb-2">
+        {weekDays.map(d => (
+          <div key={d} className="text-[10px] font-black text-slate-600 text-center py-1">
+            {d}
+          </div>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-7 gap-1">
+        {days.map((day, i) => {
+          const isSelected = isSameDay(day, selectedDate);
+          const isToday = isSameDay(day, new Date());
+          const isCurrentMonth = isSameMonth(day, viewDate);
+          
+          return (
+            <button
+              key={i}
+              onClick={() => onChange(format(day, "yyyy-MM-dd"))}
+              className={`
+                aspect-square rounded-lg text-[10px] font-bold flex items-center justify-center transition-all
+                ${isSelected ? "bg-emerald-600 text-white shadow-lg shadow-emerald-600/20" : 
+                  isToday ? "bg-white/10 text-emerald-400" :
+                  isCurrentMonth ? "text-slate-300 hover:bg-white/5" : "text-slate-700 hover:bg-white/5"}
+              `}
+            >
+              {format(day, "d")}
+            </button>
+          );
+        })}
       </div>
     </div>
   );
