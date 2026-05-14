@@ -152,9 +152,18 @@ export default function Home() {
       {/* ─── Sticky header ─── */}
       <header className="sticky top-0 z-50 bg-slate-950/95 backdrop-blur-xl border-b border-white/5 px-4 py-3">
         <div className="max-w-2xl mx-auto flex items-center gap-3">
-          <div className="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-600/30 flex-shrink-0">
-            <Shield className="w-5 h-5" />
-          </div>
+          <button 
+            onClick={() => router.push("/profile")}
+            className="w-10 h-10 rounded-xl overflow-hidden border-2 border-blue-500/20 shadow-lg shadow-blue-600/10 transition-transform active:scale-90"
+          >
+            {user?.photoURL ? (
+              <img src={user.photoURL} alt="Avatar" className="w-full h-full object-cover" />
+            ) : (
+              <div className="w-full h-full bg-blue-600 flex items-center justify-center">
+                <User className="w-5 h-5 text-white" />
+              </div>
+            )}
+          </button>
           <div className="flex-1 min-w-0">
             <p className="text-[15px] font-bold leading-tight">שלום, {firstName}</p>
             <p className="text-[11px] text-slate-500">{todayLabel}</p>

@@ -4,6 +4,7 @@ import "./globals.css";
 import { AuthProvider } from "@/context/AuthContext";
 import { BottomNav } from "@/components/navigation/BottomNav";
 import { PushNotificationManager } from "@/components/notifications/PushNotificationManager";
+import { SettingsProvider } from "@/context/SettingsContext";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -31,13 +32,15 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="he" dir="rtl">
-      <body className={`${inter.variable} font-sans antialiased bg-slate-950`}>
+      <body className={`${inter.variable} font-sans antialiased`}>
         <AuthProvider>
-          <PushNotificationManager />
-          <div className="min-h-screen pb-20 md:pb-0">
-            {children}
-          </div>
-          <BottomNav />
+          <SettingsProvider>
+            <PushNotificationManager />
+            <div className="min-h-screen pb-20 md:pb-0">
+              {children}
+            </div>
+            <BottomNav />
+          </SettingsProvider>
         </AuthProvider>
       </body>
     </html>

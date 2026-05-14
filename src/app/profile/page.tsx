@@ -17,6 +17,8 @@ import { format } from "date-fns";
 import { he } from "date-fns/locale";
 import { sendPush } from "@/lib/notify";
 
+import { useSettings } from "@/context/SettingsContext";
+
 const DAYS = [
   { id: 0, name: "ראשון" },
   { id: 1, name: "שני" },
@@ -27,8 +29,15 @@ const DAYS = [
   { id: 6, name: "שבת" },
 ];
 
+const FONT_SIZES = [
+  { id: "small", label: "קטן", icon: "A" },
+  { id: "medium", label: "בינוני", icon: "A" },
+  { id: "large", label: "גדול", icon: "A" },
+];
+
 export default function ProfilePage() {
   const { user, role, logout, phoneNumber, workDays } = useAuth();
+  const { theme, fontSize, setTheme, setFontSize } = useSettings();
   const router = useRouter();
 
   const [phone, setPhone] = useState(phoneNumber || "");
@@ -145,29 +154,41 @@ export default function ProfilePage() {
 
   return (
     <RoleGuard allowedRoles={["admin", "manager", "instructor", "social_worker", "employee", "logistics"]} redirectTo="/login">
-      <div className="min-h-screen bg-slate-950 text-white pb-32" dir="rtl">
+      <div className="min-h-screen bg-background text-foreground pb-32 transition-colors duration-300" dir="rtl">
         {/* Header */}
-        <header className="sticky top-0 z-40 bg-slate-950/95 backdrop-blur-xl border-b border-white/5 px-4 py-4">
+        <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-xl border-b border-border px-4 py-4">
           <div className="max-w-xl mx-auto flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-blue-500/10 rounded-xl flex items-center justify-center">
-                <User className="w-5 h-5 text-blue-400" />
-              </div>
+              {user?.photoURL ? (
+                <img src={user.photoURL} alt="Avatar" className="w-12 h-12 rounded-2xl border-2 border-blue-500/20" />
+              ) : (
+                <div className="w-12 h-12 bg-blue-500/10 rounded-2xl flex items-center justify-center">
+                  <User className="w-6 h-6 text-blue-400" />
+                </div>
+              )}
               <div>
                 <h1 className="text-lg font-bold">אזור אישי</h1>
-                <p className="text-[11px] text-slate-500">{user?.displayName || user?.email}</p>
+                <p className="text-[11px] opacity-60">{user?.displayName || user?.email}</p>
               </div>
             </div>
-            <button onClick={logout} className="p-2.5 rounded-xl bg-white/5 border border-white/10 hover:bg-rose-500/10 hover:text-rose-400 transition-all">
-              <LogOut className="w-4 h-4" />
-            </button>
+            <div className="flex items-center gap-2">
+              <button 
+                onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+                className="p-2.5 rounded-xl bg-card-bg border border-border hover:bg-white/5 transition-all"
+              >
+                {theme === "dark" ? "🌙" : "☀️"}
+              </button>
+              <button onClick={logout} className="p-2.5 rounded-xl bg-card-bg border border-border hover:bg-rose-500/10 hover:text-rose-400 transition-all">
+                <LogOut className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         </header>
 
         <main className="max-w-xl mx-auto px-4 pt-6 space-y-6">
           
           {/* Quick Attendance */}
-          <section className="bg-white/[0.03] border border-white/8 rounded-[2rem] p-6 text-center">
+          <section className="bg-card-bg border border-border rounded-[2rem] p-6 text-center shadow-sm">
             <div className="flex flex-col items-center gap-4">
               <div className={`w-16 h-16 rounded-3xl flex items-center justify-center transition-colors ${
                 lastAction?.type === "in" ? "bg-emerald-500/20 text-emerald-400" : "bg-slate-500/10 text-slate-400"
@@ -176,7 +197,7 @@ export default function ProfilePage() {
               </div>
               <div>
                 <h2 className="text-xl font-bold">נוכחות עובד</h2>
-                <p className="text-sm text-slate-500 mt-1">
+                <p className="text-sm opacity-60 mt-1">
                   {lastAction?.type === "in" 
                     ? `נכנסת ב-${lastAction.time}` 
                     : lastAction?.type === "out" 
@@ -189,8 +210,8 @@ export default function ProfilePage() {
                 disabled={isActing}
                 className={`w-full py-4 rounded-2xl font-bold text-base transition-all active:scale-95 flex items-center justify-center gap-3 shadow-xl ${
                   lastAction?.type === "in" 
-                    ? "bg-rose-600 hover:bg-rose-500 shadow-rose-600/20" 
-                    : "bg-emerald-600 hover:bg-emerald-500 shadow-emerald-600/20"
+                    ? "bg-rose-600 hover:bg-rose-500 shadow-rose-600/20 text-white" 
+                    : "bg-emerald-600 hover:bg-emerald-500 shadow-emerald-600/20 text-white"
                 }`}
               >
                 {isActing ? <Loader2 className="w-5 h-5 animate-spin" /> : <Clock className="w-5 h-5" />}
@@ -199,8 +220,37 @@ export default function ProfilePage() {
             </div>
           </section>
 
+          {/* Settings Section */}
+          <section className="bg-card-bg border border-border rounded-[2rem] p-6 space-y-5 shadow-sm">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-8 h-8 bg-purple-500/10 rounded-lg flex items-center justify-center">
+                <Edit3 className="w-4 h-4 text-purple-400" />
+              </div>
+              <h3 className="font-bold text-base">הגדרות תצוגה</h3>
+            </div>
+
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium">גודל גופן</span>
+                <div className="flex bg-background border border-border p-1 rounded-xl">
+                  {FONT_SIZES.map(f => (
+                    <button
+                      key={f.id}
+                      onClick={() => setFontSize(f.id as any)}
+                      className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                        fontSize === f.id ? "bg-purple-600 text-white shadow-lg" : "text-slate-500 hover:text-foreground"
+                      }`}
+                    >
+                      {f.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </section>
+
           {/* Personal Info */}
-          <section className="bg-white/[0.03] border border-white/8 rounded-[2rem] p-6 space-y-5">
+          <section className="bg-card-bg border border-border rounded-[2rem] p-6 space-y-5 shadow-sm">
             <div className="flex items-center gap-2 mb-2">
               <div className="w-8 h-8 bg-blue-500/10 rounded-lg flex items-center justify-center">
                 <Phone className="w-4 h-4 text-blue-400" />
