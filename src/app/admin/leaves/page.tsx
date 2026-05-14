@@ -127,56 +127,122 @@ export default function LeaveManagementPage() {
             <Loader2 className="w-8 h-8 text-rose-500 animate-spin" />
           </div>
         ) : (
-          <div className="max-w-4xl mx-auto space-y-4">
-            {requests.map((req, index) => (
-              <motion.div
-                key={req.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.1 }}
-                className="bg-white/5 border border-white/10 rounded-3xl p-6 flex flex-col md:flex-row md:items-center justify-between gap-6"
-              >
-                <div className="flex items-start gap-4">
-                  <div className="w-12 h-12 bg-rose-500/10 text-rose-400 rounded-2xl flex items-center justify-center shrink-0">
-                    <User className="w-6 h-6" />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-bold">{req.userName}</h3>
-                    <div className="flex items-center gap-4 mt-1 text-slate-400 text-sm">
-                      <span className="flex items-center gap-1">
-                        <Calendar className="w-4 h-4" />
-                        {req.date}
-                      </span>
-                      {req.reason && (
+          <div className="max-w-7xl mx-auto space-y-4">
+            
+            {/* Desktop Table View */}
+            <div className="hidden md:block overflow-hidden bg-white/5 border border-white/10 rounded-3xl">
+              <table className="w-full text-right border-collapse">
+                <thead>
+                  <tr className="bg-white/5 text-slate-400 text-xs font-bold uppercase tracking-widest border-b border-white/10">
+                    <th className="px-6 py-4">עובד</th>
+                    <th className="px-6 py-4">תאריך היעדרות</th>
+                    <th className="px-6 py-4">סיבה</th>
+                    <th className="px-6 py-4 text-left">פעולות</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/5">
+                  {requests.map((req) => (
+                    <tr key={req.id} className="hover:bg-white/[0.02] transition-colors">
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-rose-500/10 text-rose-400 rounded-xl flex items-center justify-center shrink-0">
+                            <User className="w-5 h-5" />
+                          </div>
+                          <span className="font-bold">{req.userName}</span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-slate-300">
+                        <div className="flex items-center gap-2">
+                          <Calendar className="w-4 h-4 text-slate-500" />
+                          {req.date}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-slate-400 text-sm italic">
+                        {req.reason ? (
+                          <div className="flex items-center gap-2">
+                            <MessageSquare className="w-4 h-4 text-slate-600" />
+                            {req.reason}
+                          </div>
+                        ) : "—"}
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center justify-end gap-3">
+                          <button
+                            disabled={updatingId === req.id}
+                            onClick={() => updateRequestStatus(req.id, "rejected")}
+                            className="px-4 py-2 bg-rose-500/10 text-rose-400 border border-rose-500/20 rounded-xl font-bold hover:bg-rose-500/20 transition-all flex items-center gap-2 text-xs"
+                          >
+                            <XCircle className="w-4 h-4" />
+                            דחייה
+                          </button>
+                          <button
+                            disabled={updatingId === req.id}
+                            onClick={() => updateRequestStatus(req.id, "approved")}
+                            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-bold transition-all flex items-center gap-2 text-xs shadow-lg shadow-emerald-600/20"
+                          >
+                            {updatingId === req.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
+                            אישור
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile Card View */}
+            <div className="md:hidden space-y-4">
+              {requests.map((req, index) => (
+                <motion.div
+                  key={req.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.1 }}
+                  className="bg-white/5 border border-white/10 rounded-3xl p-6 flex flex-col gap-6"
+                >
+                  <div className="flex items-start gap-4">
+                    <div className="w-12 h-12 bg-rose-500/10 text-rose-400 rounded-2xl flex items-center justify-center shrink-0">
+                      <User className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-bold">{req.userName}</h3>
+                      <div className="flex items-center gap-4 mt-1 text-slate-400 text-sm">
                         <span className="flex items-center gap-1">
-                          <MessageSquare className="w-4 h-4" />
-                          {req.reason}
+                          <Calendar className="w-4 h-4" />
+                          {req.date}
                         </span>
-                      )}
+                        {req.reason && (
+                          <span className="flex items-center gap-1">
+                            <MessageSquare className="w-4 h-4" />
+                            {req.reason}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                <div className="flex items-center gap-3">
-                  <button
-                    disabled={updatingId === req.id}
-                    onClick={() => updateRequestStatus(req.id, "rejected")}
-                    className="flex-1 md:flex-none px-6 py-2.5 bg-rose-500/10 text-rose-400 border border-rose-500/20 rounded-xl font-bold hover:bg-rose-500/20 transition-all flex items-center justify-center gap-2"
-                  >
-                    <XCircle className="w-4 h-4" />
-                    דחייה
-                  </button>
-                  <button
-                    disabled={updatingId === req.id}
-                    onClick={() => updateRequestStatus(req.id, "approved")}
-                    className="flex-1 md:flex-none px-6 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-bold transition-all flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20"
-                  >
-                    {updatingId === req.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
-                    אישור
-                  </button>
-                </div>
-              </motion.div>
-            ))}
+                  <div className="flex items-center gap-3">
+                    <button
+                      disabled={updatingId === req.id}
+                      onClick={() => updateRequestStatus(req.id, "rejected")}
+                      className="flex-1 px-6 py-2.5 bg-rose-500/10 text-rose-400 border border-rose-500/20 rounded-xl font-bold hover:bg-rose-500/20 transition-all flex items-center justify-center gap-2"
+                    >
+                      <XCircle className="w-4 h-4" />
+                      דחייה
+                    </button>
+                    <button
+                      disabled={updatingId === req.id}
+                      onClick={() => updateRequestStatus(req.id, "approved")}
+                      className="flex-1 px-6 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-bold transition-all flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20"
+                    >
+                      {updatingId === req.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
+                      אישור
+                    </button>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
 
             {requests.length === 0 && (
               <div className="text-center py-20 bg-white/5 border border-white/10 border-dashed rounded-[3rem]">

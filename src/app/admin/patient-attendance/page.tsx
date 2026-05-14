@@ -315,7 +315,7 @@ function AttendancePageContent() {
       </header>
 
       {/* ── Content ── */}
-      <div className="max-w-2xl mx-auto px-4 pt-4 pb-28">
+      <div className="max-w-7xl mx-auto px-4 pt-4 pb-28">
         {loading ? (
           <div className="flex flex-col items-center justify-center py-24 gap-3">
             <Loader2 className="w-8 h-8 text-emerald-500 animate-spin" />
@@ -337,7 +337,7 @@ function AttendancePageContent() {
                   initial={{ opacity: 0, y: -6 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0 }}
-                  className="mb-4 flex items-center justify-center gap-2 py-3.5 bg-emerald-500/10 border border-emerald-500/25 rounded-xl"
+                  className="mb-6 flex items-center justify-center gap-2 py-3.5 bg-emerald-500/10 border border-emerald-500/25 rounded-xl"
                 >
                   <CheckCircle className="w-4 h-4 text-emerald-400" />
                   <span className="text-emerald-400 font-bold text-sm">
@@ -346,15 +346,9 @@ function AttendancePageContent() {
                 </motion.div>
               )}
             </AnimatePresence>
-
-            {/* Pending section header */}
-            {stats.missing > 0 && (
-              <p className="text-[11px] font-bold text-slate-600 uppercase tracking-widest mb-3 px-1">
-                ממתינים לסימון · {stats.missing}
-              </p>
-            )}
-
-            <div className="space-y-2">
+            
+            {/* Grid container - responsive columns */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               <AnimatePresence mode="popLayout">
                 {sortedPatients.map(patient => (
                   <motion.div
@@ -362,7 +356,7 @@ function AttendancePageContent() {
                     layout="position"
                     initial={{ opacity: 0, y: 6 }}
                     animate={{
-                      opacity: attendance[patient.id] === "present" ? 0.65 : 1,
+                      opacity: attendance[patient.id] === "present" ? 0.7 : 1,
                       y: 0
                     }}
                     exit={{ opacity: 0, scale: 0.96 }}
