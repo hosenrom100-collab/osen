@@ -182,6 +182,17 @@ export default function ShoppingPage() {
     if (!newName) return;
     setSubmitting(true);
     try {
+      // Add to pool if it doesn't exist
+      const exists = productPool.some(p => p.name.trim() === newName.trim());
+      if (!exists) {
+        const docId = newName.trim().replace(/\//g, "-");
+        await setDoc(doc(db, "product_pool", docId), {
+          name: newName.trim(),
+          category: newCategory,
+        }, { merge: true });
+        fetchProductPool();
+      }
+
       await addDoc(collection(db, "shopping_requests"), {
         name: newName, category: newCategory, quantity: newQuantity, notes: newNotes,
         priority: newPriority, status: "pending",

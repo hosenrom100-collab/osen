@@ -402,7 +402,6 @@ export default function PatientsPage() {
             </div>
           )}
 
-          {/* ── Quick edit modal ── */}
           {editPatient && (
             <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
@@ -410,15 +409,15 @@ export default function PatientsPage() {
                 className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
               <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
                 transition={{ type: "spring", damping: 26, stiffness: 260 }}
-                className="relative bg-slate-900 border-t sm:border border-white/10 w-full max-w-md rounded-t-3xl sm:rounded-2xl overflow-hidden shadow-2xl">
-                <div className="w-10 h-1 bg-white/10 rounded-full mx-auto mt-3 mb-1 sm:hidden" />
-                <div className="flex items-center justify-between p-5 border-b border-white/8">
+                className="relative bg-slate-900 border-t sm:border border-white/10 w-full max-w-md rounded-t-3xl sm:rounded-2xl overflow-hidden shadow-2xl flex flex-col max-h-[92dvh]">
+                <div className="w-10 h-1 bg-white/10 rounded-full mx-auto mt-3 mb-1 sm:hidden shrink-0" />
+                <div className="flex items-center justify-between p-5 border-b border-white/8 shrink-0">
                   <h3 className="font-bold text-base">עריכה מהירה</h3>
                   <button onClick={() => setEditPatient(null)} className="p-2 rounded-xl hover:bg-white/5 text-slate-500 hover:text-white transition-colors">
                     <X className="w-4 h-4" />
                   </button>
                 </div>
-                <div className="p-5 space-y-4 max-h-[55vh] overflow-y-auto">
+                <div className="p-5 space-y-4 overflow-y-auto flex-1 overscroll-contain">
                   <div className="grid grid-cols-2 gap-3">
                     {[["שם פרטי","firstName"],["שם משפחה","lastName"]].map(([label, field]) => (
                       <div key={field}>
@@ -452,12 +451,14 @@ export default function PatientsPage() {
                       {Object.entries(STATUS_META).map(([v, m]) => <option key={v} value={v}>{m.label}</option>)}
                     </select>
                   </div>
+                  {/* Buffer for keyboard/spacing */}
+                  <div className="h-4 shrink-0" />
                 </div>
-                <div className="p-5 border-t border-white/8 flex gap-3">
+                <div className="p-5 border-t border-white/8 flex gap-3 shrink-0 bg-slate-900/80 backdrop-blur-md">
                   <button onClick={() => setEditPatient(null)} className="flex-1 py-3 bg-white/5 rounded-xl font-bold text-sm hover:bg-white/10 transition-all">ביטול</button>
                   <button onClick={saveEdit} disabled={isSaving}
                     className="flex-1 py-3 bg-blue-600 rounded-xl font-bold text-sm hover:bg-blue-500 transition-all shadow-lg shadow-blue-600/20 disabled:opacity-50 flex items-center justify-center gap-2">
-                    {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : "שמור"}
+                    {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : "שמור שינויים"}
                   </button>
                 </div>
               </motion.div>
