@@ -382,7 +382,7 @@ export default function PatientsPage() {
                             <table className="w-full text-right">
                               <thead>
                                 <tr className="border-b border-white/8 bg-white/[0.015]">
-                                  {["מטופל","ת.ז","קבוצה","עו״ס","סטטוס","תאריך התחלה",""].map(h => (
+                                  {["מטופל","ת.ז","תוכנית","קבוצה","עו״ס","סטטוס","תאריך התחלה",""].map(h => (
                                     <th key={h} className="px-4 py-2.5 text-[10px] font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">{h}</th>
                                   ))}
                                 </tr>
@@ -392,7 +392,7 @@ export default function PatientsPage() {
                                   <Fragment key={gid}>
                                     {groupMap.size > 1 && (
                                       <tr key={`gh-${gid}`}>
-                                        <td colSpan={7} className={`px-4 py-2 text-[10px] font-bold uppercase tracking-widest ${pal.text} opacity-60 bg-white/[0.01]`}>
+                                        <td colSpan={8} className={`px-4 py-2 text-[10px] font-bold uppercase tracking-widest ${pal.text} opacity-60 bg-white/[0.01]`}>
                                           {group?.name ?? "ללא קבוצה"} — {patients.length}
                                         </td>
                                       </tr>
@@ -408,6 +408,11 @@ export default function PatientsPage() {
                                           </div>
                                         </td>
                                         <td className="px-4 py-3 text-xs text-slate-500 font-mono whitespace-nowrap">{p.idNumber}</td>
+                                        <td className="px-4 py-3 whitespace-nowrap">
+                                          <span className="text-[11px] font-bold text-slate-400">
+                                            {program?.name || "—"}
+                                          </span>
+                                        </td>
                                         <td className="px-4 py-3 whitespace-nowrap">
                                           <span className={`text-[11px] px-2 py-0.5 rounded-md font-medium ${pal.bg} ${pal.text}`}>
                                             {group?.name ?? resolveGroup(p.hosenType)?.name ?? "—"}
