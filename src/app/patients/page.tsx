@@ -49,7 +49,7 @@ export default function PatientsPage() {
   const [loadError,     setLoadError]     = useState<string | null>(null);
 
   const [searchTerm,   setSearchTerm]   = useState("");
-  const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [filterStatus, setFilterStatus] = useState<string>("active");
   const [filterGroup,  setFilterGroup]  = useState<string>("all");
   const [showAll,      setShowAll]      = useState(isAdmin || assignedGroups.length === 0);
 
