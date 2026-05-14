@@ -172,11 +172,12 @@ export function PatientForm() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>
           <label className={LABEL}><Calendar className="w-3 h-3" /> תאריך תחילת טיפול</label>
-          <input required type="date" value={formData.startDate} onChange={e => set({ startDate: e.target.value })} className={FIELD} />
+          <input required type="date" value={formData.startDate} onChange={e => handleStartDateChange(e.target.value)} className={FIELD} />
         </div>
         <div>
-          <label className={LABEL}><Calendar className="w-3 h-3" /> תאריך סיום משוער</label>
+          <label className={LABEL}><Calendar className="w-3 h-3" /> תאריך סיום (אוטומטי: 3 חודשים)</label>
           <input type="date" value={formData.endDate} onChange={e => set({ endDate: e.target.value })} className={FIELD} />
+          <p className="text-[10px] text-[var(--foreground)]/30 mt-1 mr-1">מחושב אוטומטית — ניתן לשינוי ידני</p>
         </div>
       </div>
 
@@ -187,6 +188,38 @@ export function PatientForm() {
           <option value="pending">ממתין</option>
           <option value="inactive">לא פעיל</option>
         </select>
+      </div>
+
+      {/* ── Rehab Plan ── */}
+      <div className="bg-[var(--foreground)]/[0.02] border border-[var(--border)] rounded-[2.5rem] p-8 space-y-4">
+        <h3 className="text-xs font-black uppercase tracking-widest text-teal-500 mb-2">תוכנית שיקום</h3>
+        <div>
+          <label className={LABEL}><ClipboardList className="w-3 h-3" /> תיאור תוכנית השיקום</label>
+          <textarea
+            value={formData.rehabPlan}
+            onChange={e => set({ rehabPlan: e.target.value })}
+            rows={4}
+            placeholder="פרט את יעדי השיקום, האינטרוונציות המתוכננות ואבני דרך..."
+            className="w-full bg-[var(--background)] border border-[var(--border)] rounded-2xl px-4 py-3.5 text-sm font-bold outline-none focus:border-teal-500/50 transition-all text-[var(--foreground)] resize-none placeholder:text-[var(--foreground)]/20"
+          />
+        </div>
+        <label className="flex items-center gap-3 cursor-pointer">
+          <div
+            onClick={() => set({ rehabPlanCompleted: !formData.rehabPlanCompleted })}
+            className={`w-5 h-5 rounded border flex items-center justify-center transition-all ${
+              formData.rehabPlanCompleted
+                ? "bg-teal-500 border-teal-500"
+                : "border-[var(--border)] hover:border-teal-500/50"
+            }`}
+          >
+            {formData.rehabPlanCompleted && (
+              <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 12 12">
+                <path d="M4.667 8.333L2 5.667l.933-.934 1.734 1.734 3.4-3.4.933.933z"/>
+              </svg>
+            )}
+          </div>
+          <span className="text-sm font-bold text-[var(--foreground)]/70">תוכנית השיקום הושלמה</span>
+        </label>
       </div>
 
       <button 

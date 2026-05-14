@@ -15,7 +15,7 @@ import { db } from "@/lib/firebase/config";
 import {
   collection, getDocs, query, where, doc, getDoc, orderBy, updateDoc, setDoc,
 } from "firebase/firestore";
-import { format } from "date-fns";
+import { format, addMonths, differenceInDays, parseISO, isValid } from "date-fns";
 import { he } from "date-fns/locale";
 
 interface GroupStat   { id: string; name: string; present: number; total: number }
@@ -103,7 +103,7 @@ function TimelineRow({
 export default function Home() {
   const {
     user, loading, isWhitelisted, logout,
-    isAdmin, isManager, assignedGroups, primaryGroupId, setPrimaryGroupId,
+    isAdmin, isManager, role, assignedGroups, primaryGroupId, setPrimaryGroupId,
   } = useAuth();
   const router = useRouter();
 
@@ -120,6 +120,7 @@ export default function Home() {
   const [expandedGroups,  setExpandedGroups]  = useState<Set<string>>(new Set());
   const [showGroupPicker, setShowGroupPicker] = useState(false);
   const [dataLoaded,      setDataLoaded]      = useState(false);
+  const [expiringCount,   setExpiringCount]   = useState(0);
 
   const showAll = isAdmin || isManager;
 
@@ -148,6 +149,7 @@ export default function Home() {
       groupList.forEach(g => statMap.set(g.id, { ...g, present: 0, total: 0 }));
 
       const present: PresentPat[] = [];
+      let expiring = 0;
       pSnap.forEach(d => {
         const p   = d.data();
         const ht  = (p.hosenType || "") as string;
@@ -160,9 +162,18 @@ export default function Home() {
             present.push({ id: d.id, firstName: p.firstName, lastName: p.lastName, hosenType: gId });
           }
         }
+        // Expiring check (endDate or startDate + 3 months)
+        try {
+          const endStr = p.endDate || (p.startDate ? format(addMonths(parseISO(p.startDate), 3), "yyyy-MM-dd") : null);
+          if (endStr && isValid(parseISO(endStr))) {
+            const days = differenceInDays(parseISO(endStr), new Date());
+            if (days >= 0 && days <= 30) expiring++;
+          }
+        } catch { /* ignore malformed dates */ }
       });
       setStats([...statMap.values()]);
       setPresentPatients(present);
+      setExpiringCount(expiring);
 
       const shopSnap = await getDocs(
         query(collection(db, "shopping_requests"), where("status", "==", "pending"))
@@ -341,6 +352,19 @@ export default function Home() {
               <span className="text-[var(--muted)]">{overallPct}%</span>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* ── Expiring patients reminder ── */}
+      {dataLoaded && expiringCount > 0 && (isAdmin || isManager || role === "social_worker") && (
+        <div className="border-b border-amber-500/15 bg-amber-500/5 px-4 md:px-6">
+          <Link href="/patients/tracking" className="flex items-center gap-3 h-9 text-xs hover:opacity-90 transition-opacity">
+            <Clock className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+            <span className="text-amber-300/90">
+              <span className="font-semibold">{expiringCount} מטופלים</span> מסיימים טיפול בחודש הקרוב
+            </span>
+            <span className="text-amber-400/60 text-[10px] font-medium mr-auto">בדוק הארכה →</span>
+          </Link>
         </div>
       )}
 

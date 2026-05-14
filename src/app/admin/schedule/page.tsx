@@ -6,7 +6,7 @@ import { db } from "@/lib/firebase/config";
 import { collection, getDocs, setDoc, doc, query, orderBy, getDoc } from "firebase/firestore";
 import {
   MapPin, Users, Plus, Trash2, Save, Copy, Clock, Search, CheckCircle,
-  Loader2, ChevronLeft, ChevronRight, Edit3, X, Check, Calendar,
+  Loader2, ChevronLeft, ChevronRight, Edit3, X, Check, Calendar, CopyPlus,
 } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
@@ -28,7 +28,7 @@ interface DaySchedule { dutyInstructorId: string; activities: Activity[] }
 interface Program  { id: string; name: string }
 interface Group    { id: string; name: string; programId?: string }
 interface Person   { id: string; name: string }
-interface Location { id: string; name: string }
+interface Location { id: string; name: string; permanentStaffIds?: string[] }
 
 // groupId semantics:
 //   program.id  → shared within that program (e.g. "חרבות ברזל יום")
@@ -133,10 +133,10 @@ function WeekStrip({ date, onChange }: { date: string; onChange: (d: string) => 
 /* ─── Activity Card (timeline) ──────────────────────────────────────────── */
 
 function ActivityCard({
-  activity, palIdx, groupLabel, onEdit, onDelete, nameOf, locName,
+  activity, palIdx, groupLabel, onEdit, onDelete, onDuplicate, nameOf, locName,
 }: {
   activity: Activity; palIdx: number; groupLabel: string;
-  onEdit: () => void; onDelete: () => void;
+  onEdit: () => void; onDelete: () => void; onDuplicate: () => void;
   nameOf: (id: string) => string; locName: (id: string) => string;
 }) {
   const pal = PALETTE[palIdx] ?? PALETTE[0];
@@ -176,8 +176,9 @@ function ActivityCard({
       </div>
       {/* Actions — visible on hover */}
       <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-        <button onClick={onEdit}   className="p-1.5 rounded hover:bg-blue-500/15 text-slate-600 hover:text-blue-400 transition-colors"><Edit3  className="w-3 h-3" /></button>
-        <button onClick={onDelete} className="p-1.5 rounded hover:bg-rose-500/15 text-slate-600 hover:text-rose-400 transition-colors"><Trash2 className="w-3 h-3" /></button>
+        <button onClick={onEdit}      className="p-1.5 rounded hover:bg-blue-500/15 text-slate-600 hover:text-blue-400 transition-colors"   title="ערוך"><Edit3    className="w-3 h-3" /></button>
+        <button onClick={onDuplicate} className="p-1.5 rounded hover:bg-emerald-500/15 text-slate-600 hover:text-emerald-400 transition-colors" title="שכפל"><CopyPlus className="w-3 h-3" /></button>
+        <button onClick={onDelete}    className="p-1.5 rounded hover:bg-rose-500/15 text-slate-600 hover:text-rose-400 transition-colors"   title="מחק"><Trash2   className="w-3 h-3" /></button>
       </div>
     </motion.div>
   );
@@ -185,11 +186,12 @@ function ActivityCard({
 
 /* ─── InlineSection ─────────────────────────────────────────────────────── */
 
-function InlineSection({ label, acts, pi, onAdd, onEdit, onDelete, nameOf, locName, resolveLabel }: {
+function InlineSection({ label, acts, pi, onAdd, onEdit, onDelete, onDuplicate, nameOf, locName, resolveLabel }: {
   label: string; acts: Activity[]; pi: number;
   onAdd: () => void;
   onEdit: (a: Activity) => void;
   onDelete: (id: string) => void;
+  onDuplicate: (a: Activity) => void;
   nameOf: (id: string) => string;
   locName: (id: string) => string;
   resolveLabel: (gid: string) => string;
@@ -219,6 +221,7 @@ function InlineSection({ label, acts, pi, onAdd, onEdit, onDelete, nameOf, locNa
               <ActivityCard key={a.id} activity={a} palIdx={pi}
                 groupLabel={resolveLabel(a.groupId)}
                 onEdit={() => onEdit(a)} onDelete={() => onDelete(a.id)}
+                onDuplicate={() => onDuplicate(a)}
                 nameOf={nameOf} locName={locName} />
             ))}
           </AnimatePresence>
@@ -264,6 +267,18 @@ function ActivityModal({
       set({ groupId: contextId });
     }
   }, [contextId]);
+
+  // Auto-populate staff if location has permanent staff members
+  useEffect(() => {
+    if (!form.locationId) return;
+    const loc = locations.find(l => l.id === form.locationId);
+    if (loc?.permanentStaffIds && loc.permanentStaffIds.length > 0) {
+      // Only auto-populate if we are creating a new activity or if staff list is currently empty
+      if (!initial.id || form.staffIds.length === 0) {
+        set({ staffIds: loc.permanentStaffIds });
+      }
+    }
+  }, [form.locationId]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-6 md:p-12">
@@ -490,7 +505,11 @@ function SchedulePageInner() {
         getDocs(query(collection(db, "programs"), orderBy("name"))),
       ]);
       setStaff(u.docs.map(d => ({ id: d.id, name: d.data().name || d.data().email })));
-      setLocations(l.docs.map(d => ({ id: d.id, name: d.data().name })));
+      setLocations(l.docs.map(d => ({ 
+        id: d.id, 
+        name: d.data().name,
+        permanentStaffIds: d.data().permanentStaffIds || []
+      })));
       setGroups(g.docs.map(d => ({ id: d.id, name: d.data().name, programId: d.data().programId })));
       setPrograms(p.docs.map(d => ({ id: d.id, name: d.data().name })));
     })();
@@ -608,6 +627,21 @@ function SchedulePageInner() {
   const deleteActivity = (id: string) =>
     setSchedule(s => ({ ...s, activities: s.activities.filter(a => a.id !== id) }));
 
+  const duplicateActivity = (a: Activity) =>
+    setSchedule(s => ({ ...s, activities: [...s.activities, { ...a, id: uid() }] }));
+
+  const copyFromPrevDay = async () => {
+    const prevDate = format(subDays(dateObj, 1), "yyyy-MM-dd");
+    const snap = await getDoc(doc(db, "schedules", prevDate));
+    if (!snap.exists()) { alert("לא נמצא לוז לאתמול"); return; }
+    const d = snap.data();
+    if (!window.confirm(`להחליף את לוז היום בלוז מ-${format(subDays(dateObj,1), "dd/MM", { locale: he })}?`)) return;
+    setSchedule(prev => ({
+      ...prev,
+      activities: (d.activities || []).map((x: Activity) => migrate({ ...x, id: uid() })),
+    }));
+  };
+
   const saveSchedule = async () => {
     setSaving(true);
     try {
@@ -661,6 +695,11 @@ function SchedulePageInner() {
 
             {/* Save actions — desktop inline */}
             <div className="hidden md:flex items-center gap-2 mr-auto">
+              <button onClick={copyFromPrevDay} disabled={saving}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 border border-white/[0.07] rounded text-xs font-medium text-slate-400 hover:text-emerald-400 hover:bg-emerald-500/8 transition-colors disabled:opacity-40">
+                <CopyPlus className="w-3.5 h-3.5" />
+                העתק מאתמול
+              </button>
               <button onClick={saveAsTemplate} disabled={saving}
                 className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 border border-white/[0.07] rounded text-xs font-medium text-slate-400 hover:text-white hover:bg-white/8 transition-colors disabled:opacity-40">
                 <Copy className="w-3.5 h-3.5" />
@@ -866,6 +905,7 @@ function SchedulePageInner() {
                           <InlineSection label="משותף לתוכנית" acts={jointActs} pi={ps.pi}
                             onAdd={() => openNew(ps.jointId)}
                             onEdit={setEditingActivity} onDelete={deleteActivity}
+                            onDuplicate={duplicateActivity}
                             nameOf={nameOf} locName={locName} resolveLabel={groupLabel} />
                           {/* Per-group sections */}
                           {ps.groups.map(g => {
@@ -874,6 +914,7 @@ function SchedulePageInner() {
                               <InlineSection key={g.id} label={g.name} acts={gActs} pi={ps.pi}
                                 onAdd={() => openNew(g.id)}
                                 onEdit={setEditingActivity} onDelete={deleteActivity}
+                                onDuplicate={duplicateActivity}
                                 nameOf={nameOf} locName={locName} resolveLabel={groupLabel} />
                             );
                           })}
@@ -888,6 +929,7 @@ function SchedulePageInner() {
                       <InlineSection key={sec.id} label={sec.label} acts={acts} pi={sec.pi}
                         onAdd={() => openNew(sec.id)}
                         onEdit={setEditingActivity} onDelete={deleteActivity}
+                        onDuplicate={duplicateActivity}
                         nameOf={nameOf} locName={locName} resolveLabel={groupLabel} />
                     );
                   })}
@@ -911,6 +953,7 @@ function SchedulePageInner() {
                             groupLabel={groupLabel(a.groupId)}
                             onEdit={() => setEditingActivity(a)}
                             onDelete={() => deleteActivity(a.id)}
+                            onDuplicate={() => duplicateActivity(a)}
                             nameOf={nameOf}
                             locName={locName}
                           />

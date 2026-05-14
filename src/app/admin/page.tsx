@@ -22,6 +22,7 @@ const MODULES = [
   { title: "דוחות",               desc: "ייצוא נתונים וסיכומי פעילות",          icon: BarChart3,     path: "/reports",                  color: "text-cyan-400 bg-cyan-500/8",      roles: ["admin","manager"] },
   { title: "לוגיסטיקה ורכש",     desc: "ניהול מלאי וציוד",                    icon: Package,       path: "/admin/resources",          color: "text-amber-400 bg-amber-500/8",    roles: ["admin","manager","logistics"] },
   { title: "הודעות לצוות",        desc: "שליחת פוש נוטיפיקציות לעובדים",       icon: Bell,          path: "/admin/notifications",      color: "text-pink-400 bg-pink-500/8",      roles: ["admin","manager"] },
+  { title: "מעקב מטופלים",        desc: "תוכניות שיקום, תאריכי סיום והארכות",   icon: ClipboardList, path: "/patients/tracking",        color: "text-teal-400 bg-teal-500/8",      roles: ["admin","manager","social_worker"] },
 ];
 
 const ROLE_HE: Record<string, string> = {
