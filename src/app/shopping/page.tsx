@@ -83,8 +83,9 @@ export default function ShoppingPage() {
     "טואלטיקה והיגיינה","בשר ודגים","קפואים","כללי",
   ]);
 
-  const inputRef   = useRef<HTMLInputElement>(null);
-  const overlayRef = useRef<HTMLDivElement>(null);
+  const inputRef       = useRef<HTMLInputElement>(null); // desktop header input
+  const mobileInputRef = useRef<HTMLInputElement>(null); // mobile bottom bar
+  const overlayRef     = useRef<HTMLDivElement>(null);
 
   const canApprove  = isAdmin || role === "manager" || role === "logistics";
   const canPurchase = isAdmin || role === "manager" || role === "logistics";
@@ -287,41 +288,121 @@ export default function ShoppingPage() {
       <div dir="rtl" className="min-h-screen bg-slate-950 text-white flex flex-col">
 
         {/* ── Header ── */}
-        <header className="sticky top-0 z-30 bg-slate-950/95 backdrop-blur border-b border-white/5 px-4 py-3 sm:px-6">
-          <div className="max-w-2xl mx-auto flex items-center gap-3">
-            <button
-              onClick={() => router.push("/")}
-              aria-label="חזרה"
-              className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl bg-white/5 hover:bg-white/10 transition-colors shrink-0"
-            >
+        <header className="sticky top-0 z-30 bg-slate-950/95 backdrop-blur border-b border-white/[0.07] px-4 md:px-5">
+          <div className="flex items-center gap-3 h-12">
+
+            {/* Back — mobile only */}
+            <button onClick={() => router.push("/")} aria-label="חזרה"
+              className="md:hidden min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl bg-white/5 transition-colors shrink-0">
               <ArrowRight className="w-5 h-5" />
             </button>
-            <div className="flex items-center gap-2 flex-1 min-w-0">
-              <ShoppingCart className="w-5 h-5 text-blue-400 shrink-0" />
-              <h1 className="text-base font-bold">רשימת קניות</h1>
+
+            {/* Title */}
+            <div className="flex items-center gap-2 shrink-0">
+              <ShoppingCart className="w-4 h-4 text-blue-400 shrink-0" />
+              <h1 className="text-[14px] font-semibold">רשימת קניות</h1>
             </div>
+
+            {/* Desktop inline add input */}
+            <div className="hidden md:flex flex-1 max-w-xs relative">
+              <Search className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500 pointer-events-none" />
+              <input
+                ref={inputRef}
+                type="search"
+                value={inputVal}
+                onChange={(e) => setInputVal(e.target.value)}
+                onFocus={() => setOverlayOpen(true)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") { handleAddInput(); }
+                  if (e.key === "Escape") { setOverlayOpen(false); inputRef.current?.blur(); }
+                }}
+                placeholder="הוסף מוצר..."
+                aria-label="הוספת מוצר"
+                className="w-full bg-white/5 border border-white/[0.07] rounded py-1.5 pr-8 pl-3 text-sm focus:outline-none focus:border-blue-500 transition-colors placeholder:text-slate-600"
+              />
+            </div>
+
             {/* View toggle */}
-            <div className="flex items-center bg-white/5 rounded-xl p-0.5 text-xs font-semibold shrink-0">
-              <button
-                onClick={() => setView("list")}
-                className={`px-3 py-2 rounded-lg transition-colors ${view === "list" ? "bg-blue-600 text-white" : "text-slate-500"}`}
-              >
+            <div className="flex items-center bg-white/5 md:bg-transparent rounded-xl md:rounded-none p-0.5 md:p-0 text-xs font-semibold shrink-0 mr-auto md:mr-0 gap-0 md:gap-3 md:border-0">
+              <button onClick={() => setView("list")}
+                className={`px-3 py-1.5 rounded md:rounded-none transition-colors md:border-b-2 md:border-transparent ${
+                  view === "list"
+                    ? "bg-blue-600 md:bg-transparent text-white md:border-blue-500"
+                    : "text-slate-500 hover:text-slate-300"
+                }`}>
                 רשימה
                 {(pending.length + approved.length) > 0 && (
-                  <span className={`mr-1 ${view === "list" ? "text-blue-200" : "text-slate-600"}`}>
+                  <span className={`mr-1 ${view === "list" ? "text-blue-200 md:text-blue-400" : "text-slate-600"}`}>
                     ({pending.length + approved.length})
                   </span>
                 )}
               </button>
-              <button
-                onClick={() => setView("archive")}
-                className={`px-3 py-2 rounded-lg transition-colors ${view === "archive" ? "bg-slate-700 text-white" : "text-slate-500"}`}
-              >
+              <button onClick={() => setView("archive")}
+                className={`px-3 py-1.5 rounded md:rounded-none transition-colors md:border-b-2 md:border-transparent ${
+                  view === "archive"
+                    ? "bg-slate-700 md:bg-transparent text-white md:border-slate-500"
+                    : "text-slate-500 hover:text-slate-300"
+                }`}>
                 ארכיון
               </button>
             </div>
           </div>
         </header>
+
+        {/* ── Desktop suggestions dropdown ── */}
+        <AnimatePresence>
+          {overlayOpen && inputVal.trim() && (
+            <motion.div
+              key="desktop-sugg"
+              initial={{ opacity: 0, y: -4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              transition={{ duration: 0.1 }}
+              className="hidden md:block fixed top-12 z-50 bg-slate-900 border border-white/10 rounded-lg shadow-2xl overflow-hidden"
+              style={{ right: "220px", width: "320px" }}
+            >
+              <div className="max-h-72 overflow-y-auto p-1">
+                {inputVal.trim() && !exactMatch && (
+                  <button onClick={handleAddInput}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded text-sm font-medium text-blue-300 bg-blue-600/10 hover:bg-blue-600/20 transition-colors mb-1">
+                    <Plus className="w-3.5 h-3.5 shrink-0" />
+                    הוסף "{inputVal.trim()}"
+                  </button>
+                )}
+                {suggestions.length > 0 ? (
+                  suggestions.map((p) => {
+                    const inList = alreadyInList(p.name);
+                    const added  = justAdded === p.id || justAdded === p.name.replace(/\//g, "-");
+                    return (
+                      <button key={p.id}
+                        onClick={() => { if (!inList) { addProduct(p.name, p.category); setInputVal(""); setOverlayOpen(false); inputRef.current?.blur(); } }}
+                        disabled={inList}
+                        className={`w-full flex items-center gap-2.5 px-3 py-2 rounded text-sm transition-colors text-right ${
+                          added    ? "bg-emerald-500/10 text-emerald-300" :
+                          inList   ? "text-slate-600 cursor-default" :
+                                     "text-slate-300 hover:bg-white/5"
+                        }`}>
+                        {added ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                               : inList ? <Check className="w-3.5 h-3.5 text-slate-600 shrink-0" />
+                               : <Plus className="w-3.5 h-3.5 text-slate-500 shrink-0" />}
+                        <span className="flex-1">{p.name}</span>
+                        <CatBadge cat={p.category} />
+                      </button>
+                    );
+                  })
+                ) : (
+                  <p className="text-center text-slate-600 text-xs py-4">לא נמצאו תוצאות</p>
+                )}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Desktop click-outside to close */}
+        {overlayOpen && (
+          <div className="hidden md:block fixed inset-0 z-40"
+            onClick={() => { setOverlayOpen(false); inputRef.current?.blur(); }} />
+        )}
 
         {/* ── Main ── */}
         <main className="flex-1 max-w-2xl w-full mx-auto px-4 sm:px-6 py-5 pb-28 overflow-y-auto">
@@ -351,18 +432,18 @@ export default function ShoppingPage() {
           )}
         </main>
 
-        {/* ── Bottom add-bar ── */}
-        <div className="fixed bottom-0 left-0 right-0 z-40 bg-slate-950 border-t border-white/10 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+        {/* ── Bottom add-bar — mobile only ── */}
+        <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-slate-950 border-t border-white/10 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
           <div className="max-w-2xl mx-auto flex gap-2 items-center">
             <div className="flex-1 relative">
               <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 pointer-events-none" />
               <input
-                ref={inputRef}
+                ref={mobileInputRef}
                 type="search"
                 value={inputVal}
                 onChange={(e) => setInputVal(e.target.value)}
                 onFocus={() => setOverlayOpen(true)}
-                onKeyDown={(e) => { if (e.key === "Enter") handleAddInput(); if (e.key === "Escape") { setOverlayOpen(false); inputRef.current?.blur(); } }}
+                onKeyDown={(e) => { if (e.key === "Enter") handleAddInput(); if (e.key === "Escape") { setOverlayOpen(false); mobileInputRef.current?.blur(); } }}
                 placeholder="הוסף מוצר לרשימה..."
                 aria-label="הוספת מוצר"
                 className="w-full bg-white/8 border border-white/10 rounded-xl py-3 pr-9 pl-4 text-sm focus:outline-none focus:border-blue-500 focus:bg-white/10 transition-all placeholder:text-slate-600"
