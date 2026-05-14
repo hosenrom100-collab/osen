@@ -58,8 +58,11 @@ const migrateActivity = (a: any): Activity => ({
 
 /* ─────────────────── Component ─────────────────── */
 
-export default function SchedulePage() {
-  const router = useRouter();
+import { Suspense } from "react";
+
+function SchedulePageInner() {
+  const router       = useRouter();
+  const searchParams = useSearchParams();
 
   const [date,      setDate]      = useState(new Date().toISOString().split("T")[0]);
   const [schedule,  setSchedule]  = useState<DaySchedule>(EMPTY_SCHEDULE);
@@ -70,8 +73,8 @@ export default function SchedulePage() {
   const [saving,    setSaving]    = useState(false);
   const [saved,     setSaved]     = useState(false);
 
-  /** "all" | "staff_only" | group.id */
-  const [viewFilter, setViewFilter] = useState("all");
+  /** "all" | "staff_only" | group.id  — initialized from ?group= param */
+  const [viewFilter, setViewFilter] = useState(searchParams.get("group") || "all");
 
   /** null = hidden, "new" = new activity modal, Activity = edit */
   const [editingActivity, setEditingActivity] = useState<Activity | null | "new">(null);
@@ -357,6 +360,18 @@ export default function SchedulePage() {
 
       </div>
     </RoleGuard>
+  );
+}
+
+export default function SchedulePage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+        <Loader2 className="w-7 h-7 text-rose-400 animate-spin" />
+      </div>
+    }>
+      <SchedulePageInner />
+    </Suspense>
   );
 }
 
