@@ -54,7 +54,7 @@ export default function Home() {
   }, [user, isWhitelisted]);
 
   const fetchAll = async () => {
-    const today = new Date().toISOString().split("T")[0];
+    const today = format(new Date(), "yyyy-MM-dd");
     const now   = format(new Date(), "HH:mm");
     try {
       const groupsSnap = await getDocs(query(collection(db, "groups"), orderBy("name")));

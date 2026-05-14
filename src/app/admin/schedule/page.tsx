@@ -64,7 +64,7 @@ function SchedulePageInner() {
   const router       = useRouter();
   const searchParams = useSearchParams();
 
-  const [date,      setDate]      = useState(new Date().toISOString().split("T")[0]);
+  const [date,      setDate]      = useState(format(new Date(), "yyyy-MM-dd"));
   const [schedule,  setSchedule]  = useState<DaySchedule>(EMPTY_SCHEDULE);
   const [staff,     setStaff]     = useState<Person[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
@@ -73,8 +73,8 @@ function SchedulePageInner() {
   const [saving,    setSaving]    = useState(false);
   const [saved,     setSaved]     = useState(false);
 
-  /** "all" | "staff_only" | group.id  — initialized from ?group= param */
-  const [viewFilter, setViewFilter] = useState(searchParams.get("group") || "all");
+  /** "show_all" | "staff_only" | group.id  — initialized from ?group= param */
+  const [viewFilter, setViewFilter] = useState(searchParams.get("group") || "show_all");
 
   /** null = hidden, "new" = new activity modal, Activity = edit */
   const [editingActivity, setEditingActivity] = useState<Activity | null | "new">(null);
@@ -138,7 +138,7 @@ function SchedulePageInner() {
 
   const visibleActivities = useMemo(() =>
     schedule.activities
-      .filter(a => viewFilter === "all" || a.groupId === viewFilter)
+      .filter(a => viewFilter === "show_all" || a.groupId === viewFilter)
       .sort((a, b) => a.startTime.localeCompare(b.startTime)),
     [schedule.activities, viewFilter]
   );
@@ -217,13 +217,13 @@ function SchedulePageInner() {
               </div>
               {/* Date navigation */}
               <div className="flex items-center gap-1">
-                <button onClick={() => setDate(subDays(dateObj,1).toISOString().split("T")[0])}
+                <button onClick={() => setDate(format(subDays(dateObj, 1), "yyyy-MM-dd"))}
                   className="p-2 rounded-xl bg-white/5 border border-white/10 active:scale-95 transition-all">
                   <ChevronRight className="w-4 h-4" />
                 </button>
                 <input type="date" value={date} onChange={e => setDate(e.target.value)}
                   className="bg-white/5 border border-white/10 rounded-xl px-2 py-1.5 text-xs font-bold text-blue-400 focus:outline-none focus:border-blue-500 w-28" />
-                <button onClick={() => setDate(addDays(dateObj,1).toISOString().split("T")[0])}
+                <button onClick={() => setDate(format(addDays(dateObj, 1), "yyyy-MM-dd"))}
                   className="p-2 rounded-xl bg-white/5 border border-white/10 active:scale-95 transition-all">
                   <ChevronLeft className="w-4 h-4" />
                 </button>
@@ -232,7 +232,7 @@ function SchedulePageInner() {
 
             {/* Row 2: view filter tabs */}
             <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-4 px-4">
-              {[{ id: "all", label: "הכל" }, ...sections.map(s => ({ id: s.id, label: s.label }))].map(tab => (
+              {[{ id: "show_all", label: "הכל" }, ...sections.map(s => ({ id: s.id, label: s.label }))].map(tab => (
                 <button key={tab.id} onClick={() => setViewFilter(tab.id)}
                   className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all border ${
                     viewFilter === tab.id
@@ -271,8 +271,8 @@ function SchedulePageInner() {
                 </select>
               </div>
 
-              {/* Sections — when viewing "all", render each section; otherwise render filtered list */}
-              {viewFilter === "all" ? (
+              {/* Sections — when viewing "show_all", render each section; otherwise render filtered list */}
+              {viewFilter === "show_all" ? (
                 sections.map(section => {
                   const acts = schedule.activities
                     .filter(a => a.groupId === section.id)

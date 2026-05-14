@@ -42,7 +42,7 @@ export default function AttendanceOverviewPage() {
   const [data,     setData]     = useState<ProgramData[]>([]);
   const [loading,  setLoading]  = useState(true);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
-  const today = new Date().toISOString().split("T")[0];
+  const today = format(new Date(), "yyyy-MM-dd");
 
   useEffect(() => { fetchAll(); }, []);
 
