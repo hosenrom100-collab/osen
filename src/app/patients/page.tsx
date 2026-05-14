@@ -527,7 +527,7 @@ export default function PatientsPage() {
                       <span className={`flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full border ${
                         r.status === "present" ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : "bg-rose-500/10 text-rose-400 border-rose-500/20"
                       }`}>
-                        {r.status === "present" ? <><Check className="w-3 h-3" />נוכח</> : <><X className="w-3 h-3" />נפקד</>}
+                        {r.status === "present" ? <><Check className="w-3 h-3" />נוכח</> : <><X className="w-3 h-3" />נעדר</>}
                       </span>
                     </div>
                   ))}

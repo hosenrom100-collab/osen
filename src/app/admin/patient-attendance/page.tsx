@@ -370,7 +370,7 @@ function AttendancePageContent() {
                                   isPresent ? "bg-emerald-500 shadow-[0_0_8px_rgba(var(--primary-rgb),0.5)]" : 
                                   isAbsent ? "bg-rose-500" : "bg-[var(--foreground)]/20"
                                 }`} />
-                                {isPresent ? "נוכח במרכז" : isAbsent ? "נפקד / חסר" : "טרם דווח"}
+                                {isPresent ? "נוכח במרכז" : isAbsent ? "נעדר / חסר" : "טרם דווח"}
                               </span>
                             </div>
                           </td>
@@ -394,7 +394,7 @@ function AttendancePageContent() {
                                     : "bg-[var(--foreground)]/5 text-[var(--foreground)]/40 hover:bg-rose-500/10 hover:text-rose-500 border border-[var(--border)]"
                                 }`}
                               >
-                                <X className="w-3.5 h-3.5" /> נפקד
+                                <X className="w-3.5 h-3.5" /> נעדר
                               </button>
                             </div>
                           </td>
@@ -413,7 +413,7 @@ function AttendancePageContent() {
                     </div>
                     <div className="w-px h-6 bg-[var(--border)]" />
                     <div className="flex flex-col">
-                      <span className="text-[10px] font-black text-[var(--foreground)]/40 uppercase tracking-widest mb-0.5">סה"כ נפקדים</span>
+                      <span className="text-[10px] font-black text-[var(--foreground)]/40 uppercase tracking-widest mb-0.5">סה"כ נעדרים</span>
                       <span className="text-sm font-black text-rose-500">{stats.absent}</span>
                     </div>
                   </div>

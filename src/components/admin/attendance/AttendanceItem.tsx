@@ -48,7 +48,7 @@ export function AttendanceItem({ patient, status, onToggle }: AttendanceItemProp
               isAbsent  ? "text-rose-500" :
               "text-[var(--foreground)]/40"
             }`}>
-              {isPresent ? "נוכח היום" : isAbsent ? "נפקד" : "טרם נסמן"}
+              {isPresent ? "נוכח היום" : isAbsent ? "נעדר" : "טרם נסמן"}
             </p>
           </div>
 
@@ -72,7 +72,7 @@ export function AttendanceItem({ patient, status, onToggle }: AttendanceItemProp
             }`}
           >
             <X className="w-4 h-4" />
-            נפקד
+            נעדר
           </motion.button>
 
           <div className="w-px bg-[var(--border)]" />

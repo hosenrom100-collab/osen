@@ -179,7 +179,7 @@ function AttendanceLogPageContent() {
                 <div className={`px-3 py-1 rounded-full text-[10px] font-bold ${
                   record.status === "present" ? "text-emerald-400 bg-emerald-500/5" : "text-rose-400 bg-rose-500/5"
                 }`}>
-                  {record.status === "present" ? "נוכח" : "נפקד"}
+                  {record.status === "present" ? "נוכח" : "נעדר"}
                 </div>
               </motion.div>
             ))}
