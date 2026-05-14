@@ -3,6 +3,8 @@
 import { useAuth } from "@/context/AuthContext";
 import { RoleGuard } from "@/components/auth/RoleGuard";
 import { useState, useEffect } from "react";
+import { format } from "date-fns";
+import { he } from "date-fns/locale";
 import { db } from "@/lib/firebase/config";
 import { 
   collection, getDocs, query, orderBy, doc, updateDoc, where, getDoc, setDoc 
@@ -154,7 +156,7 @@ export default function LeaveManagementPage() {
                       <td className="px-6 py-4 text-slate-300">
                         <div className="flex items-center gap-2">
                           <Calendar className="w-4 h-4 text-slate-500" />
-                          {req.date}
+                          {req.date ? format(new Date(req.date + "T12:00:00"), "dd/MM/yyyy") : "—"}
                         </div>
                       </td>
                       <td className="px-6 py-4 text-slate-400 text-sm italic">
@@ -210,7 +212,7 @@ export default function LeaveManagementPage() {
                       <div className="flex items-center gap-4 mt-1 text-slate-400 text-sm">
                         <span className="flex items-center gap-1">
                           <Calendar className="w-4 h-4" />
-                          {req.date}
+                          {req.date ? format(new Date(req.date + "T12:00:00"), "dd/MM/yyyy") : "—"}
                         </span>
                         {req.reason && (
                           <span className="flex items-center gap-1">

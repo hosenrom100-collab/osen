@@ -4,6 +4,8 @@ import { RoleGuard } from "@/components/auth/RoleGuard";
 import { useState, useEffect, useMemo, Fragment } from "react";
 import { db } from "@/lib/firebase/config";
 import { collection, getDocs, query, orderBy, doc, updateDoc, where } from "firebase/firestore";
+import { format } from "date-fns";
+import { he } from "date-fns/locale";
 import {
   Search, ArrowRight, User, Loader2, Calendar, Plus, Edit3,
   ChevronLeft, AlertCircle, RefreshCw, Check, X, ArrowLeftRight,
@@ -422,11 +424,13 @@ export default function PatientsPage() {
                                             ))}
                                           </select>
                                         </td>
-                                        <td className="px-4 py-3 text-xs text-slate-500 whitespace-nowrap">{p.startDate}</td>
+                                        <td className="px-4 py-3 text-xs text-slate-500 whitespace-nowrap">
+                                          {p.startDate ? format(new Date(p.startDate + "T12:00:00"), "dd/MM/yyyy") : "—"}
+                                        </td>
                                         <td className="px-4 py-3 whitespace-nowrap">
                                           <div className="flex items-center gap-1.5">
                                             <button onClick={() => fetchHistory(p)} aria-label="נוכחות" className="p-1.5 rounded-lg bg-white/5 hover:bg-emerald-500/10 text-slate-500 hover:text-emerald-400 transition-all"><Calendar className="w-3.5 h-3.5" /></button>
-                                            <button onClick={() => { setEditPatient(p); setEditForm({ firstName: p.firstName, lastName: p.lastName, idNumber: p.idNumber, hosenType: p.hosenType, assignedWorkerId: p.assignedWorkerId, status: p.status }); }}
+                                            <button onClick={() => { setEditPatient(p); setEditForm({ firstName: p.firstName, lastName: p.lastName, idNumber: p.idNumber, hosenType: p.hosenType, assignedWorkerId: p.assignedWorkerId, status: p.status, startDate: p.startDate, endDate: p.endDate }); }}
                                               aria-label="עריכה" className="p-1.5 rounded-lg bg-white/5 hover:bg-blue-500/10 text-slate-500 hover:text-blue-400 transition-all"><Edit3 className="w-3.5 h-3.5" /></button>
                                             <button onClick={() => router.push(`/patients/${p.id}`)} aria-label="פרופיל" className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-500 hover:text-white transition-all"><ChevronLeft className="w-3.5 h-3.5" /></button>
                                           </div>
@@ -482,7 +486,7 @@ export default function PatientsPage() {
                                             <Calendar className="w-3.5 h-3.5" /> נוכחות
                                           </button>
                                           <div className="w-px bg-white/5" />
-                                          <button onClick={() => { setEditPatient(p); setEditForm({ firstName: p.firstName, lastName: p.lastName, idNumber: p.idNumber, hosenType: p.hosenType, assignedWorkerId: p.assignedWorkerId, status: p.status }); }}
+                                          <button onClick={() => { setEditPatient(p); setEditForm({ firstName: p.firstName, lastName: p.lastName, idNumber: p.idNumber, hosenType: p.hosenType, assignedWorkerId: p.assignedWorkerId, status: p.status, startDate: p.startDate, endDate: p.endDate }); }}
                                             className="flex-1 h-10 flex items-center justify-center gap-1.5 text-[11px] font-bold text-slate-500 hover:text-blue-400 hover:bg-blue-500/5 transition-colors">
                                             <Edit3 className="w-3.5 h-3.5" /> עריכה
                                           </button>
@@ -533,7 +537,7 @@ export default function PatientsPage() {
                     <p className="text-slate-500 text-sm text-center py-10">אין רישומי נוכחות</p>
                   ) : history.map((r, i) => (
                     <div key={i} className="flex items-center justify-between p-3 bg-white/[0.03] rounded-xl border border-white/5">
-                      <p className="text-sm font-semibold">{r.date}</p>
+                      <p className="text-sm font-semibold">{r.date ? format(new Date(r.date + "T12:00:00"), "dd/MM/yyyy") : "—"}</p>
                       <span className={`flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full border ${
                         r.status === "present" ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : "bg-rose-500/10 text-rose-400 border-rose-500/20"
                       }`}>
@@ -586,6 +590,29 @@ export default function PatientsPage() {
                       <option value="">בחר קבוצה</option>
                       {groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
                     </select>
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1.5">עו״ס אחראי</label>
+                    <select value={editForm.assignedWorkerId || ""}
+                      onChange={e => setEditForm(f => ({ ...f, assignedWorkerId: e.target.value }))}
+                      className="w-full bg-slate-800 border border-white/10 rounded-xl p-3 text-sm focus:border-blue-500 outline-none transition-colors">
+                      <option value="">בחר עו״ס</option>
+                      {socialWorkers.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
+                    </select>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1.5">תאריך התחלה</label>
+                      <input type="date" value={editForm.startDate || ""}
+                        onChange={e => setEditForm(f => ({ ...f, startDate: e.target.value }))}
+                        className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-sm focus:border-blue-500 outline-none transition-colors" />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1.5">תאריך סיום</label>
+                      <input type="date" value={editForm.endDate || ""}
+                        onChange={e => setEditForm(f => ({ ...f, endDate: e.target.value }))}
+                        className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-sm focus:border-blue-500 outline-none transition-colors" />
+                    </div>
                   </div>
                   <div>
                     <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1.5">סטטוס</label>
