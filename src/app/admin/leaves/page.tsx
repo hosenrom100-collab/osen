@@ -4,10 +4,13 @@ import { useAuth } from "@/context/AuthContext";
 import { RoleGuard } from "@/components/auth/RoleGuard";
 import { useState, useEffect } from "react";
 import { db } from "@/lib/firebase/config";
-import { collection, getDocs, query, orderBy, doc, updateDoc, where } from "firebase/firestore";
+import { 
+  collection, getDocs, query, orderBy, doc, updateDoc, where, getDoc, setDoc 
+} from "firebase/firestore";
 import { AlertCircle, CheckCircle, XCircle, ArrowRight, Loader2, MessageSquare, User, Calendar } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
+import { sendPush } from "@/lib/notify";
 
 export default function LeaveManagementPage() {
   const [requests, setRequests] = useState<any[]>([]);
@@ -44,12 +47,51 @@ export default function LeaveManagementPage() {
     setUpdatingId(requestId);
     try {
       const requestDoc = doc(db, "absences", requestId);
+      const reqSnap = await getDoc(requestDoc);
+      const reqData = reqSnap.data();
+
       await updateDoc(requestDoc, { 
         status,
         handledAt: new Date().toISOString()
       });
       
-      // Optionally notify user via /api/notify if implemented
+      if (status === "approved" && reqData) {
+        // Automatically add to schedule
+        const date = reqData.date; // yyyy-MM-dd
+        const schedRef = doc(db, "schedules", date);
+        const schedSnap = await getDoc(schedRef);
+        
+        const newActivity = {
+          id: Math.random().toString(36).slice(2, 9),
+          title: `היעדרות: ${reqData.userName}`,
+          startTime: "08:00",
+          endTime: "16:00",
+          locationId: "office",
+          staffIds: [],
+          groupId: "staff_only",
+          notes: reqData.reason || "היעדרות מאושרת"
+        };
+
+        if (schedSnap.exists()) {
+          const current = schedSnap.data().activities || [];
+          await updateDoc(schedRef, {
+            activities: [...current, newActivity]
+          });
+        } else {
+          await setDoc(schedRef, {
+            activities: [newActivity],
+            dutyInstructorId: ""
+          });
+        }
+
+        // Notify user
+        await sendPush({
+          userId: reqData.userId,
+          title: "✅ בקשת ההיעדרות אושרה",
+          body: `בקשתך ליום ${date} אושרה ונוספה ללו"ז.`,
+          link: "/profile"
+        });
+      }
       
       setRequests(prev => prev.filter(r => r.id !== requestId));
       alert(`הבקשה ${status === "approved" ? "אושרה" : "נדחתה"} בהצלחה`);

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, ClipboardList, Users, ShoppingCart, Calendar } from "lucide-react";
+import { Home, ClipboardList, Users, ShoppingCart, User } from "lucide-react";
 import { motion } from "framer-motion";
 
 const navItems = [
@@ -10,7 +10,7 @@ const navItems = [
   { href: "/attendance", icon: ClipboardList, label: "נוכחות"  },
   { href: "/patients",   icon: Users,         label: "מטופלים" },
   { href: "/shopping",   icon: ShoppingCart,  label: "קניות"   },
-  { href: "/calendar",   icon: Calendar,      label: "יומן"    },
+  { href: "/profile",    icon: User,          label: "אזור אישי" },
 ];
 
 export function BottomNav() {

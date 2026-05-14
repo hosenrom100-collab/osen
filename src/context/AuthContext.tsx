@@ -24,6 +24,8 @@ interface AuthContextType {
   isInstructor:    boolean;
   isEmployee:      boolean;
   isWhitelisted:   boolean;
+  phoneNumber?:    string;
+  workDays?:       number[]; // 0=Sunday, 1=Monday...
   login:           () => Promise<void>;
   logout:          () => Promise<void>;
 }
@@ -43,6 +45,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isInstructor,   setIsInstructor]   = useState(false);
   const [isEmployee,     setIsEmployee]     = useState(false);
   const [isWhitelisted,  setIsWhitelisted]  = useState(false);
+  const [phoneNumber,    setPhoneNumber]    = useState<string | undefined>();
+  const [workDays,       setWorkDays]       = useState<number[] | undefined>();
   const router = useRouter();
 
   useEffect(() => {
@@ -67,6 +71,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setIsLogistics(userRole === "logistics");
             setIsInstructor(userRole === "instructor");
             setIsEmployee(userRole === "employee");
+            setPhoneNumber(data.phone);
+            setWorkDays(data.workDays);
             setUser(firebaseUser);
           } else {
             setUser(firebaseUser);
@@ -129,6 +135,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     <AuthContext.Provider value={{
       user, loading, role, status, assignedGroups, primaryGroupId, setPrimaryGroupId,
       isAdmin, isManager, isLogistics, isInstructor, isEmployee, isWhitelisted,
+      phoneNumber, workDays,
       login, logout,
     }}>
       {children}
