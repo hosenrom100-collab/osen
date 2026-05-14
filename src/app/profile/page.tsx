@@ -98,9 +98,13 @@ export default function ProfilePage() {
   };
 
   const DAYS = [
-    { id: "0", label: "ראשון" }, { id: "1", label: "שני" }, { id: "2", label: "שלישי" },
-    { id: "3", label: "רביעי" }, { id: "4", label: "חמישי" }, { id: "5", label: "שישי" },
-    { id: "6", label: "שבת" }
+    { id: "0", label: "ראשון", abbr: "א" }, 
+    { id: "1", label: "שני", abbr: "ב" }, 
+    { id: "2", label: "שלישי", abbr: "ג" },
+    { id: "3", label: "רביעי", abbr: "ד" }, 
+    { id: "4", label: "חמישי", abbr: "ה" }, 
+    { id: "5", label: "שישי", abbr: "ו" },
+    { id: "6", label: "שבת", abbr: "ש" }
   ];
 
   const ROLE_HE: Record<string, string> = {
@@ -201,16 +205,16 @@ export default function ProfilePage() {
                       </button>
                     </div>
 
-                    <div className="grid grid-cols-7 gap-1.5">
+                    <div className="grid grid-cols-7 gap-2">
                       {DAYS.map(d => (
-                        <div key={d.id} className="flex flex-col items-center gap-2">
-                          <p className="text-[10px] font-black text-[var(--foreground)]/30 uppercase">{d.label.slice(0,1)}</p>
-                          <div className={`w-full aspect-square rounded-xl border flex items-center justify-center transition-all ${
+                        <div key={d.id} className="flex flex-col items-center gap-3">
+                          <p className="text-sm font-black text-[var(--foreground)]/40">{d.abbr}</p>
+                          <div className={`w-full aspect-square rounded-2xl border flex items-center justify-center transition-all ${
                             workSchedule?.[d.id] 
                               ? 'bg-rose-500 border-rose-500 shadow-lg shadow-rose-500/20 text-white' 
                               : 'bg-[var(--foreground)]/[0.03] border-[var(--border)] opacity-20'
                           }`}>
-                            {workSchedule?.[d.id] && <Check className="w-3.5 h-3.5" />}
+                            {workSchedule?.[d.id] && <Check className="w-4 h-4" />}
                           </div>
                         </div>
                       ))}

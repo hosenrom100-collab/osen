@@ -7,10 +7,13 @@ import { collection, getDocs, doc, deleteDoc } from "firebase/firestore";
 import { 
   Users, Search, Plus, Filter, MoreHorizontal, 
   Trash2, User, ChevronLeft, LayoutGrid, List,
-  Loader2, ExternalLink, Calendar, Shield, Phone
+  Loader2, ExternalLink, Calendar, Shield, Phone,
+  Briefcase, CalendarDays
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
+import { format } from "date-fns";
+import { he } from "date-fns/locale";
 
 interface Patient {
   id: string;
@@ -21,6 +24,7 @@ interface Patient {
   status: string;
   assignedWorkerId?: string;
   startDate?: string;
+  endDate?: string;
   phone?: string;
   fullName?: string;
 }
@@ -30,9 +34,15 @@ interface Group {
   name: string;
 }
 
+interface Staff {
+  id: string;
+  name: string;
+}
+
 export default function PatientsPage() {
   const [patients, setPatients] = useState<Patient[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
+  const [staff, setStaff] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedGroup, setSelectedGroup] = useState<string>("all");
@@ -42,13 +52,21 @@ export default function PatientsPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [pSnap, gSnap] = await Promise.all([
+        const [pSnap, gSnap, uSnap] = await Promise.all([
           getDocs(collection(db, "patients")),
-          getDocs(collection(db, "groups"))
+          getDocs(collection(db, "groups")),
+          getDocs(collection(db, "users"))
         ]);
         
         setPatients(pSnap.docs.map(d => ({ id: d.id, ...d.data() } as Patient)));
         setGroups(gSnap.docs.map(d => ({ id: d.id, name: d.data().name } as Group)));
+        
+        const staffMap: Record<string, string> = {};
+        uSnap.forEach(d => {
+          const data = d.data();
+          staffMap[d.id] = data.displayName || data.name || data.email;
+        });
+        setStaff(staffMap);
       } catch (err) {
         console.error(err);
       } finally {
@@ -78,6 +96,15 @@ export default function PatientsPage() {
     }
   };
 
+  const formatDate = (dateStr?: string) => {
+    if (!dateStr) return "—";
+    try {
+      return format(new Date(dateStr), "dd/MM/yy", { locale: he });
+    } catch {
+      return dateStr;
+    }
+  };
+
   return (
     <RoleGuard allowedRoles={["admin", "manager", "instructor", "social_worker", "employee"]} redirectTo="/">
       <main className="min-h-screen bg-[var(--background)] text-[var(--foreground)] p-4 md:p-8">
@@ -94,7 +121,6 @@ export default function PatientsPage() {
             </div>
 
             <div className="flex items-center gap-3">
-               {/* View Toggle */}
                <div className="flex bg-[var(--foreground)]/5 p-1 rounded-xl border border-[var(--border)] mr-4">
                   <button onClick={() => setViewMode("table")} className={`p-2 rounded-lg transition-all ${viewMode === 'table' ? 'bg-[var(--foreground)] text-[var(--background)] shadow-sm' : 'text-[var(--foreground)]/40'}`}>
                     <List className="w-4 h-4" />
@@ -114,7 +140,6 @@ export default function PatientsPage() {
             </div>
           </div>
 
-          {/* Filters Bar */}
           <div className="mt-8 grid grid-cols-1 md:grid-cols-12 gap-4">
             <div className="md:col-span-5 relative group">
               <Search className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--foreground)]/20 group-focus-within:text-emerald-500 transition-colors" />
@@ -140,7 +165,6 @@ export default function PatientsPage() {
           </div>
         </div>
 
-        {/* Content Area */}
         <div className="max-w-7xl mx-auto">
           {loading ? (
             <div className="flex flex-col items-center justify-center py-40 gap-4 opacity-20">
@@ -152,7 +176,6 @@ export default function PatientsPage() {
               <p className="text-lg font-bold italic">לא נמצאו מטופלים העונים לחיפוש</p>
             </div>
           ) : viewMode === "table" ? (
-            /* ─── TABLE VIEW ─── */
             <div className="bg-[var(--card-bg)] border border-[var(--border)] rounded-[2.5rem] overflow-hidden shadow-2xl shadow-black/10">
               <div className="overflow-x-auto no-scrollbar">
                 <table className="w-full text-right border-collapse">
@@ -160,9 +183,11 @@ export default function PatientsPage() {
                     <tr className="bg-[var(--foreground)]/[0.03] border-b border-[var(--border)]">
                       <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-[var(--foreground)]/30">מטופל</th>
                       <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-[var(--foreground)]/30">תעודת זהות</th>
+                      <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-[var(--foreground)]/30">עו"ס מלווה</th>
                       <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-[var(--foreground)]/30">תוכנית</th>
+                      <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-[var(--foreground)]/30">תאריך התחלה</th>
+                      <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-[var(--foreground)]/30">תאריך סיום</th>
                       <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-[var(--foreground)]/30">סטטוס</th>
-                      <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-[var(--foreground)]/30">טלפון</th>
                       <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-[var(--foreground)]/30 w-20"></th>
                     </tr>
                   </thead>
@@ -185,17 +210,24 @@ export default function PatientsPage() {
                         </td>
                         <td className="px-6 py-5 text-xs font-bold font-mono opacity-60">{p.idNumber}</td>
                         <td className="px-6 py-5">
+                          <div className="flex items-center gap-2">
+                             <Briefcase className="w-3.5 h-3.5 text-emerald-500/40" />
+                             <span className="text-xs font-bold">{staff[p.assignedWorkerId || ""] || "לא שובץ"}</span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-5">
                           <span className="px-3 py-1 rounded-full bg-[var(--foreground)]/5 border border-[var(--border)] text-[10px] font-black">
                             {groups.find(g => g.id === p.hosenType)?.name || p.hosenType || "כללי"}
                           </span>
                         </td>
+                        <td className="px-6 py-5 text-xs font-bold opacity-60">{formatDate(p.startDate)}</td>
+                        <td className="px-6 py-5 text-xs font-bold opacity-60">{formatDate(p.endDate)}</td>
                         <td className="px-6 py-5">
                           <div className="flex items-center gap-2">
                             <div className={`w-1.5 h-1.5 rounded-full ${p.status === 'active' ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-slate-400'}`} />
                             <span className="text-xs font-bold">{p.status === 'active' ? 'פעיל' : 'לא פעיל'}</span>
                           </div>
                         </td>
-                        <td className="px-6 py-5 text-xs font-bold opacity-60">{p.phone || "—"}</td>
                         <td className="px-6 py-5 text-left">
                           <button 
                             onClick={(e) => handleDelete(p.id, e)}
@@ -211,7 +243,6 @@ export default function PatientsPage() {
               </div>
             </div>
           ) : (
-            /* ─── CARDS VIEW ─── */
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {filtered.map((p) => (
                 <motion.div 
@@ -232,6 +263,17 @@ export default function PatientsPage() {
                   <div className="space-y-1 mb-6">
                     <h3 className="text-lg font-black tracking-tight">{p.firstName} {p.lastName}</h3>
                     <p className="text-[10px] font-black text-[var(--foreground)]/30 uppercase tracking-widest">{p.idNumber}</p>
+                  </div>
+
+                  <div className="space-y-3 mb-6">
+                    <div className="flex items-center gap-2 text-xs font-bold text-[var(--foreground)]/60">
+                       <Briefcase className="w-3.5 h-3.5 text-emerald-500" />
+                       {staff[p.assignedWorkerId || ""] || "לא שובץ"}
+                    </div>
+                    <div className="flex items-center gap-2 text-[10px] font-black text-[var(--foreground)]/30">
+                       <CalendarDays className="w-3.5 h-3.5" />
+                       {formatDate(p.startDate)} - {formatDate(p.endDate)}
+                    </div>
                   </div>
 
                   <div className="flex items-center gap-2 mb-6">

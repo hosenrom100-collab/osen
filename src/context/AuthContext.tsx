@@ -7,12 +7,13 @@ import { doc, getDoc, updateDoc, onSnapshot } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 
 export type UserRole = "admin" | "manager" | "instructor" | "social_worker" | "employee" | "logistics";
-export type UserStatus = "pending" | "approved" | "rejected";
+export type UserStatus = "pending" | "approved" | "rejected" | "blocked";
 
 interface AuthContextType {
   user:            User | null;
   loading:         boolean;
   role:            UserRole | null;
+  roles:           UserRole[];
   status:          UserStatus | null;
   assignedGroups:  string[];
   primaryGroupId:  string | null;
@@ -40,6 +41,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user,           setUser]           = useState<User | null>(null);
   const [loading,        setLoading]        = useState(true);
   const [role,           setRole]           = useState<UserRole | null>(null);
+  const [roles,          setRoles]          = useState<UserRole[]>([]);
   const [status,         setStatus]         = useState<UserStatus | null>(null);
   const [assignedGroups,       setAssignedGroups]       = useState<string[]>([]);
   const [primaryGroupId,       setPrimaryGroupIdState]   = useState<string | null>(null);
@@ -63,15 +65,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (firebaseUser) {
         setUser(firebaseUser);
         
-        // Listen to user document changes in real-time
         unsubscribeUserDoc = onSnapshot(doc(db, "users", firebaseUser.uid), (snap) => {
           if (snap.exists()) {
             const data       = snap.data();
             const userRole   = data.role as UserRole;
+            const userRoles  = (data.roles as UserRole[]) || (userRole ? [userRole] : []);
             const userStatus = (data.status as UserStatus) || "approved";
 
             setStatus(userStatus);
             setRole(userRole);
+            setRoles(userRoles);
             setAssignedGroups(data.assignedGroups || []);
             setPrimaryGroupIdState(data.primaryGroupId || null);
             setPreferredProgramIdsState(data.preferredProgramIds || []);
@@ -79,17 +82,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
             const approved = userStatus === "approved";
             setIsWhitelisted(approved);
-            setIsAdmin(userRole === "admin");
-            setIsManager(userRole === "manager" || userRole === "admin");
-            setIsLogistics(userRole === "logistics");
-            setIsInstructor(userRole === "instructor");
-            setIsEmployee(userRole === "employee");
+            
+            // Check if any role matches admin/manager
+            setIsAdmin(userRoles.includes("admin"));
+            setIsManager(userRoles.includes("manager") || userRoles.includes("admin"));
+            setIsLogistics(userRoles.includes("logistics"));
+            setIsInstructor(userRoles.includes("instructor"));
+            setIsEmployee(userRoles.includes("employee") || userRoles.includes("social_worker"));
+            
             setPhoneNumber(data.phone);
             setWorkSchedule(data.workSchedule);
             setOnboardingComplete(!!data.onboardingComplete);
           } else {
             setIsWhitelisted(false);
             setRole(null);
+            setRoles([]);
             setStatus("pending");
             setAssignedGroups([]);
           }
@@ -103,6 +110,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(null);
         setIsWhitelisted(false);
         setRole(null);
+        setRoles([]);
         setStatus(null);
         setLoading(false);
         if (unsubscribeUserDoc) unsubscribeUserDoc();
@@ -142,7 +150,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <AuthContext.Provider value={{
-      user, loading, role, status, assignedGroups, primaryGroupId,
+      user, loading, role, roles, status, assignedGroups, primaryGroupId,
       preferredProgramIds, preferredGroupIds,
       setPrimaryGroupId, setPreferredPrograms, setPreferredGroups,
       isAdmin, isManager, isLogistics, isInstructor, isEmployee, isWhitelisted,

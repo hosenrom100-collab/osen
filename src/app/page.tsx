@@ -368,7 +368,7 @@ export default function Home() {
                       onChange={e => updateDuty(e.target.value)}
                       onBlur={() => setIsEditingDuty(false)}
                       className="bg-[var(--surface)] border border-[var(--border)] rounded-lg px-2 py-1 text-xs outline-none focus:border-[var(--primary)]">
-                      <option value="">ללא תורן</option>
+                      <option value="">ללא מדריך תורן</option>
                       {allStaff.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                     </select>
                   ) : dutyName ? (
@@ -377,13 +377,13 @@ export default function Home() {
                       className="flex items-center gap-1.5 text-[10px] font-medium text-rose-500 bg-rose-500/8 px-2 py-1 rounded-lg border border-rose-500/15 hover:bg-rose-500/12 transition-colors"
                     >
                       <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
-                      תורן: {dutyName}
+                      מדריך תורן: {dutyName}
                       {(isAdmin || isManager) && <Edit3 className="w-2.5 h-2.5 opacity-50" />}
                     </button>
                   ) : (isAdmin || isManager) && (
                     <button onClick={() => setIsEditingDuty(true)}
                       className="text-[10px] text-[var(--muted)] hover:text-rose-500 flex items-center gap-1 transition-colors">
-                      <Plus className="w-3 h-3" />הגדר תורן
+                      <Plus className="w-3 h-3" />הגדר מדריך תורן
                     </button>
                   )}
 

@@ -10,7 +10,7 @@ import { useRouter } from "next/navigation";
 import {
   UserPlus, Calendar, CreditCard, User,
   ArrowRight, Loader2, CheckCircle, Briefcase, Layers, Users,
-  ClipboardList, ShieldCheck
+  ClipboardList, ShieldCheck, Phone
 } from "lucide-react";
 
 interface Program { id: string; name: string }
@@ -32,6 +32,7 @@ export function PatientForm() {
     firstName:        "",
     lastName:         "",
     idNumber:         "",
+    phone:            "",
     startDate:        new Date().toISOString().split("T")[0],
     endDate:          "",
     hosenType:        "",   
@@ -56,7 +57,7 @@ export function PatientForm() {
       usersSnap.forEach(d => {
         const data = d.data();
         if (["social_worker","admin","manager"].includes(data.role))
-          workers.push({ id: d.id, name: data.name || data.email });
+          workers.push({ id: d.id, name: data.displayName || data.name || data.email });
       });
       setSocialWorkers(workers);
     };
@@ -90,7 +91,7 @@ export function PatientForm() {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-8">
+    <form onSubmit={handleSubmit} className="space-y-8 pb-10">
       
       {/* ── Personal Info ── */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -104,9 +105,15 @@ export function PatientForm() {
         </div>
       </div>
 
-      <div>
-        <label className={LABEL}>מספר תעודת זהות</label>
-        <input required type="text" value={formData.idNumber} onChange={e => set({ idNumber: e.target.value })} className={FIELD} placeholder="000000000" />
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div>
+          <label className={LABEL}>מספר תעודת זהות</label>
+          <input required type="text" value={formData.idNumber} onChange={e => set({ idNumber: e.target.value })} className={FIELD} placeholder="000000000" />
+        </div>
+        <div>
+          <label className={LABEL}><Phone className="w-3 h-3" /> מספר טלפון</label>
+          <input type="text" value={formData.phone} onChange={e => set({ phone: e.target.value })} className={FIELD} placeholder="050-0000000" />
+        </div>
       </div>
 
       {/* ── Assignment ── */}
@@ -134,28 +141,33 @@ export function PatientForm() {
         </div>
 
         <div>
-          <label className={LABEL}><Briefcase className="w-3 h-3" /> עובד סוציאלי מלווה</label>
-          <select value={formData.assignedWorkerId} onChange={e => set({ assignedWorkerId: e.target.value })} className={FIELD}>
+          <label className={LABEL}><Briefcase className="w-3 h-3" /> עו"ס מלווה</label>
+          <select required value={formData.assignedWorkerId} onChange={e => set({ assignedWorkerId: e.target.value })} className={FIELD}>
             <option value="">בחר עובד...</option>
             {socialWorkers.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
           </select>
         </div>
       </div>
 
-      {/* ── Dates ── */}
+      {/* ── Dates & Status ── */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>
           <label className={LABEL}><Calendar className="w-3 h-3" /> תאריך תחילת טיפול</label>
-          <input type="date" value={formData.startDate} onChange={e => set({ startDate: e.target.value })} className={FIELD} />
+          <input required type="date" value={formData.startDate} onChange={e => set({ startDate: e.target.value })} className={FIELD} />
         </div>
         <div>
-          <label className={LABEL}><ShieldCheck className="w-3 h-3" /> סטטוס ראשוני</label>
-          <select value={formData.status} onChange={e => set({ status: e.target.value as any })} className={FIELD}>
-            <option value="active">פעיל</option>
-            <option value="pending">ממתין</option>
-            <option value="inactive">לא פעיל</option>
-          </select>
+          <label className={LABEL}><Calendar className="w-3 h-3" /> תאריך סיום משוער</label>
+          <input type="date" value={formData.endDate} onChange={e => set({ endDate: e.target.value })} className={FIELD} />
         </div>
+      </div>
+
+      <div>
+        <label className={LABEL}><ShieldCheck className="w-3 h-3" /> סטטוס נוכחי</label>
+        <select value={formData.status} onChange={e => set({ status: e.target.value as any })} className={FIELD}>
+          <option value="active">פעיל</option>
+          <option value="pending">ממתין</option>
+          <option value="inactive">לא פעיל</option>
+        </select>
       </div>
 
       <button 

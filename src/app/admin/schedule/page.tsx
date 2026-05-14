@@ -711,7 +711,7 @@ function SchedulePageInner() {
                   value={schedule.dutyInstructorId}
                   onChange={e => setSchedule(s => ({ ...s, dutyInstructorId: e.target.value }))}
                   className="w-full bg-white/5 border border-white/[0.07] rounded-lg px-2.5 py-2 text-xs font-medium focus:outline-none focus:border-rose-500 transition-colors appearance-none">
-                  <option value="" className="bg-slate-900 text-slate-400">ללא תורן</option>
+                  <option value="" className="bg-slate-900 text-slate-400">ללא מדריך תורן</option>
                   {staff.map(p => <option key={p.id} value={p.id} className="bg-slate-900">{p.name}</option>)}
                 </select>
               </div>

@@ -1,92 +1,164 @@
-import { UserProfile } from "@/app/admin/users/page";
+"use client";
+
+import { UserProfile, Program, Group } from "@/app/admin/users/page";
 import { UserRole, UserStatus } from "@/context/AuthContext";
-import { motion } from "framer-motion";
-import { User, Check, X, ShieldAlert, BellRing } from "lucide-react";
-import { StatusBadge } from "./StatusBadge";
+import { motion, AnimatePresence } from "framer-motion";
+import { User, Check, X, ShieldAlert, BellRing, Layers, Users as UsersIcon, ChevronDown, ChevronUp } from "lucide-react";
 import { RoleSelector } from "./RoleSelector";
+import { useState } from "react";
 
 interface UserCardProps {
   user: UserProfile;
   index: number;
   updatingId: string | null;
-  onUpdateRole: (userId: string, role: UserRole) => void;
-  onUpdateStatus: (userId: string, status: UserStatus) => void;
-  onSendNotification?: (userId: string) => void;
+  programs: Program[];
+  groups: Group[];
+  onUpdate: (updates: Partial<UserProfile>) => void;
 }
 
-export function UserCard({ user, index, updatingId, onUpdateRole, onUpdateStatus, onSendNotification }: UserCardProps) {
+export function UserCard({ user, index, updatingId, programs, groups, onUpdate }: UserCardProps) {
   const isUpdating = updatingId === user.id;
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  const toggleItem = (list: string[], item: string, field: keyof UserProfile) => {
+    const newList = list.includes(item) ? list.filter(i => i !== item) : [...list, item];
+    onUpdate({ [field]: newList });
+  };
 
   return (
     <motion.div
-      initial={{ opacity: 0, x: -20 }}
-      animate={{ opacity: 1, x: 0 }}
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.05 }}
-      className="bg-white/5 border border-white/10 p-5 rounded-3xl flex flex-col md:flex-row md:items-center justify-between gap-4"
+      className={`bg-[var(--card-bg)] border border-[var(--border)] rounded-[2.5rem] overflow-hidden shadow-sm transition-all ${isExpanded ? 'ring-1 ring-rose-500/20 shadow-xl' : 'hover:border-[var(--foreground)]/10'}`}
     >
-      <div className="flex items-center gap-4">
-        <div className="w-12 h-12 bg-slate-800 rounded-2xl flex items-center justify-center text-slate-400">
-          <User className="w-6 h-6" />
-        </div>
-        <div>
-          <div className="flex items-center gap-2">
-            <h3 className="font-bold">{user.name}</h3>
-            <StatusBadge status={user.status} />
+      {/* Main Row */}
+      <div className="p-6 md:p-8 flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div className="flex items-center gap-6">
+          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[var(--foreground)]/5 to-[var(--foreground)]/10 flex items-center justify-center text-[var(--foreground)]/20 shadow-inner">
+            <User className="w-8 h-8" />
           </div>
-          <p className="text-slate-500 text-sm">{user.email}</p>
+          <div>
+            <div className="flex items-center gap-3">
+              <h3 className="text-xl font-black tracking-tight">{user.name}</h3>
+              <div className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest border ${
+                user.status === 'approved' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500' :
+                user.status === 'pending' ? 'bg-orange-500/10 border-orange-500/20 text-orange-500' :
+                'bg-rose-500/10 border-rose-500/20 text-rose-500'
+              }`}>
+                {user.status === 'approved' ? 'פעיל' : user.status === 'pending' ? 'ממתין' : 'חסום'}
+              </div>
+            </div>
+            <p className="text-sm font-bold text-[var(--foreground)]/30 mt-1">{user.email}</p>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-4">
+          <RoleSelector 
+            value={user.roles} 
+            onChange={(roles) => onUpdate({ roles })}
+            disabled={isUpdating}
+          />
+
+          <div className="h-8 w-[1px] bg-[var(--border)] hidden md:block" />
+
+          <button
+            onClick={() => setIsExpanded(!isExpanded)}
+            className="flex items-center gap-2 px-4 py-2 bg-[var(--foreground)]/5 border border-[var(--border)] rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-[var(--foreground)]/10 transition-all"
+          >
+            {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+            ניהול שיוכים
+          </button>
+
+          {user.status === "pending" ? (
+            <button
+              onClick={() => onUpdate({ status: "approved" })}
+              disabled={isUpdating}
+              className="flex items-center gap-2 px-6 py-2.5 bg-emerald-600 text-white rounded-xl text-xs font-black shadow-lg shadow-emerald-600/20 hover:bg-emerald-500 transition-all disabled:opacity-50"
+            >
+              <Check className="w-4 h-4" />
+              אשר כניסה
+            </button>
+          ) : (
+            <button
+              onClick={() => onUpdate({ status: user.status === "blocked" ? "approved" : "blocked" })}
+              disabled={isUpdating}
+              className={`p-2.5 rounded-xl border transition-all ${
+                user.status === 'blocked' 
+                  ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500 hover:bg-emerald-500/20' 
+                  : 'bg-rose-500/10 border-rose-500/20 text-rose-500 hover:bg-rose-500/20'
+              }`}
+            >
+              {user.status === 'blocked' ? <Check className="w-4 h-4" /> : <ShieldAlert className="w-4 h-4" />}
+            </button>
+          )}
+
+          {isUpdating && <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-rose-500"></div>}
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-3">
-        <RoleSelector 
-          value={user.role} 
-          onChange={(role) => onUpdateRole(user.id, role)}
-          disabled={isUpdating}
-        />
+      {/* Expanded Area: Assignments */}
+      <AnimatePresence>
+        {isExpanded && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="border-t border-[var(--border)] bg-[var(--foreground)]/[0.01]"
+          >
+            <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-12">
+              {/* Programs */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-3 text-xs font-black uppercase tracking-widest text-[var(--foreground)]/30 mr-2">
+                  <Layers className="w-4 h-4" />
+                  שיוך לתוכניות
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {programs.map(p => {
+                    const isSelected = user.assignedProgramIds?.includes(p.id);
+                    return (
+                      <button
+                        key={p.id}
+                        onClick={() => toggleItem(user.assignedProgramIds || [], p.id, 'assignedProgramIds')}
+                        className={`px-3 py-1.5 rounded-lg text-[10px] font-bold border transition-all ${
+                          isSelected ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600' : 'bg-transparent border-[var(--border)] opacity-40 hover:opacity-100'
+                        }`}
+                      >
+                        {p.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
 
-        {user.status === "pending" ? (
-          <button
-            onClick={() => onUpdateStatus(user.id, "approved")}
-            disabled={isUpdating}
-            className="flex items-center gap-2 px-4 py-2 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-xl text-sm font-bold hover:bg-emerald-500/30 transition-all disabled:opacity-50"
-          >
-            <Check className="w-4 h-4" />
-            אשר כניסה
-          </button>
-        ) : user.status === "approved" ? (
-          <button
-            onClick={() => onUpdateStatus(user.id, "blocked")}
-            disabled={isUpdating}
-            className="flex items-center gap-2 px-4 py-2 bg-rose-500/10 text-rose-400 border border-rose-500/20 rounded-xl text-sm font-medium hover:bg-rose-500/20 transition-all disabled:opacity-50"
-          >
-            <ShieldAlert className="w-4 h-4" />
-            חסום
-          </button>
-        ) : (
-          <button
-            onClick={() => onUpdateStatus(user.id, "approved")}
-            disabled={isUpdating}
-            className="flex items-center gap-2 px-4 py-2 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-xl text-sm font-medium hover:bg-emerald-500/20 transition-all disabled:opacity-50"
-          >
-            <Check className="w-4 h-4" />
-            שחרר חסימה
-          </button>
+              {/* Groups */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-3 text-xs font-black uppercase tracking-widest text-[var(--foreground)]/30 mr-2">
+                  <UsersIcon className="w-4 h-4" />
+                  שיוך לקבוצות
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {groups.map(g => {
+                    const isSelected = user.assignedGroupIds?.includes(g.id);
+                    return (
+                      <button
+                        key={g.id}
+                        onClick={() => toggleItem(user.assignedGroupIds || [], g.id, 'assignedGroupIds')}
+                        className={`px-3 py-1.5 rounded-lg text-[10px] font-bold border transition-all ${
+                          isSelected ? 'bg-rose-500/10 border-rose-500/30 text-rose-600' : 'bg-transparent border-[var(--border)] opacity-40 hover:opacity-100'
+                        }`}
+                      >
+                        {g.name}
+                        {g.programId && <span className="mr-1 opacity-40">({programs.find(p => p.id === g.programId)?.name})</span>}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </motion.div>
         )}
-
-        {onSendNotification && user.status === "approved" && (
-          <button
-            onClick={() => onSendNotification(user.id)}
-            className="p-2 bg-purple-500/10 text-purple-400 border border-purple-500/20 rounded-xl hover:bg-purple-500/20 transition-all"
-            title="שלח התראת בדיקה"
-          >
-            <BellRing className="w-4 h-4" />
-          </button>
-        )}
-
-        {isUpdating && (
-          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-purple-500"></div>
-        )}
-      </div>
+      </AnimatePresence>
     </motion.div>
   );
 }
