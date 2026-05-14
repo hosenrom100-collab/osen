@@ -17,6 +17,9 @@ interface Patient {
   firstName: string;
   lastName: string;
   hosenType: string;
+  status?: string;
+  startDate?: string;
+  endDate?: string;
 }
 
 interface Group {
@@ -137,19 +140,27 @@ function AttendancePageContent() {
     }
   };
 
-  const filteredPatients = patients.filter(p =>
-    `${p.firstName} ${p.lastName}`.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredPatients = patients.filter(p => {
+    // 1. Filter by status (must be active)
+    if (p.status && p.status !== "active") return false;
+
+    // 2. Filter by date range
+    if (p.startDate && selectedDate < p.startDate) return false;
+    if (p.endDate && selectedDate > p.endDate) return false;
+
+    // 3. Filter by search term
+    return `${p.firstName} ${p.lastName}`.toLowerCase().includes(searchTerm.toLowerCase());
+  });
 
   const stats = {
-    total: patients.length,
-    present: patients.filter(p => attendance[p.id] === "present").length,
-    absent: patients.filter(p => attendance[p.id] === "absent").length,
-    missing: patients.filter(p => !attendance[p.id] || attendance[p.id] === "unset").length
+    total: filteredPatients.length,
+    present: filteredPatients.filter(p => attendance[p.id] === "present").length,
+    absent: filteredPatients.filter(p => attendance[p.id] === "absent").length,
+    missing: filteredPatients.filter(p => !attendance[p.id] || attendance[p.id] === "unset").length
   };
 
   const handleMarkAllPresent = async () => {
-    const unmarked = patients.filter(p => !attendance[p.id] || attendance[p.id] === "unset");
+    const unmarked = filteredPatients.filter(p => !attendance[p.id] || attendance[p.id] === "unset");
     if (unmarked.length === 0) return;
 
     // Optimistic update first
