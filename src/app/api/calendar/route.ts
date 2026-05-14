@@ -204,3 +204,46 @@ export async function DELETE(req: Request) {
     return calendarError(err);
   }
 }
+
+/* ─────────────────────────────────────────────
+   PATCH /api/calendar?eventId=xxx
+   Body: { title, startDate, startTime?, endDate?, endTime?, allDay?, description?, location? }
+   Updates an existing event.
+───────────────────────────────────────────── */
+export async function PATCH(req: Request) {
+  try {
+    const { auth, calendarId } = buildAuth();
+    const eventId = new URL(req.url).searchParams.get("eventId");
+    if (!eventId) return NextResponse.json({ error: "eventId נדרש" }, { status: 400 });
+
+    const body = await req.json();
+    const { title, startDate, startTime, endDate, endTime, allDay, description, location } = body;
+
+    const TZ = "Asia/Jerusalem";
+    const eventBody: any = {};
+    if (title)       eventBody.summary     = title.trim();
+    if (description) eventBody.description = description.trim();
+    if (location)    eventBody.location    = location.trim();
+
+    if (startDate) {
+      if (allDay) {
+        eventBody.start = { date: startDate };
+        eventBody.end   = { date: endDate || startDate };
+      } else {
+        const st = startTime || "09:00";
+        const et = endTime   || "10:00";
+        eventBody.start = { dateTime: `${startDate}T${st}:00`, timeZone: TZ };
+        eventBody.end   = { dateTime: `${endDate || startDate}T${et}:00`, timeZone: TZ };
+      }
+    }
+
+    const cal = google.calendar({ version: "v3", auth });
+    const updated = await cal.events.patch({ calendarId, eventId, requestBody: eventBody });
+
+    return NextResponse.json(mapItem(updated.data));
+  } catch (err: any) {
+    console.error("[Calendar PATCH]", err.message);
+    return calendarError(err);
+  }
+}
+

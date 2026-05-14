@@ -44,14 +44,14 @@ function MiniCalendar({ value, onChange }: { value: string; onChange: (d: string
   return (
     <div className="select-none">
       <div className="flex items-center justify-between mb-3">
-        <span className="text-xs font-bold text-white">{format(view, "MMMM yyyy", { locale: he })}</span>
+        <span className="text-xs font-bold text-[var(--foreground)]">{format(view, "MMMM yyyy", { locale: he })}</span>
         <div className="flex gap-0.5">
-          <button onClick={() => setView(subMonths(view, 1))} className="p-1 rounded hover:bg-white/10 transition-colors"><ChevronRight className="w-3.5 h-3.5 text-slate-400" /></button>
-          <button onClick={() => setView(addMonths(view, 1))} className="p-1 rounded hover:bg-white/10 transition-colors"><ChevronLeft className="w-3.5 h-3.5 text-slate-400" /></button>
+          <button onClick={() => setView(subMonths(view, 1))} className="p-1 rounded hover:bg-[var(--foreground)]/10 transition-colors"><ChevronRight className="w-3.5 h-3.5 text-[var(--foreground)]/40" /></button>
+          <button onClick={() => setView(addMonths(view, 1))} className="p-1 rounded hover:bg-[var(--foreground)]/10 transition-colors"><ChevronLeft className="w-3.5 h-3.5 text-[var(--foreground)]/40" /></button>
         </div>
       </div>
       <div className="grid grid-cols-7 gap-0.5 mb-1">
-        {WD.map(d => <div key={d} className="text-[9px] font-bold text-slate-600 text-center py-0.5">{d}</div>)}
+        {WD.map(d => <div key={d} className="text-[9px] font-bold text-[var(--foreground)]/30 text-center py-0.5">{d}</div>)}
       </div>
       <div className="grid grid-cols-7 gap-0.5">
         {days.map((day, i) => {
@@ -62,8 +62,8 @@ function MiniCalendar({ value, onChange }: { value: string; onChange: (d: string
             <button key={i} onClick={() => onChange(format(day, "yyyy-MM-dd"))}
               className={`aspect-square rounded text-[10px] font-bold flex items-center justify-center transition-all ${
                 isSel   ? "bg-emerald-600 text-white" :
-                isToday ? "bg-white/10 text-emerald-400" :
-                inMonth ? "text-slate-300 hover:bg-white/8" : "text-slate-700"
+                isToday ? "bg-[var(--foreground)]/10 text-emerald-500" :
+                inMonth ? "text-[var(--foreground)]/80 hover:bg-[var(--foreground)]/5" : "text-[var(--foreground)]/20"
               }`}>
               {format(day, "d")}
             </button>
@@ -103,7 +103,6 @@ function AttendancePageContent() {
         if (ht === groupId || (groupName && ht === groupName))
           list.push({ id: d.id, ...data } as Patient);
       });
-      // Primary sort: alphabetical א-ב by first name
       list.sort((a, b) =>
         (a.firstName || "").localeCompare(b.firstName || "", "he") ||
         (a.lastName  || "").localeCompare(b.lastName  || "", "he")
@@ -182,14 +181,12 @@ function AttendancePageContent() {
     setTimeout(() => setSummarySent(false), 3000);
   };
 
-  // Filter: active patients within date range matching search
   const displayed = patients.filter(p => {
     if (p.status && p.status !== "active") return false;
     if (p.startDate && selectedDate < p.startDate) return false;
     if (p.endDate   && selectedDate > p.endDate)   return false;
     return `${p.firstName} ${p.lastName}`.toLowerCase().includes(searchTerm.toLowerCase());
   });
-  // Already sorted alphabetically by fetchData; keep that order
 
   const stats = {
     total:   displayed.length,
@@ -201,59 +198,55 @@ function AttendancePageContent() {
   const allDone = stats.total > 0 && stats.missing === 0;
 
   return (
-    <div dir="rtl" className="flex h-screen bg-[#020617] text-slate-200 overflow-hidden">
+    <div dir="rtl" className="flex h-screen bg-[var(--background)] text-[var(--foreground)] overflow-hidden transition-colors duration-300">
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
         
         {/* ── Enterprise Header ── */}
-        <header className="h-16 shrink-0 bg-slate-900/40 border-b border-white/[0.05] flex items-center justify-between px-6 backdrop-blur-xl z-30">
+        <header className="h-16 shrink-0 bg-[var(--card-bg)]/40 border-b border-[var(--border)] flex items-center justify-between px-6 backdrop-blur-xl z-30">
           <div className="flex items-center gap-6">
-            {/* Breadcrumbs */}
             <div className="flex items-center gap-2 text-xs font-medium">
-              <span className="text-slate-500 hover:text-slate-300 cursor-pointer" onClick={() => router.push("/")}>ראשי</span>
-              <ChevronLeft className="w-3 h-3 text-slate-600" />
-              <span className="text-white font-bold tracking-tight">ניהול נוכחות</span>
+              <span className="text-[var(--foreground)]/50 hover:text-[var(--foreground)] cursor-pointer" onClick={() => router.push("/")}>ראשי</span>
+              <ChevronLeft className="w-3 h-3 text-[var(--foreground)]/20" />
+              <span className="font-bold tracking-tight">ניהול נוכחות</span>
             </div>
             
-            <div className="h-4 w-px bg-white/10 mx-2 hidden md:block" />
+            <div className="h-4 w-px bg-[var(--border)] mx-2 hidden md:block" />
 
-            {/* Title & Group Switcher */}
             <div className="flex items-center gap-4">
-              <h1 className="text-sm font-black text-white uppercase tracking-wider hidden lg:block">מעקב יומי</h1>
+              <h1 className="text-sm font-black uppercase tracking-wider hidden lg:block">מעקב יומי</h1>
               <select 
                 value={selectedGroup} 
                 onChange={e => handleGroupChange(e.target.value)}
-                className="bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-xs font-bold text-white focus:outline-none focus:ring-1 focus:ring-emerald-500 transition-all cursor-pointer"
+                className="bg-[var(--foreground)]/5 border border-[var(--border)] rounded-lg px-3 py-1.5 text-xs font-bold focus:outline-none focus:ring-1 focus:ring-emerald-500 transition-all cursor-pointer"
               >
                 {groups.map(g => (
-                  <option key={g.id} value={g.id} className="bg-slate-900">{g.name}</option>
+                  <option key={g.id} value={g.id} className="bg-[var(--background)]">{g.name}</option>
                 ))}
               </select>
             </div>
           </div>
 
           <div className="flex items-center gap-3">
-            {/* Search */}
             <div className="relative hidden sm:block">
-              <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
+              <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[var(--foreground)]/30" />
               <input 
                 type="text" 
                 placeholder="חיפוש מהיר..." 
                 value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value)}
-                className="bg-white/5 border border-white/10 rounded-lg pr-9 pl-4 py-1.5 text-xs focus:outline-none focus:border-emerald-500/50 w-48 lg:w-64 transition-all"
+                className="bg-[var(--foreground)]/5 border border-[var(--border)] rounded-lg pr-9 pl-4 py-1.5 text-xs focus:outline-none focus:border-emerald-500/50 w-48 lg:w-64 transition-all"
               />
             </div>
 
-            <div className="w-px h-6 bg-white/5 mx-1" />
+            <div className="w-px h-6 bg-[var(--border)] mx-1" />
 
-            {/* Actions */}
             <button 
               onClick={handleSendSummary}
               disabled={sendingSummary || stats.total === 0}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all shadow-lg ${
                 summarySent 
-                  ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30" 
-                  : "bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-900/20"
+                  ? "bg-emerald-500/20 text-emerald-500 border border-emerald-500/30" 
+                  : "bg-emerald-600 hover:bg-emerald-500 text-white"
               }`}
             >
               {sendingSummary ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
@@ -263,24 +256,17 @@ function AttendancePageContent() {
         </header>
 
         {/* ── Sub-header / Filter Bar ── */}
-        <div className="h-14 shrink-0 bg-slate-950/40 border-b border-white/[0.03] flex items-center justify-between px-6 z-20">
+        <div className="h-14 shrink-0 bg-[var(--background)]/40 border-b border-[var(--border)] flex items-center justify-between px-6 z-20">
           <div className="flex items-center gap-6">
             <div className="flex items-center gap-2">
-              <CalendarIcon className="w-4 h-4 text-slate-500" />
-              <span className="text-xs font-bold text-slate-400">
+              <CalendarIcon className="w-4 h-4 text-[var(--foreground)]/40" />
+              <span className="text-xs font-bold text-[var(--foreground)]/60">
                 {format(new Date(selectedDate + "T12:00:00"), "EEEE, d בMMMM yyyy", { locale: he })}
               </span>
             </div>
 
-            <div className="flex items-center gap-2 bg-white/5 px-2 py-1 rounded-lg border border-white/5">
-              <div className="flex -space-x-1 rtl:space-x-reverse">
-                {[...Array(3)].map((_, i) => (
-                  <div key={i} className={`w-5 h-5 rounded-full border-2 border-slate-900 bg-slate-700 flex items-center justify-center text-[8px] font-bold`}>
-                    {String.fromCharCode(65 + i)}
-                  </div>
-                ))}
-              </div>
-              <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{stats.total} מטופלים רשומים</span>
+            <div className="flex items-center gap-2 bg-[var(--foreground)]/5 px-2 py-1 rounded-lg border border-[var(--border)]">
+              <span className="text-[10px] font-black text-[var(--foreground)]/40 uppercase tracking-widest">{stats.total} מטופלים רשומים</span>
             </div>
           </div>
 
@@ -288,7 +274,7 @@ function AttendancePageContent() {
             {stats.missing > 0 && !searchTerm && (
               <button 
                 onClick={handleMarkAllPresent}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-emerald-500/10 text-slate-400 hover:text-emerald-400 text-[10px] font-black uppercase tracking-widest transition-all border border-white/5"
+                className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[var(--foreground)]/5 hover:bg-emerald-500/10 text-[var(--foreground)]/40 hover:text-emerald-500 text-[10px] font-black uppercase tracking-widest transition-all border border-[var(--border)]"
               >
                 <CheckCircle className="w-3.5 h-3.5" />
                 סמן הכל כנוכח
@@ -298,7 +284,7 @@ function AttendancePageContent() {
         </div>
 
         {/* ── Main Scrollable Area ── */}
-        <main className="flex-1 overflow-y-auto p-6 scrollbar-hide bg-[#020617]">
+        <main className="flex-1 overflow-y-auto p-6 no-scrollbar bg-[var(--background)]">
           <div className="max-w-7xl mx-auto space-y-6">
             
             {/* Completion Banner */}
@@ -311,16 +297,16 @@ function AttendancePageContent() {
                 >
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center">
-                      <CheckCircle className="w-5 h-5 text-emerald-400" />
+                      <CheckCircle className="w-5 h-5 text-emerald-500" />
                     </div>
                     <div>
-                      <h3 className="text-sm font-bold text-white">הרישום הושלם בהצלחה</h3>
-                      <p className="text-xs text-emerald-400/70 font-medium">כל המטופלים סומנו להיום. ניתן לשלוח סיכום להנהלה.</p>
+                      <h3 className="text-sm font-bold">הרישום הושלם בהצלחה</h3>
+                      <p className="text-xs text-emerald-500/70 font-medium">כל המטופלים סומנו להיום. ניתן לשלוח סיכום להנהלה.</p>
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className="text-xl font-black text-white">{pct}%</div>
-                    <div className="text-[9px] font-black text-emerald-400 uppercase tracking-widest">שיעור נוכחות</div>
+                    <div className="text-xl font-black">{pct}%</div>
+                    <div className="text-[9px] font-black text-emerald-500 uppercase tracking-widest">שיעור נוכחות</div>
                   </div>
                 </motion.div>
               )}
@@ -328,34 +314,29 @@ function AttendancePageContent() {
 
             {loading ? (
               <div className="flex flex-col items-center justify-center py-32 gap-4">
-                <div className="relative">
-                  <Loader2 className="w-10 h-10 text-emerald-500 animate-spin" />
-                  <div className="absolute inset-0 blur-xl bg-emerald-500/20 animate-pulse" />
-                </div>
-                <p className="text-sm font-bold text-slate-500 animate-pulse">מסנכרן נתונים מהענן...</p>
+                <Loader2 className="w-10 h-10 text-emerald-500 animate-spin" />
+                <p className="text-sm font-bold text-[var(--foreground)]/40 animate-pulse">מסנכרן נתונים מהענן...</p>
               </div>
             ) : displayed.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-32 gap-6 bg-slate-900/20 border border-dashed border-white/10 rounded-3xl">
-                <div className="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center">
-                  <Search className="w-8 h-8 text-slate-700" />
-                </div>
+              <div className="flex flex-col items-center justify-center py-32 gap-6 bg-[var(--foreground)]/[0.02] border border-dashed border-[var(--border)] rounded-3xl">
+                <Search className="w-12 h-12 text-[var(--foreground)]/10" />
                 <div className="text-center">
-                  <h3 className="text-lg font-bold text-white mb-1">{searchTerm ? "לא נמצאו תוצאות" : "אין מטופלים בקבוצה"}</h3>
-                  <p className="text-sm text-slate-500">נסה לשנות את פרמטרי החיפוש או לבחור קבוצה אחרת.</p>
+                  <h3 className="text-lg font-bold mb-1">{searchTerm ? "לא נמצאו תוצאות" : "אין מטופלים בקבוצה"}</h3>
+                  <p className="text-sm text-[var(--foreground)]/40">נסה לשנות את פרמטרי החיפוש או לבחור קבוצה אחרת.</p>
                 </div>
               </div>
             ) : (
-              <div className="bg-slate-950/40 border border-white/[0.05] rounded-2xl overflow-hidden shadow-2xl">
+              <div className="bg-[var(--card-bg)] border border-[var(--border)] rounded-2xl overflow-hidden shadow-sm">
                 <table className="w-full text-right border-collapse">
                   <thead>
-                    <tr className="bg-slate-900/40 border-b border-white/[0.05]">
-                      <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest w-16">#</th>
-                      <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">מטופל</th>
-                      <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest text-center">סטטוס נוכחות</th>
-                      <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest text-center w-64">פעולות רישום</th>
+                    <tr className="bg-[var(--foreground)]/[0.02] border-b border-[var(--border)]">
+                      <th className="px-6 py-4 text-[10px] font-black text-[var(--foreground)]/40 uppercase tracking-widest w-16">#</th>
+                      <th className="px-6 py-4 text-[10px] font-black text-[var(--foreground)]/40 uppercase tracking-widest">מטופל</th>
+                      <th className="px-6 py-4 text-[10px] font-black text-[var(--foreground)]/40 uppercase tracking-widest text-center">סטטוס נוכחות</th>
+                      <th className="px-6 py-4 text-[10px] font-black text-[var(--foreground)]/40 uppercase tracking-widest text-center w-64">פעולות רישום</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-white/[0.03]">
+                  <tbody className="divide-y divide-[var(--border)]">
                     {displayed.map((p, idx) => {
                       const status = attendance[p.id] || "unset";
                       const isPresent = status === "present";
@@ -363,31 +344,31 @@ function AttendancePageContent() {
                       const ini = initials(p);
                       
                       return (
-                        <tr key={p.id} className="group hover:bg-white/[0.02] transition-colors">
-                          <td className="px-6 py-4 text-xs font-mono text-slate-600">{String(idx + 1).padStart(2, '0')}</td>
+                        <tr key={p.id} className="group hover:bg-[var(--foreground)]/[0.01] transition-colors">
+                          <td className="px-6 py-4 text-xs font-mono text-[var(--foreground)]/20">{String(idx + 1).padStart(2, '0')}</td>
                           <td className="px-6 py-4">
                             <div className="flex items-center gap-3">
-                              <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-xs font-black text-white shadow-lg transition-transform group-hover:scale-105 ${
-                                status === "unset" ? "bg-slate-800" : avatarColor(p.firstName)
+                              <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-xs font-black text-white shadow-sm transition-transform group-hover:scale-105 ${
+                                status === "unset" ? "bg-[var(--foreground)]/10" : avatarColor(p.firstName)
                               }`}>
                                 {ini}
                               </div>
                               <div className="flex flex-col">
-                                <span className="text-sm font-bold text-white tracking-tight">{p.firstName} {p.lastName}</span>
-                                <span className="text-[10px] text-slate-500 font-medium">{p.hosenType}</span>
+                                <span className="text-sm font-bold tracking-tight">{p.firstName} {p.lastName}</span>
+                                <span className="text-[10px] text-[var(--foreground)]/40 font-medium">{p.hosenType}</span>
                               </div>
                             </div>
                           </td>
                           <td className="px-6 py-4">
                             <div className="flex justify-center">
                               <span className={`inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-lg border transition-all ${
-                                isPresent ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" :
-                                isAbsent ? "bg-rose-500/10 text-rose-400 border-rose-500/20" :
-                                "bg-white/5 text-slate-500 border-white/5"
+                                isPresent ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" :
+                                isAbsent ? "bg-rose-500/10 text-rose-500 border-rose-500/20" :
+                                "bg-[var(--foreground)]/5 text-[var(--foreground)]/30 border-[var(--border)]"
                               }`}>
                                 <div className={`w-1.5 h-1.5 rounded-full ${
-                                  isPresent ? "bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.5)]" : 
-                                  isAbsent ? "bg-rose-400" : "bg-slate-700"
+                                  isPresent ? "bg-emerald-500 shadow-[0_0_8px_rgba(var(--primary-rgb),0.5)]" : 
+                                  isAbsent ? "bg-rose-500" : "bg-[var(--foreground)]/20"
                                 }`} />
                                 {isPresent ? "נוכח במרכז" : isAbsent ? "נפקד / חסר" : "טרם דווח"}
                               </span>
@@ -399,8 +380,8 @@ function AttendancePageContent() {
                                 onClick={() => handleToggle(p.id, "present")}
                                 className={`flex-1 flex items-center justify-center gap-2 h-9 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${
                                   isPresent 
-                                    ? "bg-emerald-600 text-white shadow-lg shadow-emerald-900/40" 
-                                    : "bg-white/5 text-slate-500 hover:bg-emerald-500/10 hover:text-emerald-400 border border-white/5"
+                                    ? "bg-emerald-600 text-white shadow-lg shadow-emerald-500/20" 
+                                    : "bg-[var(--foreground)]/5 text-[var(--foreground)]/40 hover:bg-emerald-500/10 hover:text-emerald-500 border border-[var(--border)]"
                                 }`}
                               >
                                 <Check className="w-3.5 h-3.5" /> נוכח
@@ -409,8 +390,8 @@ function AttendancePageContent() {
                                 onClick={() => handleToggle(p.id, "absent")}
                                 className={`flex-1 flex items-center justify-center gap-2 h-9 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${
                                   isAbsent 
-                                    ? "bg-rose-600 text-white shadow-lg shadow-rose-900/40" 
-                                    : "bg-white/5 text-slate-500 hover:bg-rose-500/10 hover:text-rose-400 border border-white/5"
+                                    ? "bg-rose-600 text-white shadow-lg shadow-rose-500/20" 
+                                    : "bg-[var(--foreground)]/5 text-[var(--foreground)]/40 hover:bg-rose-500/10 hover:text-rose-500 border border-[var(--border)]"
                                 }`}
                               >
                                 <X className="w-3.5 h-3.5" /> נפקד
@@ -424,27 +405,27 @@ function AttendancePageContent() {
                 </table>
                 
                 {/* Table Footer */}
-                <div className="bg-slate-900/40 border-t border-white/[0.05] px-6 py-4 flex items-center justify-between">
+                <div className="bg-[var(--foreground)]/[0.02] border-t border-[var(--border)] px-6 py-4 flex items-center justify-between">
                   <div className="flex items-center gap-6">
                     <div className="flex flex-col">
-                      <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-0.5">סה"כ נוכחים</span>
-                      <span className="text-sm font-black text-emerald-400">{stats.present}</span>
+                      <span className="text-[10px] font-black text-[var(--foreground)]/40 uppercase tracking-widest mb-0.5">סה"כ נוכחים</span>
+                      <span className="text-sm font-black text-emerald-500">{stats.present}</span>
                     </div>
-                    <div className="w-px h-6 bg-white/5" />
+                    <div className="w-px h-6 bg-[var(--border)]" />
                     <div className="flex flex-col">
-                      <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-0.5">סה"כ נפקדים</span>
-                      <span className="text-sm font-black text-rose-400">{stats.absent}</span>
+                      <span className="text-[10px] font-black text-[var(--foreground)]/40 uppercase tracking-widest mb-0.5">סה"כ נפקדים</span>
+                      <span className="text-sm font-black text-rose-500">{stats.absent}</span>
                     </div>
                   </div>
                   
                   <div className="flex items-center gap-4">
                     <div className="flex flex-col text-left">
-                      <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-0.5">אחוז התייצבות</span>
-                      <span className="text-sm font-black text-white">{pct}%</span>
+                      <span className="text-[10px] font-black text-[var(--foreground)]/40 uppercase tracking-widest mb-0.5">אחוז התייצבות</span>
+                      <span className="text-sm font-black">{pct}%</span>
                     </div>
                     <div className="w-12 h-12 relative">
                       <svg className="w-full h-full -rotate-90">
-                        <circle cx="24" cy="24" r="20" fill="none" stroke="currentColor" strokeWidth="4" className="text-white/5" />
+                        <circle cx="24" cy="24" r="20" fill="none" stroke="currentColor" strokeWidth="4" className="text-[var(--foreground)]/5" />
                         <circle cx="24" cy="24" r="20" fill="none" stroke="currentColor" strokeWidth="4" strokeDasharray={125.6} strokeDashoffset={125.6 - (125.6 * pct / 100)} className="text-emerald-500 transition-all duration-1000" />
                       </svg>
                     </div>
@@ -457,14 +438,14 @@ function AttendancePageContent() {
       </div>
 
       {/* ── CRM Right Sidebar ── */}
-      <aside className="w-80 shrink-0 bg-slate-900/20 border-r border-white/[0.05] flex flex-col h-full z-40">
-        <div className="p-6 border-b border-white/[0.05]">
+      <aside className="w-80 shrink-0 bg-[var(--foreground)]/[0.02] border-r border-[var(--border)] flex flex-col h-full z-40 hidden md:flex">
+        <div className="p-6 border-b border-[var(--border)]">
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xs font-black text-white uppercase tracking-widest">יומן עזר</h2>
-            <button onClick={() => setSelectedDate(today)} className="text-[10px] font-bold text-emerald-400 hover:underline">חזור להיום</button>
+            <h2 className="text-xs font-black uppercase tracking-widest">יומן עזר</h2>
+            <button onClick={() => setSelectedDate(today)} className="text-[10px] font-bold text-emerald-500 hover:underline">חזור להיום</button>
           </div>
           
-          <div className="bg-slate-950/40 border border-white/10 rounded-2xl p-4 shadow-inner">
+          <div className="bg-[var(--card-bg)] border border-[var(--border)] rounded-2xl p-4 shadow-sm">
             <MiniCalendar 
               value={selectedDate} 
               onChange={(d) => {
@@ -476,48 +457,47 @@ function AttendancePageContent() {
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-6 space-y-8 scrollbar-hide">
+        <div className="flex-1 overflow-y-auto p-6 space-y-8 no-scrollbar">
           {/* Quick Stats Widget */}
           <div className="space-y-4">
-            <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest">סטטיסטיקה יומית</h3>
+            <h3 className="text-[10px] font-black text-[var(--foreground)]/40 uppercase tracking-widest">סטטיסטיקה יומית</h3>
             <div className="grid grid-cols-1 gap-3">
               {[
-                { label: "נוכחות", value: `${pct}%`, sub: `${stats.present} מתוך ${stats.total}`, color: "emerald" },
-                { label: "חסרים", value: stats.missing, sub: "ממתינים לדיווח", color: "blue" },
-                { label: "היעדרות", value: stats.absent, sub: "דיווחו על אי הגעה", color: "rose" },
+                { label: "נוכחות", value: `${pct}%`, sub: `${stats.present} מתוך ${stats.total}`, color: "bg-emerald-500" },
+                { label: "חסרים", value: stats.missing, sub: "ממתינים לדיווח", color: "bg-blue-500" },
+                { label: "היעדרות", value: stats.absent, sub: "דיווחו על אי הגעה", color: "bg-rose-500" },
               ].map(s => (
-                <div key={s.label} className="bg-white/5 border border-white/5 rounded-2xl p-4 transition-transform hover:scale-[1.02] cursor-default">
+                <div key={s.label} className="bg-[var(--card-bg)] border border-[var(--border)] rounded-2xl p-4 transition-transform hover:scale-[1.02] cursor-default shadow-sm">
                   <div className="flex items-center justify-between mb-1">
-                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{s.label}</span>
-                    <div className={`w-1.5 h-1.5 rounded-full bg-${s.color}-500 shadow-[0_0_8px_rgba(0,0,0,0.5)]`} />
+                    <span className="text-[10px] font-black text-[var(--foreground)]/40 uppercase tracking-widest">{s.label}</span>
+                    <div className={`w-1.5 h-1.5 rounded-full ${s.color} shadow-sm`} />
                   </div>
-                  <div className="text-xl font-black text-white mb-0.5">{s.value}</div>
-                  <div className="text-[10px] font-bold text-slate-600">{s.sub}</div>
+                  <div className="text-xl font-black mb-0.5">{s.value}</div>
+                  <div className="text-[10px] font-bold text-[var(--foreground)]/30">{s.sub}</div>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* Action Guide */}
           <div className="bg-emerald-500/5 border border-emerald-500/10 rounded-2xl p-4">
             <div className="flex items-center gap-2 mb-2">
-              <Info className="w-3.5 h-3.5 text-emerald-400" />
-              <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">טיפ ניהולי</span>
+              <Info className="w-3.5 h-3.5 text-emerald-500" />
+              <span className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">טיפ ניהולי</span>
             </div>
-            <p className="text-[11px] text-slate-400 leading-relaxed font-medium">
+            <p className="text-[11px] text-[var(--foreground)]/50 leading-relaxed font-medium">
               מומלץ לשלוח סיכום יומי לאחר סיום כלל הדיווחים. הסיכום נשלח אוטומטית למנהלים ולרכזי התוכניות הרלוונטיים.
             </p>
           </div>
         </div>
 
-        <div className="p-4 bg-slate-950/40 border-t border-white/[0.05]">
+        <div className="p-4 bg-[var(--foreground)]/[0.02] border-t border-[var(--border)]">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-[10px] font-black text-slate-500">
+            <div className="w-8 h-8 rounded-full bg-[var(--foreground)]/5 flex items-center justify-center text-[10px] font-black text-[var(--foreground)]/40">
               HC
             </div>
             <div className="flex flex-col">
-              <span className="text-[10px] font-bold text-white">Hosen-Connect CRM</span>
-              <span className="text-[8px] text-slate-600 font-mono">v2.4.0-enterprise</span>
+              <span className="text-[10px] font-bold">Hosen-Connect CRM</span>
+              <span className="text-[8px] text-[var(--foreground)]/30 font-mono">v2.4.0-enterprise</span>
             </div>
           </div>
         </div>
@@ -532,10 +512,10 @@ export default function AttendancePage() {
   return (
     <RoleGuard allowedRoles={["admin","manager","instructor","employee","social_worker","logistics"]} redirectTo="/">
       <Suspense fallback={
-        <div className="min-h-screen bg-[#020617] flex items-center justify-center">
+        <div className="min-h-screen bg-[var(--background)] flex items-center justify-center">
           <div className="flex flex-col items-center gap-4">
-            <Loader2 className="w-10 h-10 text-emerald-500 animate-spin" />
-            <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest animate-pulse">מכין את שולחן העבודה...</span>
+            <Loader2 className="w-10 h-10 text-primary animate-spin" />
+            <span className="text-[10px] font-black text-[var(--foreground)]/40 uppercase tracking-widest animate-pulse">מכין את שולחן העבודה...</span>
           </div>
         </div>
       }>

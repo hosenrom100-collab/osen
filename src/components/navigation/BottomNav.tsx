@@ -19,7 +19,7 @@ export function BottomNav() {
 
   return (
     <div className="fixed bottom-0 inset-x-0 z-50 px-4 pb-5 pt-2 md:hidden">
-      <nav className="bg-slate-900/85 backdrop-blur-2xl border border-white/10 rounded-[2.5rem] flex items-center justify-around h-16 px-2 shadow-2xl shadow-black/60">
+      <nav className="bg-[var(--card-bg)]/85 backdrop-blur-2xl border border-[var(--border)] rounded-[2.5rem] flex items-center justify-around h-16 px-2 shadow-2xl shadow-black/20">
         {navItems.map((item) => {
           const isActive =
             item.href === "/"
@@ -43,12 +43,12 @@ export function BottomNav() {
 
               <item.icon
                 className={`w-5 h-5 relative z-10 transition-colors duration-200 ${
-                  isActive ? "text-emerald-400" : "text-slate-500"
+                  isActive ? "text-emerald-500" : "text-[var(--foreground)]/40"
                 }`}
               />
               <span
                 className={`text-[10px] font-bold tracking-tight relative z-10 transition-colors duration-200 ${
-                  isActive ? "text-emerald-400" : "text-slate-600"
+                  isActive ? "text-emerald-500" : "text-[var(--foreground)]/40"
                 }`}
               >
                 {item.label}

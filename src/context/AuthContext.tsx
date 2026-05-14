@@ -18,6 +18,12 @@ interface AuthContextType {
   /** The group the user has selected as their primary view */
   primaryGroupId:  string | null;
   setPrimaryGroupId: (id: string | null) => Promise<void>;
+  /** Programs the user chose to show in their personal dashboard */
+  preferredProgramIds: string[];
+  setPreferredPrograms: (ids: string[]) => Promise<void>;
+  /** Groups the user chose to show in their personal dashboard */
+  preferredGroupIds: string[];
+  setPreferredGroups: (ids: string[]) => Promise<void>;
   isAdmin:         boolean;
   isManager:       boolean;
   isLogistics:     boolean;
@@ -37,8 +43,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading,        setLoading]        = useState(true);
   const [role,           setRole]           = useState<UserRole | null>(null);
   const [status,         setStatus]         = useState<UserStatus | null>(null);
-  const [assignedGroups, setAssignedGroups] = useState<string[]>([]);
-  const [primaryGroupId, setPrimaryGroupIdState] = useState<string | null>(null);
+  const [assignedGroups,       setAssignedGroups]       = useState<string[]>([]);
+  const [primaryGroupId,       setPrimaryGroupIdState]   = useState<string | null>(null);
+  const [preferredProgramIds,  setPreferredProgramIdsState] = useState<string[]>([]);
+  const [preferredGroupIds,    setPreferredGroupIdsState]   = useState<string[]>([]);
   const [isAdmin,        setIsAdmin]        = useState(false);
   const [isManager,      setIsManager]      = useState(false);
   const [isLogistics,    setIsLogistics]    = useState(false);
@@ -63,6 +71,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setRole(userRole);
             setAssignedGroups(data.assignedGroups || []);
             setPrimaryGroupIdState(data.primaryGroupId || null);
+            setPreferredProgramIdsState(data.preferredProgramIds || []);
+            setPreferredGroupIdsState(data.preferredGroupIds || []);
 
             const approved = userStatus === "approved";
             setIsWhitelisted(approved);
@@ -101,9 +111,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const setPrimaryGroupId = async (id: string | null) => {
     setPrimaryGroupIdState(id);
-    if (user) {
-      await updateDoc(doc(db, "users", user.uid), { primaryGroupId: id });
-    }
+    if (user) await updateDoc(doc(db, "users", user.uid), { primaryGroupId: id });
+  };
+
+  const setPreferredPrograms = async (ids: string[]) => {
+    setPreferredProgramIdsState(ids);
+    if (user) await updateDoc(doc(db, "users", user.uid), { preferredProgramIds: ids });
+  };
+
+  const setPreferredGroups = async (ids: string[]) => {
+    setPreferredGroupIdsState(ids);
+    if (user) await updateDoc(doc(db, "users", user.uid), { preferredGroupIds: ids });
   };
 
   const login = async () => {
@@ -134,6 +152,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   return (
     <AuthContext.Provider value={{
       user, loading, role, status, assignedGroups, primaryGroupId, setPrimaryGroupId,
+      preferredProgramIds, setPreferredPrograms, preferredGroupIds, setPreferredGroups,
       isAdmin, isManager, isLogistics, isInstructor, isEmployee, isWhitelisted,
       phoneNumber, workDays,
       login, logout,

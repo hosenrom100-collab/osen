@@ -5,10 +5,10 @@ import { useState, useEffect, useMemo } from "react";
 import { db } from "@/lib/firebase/config";
 import { collection, getDocs, setDoc, doc, query, orderBy, getDoc } from "firebase/firestore";
 import {
-  Clock, MapPin, Users, User, Plus, Trash2, Save, Copy,
+  MapPin, Users, Plus, Trash2, Save, Copy, Clock, Search, CheckCircle,
   Loader2, ChevronLeft, ChevronRight, Edit3, X, Check, Calendar,
 } from "lucide-react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   format, addDays, subDays, parseISO, startOfMonth, endOfMonth,
@@ -25,9 +25,16 @@ interface Activity {
   locationId: string; staffIds: string[]; groupId: string; notes?: string;
 }
 interface DaySchedule { dutyInstructorId: string; activities: Activity[] }
-interface Group    { id: string; name: string }
+interface Program  { id: string; name: string }
+interface Group    { id: string; name: string; programId?: string }
 interface Person   { id: string; name: string }
 interface Location { id: string; name: string }
+
+// groupId semantics:
+//   program.id  → shared within that program (e.g. "חרבות ברזל יום")
+//   group.id    → specific group within a program
+//   "staff_only"→ staff-only activity
+//   "all"       → legacy global (kept for backward compat)
 
 const EMPTY: DaySchedule = { dutyInstructorId: "", activities: [] };
 const DAY_NAMES = ["ראשון","שני","שלישי","רביעי","חמישי","שישי","שבת"];
@@ -176,13 +183,58 @@ function ActivityCard({
   );
 }
 
+/* ─── InlineSection ─────────────────────────────────────────────────────── */
+
+function InlineSection({ label, acts, pi, onAdd, onEdit, onDelete, nameOf, locName, resolveLabel }: {
+  label: string; acts: Activity[]; pi: number;
+  onAdd: () => void;
+  onEdit: (a: Activity) => void;
+  onDelete: (id: string) => void;
+  nameOf: (id: string) => string;
+  locName: (id: string) => string;
+  resolveLabel: (gid: string) => string;
+}) {
+  const pal = PALETTE[pi] ?? PALETTE[0];
+  return (
+    <div>
+      <div className="flex items-center gap-2 mb-1.5">
+        <span className={`w-1.5 h-1.5 rounded-sm border border-current opacity-50 shrink-0 ${pal.text}`} />
+        <span className={`text-[10px] font-bold uppercase tracking-wider ${pal.text} opacity-80`}>{label}</span>
+        {acts.length > 0 && <span className={`text-[9px] opacity-50 ${pal.text}`}>{acts.length}</span>}
+        <div className="flex-1" />
+        <button onClick={onAdd}
+          className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-medium ${pal.chip} hover:opacity-80 transition-opacity`}>
+          <Plus className="w-2 h-2" /> הוסף
+        </button>
+      </div>
+      {acts.length === 0 ? (
+        <button onClick={onAdd}
+          className="w-full py-3 border border-dashed border-white/[0.06] rounded-lg text-slate-700 text-[11px] flex items-center justify-center gap-1.5 hover:border-white/12 hover:text-slate-500 transition-all">
+          <Plus className="w-3 h-3" /> הוסף פעילות ל{label}
+        </button>
+      ) : (
+        <div className="space-y-1">
+          <AnimatePresence>
+            {acts.map(a => (
+              <ActivityCard key={a.id} activity={a} palIdx={pi}
+                groupLabel={resolveLabel(a.groupId)}
+                onEdit={() => onEdit(a)} onDelete={() => onDelete(a.id)}
+                nameOf={nameOf} locName={locName} />
+            ))}
+          </AnimatePresence>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ─── Activity Modal ────────────────────────────────────────────────────── */
 
 function ActivityModal({
-  initial, groups, staff, locations, onSave, onClose,
+  initial, programs, groups, staff, locations, onSave, onClose, contextId,
 }: {
-  initial: Activity; groups: Group[]; staff: Person[]; locations: Location[];
-  onSave: (a: Activity) => void; onClose: () => void;
+  initial: Activity; programs: Program[]; groups: Group[]; staff: Person[]; locations: Location[];
+  onSave: (a: Activity) => void; onClose: () => void; contextId?: string;
 }) {
   const [form,  setForm]  = useState<Activity>(initial);
   const [search, setSrch] = useState("");
@@ -190,122 +242,219 @@ function ActivityModal({
   const toggleStaff = (id: string) =>
     set({ staffIds: form.staffIds.includes(id) ? form.staffIds.filter(x => x !== id) : [...form.staffIds, id] });
 
-  const groupOptions = [
-    { id: "all",        label: "משותף לכל" },
-    ...groups.map(g => ({ id: g.id, label: g.name })),
-    { id: "staff_only", label: "צוות בלבד" },
+  // Build program-hierarchical group options
+  type GroupOption = { id: string; label: string; programLabel?: string; pi: number };
+  const groupOptions: GroupOption[] = [
+    ...programs.flatMap((prog, pi) => {
+      const progGroups = groups.filter(g => g.programId === prog.id);
+      return [
+        { id: prog.id,  label: `משותף — ${prog.name}`, programLabel: prog.name, pi: pi % (PALETTE.length - 2) + 1 },
+        ...progGroups.map(g => ({ id: g.id, label: g.name, programLabel: prog.name, pi: pi % (PALETTE.length - 2) + 1 })),
+      ];
+    }),
+    ...groups.filter(g => !programs.some(p => p.id === g.programId)).map(g => ({ id: g.id, label: g.name, pi: 0 })),
+    { id: "staff_only", label: "צוות בלבד", pi: PALETTE.length - 1 },
   ];
+
   const filteredStaff = staff.filter(p => p.name.toLowerCase().includes(search.toLowerCase()));
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-        onClick={onClose} className="absolute inset-0 bg-black/75 backdrop-blur-sm" />
-      <motion.div
-        initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
-        transition={{ type: "spring", damping: 28, stiffness: 280 }}
-        className="relative bg-slate-900 border-t sm:border border-white/10 w-full max-w-lg rounded-t-3xl sm:rounded-2xl shadow-2xl flex flex-col max-h-[92dvh]">
-        <div className="w-8 h-1 bg-white/10 rounded-full mx-auto mt-3 sm:hidden shrink-0" />
+  // Auto-set group if we have a contextId and it's a valid target
+  useEffect(() => {
+    if (contextId && contextId !== "show_all" && !initial.title) {
+      set({ groupId: contextId });
+    }
+  }, [contextId]);
 
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-6 md:p-12">
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+        onClick={onClose} className="absolute inset-0 bg-black/80 backdrop-blur-md" />
+      
+      <motion.div
+        initial={{ y: "100%", opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: "100%", opacity: 0 }}
+        transition={{ type: "spring", damping: 30, stiffness: 300 }}
+        className="relative bg-[var(--card-bg)] border-t sm:border border-[var(--border)] w-full max-w-4xl rounded-t-[2.5rem] sm:rounded-[2rem] shadow-2xl flex flex-col max-h-[95dvh] overflow-hidden">
+        
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-3.5 border-b border-white/[0.07] shrink-0">
-          <h2 className="font-semibold text-sm">{initial.title ? "עריכת פעילות" : "פעילות חדשה"}</h2>
-          <button onClick={onClose} className="p-1.5 rounded text-slate-500 hover:text-white hover:bg-white/5 transition-colors"><X className="w-4 h-4" /></button>
+        <div className="flex items-center justify-between px-8 py-5 border-b border-[var(--border)] bg-[var(--foreground)]/[0.02] shrink-0">
+          <div className="flex items-center gap-4">
+            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg ${initial.title ? "bg-blue-600/20 text-blue-500" : "bg-rose-600/20 text-rose-500"}`}>
+              {initial.title ? <Edit3 className="w-6 h-6" /> : <Plus className="w-6 h-6" />}
+            </div>
+            <div>
+              <h2 className="font-black text-lg tracking-tight">{initial.title ? "עריכת פעילות בלו״ז" : "הוספת פעילות חדשה"}</h2>
+              <p className="text-[11px] text-[var(--foreground)]/40 font-bold uppercase tracking-widest">ניהול שיבוצים ומשימות יומיומיות</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="p-3 rounded-2xl text-[var(--foreground)]/30 hover:text-[var(--foreground)] hover:bg-[var(--foreground)]/5 transition-all active:scale-90">
+            <X className="w-6 h-6" />
+          </button>
         </div>
 
-        {/* Body */}
-        <div className="p-5 space-y-4 overflow-y-auto flex-1">
+        {/* Body - 2 Column Grid on Desktop */}
+        <div className="flex-1 overflow-y-auto custom-scrollbar p-6 md:p-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 md:gap-12">
+            
+            {/* Right Column: Main Details */}
+            <div className="space-y-6">
+              <div className="space-y-4">
+                <h3 className="text-[10px] font-black text-rose-500 uppercase tracking-[0.2em] mb-4">פרטי הפעילות</h3>
+                
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-bold text-[var(--foreground)]/50 pr-1">שם הפעילות / סוג שיעור</label>
+                  <input value={form.title} onChange={e => set({ title: e.target.value })}
+                    placeholder="פסיכודרמה, אמנות, ישיבת צוות..."
+                    autoFocus
+                    className="w-full bg-[var(--foreground)]/5 border border-[var(--border)] rounded-2xl px-5 py-3.5 text-sm font-bold focus:border-rose-500/50 focus:ring-1 focus:ring-rose-500/20 outline-none transition-all" />
+                </div>
 
-          {/* Title */}
-          <div>
-            <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5">שם הפעילות *</label>
-            <input value={form.title} onChange={e => set({ title: e.target.value })}
-              placeholder="פסיכודרמה, אמנות, ישיבת צוות..."
-              autoFocus
-              className="w-full bg-white/5 border border-white/[0.07] rounded-lg p-2.5 text-sm focus:border-blue-500 outline-none transition-colors" />
-          </div>
-
-          {/* Time */}
-          <div>
-            <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5">שעות</label>
-            <div className="flex items-center gap-2">
-              <input type="time" value={form.startTime} onChange={e => set({ startTime: e.target.value })}
-                className="flex-1 bg-white/5 border border-white/[0.07] rounded-lg p-2.5 text-sm focus:border-blue-500 outline-none transition-colors" />
-              <span className="text-slate-600 text-xs font-medium shrink-0">עד</span>
-              <input type="time" value={form.endTime} onChange={e => set({ endTime: e.target.value })}
-                className="flex-1 bg-white/5 border border-white/[0.07] rounded-lg p-2.5 text-sm focus:border-blue-500 outline-none transition-colors" />
-            </div>
-          </div>
-
-          {/* Group */}
-          <div>
-            <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5">קהל יעד</label>
-            <div className="flex flex-wrap gap-1.5">
-              {groupOptions.map((g, i) => {
-                const pal = PALETTE[i === 0 ? 0 : i <= groups.length ? i : PALETTE.length - 1] ?? PALETTE[0];
-                return (
-                  <button key={g.id} type="button" onClick={() => set({ groupId: g.id })}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
-                      form.groupId === g.id
-                        ? `${pal.bg} ${pal.border} ${pal.text}`
-                        : "bg-white/5 border-white/[0.07] text-slate-500 hover:bg-white/8"
-                    }`}>
-                    {g.label}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Location */}
-          <div>
-            <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5">מיקום</label>
-            <select value={form.locationId} onChange={e => set({ locationId: e.target.value })}
-              className="w-full bg-slate-800 border border-white/[0.07] rounded-lg p-2.5 text-sm focus:border-blue-500 outline-none transition-colors">
-              <option value="">בחר מיקום...</option>
-              {locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
-            </select>
-          </div>
-
-          {/* Staff */}
-          <div>
-            <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
-              אנשי צוות {form.staffIds.length > 0 && <span className="text-blue-400">({form.staffIds.length})</span>}
-            </label>
-            <input value={search} onChange={e => setSrch(e.target.value)} placeholder="חיפוש שם..."
-              className="w-full bg-white/5 border border-white/[0.07] rounded-lg p-2 text-xs mb-1.5 focus:border-blue-500 outline-none transition-colors" />
-            <div className="space-y-1 max-h-32 overflow-y-auto">
-              {filteredStaff.map(p => (
-                <button key={p.id} type="button" onClick={() => toggleStaff(p.id)}
-                  className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all ${
-                    form.staffIds.includes(p.id)
-                      ? "bg-blue-600/15 border border-blue-500/25 text-blue-300"
-                      : "bg-white/[0.03] border border-white/[0.05] text-slate-400 hover:bg-white/6"
-                  }`}>
-                  <div className={`w-3.5 h-3.5 rounded-sm flex items-center justify-center shrink-0 border ${form.staffIds.includes(p.id) ? "bg-blue-600 border-blue-500" : "border-white/20"}`}>
-                    {form.staffIds.includes(p.id) && <Check className="w-2.5 h-2.5 text-white" />}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-bold text-[var(--foreground)]/50 pr-1">שעת התחלה</label>
+                    <div className="relative">
+                      <Clock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--foreground)]/20" />
+                      <input type="time" value={form.startTime} onChange={e => set({ startTime: e.target.value })}
+                        className="w-full bg-[var(--foreground)]/5 border border-[var(--border)] rounded-2xl pl-4 pr-12 py-3.5 text-sm font-black focus:border-rose-500/50 outline-none transition-all" />
+                    </div>
                   </div>
-                  {p.name}
-                </button>
-              ))}
-            </div>
-          </div>
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-bold text-[var(--foreground)]/50 pr-1">שעת סיום</label>
+                    <div className="relative">
+                      <Clock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--foreground)]/20" />
+                      <input type="time" value={form.endTime} onChange={e => set({ endTime: e.target.value })}
+                        className="w-full bg-[var(--foreground)]/5 border border-[var(--border)] rounded-2xl pl-4 pr-12 py-3.5 text-sm font-black focus:border-rose-500/50 outline-none transition-all" />
+                    </div>
+                  </div>
+                </div>
 
-          {/* Notes */}
-          <div>
-            <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5">הערות</label>
-            <textarea value={form.notes || ""} onChange={e => set({ notes: e.target.value })}
-              placeholder="פרטים נוספים..." rows={2}
-              className="w-full bg-white/5 border border-white/[0.07] rounded-lg p-2.5 text-sm focus:border-blue-500 outline-none transition-colors resize-none" />
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-bold text-[var(--foreground)]/50 pr-1">מיקום</label>
+                  <div className="relative">
+                    <MapPin className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--foreground)]/20" />
+                    <select value={form.locationId} onChange={e => set({ locationId: e.target.value })}
+                      className="w-full bg-[var(--foreground)]/5 border border-[var(--border)] rounded-2xl pr-12 pl-4 py-3.5 text-sm font-bold focus:border-rose-500/50 outline-none transition-all appearance-none">
+                      <option value="" className="bg-[var(--card-bg)]">בחר מיקום...</option>
+                      {locations.map(l => <option key={l.id} value={l.id} className="bg-[var(--card-bg)]">{l.name}</option>)}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="space-y-1.5 pt-2">
+                  <label className="block text-xs font-bold text-[var(--foreground)]/50 pr-1">הערות נוספות</label>
+                  <textarea value={form.notes || ""} onChange={e => set({ notes: e.target.value })}
+                    placeholder="פרטים חשובים, ציוד נדרש..." rows={3}
+                    className="w-full bg-[var(--foreground)]/5 border border-[var(--border)] rounded-2xl px-5 py-4 text-sm font-medium focus:border-rose-500/50 outline-none transition-all resize-none" />
+                </div>
+              </div>
+            </div>
+
+            {/* Left Column: Audience & Staff */}
+            <div className="space-y-8">
+              {/* Audience Section */}
+              <div className="space-y-4">
+                <h3 className="text-[10px] font-black text-blue-500 uppercase tracking-[0.2em]">קהל יעד וקבוצות</h3>
+                
+                <div className="bg-[var(--foreground)]/[0.02] border border-[var(--border)] rounded-[2rem] p-4 space-y-5">
+                  {programs
+                    .filter(prog => {
+                      if (!contextId || contextId === "show_all") return true;
+                      return contextId === prog.id || groups.some(g => g.id === contextId && g.programId === prog.id);
+                    })
+                    .map((prog, pi) => {
+                      const piReal = pi % (PALETTE.length - 2) + 1;
+                      const pal    = PALETTE[piReal] ?? PALETTE[0];
+                      const opts   = groupOptions.filter(g => g.programLabel === prog.name);
+                      
+                      return (
+                        <div key={prog.id} className="space-y-2">
+                          <div className="flex items-center gap-2 mb-1 px-1">
+                            <div className={`w-1.5 h-1.5 rounded-full ${pal.dot}`} />
+                            <p className={`text-[10px] font-black uppercase tracking-wider ${pal.text}`}>{prog.name}</p>
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            {opts.map(g => (
+                              <button key={g.id} type="button" onClick={() => set({ groupId: g.id })}
+                                className={`px-4 py-2 rounded-xl text-xs font-black border transition-all active:scale-95 ${
+                                  form.groupId === g.id
+                                    ? `${pal.bg} ${pal.border} ${pal.text} shadow-sm ring-2 ring-inset ring-white/5`
+                                    : "bg-[var(--foreground)]/5 border-transparent text-[var(--foreground)]/40 hover:bg-[var(--foreground)]/10"
+                                }`}>
+                                {g.id === prog.id ? "משותף לתוכנית" : g.label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
+
+                  {/* Staff Only Option - Only show if not filtered or if filtered to staff */}
+                  {(!contextId || contextId === "show_all" || contextId === "staff_only") && (
+                    <div className="pt-2 border-t border-[var(--border)]">
+                      <div className="flex items-center gap-2 mb-2 px-1">
+                        <div className="w-1.5 h-1.5 rounded-full bg-slate-500" />
+                        <p className="text-[10px] font-black uppercase tracking-wider text-slate-500">ניהול פנימי</p>
+                      </div>
+                      <button type="button" onClick={() => set({ groupId: "staff_only" })}
+                        className={`px-4 py-2 rounded-xl text-xs font-black border transition-all active:scale-95 ${
+                          form.groupId === "staff_only"
+                            ? "bg-slate-500/10 border-slate-500/30 text-slate-400 shadow-sm"
+                            : "bg-[var(--foreground)]/5 border-transparent text-[var(--foreground)]/40 hover:bg-[var(--foreground)]/10"
+                        }`}>
+                        צוות בלבד
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Staff Selection Section */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between px-1">
+                  <h3 className="text-[10px] font-black text-violet-500 uppercase tracking-[0.2em]">אנשי צוות משובצים</h3>
+                  {form.staffIds.length > 0 && <span className="text-[10px] font-black bg-violet-500/10 text-violet-500 px-2 py-0.5 rounded-full">{form.staffIds.length} נבחרו</span>}
+                </div>
+                
+                <div className="bg-[var(--foreground)]/[0.02] border border-[var(--border)] rounded-[2rem] p-4 space-y-4">
+                  <div className="relative">
+                    <Search className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--foreground)]/20" />
+                    <input value={search} onChange={e => setSrch(e.target.value)} placeholder="חפש איש צוות..."
+                      className="w-full bg-[var(--background)] border border-[var(--border)] rounded-2xl pr-11 pl-4 py-3 text-xs font-bold outline-none focus:border-violet-500/50 transition-all" />
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto no-scrollbar pr-1">
+                    {filteredStaff.map(p => {
+                      const isSelected = form.staffIds.includes(p.id);
+                      return (
+                        <button key={p.id} type="button" onClick={() => toggleStaff(p.id)}
+                          className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all border ${
+                            isSelected
+                              ? "bg-violet-600/10 border-violet-500/30 text-violet-500"
+                              : "bg-[var(--background)] border-transparent text-[var(--foreground)]/40 hover:bg-[var(--foreground)]/5 hover:text-[var(--foreground)]"
+                          }`}>
+                          <div className={`w-4 h-4 rounded-md flex items-center justify-center shrink-0 border transition-all ${isSelected ? "bg-violet-600 border-violet-500 scale-110" : "border-[var(--foreground)]/20"}`}>
+                            {isSelected && <Check className="w-3 h-3 text-white" />}
+                          </div>
+                          <span className="truncate">{p.name}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            </div>
+
           </div>
         </div>
 
         {/* Footer */}
-        <div className="flex gap-2.5 px-5 py-4 border-t border-white/[0.07] shrink-0">
-          <button onClick={onClose} className="flex-1 py-2.5 bg-white/5 rounded-lg font-medium text-sm hover:bg-white/8 transition-all">ביטול</button>
+        <div className="flex gap-4 px-8 py-6 border-t border-[var(--border)] bg-[var(--foreground)]/[0.02] shrink-0">
+          <button onClick={onClose} className="flex-1 py-4 bg-[var(--foreground)]/5 rounded-2xl font-black text-sm text-[var(--foreground)]/40 hover:bg-[var(--foreground)]/10 hover:text-[var(--foreground)] transition-all active:scale-95">ביטול</button>
           <button onClick={() => onSave(form)} disabled={!form.title.trim()}
-            className="flex-1 py-2.5 bg-blue-600 rounded-lg font-semibold text-sm hover:bg-blue-500 transition-all disabled:opacity-40">
-            שמור פעילות
+            className="flex-[1.5] py-4 bg-blue-600 text-white rounded-2xl font-black text-sm hover:bg-blue-500 shadow-xl shadow-blue-600/20 transition-all active:scale-95 disabled:opacity-40 disabled:grayscale">
+            <div className="flex items-center justify-center gap-2">
+              <CheckCircle className="w-5 h-5" />
+              <span>שמור פעילות ללו״ז</span>
+            </div>
           </button>
         </div>
       </motion.div>
@@ -316,7 +465,6 @@ function ActivityModal({
 /* ─── Main page ─────────────────────────────────────────────────────────── */
 
 function SchedulePageInner() {
-  const router       = useRouter();
   const searchParams = useSearchParams();
 
   const [date,      setDate]      = useState(format(new Date(), "yyyy-MM-dd"));
@@ -324,24 +472,27 @@ function SchedulePageInner() {
   const [staff,     setStaff]     = useState<Person[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
   const [groups,    setGroups]    = useState<Group[]>([]);
+  const [programs,  setPrograms]  = useState<Program[]>([]);
   const [loading,   setLoading]   = useState(true);
   const [saving,    setSaving]    = useState(false);
   const [saved,     setSaved]     = useState(false);
   const [viewFilter, setViewFilter] = useState(searchParams.get("group") || "show_all");
   const [editingActivity, setEditingActivity] = useState<Activity | null | "new">(null);
-  const [newActivityGroup, setNewActivityGroup] = useState("all");
+  const [newActivityGroup, setNewActivityGroup] = useState("");
 
   /* ── Load reference data once ── */
   useEffect(() => {
     (async () => {
-      const [u, l, g] = await Promise.all([
+      const [u, l, g, p] = await Promise.all([
         getDocs(collection(db, "users")),
         getDocs(collection(db, "locations")),
         getDocs(query(collection(db, "groups"), orderBy("name"))),
+        getDocs(query(collection(db, "programs"), orderBy("name"))),
       ]);
       setStaff(u.docs.map(d => ({ id: d.id, name: d.data().name || d.data().email })));
       setLocations(l.docs.map(d => ({ id: d.id, name: d.data().name })));
-      setGroups(g.docs.map(d => ({ id: d.id, name: d.data().name })));
+      setGroups(g.docs.map(d => ({ id: d.id, name: d.data().name, programId: d.data().programId })));
+      setPrograms(p.docs.map(d => ({ id: d.id, name: d.data().name })));
     })();
   }, []);
 
@@ -367,38 +518,82 @@ function SchedulePageInner() {
   }, [date]);
 
   /* ── Derived ── */
-  const nameOf     = (id: string) => staff.find(s => s.id === id)?.name     || id;
-  const locName    = (id: string) => locations.find(l => l.id === id)?.name || "—";
-  const groupLabel = (gid: string) =>
-    gid === "all"        ? "משותף" :
-    gid === "staff_only" ? "צוות"  :
-    groups.find(g => g.id === gid)?.name || gid;
+  const nameOf  = (id: string) => staff.find(s => s.id === id)?.name     || id;
+  const locName = (id: string) => locations.find(l => l.id === id)?.name || "—";
 
-  // Palette index for a groupId
-  const palIdx = (gid: string) => {
-    if (gid === "all") return 0;
-    const gi = groups.findIndex(g => g.id === gid);
-    if (gi >= 0) return gi + 1;
-    return PALETTE.length - 1; // staff_only
+  // Palette index: same program → same color
+  const programPalIdx = (programId: string) => {
+    const i = programs.findIndex(p => p.id === programId);
+    return i >= 0 ? (i % (PALETTE.length - 2)) + 1 : 0;
+  };
+  const palIdx = (gid: string): number => {
+    if (gid === "staff_only") return PALETTE.length - 1;
+    if (gid === "all") return 0; // legacy
+    const prog = programs.find(p => p.id === gid);
+    if (prog) return programPalIdx(prog.id);          // program-joint activity
+    const grp  = groups.find(g => g.id === gid);
+    if (grp?.programId) return programPalIdx(grp.programId); // group activity
+    return 0;
   };
 
-  // All sections in order: all, ...groups, staff_only
-  const sections = useMemo(() => [
-    { id: "all",        label: "משותף",    palIdx: 0 },
-    ...groups.map((g, i) => ({ id: g.id, label: g.name, palIdx: i + 1 })),
-    { id: "staff_only", label: "צוות בלבד", palIdx: PALETTE.length - 1 },
-  ], [groups]);
+  const groupLabel = (gid: string): string => {
+    if (gid === "staff_only") return "צוות";
+    if (gid === "all")        return "משותף";
+    const prog = programs.find(p => p.id === gid);
+    if (prog) return `משותף — ${prog.name}`;
+    return groups.find(g => g.id === gid)?.name || gid;
+  };
 
-  // Activities for the current view, sorted by time
-  const visibleActivities = useMemo(() =>
-    schedule.activities
-      .filter(a => viewFilter === "show_all" || a.groupId === viewFilter)
-      .sort((a, b) => a.startTime.localeCompare(b.startTime)),
-    [schedule.activities, viewFilter]
+  // program-hierarchical sections for the "show_all" view
+  const programSections = useMemo(() =>
+    programs.map(prog => ({
+      program: prog,
+      pi:      programPalIdx(prog.id),
+      jointId: prog.id,                                     // groupId for "joint within program"
+      groups:  groups.filter(g => g.programId === prog.id),
+    })),
+    [programs, groups]
+  );
+  // Groups not linked to any loaded program
+  const orphanGroups = useMemo(() =>
+    groups.filter(g => !programs.some(p => p.id === g.programId)),
+    [groups, programs]
   );
 
-  // Count per section (for badges)
+  // Flat sections for mobile tabs / single-filter mode
+  const sections = useMemo(() => [
+    ...programs.flatMap((prog, i) => {
+      const pi = i % (PALETTE.length - 2) + 1;
+      return [
+        { id: prog.id, label: `משותף — ${prog.name}`, palIdx: pi },
+        ...groups.filter(g => g.programId === prog.id).map(g => ({ id: g.id, label: g.name, palIdx: pi })),
+      ];
+    }),
+    ...orphanGroups.map(g => ({ id: g.id, label: g.name, palIdx: 0 })),
+    { id: "staff_only", label: "צוות בלבד", palIdx: PALETTE.length - 1 },
+  ], [programs, groups, orphanGroups]);
+
+  // Activities for the current filter, sorted by time
+  const visibleActivities = useMemo(() => {
+    const acts = schedule.activities;
+    return acts
+      .filter(a => {
+        if (viewFilter === "show_all") return true;
+        if (a.groupId === viewFilter) return true;
+        // When filtering by program.id, also show groups belonging to that program
+        const progGroupIds = groups.filter(g => g.programId === viewFilter).map(g => g.id);
+        return progGroupIds.includes(a.groupId);
+      })
+      .sort((a, b) => a.startTime.localeCompare(b.startTime));
+  }, [schedule.activities, viewFilter, groups]);
+
+  // Activity count for a specific groupId (exact match)
   const countFor = (id: string) => schedule.activities.filter(a => a.groupId === id).length;
+  // Activity count for an entire program (joint + all its groups)
+  const countProgram = (progId: string) => {
+    const gids = groups.filter(g => g.programId === progId).map(g => g.id);
+    return schedule.activities.filter(a => a.groupId === progId || gids.includes(a.groupId)).length;
+  };
 
   /* ── Mutations ── */
   const upsertActivity = (a: Activity) => {
@@ -428,8 +623,13 @@ function SchedulePageInner() {
       setSaved(true); setTimeout(() => setSaved(false), 2500);
     } finally { setSaving(false); }
   };
-  const openNew = (groupId = viewFilter === "show_all" ? "all" : viewFilter) => {
-    setNewActivityGroup(groupId);
+  // Smart default for openNew: prefer program-joint if known, else first program
+  const openNew = (groupId?: string) => {
+    const defaultId = groupId ?? (
+      viewFilter !== "show_all" ? viewFilter :
+      programs[0]?.id ?? "staff_only"
+    );
+    setNewActivityGroup(defaultId);
     setEditingActivity("new");
   };
 
@@ -516,34 +716,62 @@ function SchedulePageInner() {
                 </select>
               </div>
 
-              {/* Section/group filters */}
+              {/* Section/group filters — program-hierarchical */}
               <div>
-                <p className="text-[9px] font-bold uppercase tracking-widest text-slate-600 mb-2">סינון לפי קבוצה</p>
+                <p className="text-[9px] font-bold uppercase tracking-widest text-slate-600 mb-2">סינון</p>
                 <div className="space-y-0.5">
-                  {/* "All" option */}
                   <button onClick={() => setViewFilter("show_all")}
-                    className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs font-medium transition-all ${
-                      viewFilter === "show_all"
-                        ? "bg-white/8 text-white"
-                        : "text-slate-500 hover:bg-white/5 hover:text-slate-300"
+                    className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded text-xs font-medium transition-all ${
+                      viewFilter === "show_all" ? "bg-white/8 text-white" : "text-slate-500 hover:bg-white/5 hover:text-slate-300"
                     }`}>
                     <span className="w-2 h-2 rounded-full bg-slate-500 shrink-0" />
-                    <span className="flex-1 text-right">כל הקבוצות</span>
+                    <span className="flex-1 text-right">כל הפעילויות</span>
                     <span className="text-[9px] text-slate-600 shrink-0">{schedule.activities.length}</span>
                   </button>
 
-                  {sections.map(sec => {
-                    const pal   = PALETTE[sec.palIdx] ?? PALETTE[0];
-                    const cnt   = countFor(sec.id);
-                    const actv  = viewFilter === sec.id;
+                  {programSections.map((ps: any) => {
+                    const pal = PALETTE[ps.pi] ?? PALETTE[0];
+                    return (
+                      <div key={ps.program.id} className="pt-1.5">
+                        <button onClick={() => setViewFilter(ps.program.id)}
+                          className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded text-[10px] font-bold uppercase tracking-wider transition-all ${
+                            viewFilter === ps.program.id ? `${pal.bg} ${pal.text}` : "text-slate-500 hover:text-slate-300"
+                          }`}>
+                          <span className={`w-2 h-2 rounded-full shrink-0 ${pal.dot}`} />
+                          <span className="flex-1 text-right">{ps.program.name}</span>
+                          {countProgram(ps.program.id) > 0 && <span className="text-[9px] shrink-0">{countProgram(ps.program.id)}</span>}
+                        </button>
+                        <button onClick={() => setViewFilter(ps.jointId)}
+                          className={`w-full flex items-center gap-2 pr-5 pl-2.5 py-1 rounded text-[10px] font-medium transition-all ${
+                            viewFilter === ps.jointId ? `${pal.bg} ${pal.text}` : "text-slate-600 hover:text-slate-400"
+                          }`}>
+                          <span className="w-1.5 h-1.5 border border-current rounded-sm shrink-0 opacity-60" />
+                          <span className="flex-1 text-right">משותף לתוכנית</span>
+                          {countFor(ps.jointId) > 0 && <span className="text-[9px] shrink-0">{countFor(ps.jointId)}</span>}
+                        </button>
+                        {ps.groups.map((g: any) => (
+                          <button key={g.id} onClick={() => setViewFilter(g.id)}
+                            className={`w-full flex items-center gap-2 pr-5 pl-2.5 py-1 rounded text-[10px] font-medium transition-all ${
+                              viewFilter === g.id ? `${pal.bg} ${pal.text}` : "text-slate-600 hover:text-slate-400"
+                            }`}>
+                            <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${pal.dot} opacity-60`} />
+                            <span className="flex-1 text-right">{g.name}</span>
+                            {countFor(g.id) > 0 && <span className="text-[9px] shrink-0">{countFor(g.id)}</span>}
+                          </button>
+                        ))}
+                      </div>
+                    );
+                  })}
+                  {[...orphanGroups.map((g: any) => ({ id: g.id, label: g.name, pi: 0 })), { id: "staff_only", label: "צוות בלבד", pi: PALETTE.length - 1 }].map((sec: any) => {
+                    const pal = PALETTE[sec.pi] ?? PALETTE[0];
                     return (
                       <button key={sec.id} onClick={() => setViewFilter(sec.id)}
-                        className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs font-medium transition-all ${
-                          actv ? `${pal.bg} ${pal.text}` : "text-slate-500 hover:bg-white/5 hover:text-slate-300"
+                        className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded text-xs font-medium mt-0.5 transition-all ${
+                          viewFilter === sec.id ? `${pal.bg} ${pal.text}` : "text-slate-500 hover:bg-white/5 hover:text-slate-300"
                         }`}>
                         <span className={`w-2 h-2 rounded-full shrink-0 ${pal.dot}`} />
                         <span className="flex-1 text-right">{sec.label}</span>
-                        {cnt > 0 && <span className={`text-[9px] shrink-0 ${actv ? pal.text : "text-slate-600"}`}>{cnt}</span>}
+                        {countFor(sec.id) > 0 && <span className="text-[9px] shrink-0">{countFor(sec.id)}</span>}
                       </button>
                     );
                   })}
@@ -589,7 +817,7 @@ function SchedulePageInner() {
                 </button>
               </div>
 
-              {/* Mobile: section tabs */}
+              {/* Mobile: section tabs (flat) */}
               <div className="md:hidden flex gap-1.5 overflow-x-auto no-scrollbar pb-2">
                 <button onClick={() => setViewFilter("show_all")}
                   className={`shrink-0 px-3 py-1 rounded text-[11px] font-semibold border transition-all ${viewFilter === "show_all" ? "bg-white/10 border-white/20 text-white" : "bg-white/5 border-white/[0.07] text-slate-500"}`}>
@@ -600,9 +828,7 @@ function SchedulePageInner() {
                   return (
                     <button key={sec.id} onClick={() => setViewFilter(sec.id)}
                       className={`shrink-0 flex items-center gap-1.5 px-3 py-1 rounded text-[11px] font-semibold border transition-all ${
-                        viewFilter === sec.id
-                          ? `${pal.bg} ${pal.border} ${pal.text}`
-                          : "bg-white/5 border-white/[0.07] text-slate-500"
+                        viewFilter === sec.id ? `${pal.bg} ${pal.border} ${pal.text}` : "bg-white/5 border-white/[0.07] text-slate-500"
                       }`}>
                       <span className={`w-1.5 h-1.5 rounded-full ${pal.dot}`} />
                       {sec.label}
@@ -620,48 +846,49 @@ function SchedulePageInner() {
                   <p className="text-slate-500 text-sm">טוען לו״ז...</p>
                 </div>
               ) : viewFilter === "show_all" ? (
-                /* Show all sections */
+                /* Program-hierarchical view */
                 <div className="space-y-5">
-                  {sections.map(sec => {
-                    const acts = schedule.activities
-                      .filter(a => a.groupId === sec.id)
-                      .sort((a, b) => a.startTime.localeCompare(b.startTime));
-                    const pal  = PALETTE[sec.palIdx] ?? PALETTE[0];
+                  {programSections.map(ps => {
+                    const pal       = PALETTE[ps.pi] ?? PALETTE[0];
+                    const jointActs = schedule.activities.filter(a => a.groupId === ps.jointId).sort((a,b) => a.startTime.localeCompare(b.startTime));
                     return (
-                      <section key={sec.id}>
-                        <div className="flex items-center gap-2 mb-2">
-                          <span className={`w-2 h-2 rounded-full ${pal.dot}`} />
-                          <span className={`text-[11px] font-bold uppercase tracking-wider ${pal.text}`}>{sec.label}</span>
-                          <span className="text-[10px] text-slate-600">{acts.length > 0 ? `${acts.length}` : ""}</span>
-                          <div className={`flex-1 h-px ${pal.border} border-b`} />
-                          <button onClick={() => openNew(sec.id)}
-                            className={`flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium ${pal.chip} hover:opacity-80 transition-opacity`}>
-                            <Plus className="w-2.5 h-2.5" /> הוסף
-                          </button>
+                      <div key={ps.program.id} className={`rounded-xl border ${pal.border} overflow-hidden`}>
+                        {/* Program banner */}
+                        <div className={`flex items-center gap-2 px-4 py-2 ${pal.bg} border-b ${pal.border}`}>
+                          <span className={`w-2.5 h-2.5 rounded-full ${pal.dot}`} />
+                          <span className={`text-xs font-bold ${pal.text}`}>{ps.program.name}</span>
+                          {countProgram(ps.program.id) > 0 && (
+                            <span className={`text-[10px] opacity-60 ${pal.text}`}>{countProgram(ps.program.id)} פעילויות</span>
+                          )}
                         </div>
-                        {acts.length === 0 ? (
-                          <button onClick={() => openNew(sec.id)}
-                            className="w-full py-4 border border-dashed border-white/[0.07] rounded-lg text-slate-700 text-xs flex items-center justify-center gap-2 hover:border-white/15 hover:text-slate-500 transition-all">
-                            <Plus className="w-3.5 h-3.5" /> הוסף פעילות ל{sec.label}
-                          </button>
-                        ) : (
-                          <div className="space-y-1.5">
-                            <AnimatePresence>
-                              {acts.map(a => (
-                                <ActivityCard key={a.id}
-                                  activity={a}
-                                  palIdx={sec.palIdx}
-                                  groupLabel={sec.label}
-                                  onEdit={() => setEditingActivity(a)}
-                                  onDelete={() => deleteActivity(a.id)}
-                                  nameOf={nameOf}
-                                  locName={locName}
-                                />
-                              ))}
-                            </AnimatePresence>
-                          </div>
-                        )}
-                      </section>
+                        <div className="p-3 space-y-4">
+                          {/* Joint section */}
+                          <InlineSection label="משותף לתוכנית" acts={jointActs} pi={ps.pi}
+                            onAdd={() => openNew(ps.jointId)}
+                            onEdit={setEditingActivity} onDelete={deleteActivity}
+                            nameOf={nameOf} locName={locName} resolveLabel={groupLabel} />
+                          {/* Per-group sections */}
+                          {ps.groups.map(g => {
+                            const gActs = schedule.activities.filter(a => a.groupId === g.id).sort((a,b) => a.startTime.localeCompare(b.startTime));
+                            return (
+                              <InlineSection key={g.id} label={g.name} acts={gActs} pi={ps.pi}
+                                onAdd={() => openNew(g.id)}
+                                onEdit={setEditingActivity} onDelete={deleteActivity}
+                                nameOf={nameOf} locName={locName} resolveLabel={groupLabel} />
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {/* Orphan groups + staff */}
+                  {[...orphanGroups.map(g => ({ id: g.id, label: g.name, pi: 0 as number })), { id: "staff_only", label: "צוות בלבד", pi: PALETTE.length - 1 }].map(sec => {
+                    const acts = schedule.activities.filter(a => a.groupId === sec.id).sort((a,b) => a.startTime.localeCompare(b.startTime));
+                    return (
+                      <InlineSection key={sec.id} label={sec.label} acts={acts} pi={sec.pi}
+                        onAdd={() => openNew(sec.id)}
+                        onEdit={setEditingActivity} onDelete={deleteActivity}
+                        nameOf={nameOf} locName={locName} resolveLabel={groupLabel} />
                     );
                   })}
                 </div>
@@ -677,7 +904,7 @@ function SchedulePageInner() {
                   ) : (
                     <div className="space-y-1.5">
                       <AnimatePresence>
-                        {visibleActivities.map(a => (
+                        {visibleActivities.map((a: any) => (
                           <ActivityCard key={a.id}
                             activity={a}
                             palIdx={palIdx(a.groupId)}
@@ -725,8 +952,9 @@ function SchedulePageInner() {
               initial={editingActivity === "new"
                 ? { id: uid(), title: "", startTime: "09:00", endTime: "10:00", locationId: "", staffIds: [], groupId: newActivityGroup, notes: "" }
                 : editingActivity}
-              groups={groups} staff={staff} locations={locations}
+              groups={groups} programs={programs} staff={staff} locations={locations}
               onSave={upsertActivity} onClose={() => setEditingActivity(null)}
+              contextId={viewFilter}
             />
           )}
         </AnimatePresence>

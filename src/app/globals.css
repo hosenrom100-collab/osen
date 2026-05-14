@@ -1,53 +1,220 @@
 @import "tailwindcss";
 
-:root {
-  --background: #020617;
-  --foreground: #f8fafc;
-  --card-bg: rgba(15, 23, 42, 0.4);
-  --border: rgba(255, 255, 255, 0.08);
-  --primary: #3b82f6;
-  --primary-foreground: #ffffff;
-  --accent: rgba(59, 130, 246, 0.1);
-  --sidebar-bg: #020617;
+/* ════════════════════════════════════════════════════════════════════
+   TAILWIND v4 THEME TOKENS
+   These become Tailwind utility classes: bg-background, text-foreground, etc.
+   The CSS variable values are overridden by .light / :root scopes below.
+   ════════════════════════════════════════════════════════════════════ */
+@theme {
+  /* Layout tokens */
+  --color-background:   #07071a;
+  --color-surface:      #0d0d24;
+  --color-surface-hi:   #131330;
+  --color-card:         #0d0d24;
+  --color-border:       rgba(255,255,255,0.07);
+  --color-border-hi:    rgba(255,255,255,0.13);
+  --color-sidebar:      #07071a;
+
+  /* Text tokens */
+  --color-foreground:   #eaeaf8;
+  --color-muted:        #8080a4;
+  --color-subtle:       #3e3e5e;
+
+  /* Brand tokens */
+  --color-primary:      #4f73ff;
+  --color-primary-faint:#111840;
 }
 
+/* ════════════════════════════════════════════════════════════════════
+   DARK THEME  (:root)  — Professional CRM dark
+   ════════════════════════════════════════════════════════════════════ */
+:root {
+  color-scheme: dark;
+
+  --background:      #07071a;
+  --surface:         #0d0d24;
+  --surface-raised:  #131330;
+  --card-bg:         #0d0d24;
+  --sidebar-bg:      #07071a;
+
+  --border:          rgba(255,255,255,0.07);
+  --border-strong:   rgba(255,255,255,0.13);
+  --border-subtle:   rgba(255,255,255,0.035);
+
+  --foreground:      #eaeaf8;
+  --text-secondary:  #8080a4;
+  --text-muted:      #3e3e5e;
+
+  --primary:         #4f73ff;
+  --primary-rgb:     79, 115, 255;
+  --primary-faint:   rgba(79,115,255,0.10);
+
+  --scrollbar-track: #07071a;
+  --scrollbar-thumb: #1a1a40;
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   LIGHT THEME  (.light)  — Clean, airy professional
+   ════════════════════════════════════════════════════════════════════ */
 .light {
-  --background: #ffffff;
-  --foreground: #0f172a;
-  --card-bg: #ffffff;
-  --border: #e2e8f0;
-  --primary: #2563eb;
-  --primary-foreground: #ffffff;
-  --accent: #eff6ff;
-  --sidebar-bg: #f8fafc;
+  color-scheme: light;
+
+  /* Override @theme tokens so Tailwind classes respond */
+  --color-background:  #f0f0f9;
+  --color-surface:     #ffffff;
+  --color-surface-hi:  #ffffff;
+  --color-card:        #ffffff;
+  --color-border:      #dedee8;
+  --color-border-hi:   #c4c4d8;
+  --color-sidebar:     #f8f8fd;
+  --color-foreground:  #0d0d24;
+  --color-muted:       #8888a8;
+  --color-subtle:      #b8b8d8;
+  --color-primary:     #3354e8;
+  --color-primary-faint: #eef1fd;
+
+  /* Legacy variables used by older pages */
+  --background:      #f0f0f9;
+  --surface:         #ffffff;
+  --surface-raised:  #ffffff;
+  --card-bg:         #ffffff;
+  --sidebar-bg:      #f8f8fd;
+
+  --border:          #dedee8;
+  --border-strong:   #c4c4d8;
+  --border-subtle:   #ebebf5;
+
+  --foreground:      #0d0d24;
+  --text-secondary:  #5858789;
+  --text-muted:      #a0a0bc;
+
+  --primary:         #3354e8;
+  --primary-rgb:     51, 84, 232;
+  --primary-faint:   rgba(51,84,232,0.08);
+
+  --scrollbar-track: #f0f0f9;
+  --scrollbar-thumb: #d0d0e4;
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   BASE STYLES
+   ════════════════════════════════════════════════════════════════════ */
+html {
+  font-feature-settings: "cv02","cv03","cv04","cv11";
 }
 
 body {
-  background: var(--background);
+  background-color: var(--background);
   color: var(--foreground);
-  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
-  transition: background-color 0.3s ease, color 0.3s ease;
+  transition: background-color 0.2s ease, color 0.2s ease;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
+/* ── Tailwind v4: fix default border color ────────────────────────── */
+/* Without this, bare "border" / "border-b" etc. inherit currentColor  */
+/* causing unwanted colored stripes throughout the layout.             */
 @layer base {
-  * {
-    @apply border-white/10;
+  *, ::before, ::after {
+    border-color: var(--border);
   }
 }
 
-/* Custom Scrollbar */
-::-webkit-scrollbar {
-  width: 8px;
+/* ════════════════════════════════════════════════════════════════════
+   LIGHT MODE — fix hardcoded Tailwind dark classes
+   Pages using bg-slate-950, border-white/5, etc. adapt to light theme
+   ════════════════════════════════════════════════════════════════════ */
+.light {
+  /* Backgrounds */
+  & .bg-slate-950  { background-color: var(--background) !important; }
+  & .bg-slate-900  { background-color: var(--surface) !important; }
+  & .bg-slate-800  { background-color: #eeeef6 !important; }
+  & .min-h-screen.bg-slate-950 { background-color: var(--background); }
+
+  /* Text */
+  & .text-white    { color: var(--foreground) !important; }
+  & .text-slate-300 { color: var(--foreground) !important; }
+  & .text-slate-400 { color: var(--text-secondary) !important; }
+  & .text-slate-500 { color: var(--text-secondary) !important; }
+  & .text-slate-600 { color: var(--text-muted) !important; }
+  & .text-slate-700 { color: var(--text-muted) !important; }
+
+  /* Borders — opacity-based whites → proper light borders */
+  & .border-white\/5,
+  & .border-white\/\[0\.05\] { border-color: var(--border-subtle) !important; }
+  & .border-white\/8,
+  & .border-white\/\[0\.07\],
+  & .border-white\/\[0\.08\] { border-color: var(--border) !important; }
+  & .border-white\/10,
+  & .border-white\/\[0\.1\]  { border-color: var(--border-strong) !important; }
+
+  /* Semi-transparent backgrounds → solid */
+  & .bg-white\/\[0\.03\],
+  & .bg-white\/\[0\.04\],
+  & .bg-white\/\[0\.05\],
+  & .bg-white\/5 {
+    background-color: var(--surface) !important;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  }
+  & .bg-white\/\[0\.02\] { background-color: #f6f6fc !important; }
+
+  /* Input backgrounds */
+  & input, & select, & textarea {
+    background-color: var(--surface) !important;
+    color: var(--foreground) !important;
+    border-color: var(--border) !important;
+  }
 }
 
-::-webkit-scrollbar-track {
-  @apply bg-slate-950;
-}
-
+/* ════════════════════════════════════════════════════════════════════
+   SCROLLBARS
+   ════════════════════════════════════════════════════════════════════ */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: var(--scrollbar-track); }
 ::-webkit-scrollbar-thumb {
-  @apply bg-slate-800 rounded-full border-2 border-slate-950;
+  background: var(--scrollbar-thumb);
+  border-radius: 9999px;
+  border: 1px solid var(--scrollbar-track);
+}
+::-webkit-scrollbar-thumb:hover { background: var(--text-secondary); }
+
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* ════════════════════════════════════════════════════════════════════
+   SELECTION & FOCUS
+   ════════════════════════════════════════════════════════════════════ */
+::selection {
+  background-color: rgba(79,115,255,0.15);
+  color: var(--foreground);
+}
+.light ::selection {
+  background-color: rgba(51,84,232,0.12);
 }
 
-::-webkit-scrollbar-thumb:hover {
-  @apply bg-slate-700;
+:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   OPTION ELEMENTS  (select dropdown items)
+   ════════════════════════════════════════════════════════════════════ */
+option {
+  background-color: var(--surface-raised, #131330);
+  color: var(--foreground);
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   DATE/TIME INPUT ICONS
+   ════════════════════════════════════════════════════════════════════ */
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="time"]::-webkit-calendar-picker-indicator {
+  filter: invert(0.5);
+  cursor: pointer;
+}
+.light input[type="date"]::-webkit-calendar-picker-indicator,
+.light input[type="time"]::-webkit-calendar-picker-indicator {
+  filter: invert(0.2);
 }
