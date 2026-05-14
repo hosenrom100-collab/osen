@@ -2,58 +2,90 @@
 
 import { useState, useEffect } from "react";
 import { db } from "@/lib/firebase/config";
-import { collection, addDoc, serverTimestamp, getDocs } from "firebase/firestore";
+import {
+  collection, addDoc, serverTimestamp, getDocs,
+  query, orderBy, where
+} from "firebase/firestore";
 import { useRouter } from "next/navigation";
-import { UserPlus, Calendar, CreditCard, User, ArrowRight, Loader2, CheckCircle, Briefcase } from "lucide-react";
+import {
+  UserPlus, Calendar, CreditCard, User,
+  ArrowRight, Loader2, CheckCircle, Briefcase, Layers, Users
+} from "lucide-react";
+
+interface Program { id: string; name: string }
+interface Group   { id: string; name: string; programId?: string }
+
+const FIELD = "w-full bg-slate-900/50 border border-white/10 rounded-2xl px-4 py-3 focus:outline-none focus:border-purple-500 transition-all text-white [color-scheme:dark]";
+const LABEL = "text-sm font-medium text-slate-400 flex items-center gap-2 mb-2";
 
 export function PatientForm() {
-  const [loading, setLoading] = useState(false);
   const router = useRouter();
-  
-  const [formData, setFormData] = useState({
-    firstName: "",
-    lastName: "",
-    idNumber: "",
-    startDate: new Date().toISOString().split("T")[0],
-    endDate: "",
-    hosenType: "upper" as "upper" | "lower",
-    status: "active" as "active" | "finished" | "waiting_intake" | "waiting_start",
-    assignedWorkerId: ""
-  });
-  const [socialWorkers, setSocialWorkers] = useState<{id: string, name: string}[]>([]);
+  const [loading, setLoading] = useState(false);
 
+  const [programs,      setPrograms]      = useState<Program[]>([]);
+  const [allGroups,     setAllGroups]     = useState<Group[]>([]);
+  const [socialWorkers, setSocialWorkers] = useState<{ id: string; name: string }[]>([]);
+
+  const [selectedProgramId, setSelectedProgramId] = useState("");
+  const [formData, setFormData] = useState({
+    firstName:        "",
+    lastName:         "",
+    idNumber:         "",
+    startDate:        new Date().toISOString().split("T")[0],
+    endDate:          "",
+    hosenType:        "",   // group ID
+    programId:        "",   // program ID (denormalised for fast queries)
+    status:           "active" as const,
+    assignedWorkerId: "",
+  });
+
+  const set = (patch: Partial<typeof formData>) =>
+    setFormData(f => ({ ...f, ...patch }));
+
+  /* ── Load reference data ── */
   useEffect(() => {
-    const fetchSocialWorkers = async () => {
-      try {
-        const querySnapshot = await getDocs(collection(db, "users"));
-        const workers: {id: string, name: string}[] = [];
-        querySnapshot.forEach((doc) => {
-          const data = doc.data();
-          if (data.role === "social_worker" || data.role === "admin" || data.role === "manager") {
-            workers.push({ id: doc.id, name: data.name || data.email });
-          }
-        });
-        setSocialWorkers(workers);
-      } catch (error) {
-        console.error("Error fetching social workers:", error);
-      }
+    const load = async () => {
+      const [progSnap, groupSnap, usersSnap] = await Promise.all([
+        getDocs(query(collection(db, "programs"), orderBy("name"))),
+        getDocs(query(collection(db, "groups"),   orderBy("name"))),
+        getDocs(collection(db, "users")),
+      ]);
+      setPrograms(progSnap.docs.map(d => ({ id: d.id, ...d.data() as any })));
+      setAllGroups(groupSnap.docs.map(d => ({ id: d.id, ...d.data() as any })));
+      const workers: { id: string; name: string }[] = [];
+      usersSnap.forEach(d => {
+        const data = d.data();
+        if (["social_worker","admin","manager"].includes(data.role))
+          workers.push({ id: d.id, name: data.name || data.email });
+      });
+      setSocialWorkers(workers);
     };
-    fetchSocialWorkers();
+    load();
   }, []);
 
+  /* ── Derived ── */
+  const programGroups = allGroups.filter(g => g.programId === selectedProgramId);
+  // Groups without any programId (legacy data or manually created)
+  const ungroupedGroups = allGroups.filter(g => !g.programId);
+
+  const handleProgramChange = (progId: string) => {
+    setSelectedProgramId(progId);
+    set({ programId: progId, hosenType: "" }); // reset group when program changes
+  };
+
+  /* ── Submit ── */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!formData.hosenType) { return; }
     setLoading(true);
-    
     try {
       await addDoc(collection(db, "patients"), {
         ...formData,
-        fullName: `${formData.firstName} ${formData.lastName}`,
+        fullName:  `${formData.firstName} ${formData.lastName}`,
         createdAt: serverTimestamp(),
       });
       router.push("/patients");
-    } catch (error) {
-      console.error("Error adding patient:", error);
+    } catch {
       alert("שגיאה בהוספת מטופל");
     } finally {
       setLoading(false);
@@ -61,155 +93,139 @@ export function PatientForm() {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6 max-w-2xl mx-auto bg-white/5 border border-white/10 p-8 rounded-3xl backdrop-blur-xl">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Hosen Type Selection */}
-        <div className="md:col-span-2 p-1 bg-slate-900/50 rounded-2xl border border-white/5 flex gap-1">
-          <button
-            type="button"
-            onClick={() => setFormData({ ...formData, hosenType: "upper" })}
-            className={`flex-1 py-3 rounded-xl text-sm font-bold transition-all ${formData.hosenType === "upper" ? "bg-purple-600 text-white shadow-lg shadow-purple-500/20" : "text-slate-400 hover:text-white"}`}
-          >
-            חוסן עליון
-          </button>
-          <button
-            type="button"
-            onClick={() => setFormData({ ...formData, hosenType: "lower" })}
-            className={`flex-1 py-3 rounded-xl text-sm font-bold transition-all ${formData.hosenType === "lower" ? "bg-purple-600 text-white shadow-lg shadow-purple-500/20" : "text-slate-400 hover:text-white"}`}
-          >
-            חוסן תחתון
-          </button>
-        </div>
+    <form onSubmit={handleSubmit} className="max-w-lg mx-auto space-y-5">
 
-        {/* First Name */}
-        <div className="space-y-2">
-          <label className="text-sm font-medium text-slate-400 flex items-center gap-2">
-            <User className="w-4 h-4" /> שם פרטי
-          </label>
-          <input
-            required
-            type="text"
-            value={formData.firstName}
-            onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-            className="w-full bg-slate-900/50 border border-white/10 rounded-2xl px-4 py-3 focus:outline-none focus:border-purple-500 transition-all text-white"
-            placeholder="ישראל"
-          />
-        </div>
+      {/* ── Program ── */}
+      <div className="bg-white/[0.03] border border-white/8 rounded-2xl p-4 space-y-3">
+        <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
+          <Layers className="w-3.5 h-3.5 text-violet-400" /> שיבוץ תוכנית וקבוצה
+        </p>
 
-        {/* Last Name */}
-        <div className="space-y-2">
-          <label className="text-sm font-medium text-slate-400 flex items-center gap-2">
-            <User className="w-4 h-4" /> שם משפחה
-          </label>
-          <input
-            required
-            type="text"
-            value={formData.lastName}
-            onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-            className="w-full bg-slate-900/50 border border-white/10 rounded-2xl px-4 py-3 focus:outline-none focus:border-purple-500 transition-all text-white"
-            placeholder="ישראלי"
-          />
-        </div>
+        {/* Program selector */}
+        {programs.length > 0 && (
+          <div>
+            <label className={LABEL}><Layers className="w-4 h-4" /> תוכנית</label>
+            <div className="flex flex-wrap gap-2">
+              {programs.map(p => (
+                <button key={p.id} type="button" onClick={() => handleProgramChange(p.id)}
+                  className={`px-3 py-2 rounded-xl text-sm font-bold border transition-all ${
+                    selectedProgramId === p.id
+                      ? "bg-violet-600 border-violet-500 text-white shadow-lg shadow-violet-600/20"
+                      : "bg-white/5 border-white/10 text-slate-400 hover:border-white/20"
+                  }`}>
+                  {p.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
-        {/* ID Number */}
-        <div className="space-y-2">
-          <label className="text-sm font-medium text-slate-400 flex items-center gap-2">
-            <CreditCard className="w-4 h-4" /> תעודת זהות
-          </label>
-          <input
-            required
-            type="text"
-            pattern="[0-9]*"
-            maxLength={9}
-            value={formData.idNumber}
-            onChange={(e) => setFormData({ ...formData, idNumber: e.target.value })}
-            className="w-full bg-slate-900/50 border border-white/10 rounded-2xl px-4 py-3 focus:outline-none focus:border-purple-500 transition-all text-white"
-            placeholder="000000000"
-          />
-        </div>
-
-        {/* Status */}
-        <div className="space-y-2">
-          <label className="text-sm font-medium text-slate-400 flex items-center gap-2">
-            <CheckCircle className="w-4 h-4" /> סטטוס מטופל
-          </label>
-          <select
-            value={formData.status}
-            onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
-            className="w-full bg-slate-900/50 border border-white/10 rounded-2xl px-4 py-3 focus:outline-none focus:border-purple-500 transition-all text-white [color-scheme:dark]"
-          >
-            <option value="active">פעיל</option>
-            <option value="waiting_intake">ממתין לאינטייק</option>
-            <option value="waiting_start">ממתין להתחלה</option>
-            <option value="finished">סיום</option>
-          </select>
-        </div>
-
-        {/* Assigned Worker */}
-        <div className="space-y-2">
-          <label className="text-sm font-medium text-slate-400 flex items-center gap-2">
-            <Briefcase className="w-4 h-4" /> עו״ס מטפל
-          </label>
-          <select
-            value={formData.assignedWorkerId}
-            onChange={(e) => setFormData({ ...formData, assignedWorkerId: e.target.value })}
-            className="w-full bg-slate-900/50 border border-white/10 rounded-2xl px-4 py-3 focus:outline-none focus:border-purple-500 transition-all text-white [color-scheme:dark]"
-          >
-            <option value="">בחר עו״ס...</option>
-            {socialWorkers.map(worker => (
-              <option key={worker.id} value={worker.id}>{worker.name}</option>
-            ))}
-          </select>
-        </div>
-
-        {/* Start Date */}
-        <div className="space-y-2">
-          <label className="text-sm font-medium text-slate-400 flex items-center gap-2">
-            <Calendar className="w-4 h-4" /> תאריך התחלה
-          </label>
-          <input
-            required
-            type="date"
-            value={formData.startDate}
-            onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
-            className="w-full bg-slate-900/50 border border-white/10 rounded-2xl px-4 py-3 focus:outline-none focus:border-purple-500 transition-all text-white [color-scheme:dark]"
-          />
-        </div>
-
-        {/* End Date */}
-        <div className="space-y-2">
-          <label className="text-sm font-medium text-slate-400 flex items-center gap-2">
-            <Calendar className="w-4 h-4" /> תאריך סיום (משוער)
-          </label>
-          <input
-            type="date"
-            value={formData.endDate}
-            onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
-            className="w-full bg-slate-900/50 border border-white/10 rounded-2xl px-4 py-3 focus:outline-none focus:border-purple-500 transition-all text-white [color-scheme:dark]"
-          />
+        {/* Group selector — filtered by program */}
+        <div>
+          <label className={LABEL}><Users className="w-4 h-4" /> קבוצה *</label>
+          {(programGroups.length > 0 || ungroupedGroups.length > 0) ? (
+            <div className="flex flex-wrap gap-2">
+              {(selectedProgramId ? programGroups : ungroupedGroups).map(g => (
+                <button key={g.id} type="button"
+                  onClick={() => set({ hosenType: g.id })}
+                  className={`px-4 py-2.5 rounded-xl text-sm font-bold border transition-all ${
+                    formData.hosenType === g.id
+                      ? "bg-purple-600 border-purple-500 text-white shadow-lg shadow-purple-600/20"
+                      : "bg-white/5 border-white/10 text-slate-400 hover:border-white/20"
+                  }`}>
+                  {g.name}
+                </button>
+              ))}
+            </div>
+          ) : (
+            <p className="text-slate-600 text-sm italic">
+              {selectedProgramId ? "אין קבוצות לתוכנית זו" : "בחר תוכנית כדי לראות קבוצות, או הוסף קבוצות ב'ניהול תוכניות'"}
+            </p>
+          )}
+          {!formData.hosenType && (
+            <p className="text-rose-400 text-[11px] mt-1.5">* יש לבחור קבוצה</p>
+          )}
         </div>
       </div>
 
-      <div className="pt-4 flex items-center justify-between gap-4">
-        <button
-          type="button"
-          onClick={() => router.back()}
-          className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors text-sm font-medium"
-        >
-          <ArrowRight className="w-4 h-4" /> ביטול וחזרה
+      {/* ── Personal info ── */}
+      <div className="bg-white/[0.03] border border-white/8 rounded-2xl p-4 space-y-4">
+        <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
+          <User className="w-3.5 h-3.5 text-blue-400" /> פרטים אישיים
+        </p>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className={LABEL}><User className="w-4 h-4" /> שם פרטי</label>
+            <input required type="text" value={formData.firstName}
+              onChange={e => set({ firstName: e.target.value })}
+              placeholder="ישראל" className={FIELD} />
+          </div>
+          <div>
+            <label className={LABEL}><User className="w-4 h-4" /> שם משפחה</label>
+            <input required type="text" value={formData.lastName}
+              onChange={e => set({ lastName: e.target.value })}
+              placeholder="ישראלי" className={FIELD} />
+          </div>
+        </div>
+
+        <div>
+          <label className={LABEL}><CreditCard className="w-4 h-4" /> תעודת זהות</label>
+          <input required type="text" pattern="[0-9]*" maxLength={9}
+            value={formData.idNumber} onChange={e => set({ idNumber: e.target.value })}
+            placeholder="000000000" className={FIELD} />
+        </div>
+      </div>
+
+      {/* ── Assignment & Status ── */}
+      <div className="bg-white/[0.03] border border-white/8 rounded-2xl p-4 space-y-4">
+        <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
+          <Briefcase className="w-3.5 h-3.5 text-emerald-400" /> שיבוץ וסטטוס
+        </p>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className={LABEL}><CheckCircle className="w-4 h-4" /> סטטוס</label>
+            <select value={formData.status} onChange={e => set({ status: e.target.value as any })} className={FIELD}>
+              <option value="active">פעיל</option>
+              <option value="waiting_intake">ממתין לאינטייק</option>
+              <option value="waiting_start">ממתין להתחלה</option>
+              <option value="finished">סיום</option>
+            </select>
+          </div>
+          <div>
+            <label className={LABEL}><Briefcase className="w-4 h-4" /> עו״ס מטפל</label>
+            <select value={formData.assignedWorkerId} onChange={e => set({ assignedWorkerId: e.target.value })} className={FIELD}>
+              <option value="">בחר עו״ס...</option>
+              {socialWorkers.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
+            </select>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className={LABEL}><Calendar className="w-4 h-4" /> תאריך התחלה</label>
+            <input required type="date" value={formData.startDate}
+              onChange={e => set({ startDate: e.target.value })} className={FIELD} />
+          </div>
+          <div>
+            <label className={LABEL}><Calendar className="w-4 h-4" /> תאריך סיום</label>
+            <input type="date" value={formData.endDate}
+              onChange={e => set({ endDate: e.target.value })} className={FIELD} />
+          </div>
+        </div>
+      </div>
+
+      {/* ── Actions ── */}
+      <div className="flex items-center justify-between gap-4 pt-2">
+        <button type="button" onClick={() => router.back()}
+          className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors text-sm">
+          <ArrowRight className="w-4 h-4" /> ביטול
         </button>
-        
-        <button
-          disabled={loading}
-          type="submit"
-          className="flex items-center gap-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold py-3 px-8 rounded-2xl hover:opacity-90 transition-all disabled:opacity-50 shadow-lg shadow-purple-500/20"
-        >
-          {loading ? (
-            <Loader2 className="w-5 h-5 animate-spin" />
-          ) : (
-            <UserPlus className="w-5 h-5" />
-          )}
-          הוסף מטופל למערכת
+        <button type="submit" disabled={loading || !formData.hosenType}
+          className="flex items-center gap-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold py-3 px-8 rounded-2xl hover:opacity-90 transition-all disabled:opacity-40 shadow-lg shadow-purple-500/20">
+          {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <UserPlus className="w-5 h-5" />}
+          הוסף מטופל
         </button>
       </div>
     </form>
