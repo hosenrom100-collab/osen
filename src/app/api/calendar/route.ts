@@ -8,15 +8,28 @@ function buildAuth() {
   let   privateKey  = process.env.FIREBASE_PRIVATE_KEY ?? "";
 
   // Normalise: strip surrounding quotes, convert escaped \n → real newlines
-  // 1. Handle double-escaped newlines and literal newlines
-  privateKey = privateKey.replace(/\\n/g, "\n");
-  // 2. Remove any surrounding quotes that might have been included in the .env value
-  privateKey = privateKey.replace(/^"|"$/g, "");
-  // 3. If the key still has literal "\n" strings (sometimes happens with certain loaders)
-  if (privateKey.includes("\\n")) {
+  // 1. Convert escaped \n to real newlines and handle quotes
+  privateKey = privateKey.trim();
+  
+  // If it's wrapped in quotes, it might be a JSON string or just a quoted string
+  if (privateKey.startsWith('"') && privateKey.endsWith('"')) {
+    try {
+      // Try parsing as JSON first (handles escaped characters perfectly)
+      const parsed = JSON.parse(privateKey);
+      if (typeof parsed === 'string') privateKey = parsed;
+    } catch {
+      // Fallback: manual slice and replace
+      privateKey = privateKey.slice(1, -1).replace(/\\n/g, "\n");
+    }
+  } else {
+    // If not quoted, just replace \n
     privateKey = privateKey.replace(/\\n/g, "\n");
   }
+  
   privateKey = privateKey.trim();
+
+  // Verification log (to help us debug if it still fails)
+  console.log(`[Calendar Auth] Key length: ${privateKey.length}, Starts with PEM: ${privateKey.startsWith('-----BEGIN')}`);
 
   const missing = [
     !calendarId  && "GOOGLE_CALENDAR_ID",
@@ -24,20 +37,21 @@ function buildAuth() {
     !privateKey  && "FIREBASE_PRIVATE_KEY",
   ].filter(Boolean);
 
-  if (missing.length) {
-    const err: any = new Error(`חסרים משתני סביבה: ${missing.join(", ")}`);
-    err.type = "MISSING_CONFIG";
-    throw err;
+  if (missing.length > 0) {
+    throw new Error(`Missing environment variables: ${missing.join(", ")}`);
   }
 
-  const auth = new google.auth.JWT({
-    email: clientEmail,
-    key:   privateKey,
-    // calendar.events scope allows both reading AND writing events
-    scopes: ["https://www.googleapis.com/auth/calendar.events"],
-  });
-
-  return { auth, calendarId: calendarId! };
+  try {
+    const auth = new google.auth.JWT({
+      email: clientEmail,
+      key:   privateKey,
+      scopes: ["https://www.googleapis.com/auth/calendar.events"],
+    });
+    return { auth, calendarId: calendarId! };
+  } catch (err: any) {
+    console.error("[Calendar Auth Error] JWT creation failed:", err.message);
+    throw err;
+  }
 }
 
 function mapItem(item: any) {
