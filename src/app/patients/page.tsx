@@ -1,10 +1,13 @@
 "use client";
 
 import { RoleGuard } from "@/components/auth/RoleGuard";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { db } from "@/lib/firebase/config";
 import { collection, getDocs, query, orderBy, doc, updateDoc, where } from "firebase/firestore";
-import { Users, UserPlus, Search, ArrowRight, User, ArrowLeftRight, Loader2, Filter, Calendar, Clock, Check, X, Phone, UserCheck, ChevronLeft, MoreVertical, Briefcase, Plus, Layers, Edit3, AlertCircle, RefreshCw } from "lucide-react";
+import {
+  Search, ArrowRight, User, Loader2, Calendar, Plus, Edit3,
+  ChevronLeft, AlertCircle, RefreshCw, Check, X, ArrowLeftRight
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/context/AuthContext";
@@ -22,445 +25,274 @@ interface Patient {
   status: PatientStatus;
   assignedWorkerId?: string;
 }
+interface Group  { id: string; name: string }
+interface Worker { id: string; name: string }
 
-interface Group {
-  id: string;
-  name: string;
-}
+const STATUS_META: Record<PatientStatus, { label: string; color: string; pill: string }> = {
+  active:         { label: "פעיל",             color: "text-emerald-400", pill: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" },
+  finished:       { label: "סיום",             color: "text-slate-400",   pill: "bg-slate-500/10  text-slate-400  border-slate-500/20"  },
+  waiting_intake: { label: "ממתין לאינטייק",   color: "text-amber-400",   pill: "bg-amber-500/10  text-amber-400  border-amber-500/20"  },
+  waiting_start:  { label: "ממתין להתחלה",     color: "text-purple-400",  pill: "bg-purple-500/10 text-purple-400 border-purple-500/20" },
+};
+
+const AVATAR_COLORS = ["bg-blue-600","bg-violet-600","bg-rose-600","bg-amber-600","bg-teal-600","bg-indigo-600"];
+const avatarColor = (name: string) => AVATAR_COLORS[(name?.charCodeAt(0) ?? 0) % AVATAR_COLORS.length];
 
 export default function PatientsPage() {
-  const { assignedGroups, isAdmin, role } = useAuth();
-  const [patients, setPatients] = useState<Patient[]>([]);
-  const [groups, setGroups] = useState<Group[]>([]);
-  const [socialWorkers, setSocialWorkers] = useState<{id: string, name: string}[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [filterHosen, setFilterHosen] = useState<string>("all");
-  const [filterWorker, setFilterWorker] = useState<string>("all");
-  const [filterStatus, setFilterStatus] = useState<string>("all");
-  const [showAll, setShowAll] = useState(isAdmin || assignedGroups.length === 0);
-
-  const [selectedPatientForEdit, setSelectedPatientForEdit] = useState<Patient | null>(null);
-  const [editForm, setEditForm] = useState<Partial<Patient>>({});
-  const [isSaving, setIsSaving] = useState(false);
-  const [selectedPatientForAttendance, setSelectedPatientForAttendance] = useState<Patient | null>(null);
-  const [attendanceHistory, setAttendanceHistory] = useState<{date: string, status: string}[]>([]);
-  const [loadingHistory, setLoadingHistory] = useState(false);
+  const { assignedGroups, isAdmin } = useAuth();
   const router = useRouter();
 
+  const [patients,      setPatients]      = useState<Patient[]>([]);
+  const [groups,        setGroups]        = useState<Group[]>([]);
+  const [socialWorkers, setSocialWorkers] = useState<Worker[]>([]);
+  const [loading,       setLoading]       = useState(true);
+  const [loadError,     setLoadError]     = useState<string | null>(null);
+
+  const [searchTerm,   setSearchTerm]   = useState("");
+  const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [filterGroup,  setFilterGroup]  = useState<string>("all");
+  const [showAll,      setShowAll]      = useState(isAdmin || assignedGroups.length === 0);
+
+  // Modals
+  const [editPatient, setEditPatient] = useState<Patient | null>(null);
+  const [editForm,    setEditForm]    = useState<Partial<Patient>>({});
+  const [isSaving,    setIsSaving]    = useState(false);
+  const [histPatient, setHistPatient] = useState<Patient | null>(null);
+  const [history,     setHistory]     = useState<{ date: string; status: string }[]>([]);
+  const [histLoading, setHistLoading] = useState(false);
+
+  /* ── Data fetching ── */
   useEffect(() => {
-    fetchGroups();
-    fetchSocialWorkers();
-    fetchPatients();
+    Promise.all([fetchGroups(), fetchWorkers(), fetchPatients()]);
   }, []);
 
   const fetchGroups = async () => {
-    try {
-      const q = query(collection(db, "groups"), orderBy("name"));
-      const snap = await getDocs(q);
-      const list: Group[] = [];
-      snap.forEach(doc => list.push({ id: doc.id, name: doc.data().name }));
-      setGroups(list);
-    } catch (error) {
-      console.error("Error fetching groups:", error);
-    }
+    const snap = await getDocs(query(collection(db, "groups"), orderBy("name")));
+    setGroups(snap.docs.map(d => ({ id: d.id, name: d.data().name })));
   };
 
-  const fetchSocialWorkers = async () => {
-    try {
-      const q = query(collection(db, "users"));
-      const querySnapshot = await getDocs(q);
-      const workers: {id: string, name: string}[] = [];
-      querySnapshot.forEach((doc) => {
-        const data = doc.data();
-        if (data.role === "social_worker" || data.role === "admin" || data.role === "manager") {
-          workers.push({ id: doc.id, name: data.name || data.email });
-        }
-      });
-      setSocialWorkers(workers);
-    } catch (error) {
-      console.error("Error fetching social workers:", error);
-    }
+  const fetchWorkers = async () => {
+    const snap = await getDocs(collection(db, "users"));
+    const list: Worker[] = [];
+    snap.forEach(d => {
+      const data = d.data();
+      if (["social_worker","admin","manager"].includes(data.role))
+        list.push({ id: d.id, name: data.name || data.email });
+    });
+    setSocialWorkers(list);
   };
 
   const fetchPatients = async () => {
     setLoadError(null);
     try {
-      const q = query(collection(db, "patients"));
-      const querySnapshot = await getDocs(q);
-      const list: Patient[] = [];
-      querySnapshot.forEach((doc) => {
-        const data = doc.data();
-        list.push({ id: doc.id, ...data, status: data.status || "active" } as Patient);
-      });
-      setPatients(list);
-    } catch (error: any) {
-      console.error("Error fetching patients:", error);
-      setLoadError(error.message || "שגיאה בטעינת הנתונים");
+      const snap = await getDocs(collection(db, "patients"));
+      setPatients(snap.docs.map(d => ({ id: d.id, ...d.data(), status: d.data().status || "active" } as Patient)));
+    } catch (e: any) {
+      setLoadError(e.message || "שגיאה בטעינת הנתונים");
     } finally {
       setLoading(false);
     }
   };
 
-  const fetchAttendanceHistory = async (patient: Patient) => {
-    setSelectedPatientForAttendance(patient);
-    setLoadingHistory(true);
+  const fetchHistory = async (patient: Patient) => {
+    setHistPatient(patient);
+    setHistLoading(true);
     try {
-      const q = query(collection(db, "attendance"), where("patientId", "==", patient.id), orderBy("date", "desc"));
-      const querySnapshot = await getDocs(q);
-      const history: {date: string, status: string}[] = [];
-      querySnapshot.forEach((doc) => {
-        const data = doc.data();
-        history.push({ date: data.date, status: data.status });
-      });
-      setAttendanceHistory(history);
-    } catch (error) {
-      console.error("Error fetching history:", error);
+      const snap = await getDocs(
+        query(collection(db, "attendance"), where("patientId", "==", patient.id), orderBy("date", "desc"))
+      );
+      setHistory(snap.docs.map(d => ({ date: d.data().date, status: d.data().status })));
     } finally {
-      setLoadingHistory(false);
+      setHistLoading(false);
     }
   };
 
-  const updatePatientStatus = async (patientId: string, newStatus: PatientStatus) => {
-    try {
-      await updateDoc(doc(db, "patients", patientId), { status: newStatus });
-      setPatients(patients.map(p => p.id === patientId ? { ...p, status: newStatus } : p));
-    } catch (error) {
-      console.error("Error updating status:", error);
-    }
-  };
-
-  const handleSaveQuickEdit = async () => {
-    if (!selectedPatientForEdit) return;
+  const saveEdit = async () => {
+    if (!editPatient) return;
     setIsSaving(true);
     try {
-      await updateDoc(doc(db, "patients", selectedPatientForEdit.id), editForm);
-      setPatients(patients.map(p => p.id === selectedPatientForEdit.id ? { ...p, ...editForm } : p));
-      setSelectedPatientForEdit(null);
-    } catch (error) {
-      console.error("Error saving quick edit:", error);
+      await updateDoc(doc(db, "patients", editPatient.id), editForm);
+      setPatients(ps => ps.map(p => p.id === editPatient.id ? { ...p, ...editForm } : p));
+      setEditPatient(null);
     } finally {
       setIsSaving(false);
     }
   };
 
-  const resolveGroupName = (hosenType?: string): string => {
-    if (!hosenType) return "לא הוגדר";
-    const group = groups.find(g => g.id === hosenType || g.name === hosenType);
-    return group?.name || "לא הוגדר";
+  const updateStatus = async (id: string, status: PatientStatus) => {
+    await updateDoc(doc(db, "patients", id), { status });
+    setPatients(ps => ps.map(p => p.id === id ? { ...p, status } : p));
   };
 
-  const filtered = patients.filter(p => {
-    const matchesSearch = `${p.firstName || ""} ${p.lastName || ""}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         (p.idNumber || "").includes(searchTerm);
+  /* ── Filtering ── */
+  const resolveGroup = (ht?: string) =>
+    groups.find(g => g.id === ht || g.name === ht)?.name ?? "—";
 
-    let isVisibleByGroup = showAll;
-    if (!isVisibleByGroup) {
-      const group = groups.find(g => g.id === (p.hosenType || "") || g.name === (p.hosenType || ""));
-      isVisibleByGroup = group ? assignedGroups.includes(group.id) : false;
+  const filtered = useMemo(() => patients.filter(p => {
+    const matchSearch = `${p.firstName} ${p.lastName}`.toLowerCase().includes(searchTerm.toLowerCase())
+                     || (p.idNumber || "").includes(searchTerm);
+
+    let matchGroup = showAll;
+    if (!matchGroup) {
+      const g = groups.find(g => g.id === (p.hosenType || "") || g.name === (p.hosenType || ""));
+      matchGroup = g ? assignedGroups.includes(g.id) : false;
     }
 
-    const matchesHosen = filterHosen === "all" || p.hosenType === filterHosen;
-    const matchesWorker = filterWorker === "all" || p.assignedWorkerId === filterWorker;
-    const matchesStatus = filterStatus === "all" || p.status === filterStatus;
+    const matchStatus = filterStatus === "all" || p.status === filterStatus;
+    const matchHosen  = filterGroup  === "all" || p.hosenType === filterGroup;
 
-    return matchesSearch && isVisibleByGroup && matchesHosen && matchesWorker && matchesStatus;
-  });
+    return matchSearch && matchGroup && matchStatus && matchHosen;
+  }), [patients, searchTerm, filterStatus, filterGroup, showAll, groups, assignedGroups]);
 
-  const getStatusStyle = (status: PatientStatus) => {
-    switch (status) {
-      case "active": return "bg-emerald-500/10 text-emerald-400 border-emerald-500/20";
-      case "finished": return "bg-slate-500/10 text-slate-400 border-slate-500/20";
-      case "waiting_intake": return "bg-amber-500/10 text-amber-400 border-amber-500/20";
-      case "waiting_start": return "bg-purple-500/10 text-purple-400 border-purple-500/20";
-      default: return "bg-slate-500/10 text-slate-400 border-slate-500/20";
-    }
-  };
-
-  const statusLabels: Record<PatientStatus, string> = {
-    active: "פעיל",
-    finished: "סיום",
-    waiting_intake: "ממתין לאינטייק",
-    waiting_start: "ממתין להתחלה"
-  };
-
-  const openEditModal = (patient: Patient) => {
-    setSelectedPatientForEdit(patient);
-    setEditForm({
-      firstName: patient.firstName,
-      lastName: patient.lastName,
-      idNumber: patient.idNumber,
-      hosenType: patient.hosenType,
-      assignedWorkerId: patient.assignedWorkerId,
-      status: patient.status
-    });
-  };
-
+  /* ── Render ── */
   return (
-    <RoleGuard allowedRoles={["admin", "manager", "instructor", "social_worker", "employee"]} redirectTo="/">
-      <main className="min-h-screen bg-slate-950 text-white p-4 pb-28 md:p-8">
-        {/* Sticky Header */}
-        <header className="max-w-7xl mx-auto mb-6 sticky top-0 bg-slate-950/90 backdrop-blur-md z-40 py-2 pt-4">
-          <div className="flex items-center justify-between gap-3 mb-4">
+    <RoleGuard allowedRoles={["admin","manager","instructor","social_worker","employee"]} redirectTo="/">
+      <div className="min-h-screen bg-slate-950 text-white">
+
+        {/* ── Sticky header ── */}
+        <header className="sticky top-0 z-40 bg-slate-950/95 backdrop-blur-xl border-b border-white/5">
+          <div className="max-w-3xl mx-auto px-4 pt-4 pb-3 space-y-3">
+
+            {/* Row 1 */}
             <div className="flex items-center gap-3">
-              <button
-                onClick={() => router.push("/")}
-                className="p-2.5 bg-white/5 border border-white/10 rounded-2xl active:scale-95 transition-all flex-shrink-0"
-              >
-                <ArrowRight className="w-5 h-5" />
+              <button onClick={() => router.push("/")}
+                className="p-2.5 rounded-xl bg-white/5 border border-white/10 active:scale-95 transition-all flex-shrink-0">
+                <ArrowRight className="w-4 h-4" />
               </button>
-              <div>
-                <h1 className="text-lg font-bold">מצבת מטופלים</h1>
-                <p className="text-slate-500 text-[10px] font-bold mt-0.5">
-                  {filtered.length} מטופלים
-                </p>
+              <div className="flex-1">
+                <h1 className="text-[17px] font-bold">מצבת מטופלים</h1>
+                <p className="text-[11px] text-slate-500 font-medium mt-0.5">{filtered.length} מטופלים</p>
+              </div>
+              <div className="flex items-center gap-2">
+                {assignedGroups.length > 0 && (
+                  <button onClick={() => setShowAll(v => !v)}
+                    className={`p-2 rounded-xl border transition-all ${showAll ? "bg-blue-600/20 border-blue-500/40 text-blue-400" : "bg-white/5 border-white/10 text-slate-500"}`}>
+                    <ArrowLeftRight className="w-4 h-4" />
+                  </button>
+                )}
+                <button onClick={() => router.push("/patients/new")}
+                  className="flex items-center gap-1.5 bg-emerald-600 text-white px-3 py-2 rounded-xl text-sm font-bold active:scale-95 transition-all shadow-lg shadow-emerald-600/20">
+                  <Plus className="w-4 h-4" />
+                  <span className="hidden sm:inline">מטופל חדש</span>
+                </button>
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
-              {assignedGroups.length > 0 && (
-                <button
-                  onClick={() => setShowAll(!showAll)}
-                  className={`p-2.5 rounded-2xl border transition-all flex items-center gap-1.5 ${showAll ? "bg-blue-600/20 border-blue-500 text-blue-400" : "bg-white/5 border-white/10 text-slate-400"}`}
-                >
-                  <ArrowLeftRight className="w-4 h-4" />
-                  <span className="text-[10px] font-bold hidden sm:inline">{showAll ? "הצג רק שלי" : "הצג הכל"}</span>
-                </button>
-              )}
-              <button
-                onClick={() => router.push("/patients/new")}
-                className="flex items-center gap-1.5 bg-emerald-600 text-white px-3 sm:px-5 py-2.5 rounded-2xl font-bold transition-all text-sm shadow-lg shadow-emerald-600/20 active:scale-95"
-              >
-                <Plus className="w-4 h-4" />
-                <span className="hidden sm:inline">מטופל חדש</span>
-              </button>
+            {/* Row 2: search */}
+            <div className="relative">
+              <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 pointer-events-none" />
+              <input
+                type="text"
+                placeholder="חיפוש לפי שם או ת.ז..."
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+                className="w-full bg-white/5 border border-white/10 rounded-xl py-3 pr-10 pl-3 text-sm focus:outline-none focus:border-blue-500 transition-colors"
+              />
             </div>
-          </div>
 
-          {/* Search */}
-          <div className="relative mb-3">
-            <Search className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-            <input
-              type="text"
-              placeholder="חיפוש לפי שם או ת.ז..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full bg-white/5 border border-white/10 rounded-[1.25rem] py-3 pr-11 pl-4 text-sm focus:outline-none focus:border-blue-500 transition-all"
-            />
-          </div>
-
-          {/* Filters */}
-          <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar -mx-4 px-4">
-            <select
-              value={filterHosen}
-              onChange={(e) => setFilterHosen(e.target.value)}
-              className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs font-bold text-slate-400 focus:outline-none focus:border-blue-500 flex-shrink-0"
-            >
-              <option value="all">כל הקבוצות</option>
-              {groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
-            </select>
-
-            <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-              className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs font-bold text-slate-400 focus:outline-none focus:border-blue-500 flex-shrink-0"
-            >
-              <option value="all">כל הסטטוסים</option>
-              {Object.entries(statusLabels).map(([value, label]) => (
-                <option key={value} value={value}>{label}</option>
+            {/* Row 3: status chips */}
+            <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-4 px-4">
+              {[
+                { key: "all",           label: "הכל" },
+                { key: "active",        label: "פעיל" },
+                { key: "waiting_intake",label: "ממתין לאינטייק" },
+                { key: "waiting_start", label: "ממתין להתחלה" },
+                { key: "finished",      label: "סיים" },
+              ].map(f => (
+                <button key={f.key} onClick={() => setFilterStatus(f.key)}
+                  className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all border ${
+                    filterStatus === f.key
+                      ? "bg-blue-600 border-blue-500 text-white"
+                      : "bg-white/5 border-white/10 text-slate-400 hover:border-white/20"
+                  }`}>
+                  {f.label}
+                </button>
               ))}
-            </select>
-
-            <select
-              value={filterWorker}
-              onChange={(e) => setFilterWorker(e.target.value)}
-              className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs font-bold text-slate-400 focus:outline-none focus:border-blue-500 flex-shrink-0"
-            >
-              <option value="all">כל העו״סים</option>
-              {socialWorkers.map(worker => (
-                <option key={worker.id} value={worker.id}>{worker.name}</option>
+              {groups.map(g => (
+                <button key={g.id} onClick={() => setFilterGroup(filterGroup === g.id ? "all" : g.id)}
+                  className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all border ${
+                    filterGroup === g.id
+                      ? "bg-indigo-600 border-indigo-500 text-white"
+                      : "bg-white/5 border-white/10 text-slate-400 hover:border-white/20"
+                  }`}>
+                  {g.name}
+                </button>
               ))}
-            </select>
+            </div>
           </div>
         </header>
 
-        <div className="max-w-7xl mx-auto">
-          {/* Loading State */}
+        {/* ── Content ── */}
+        <div className="max-w-3xl mx-auto px-4 pt-4 pb-28">
+
           {loading && (
-            <div className="flex flex-col items-center justify-center py-20 gap-4">
+            <div className="flex flex-col items-center justify-center py-24 gap-3">
               <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
-              <p className="text-slate-500 text-xs animate-pulse">טוען רשימת מטופלים...</p>
+              <p className="text-slate-500 text-sm">טוען מטופלים...</p>
             </div>
           )}
 
-          {/* Error State */}
           {!loading && loadError && (
-            <div className="flex flex-col items-center justify-center py-20 gap-5">
-              <div className="w-16 h-16 bg-rose-500/10 rounded-3xl flex items-center justify-center">
-                <AlertCircle className="w-8 h-8 text-rose-400" />
-              </div>
-              <div className="text-center">
-                <p className="text-white font-bold">שגיאה בטעינת הנתונים</p>
-                <p className="text-slate-500 text-xs mt-1">{loadError}</p>
-              </div>
-              <button
-                onClick={() => { setLoading(true); fetchPatients(); }}
-                className="flex items-center gap-2 bg-white/5 border border-white/10 px-5 py-3 rounded-2xl text-sm font-bold hover:bg-white/10 transition-all"
-              >
-                <RefreshCw className="w-4 h-4" />
-                נסה שוב
+            <div className="flex flex-col items-center py-24 gap-4">
+              <AlertCircle className="w-10 h-10 text-rose-400" />
+              <p className="text-slate-400 text-sm">{loadError}</p>
+              <button onClick={() => { setLoading(true); fetchPatients(); }}
+                className="flex items-center gap-2 px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm font-bold hover:bg-white/10 transition-all">
+                <RefreshCw className="w-4 h-4" /> נסה שוב
               </button>
             </div>
           )}
 
-          {/* Empty State */}
           {!loading && !loadError && filtered.length === 0 && (
-            <div className="text-center py-20 bg-white/5 border border-dashed border-white/10 rounded-[2.5rem]">
-              <Users className="w-12 h-12 text-slate-700 mx-auto mb-4 opacity-20" />
-              <p className="text-slate-500 text-sm">לא נמצאו מטופלים רלוונטיים</p>
+            <div className="flex flex-col items-center py-24 gap-3">
+              <User className="w-10 h-10 text-slate-700" />
+              <p className="text-slate-500 text-sm">לא נמצאו מטופלים</p>
             </div>
           )}
 
-          {/* Mobile: Card View */}
           {!loading && !loadError && filtered.length > 0 && (
             <>
-              <div className="md:hidden space-y-3">
-                {filtered.map((patient) => (
-                  <motion.div
-                    key={patient.id}
-                    initial={{ opacity: 0, y: 6 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="bg-white/5 border border-white/10 rounded-3xl p-4 active:bg-white/[0.08] transition-all"
-                  >
-                    {/* Row 1: Avatar + Name + Status */}
-                    <div className="flex items-center gap-3 mb-3">
-                      <div className="w-10 h-10 bg-blue-500/10 text-blue-400 rounded-xl flex items-center justify-center flex-shrink-0">
-                        <User className="w-5 h-5" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-bold text-sm truncate">{patient.firstName} {patient.lastName}</p>
-                        <p className="text-[11px] text-slate-500 font-mono mt-0.5">{patient.idNumber}</p>
-                      </div>
-                      <select
-                        value={patient.status}
-                        onChange={(e) => updatePatientStatus(patient.id, e.target.value as PatientStatus)}
-                        className={`px-2.5 py-1.5 rounded-full border bg-transparent focus:outline-none cursor-pointer font-bold text-[10px] flex-shrink-0 ${getStatusStyle(patient.status)}`}
-                      >
-                        {Object.entries(statusLabels).map(([value, label]) => (
-                          <option key={value} value={value} className="bg-slate-900 text-white">{label}</option>
-                        ))}
-                      </select>
-                    </div>
-
-                    {/* Row 2: Group + Date */}
-                    <div className="flex items-center gap-2 mb-3 flex-wrap">
-                      <span className="text-[11px] font-bold text-slate-400 bg-white/5 px-2.5 py-1 rounded-lg">
-                        {resolveGroupName(patient.hosenType)}
-                      </span>
-                      {socialWorkers.find(w => w.id === patient.assignedWorkerId) && (
-                        <span className="text-[11px] text-slate-500">
-                          {socialWorkers.find(w => w.id === patient.assignedWorkerId)?.name}
-                        </span>
-                      )}
-                      {patient.startDate && (
-                        <span className="text-[11px] text-slate-600 mr-auto">{patient.startDate}</span>
-                      )}
-                    </div>
-
-                    {/* Row 3: Action Buttons */}
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => fetchAttendanceHistory(patient)}
-                        className="flex-1 py-2.5 bg-white/5 border border-white/10 rounded-xl flex items-center justify-center gap-1.5 text-[11px] font-bold text-slate-400 hover:text-emerald-400 hover:border-emerald-500/30 active:bg-white/10 transition-all"
-                      >
-                        <Calendar className="w-3.5 h-3.5" />
-                        נוכחות
-                      </button>
-                      <button
-                        onClick={() => openEditModal(patient)}
-                        className="flex-1 py-2.5 bg-white/5 border border-white/10 rounded-xl flex items-center justify-center gap-1.5 text-[11px] font-bold text-slate-400 hover:text-blue-400 hover:border-blue-500/30 active:bg-white/10 transition-all"
-                      >
-                        <Edit3 className="w-3.5 h-3.5" />
-                        עריכה
-                      </button>
-                      <button
-                        onClick={() => router.push(`/patients/${patient.id}`)}
-                        className="py-2.5 px-4 bg-white/5 border border-white/10 rounded-xl flex items-center justify-center active:bg-white/10 transition-all"
-                      >
-                        <ChevronLeft className="w-4 h-4 text-slate-400" />
-                      </button>
-                    </div>
-                  </motion.div>
-                ))}
-              </div>
-
-              {/* Desktop: Table View */}
-              <div className="hidden md:block bg-white/5 border border-white/10 rounded-3xl overflow-hidden shadow-2xl">
-                <table className="w-full text-right border-collapse">
+              {/* Desktop table */}
+              <div className="hidden md:block bg-white/[0.03] border border-white/8 rounded-2xl overflow-hidden">
+                <table className="w-full text-right">
                   <thead>
-                    <tr className="bg-white/5 border-b border-white/10">
-                      <th className="p-4 text-[11px] font-bold text-slate-500 uppercase tracking-wider">מטופל</th>
-                      <th className="p-4 text-[11px] font-bold text-slate-500 uppercase tracking-wider">ת.ז</th>
-                      <th className="p-4 text-[11px] font-bold text-slate-500 uppercase tracking-wider">קבוצה</th>
-                      <th className="p-4 text-[11px] font-bold text-slate-500 uppercase tracking-wider">עו״ס מטפל</th>
-                      <th className="p-4 text-[11px] font-bold text-slate-500 uppercase tracking-wider">סטטוס</th>
-                      <th className="p-4 text-[11px] font-bold text-slate-500 uppercase tracking-wider">תאריך התחלה</th>
-                      <th className="p-4 text-[11px] font-bold text-slate-500 uppercase tracking-wider text-left">פעולות</th>
+                    <tr className="border-b border-white/8">
+                      {["מטופל","ת.ז","קבוצה","עו״ס","סטטוס","תאריך התחלה",""].map(h => (
+                        <th key={h} className="px-4 py-3 text-[11px] font-bold text-slate-500 uppercase tracking-wider">{h}</th>
+                      ))}
                     </tr>
                   </thead>
                   <tbody>
-                    {filtered.map((patient) => (
-                      <tr key={patient.id} className="border-b border-white/5 hover:bg-white/5 transition-all group">
-                        <td className="p-4">
-                          <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 bg-blue-500/10 text-blue-400 rounded-lg flex items-center justify-center">
-                              <User className="w-4 h-4" />
+                    {filtered.map(p => (
+                      <tr key={p.id} className="border-b border-white/5 hover:bg-white/[0.02] transition-colors">
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2">
+                            <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-[11px] font-black text-white ${avatarColor(p.firstName)}`}>
+                              {`${p.firstName?.[0] ?? ""}${p.lastName?.[0] ?? ""}`.toUpperCase()}
                             </div>
-                            <span className="font-bold text-sm">{patient.firstName} {patient.lastName}</span>
+                            <span className="font-semibold text-sm">{p.firstName} {p.lastName}</span>
                           </div>
                         </td>
-                        <td className="p-4 text-slate-500 font-mono text-xs">{patient.idNumber}</td>
-                        <td className="p-4">
-                          <span className="text-xs font-bold text-slate-400 bg-white/5 px-2 py-1 rounded-lg">
-                            {resolveGroupName(patient.hosenType)}
-                          </span>
+                        <td className="px-4 py-3 text-xs text-slate-500 font-mono">{p.idNumber}</td>
+                        <td className="px-4 py-3">
+                          <span className="text-[11px] bg-white/5 text-slate-400 px-2 py-0.5 rounded-md">{resolveGroup(p.hosenType)}</span>
                         </td>
-                        <td className="p-4 text-xs text-slate-400">
-                          {socialWorkers.find(w => w.id === patient.assignedWorkerId)?.name || "—"}
-                        </td>
-                        <td className="p-4">
-                          <select
-                            value={patient.status}
-                            onChange={(e) => updatePatientStatus(patient.id, e.target.value as PatientStatus)}
-                            className={`px-2 py-1 rounded-full border bg-transparent focus:outline-none cursor-pointer font-bold text-[9px] ${getStatusStyle(patient.status)}`}
-                          >
-                            {Object.entries(statusLabels).map(([value, label]) => (
-                              <option key={value} value={value} className="bg-slate-900 text-white">{label}</option>
+                        <td className="px-4 py-3 text-xs text-slate-400">{socialWorkers.find(w => w.id === p.assignedWorkerId)?.name || "—"}</td>
+                        <td className="px-4 py-3">
+                          <select value={p.status} onChange={e => updateStatus(p.id, e.target.value as PatientStatus)}
+                            className={`border rounded-full px-2 py-0.5 bg-transparent text-[10px] font-bold focus:outline-none cursor-pointer ${STATUS_META[p.status].pill}`}>
+                            {Object.entries(STATUS_META).map(([v, m]) => (
+                              <option key={v} value={v} className="bg-slate-900 text-white">{m.label}</option>
                             ))}
                           </select>
                         </td>
-                        <td className="p-4 text-xs text-slate-500">{patient.startDate}</td>
-                        <td className="p-4">
-                          <div className="flex items-center justify-end gap-2">
-                            <button
-                              onClick={() => fetchAttendanceHistory(patient)}
-                              className="p-2 bg-white/5 border border-white/10 rounded-lg hover:bg-emerald-500/10 text-slate-500 hover:text-emerald-400 transition-all"
-                            >
-                              <Calendar className="w-3.5 h-3.5" />
-                            </button>
-                            <button
-                              onClick={() => openEditModal(patient)}
-                              className="p-2 bg-white/5 border border-white/10 rounded-lg hover:bg-blue-500/10 text-slate-500 hover:text-blue-400 transition-all"
-                            >
-                              <Edit3 className="w-3.5 h-3.5" />
-                            </button>
-                            <button
-                              onClick={() => router.push(`/patients/${patient.id}`)}
-                              className="p-2 bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 text-slate-500 hover:text-white transition-all"
-                            >
-                              <ChevronLeft className="w-3.5 h-3.5" />
-                            </button>
+                        <td className="px-4 py-3 text-xs text-slate-500">{p.startDate}</td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-1.5">
+                            <button onClick={() => fetchHistory(p)} className="p-1.5 rounded-lg bg-white/5 hover:bg-emerald-500/10 text-slate-500 hover:text-emerald-400 transition-all"><Calendar className="w-3.5 h-3.5" /></button>
+                            <button onClick={() => { setEditPatient(p); setEditForm({ firstName: p.firstName, lastName: p.lastName, idNumber: p.idNumber, hosenType: p.hosenType, assignedWorkerId: p.assignedWorkerId, status: p.status }); }}
+                              className="p-1.5 rounded-lg bg-white/5 hover:bg-blue-500/10 text-slate-500 hover:text-blue-400 transition-all"><Edit3 className="w-3.5 h-3.5" /></button>
+                            <button onClick={() => router.push(`/patients/${p.id}`)} className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-500 hover:text-white transition-all"><ChevronLeft className="w-3.5 h-3.5" /></button>
                           </div>
                         </td>
                       </tr>
@@ -468,211 +300,171 @@ export default function PatientsPage() {
                   </tbody>
                 </table>
               </div>
+
+              {/* Mobile cards */}
+              <div className="md:hidden space-y-2">
+                {filtered.map(p => {
+                  const meta = STATUS_META[p.status];
+                  const initials = `${p.firstName?.[0] ?? ""}${p.lastName?.[0] ?? ""}`.toUpperCase();
+                  return (
+                    <motion.div key={p.id}
+                      initial={{ opacity: 0, y: 4 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="bg-white/[0.03] border border-white/8 rounded-2xl overflow-hidden active:bg-white/[0.05] transition-colors"
+                    >
+                      {/* Card top */}
+                      <div className="flex items-center gap-3 px-4 py-3.5">
+                        <div className={`w-11 h-11 rounded-xl flex-shrink-0 flex items-center justify-center text-sm font-black text-white ${avatarColor(p.firstName)}`}>
+                          {initials}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-bold text-[15px] leading-tight truncate">{p.firstName} {p.lastName}</p>
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className="text-[11px] text-slate-500 font-mono">{p.idNumber}</span>
+                            {p.hosenType && (
+                              <span className="text-[10px] bg-white/5 text-slate-400 px-1.5 py-0.5 rounded-md">{resolveGroup(p.hosenType)}</span>
+                            )}
+                          </div>
+                        </div>
+                        <select value={p.status} onChange={e => updateStatus(p.id, e.target.value as PatientStatus)}
+                          className={`border rounded-full px-2.5 py-1 bg-transparent text-[10px] font-bold focus:outline-none cursor-pointer flex-shrink-0 ${meta.pill}`}>
+                          {Object.entries(STATUS_META).map(([v, m]) => (
+                            <option key={v} value={v} className="bg-slate-900 text-white">{m.label}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Card actions */}
+                      <div className="flex border-t border-white/5">
+                        <button onClick={() => fetchHistory(p)}
+                          className="flex-1 h-11 flex items-center justify-center gap-1.5 text-[11px] font-bold text-slate-500 hover:text-emerald-400 hover:bg-emerald-500/5 transition-colors">
+                          <Calendar className="w-3.5 h-3.5" /> נוכחות
+                        </button>
+                        <div className="w-px bg-white/5" />
+                        <button onClick={() => { setEditPatient(p); setEditForm({ firstName: p.firstName, lastName: p.lastName, idNumber: p.idNumber, hosenType: p.hosenType, assignedWorkerId: p.assignedWorkerId, status: p.status }); }}
+                          className="flex-1 h-11 flex items-center justify-center gap-1.5 text-[11px] font-bold text-slate-500 hover:text-blue-400 hover:bg-blue-500/5 transition-colors">
+                          <Edit3 className="w-3.5 h-3.5" /> עריכה
+                        </button>
+                        <div className="w-px bg-white/5" />
+                        <button onClick={() => router.push(`/patients/${p.id}`)}
+                          className="w-11 h-11 flex items-center justify-center text-slate-500 hover:text-white hover:bg-white/5 transition-colors">
+                          <ChevronLeft className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </motion.div>
+                  );
+                })}
+              </div>
             </>
           )}
         </div>
 
-        {/* Attendance History Modal */}
+        {/* ── Attendance history modal ── */}
         <AnimatePresence>
-          {selectedPatientForAttendance && (
+          {histPatient && (
             <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                onClick={() => setSelectedPatientForAttendance(null)}
-                className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm"
-              />
-              <motion.div
-                initial={{ y: "100%" }}
-                animate={{ y: 0 }}
-                exit={{ y: "100%" }}
-                transition={{ type: "spring", damping: 25, stiffness: 200 }}
-                className="relative bg-slate-900 border-t sm:border border-white/10 w-full max-w-lg rounded-t-[3rem] sm:rounded-[3rem] overflow-hidden shadow-2xl"
-              >
-                <div className="w-12 h-1.5 bg-white/10 rounded-full mx-auto mt-4 mb-2 sm:hidden" />
-                <div className="p-6 border-b border-white/10 flex justify-between items-center">
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                onClick={() => setHistPatient(null)}
+                className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
+              <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
+                transition={{ type: "spring", damping: 26, stiffness: 260 }}
+                className="relative bg-slate-900 border-t sm:border border-white/10 w-full max-w-md rounded-t-3xl sm:rounded-2xl overflow-hidden shadow-2xl">
+                <div className="w-10 h-1 bg-white/10 rounded-full mx-auto mt-3 mb-1 sm:hidden" />
+                <div className="flex items-center justify-between p-5 border-b border-white/8">
                   <div>
-                    <h2 className="text-xl font-bold tracking-tight">היסטוריית נוכחות</h2>
-                    <p className="text-emerald-500 text-[10px] font-bold uppercase mt-1 tracking-wider">
-                      {selectedPatientForAttendance.firstName} {selectedPatientForAttendance.lastName}
-                    </p>
+                    <h2 className="font-bold text-base">היסטוריית נוכחות</h2>
+                    <p className="text-emerald-400 text-[11px] font-bold mt-0.5">{histPatient.firstName} {histPatient.lastName}</p>
                   </div>
-                  <button
-                    onClick={() => setSelectedPatientForAttendance(null)}
-                    className="p-3 hover:bg-white/5 rounded-2xl transition-colors"
-                  >
-                    <X className="w-5 h-5" />
+                  <button onClick={() => setHistPatient(null)} className="p-2 rounded-xl hover:bg-white/5 text-slate-500 hover:text-white transition-colors">
+                    <X className="w-4 h-4" />
                   </button>
                 </div>
-
-                <div className="p-5 max-h-[55vh] overflow-y-auto no-scrollbar">
-                  {loadingHistory ? (
-                    <div className="flex flex-col items-center justify-center py-16 gap-4">
-                      <Loader2 className="w-8 h-8 text-emerald-500 animate-spin" />
+                <div className="p-4 max-h-[55vh] overflow-y-auto space-y-2">
+                  {histLoading ? (
+                    <div className="flex justify-center py-10"><Loader2 className="w-6 h-6 text-emerald-500 animate-spin" /></div>
+                  ) : history.length === 0 ? (
+                    <p className="text-slate-500 text-sm text-center py-10">אין רישומי נוכחות</p>
+                  ) : history.map((r, i) => (
+                    <div key={i} className="flex items-center justify-between p-3 bg-white/[0.03] rounded-xl border border-white/5">
+                      <p className="text-sm font-semibold">{r.date}</p>
+                      <span className={`flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full border ${
+                        r.status === "present" ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : "bg-rose-500/10 text-rose-400 border-rose-500/20"
+                      }`}>
+                        {r.status === "present" ? <><Check className="w-3 h-3" /> נוכח</> : <><X className="w-3 h-3" /> נפקד</>}
+                      </span>
                     </div>
-                  ) : attendanceHistory.length > 0 ? (
-                    <div className="space-y-2">
-                      {attendanceHistory.map((record, index) => (
-                        <div
-                          key={index}
-                          className="flex items-center justify-between p-4 bg-white/5 border border-white/5 rounded-2xl"
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className="w-9 h-9 bg-slate-800 rounded-xl flex items-center justify-center text-slate-500">
-                              <Calendar className="w-4 h-4" />
-                            </div>
-                            <p className="font-bold text-sm">{record.date}</p>
-                          </div>
-                          <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-bold border ${
-                            record.status === "present"
-                              ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
-                              : "bg-rose-500/10 text-rose-400 border-rose-500/20"
-                          }`}>
-                            {record.status === "present" ? <Check className="w-3 h-3" /> : <X className="w-3 h-3" />}
-                            {record.status === "present" ? "נוכח" : "נפקד"}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-center py-16">
-                      <Calendar className="w-10 h-10 mx-auto mb-3 text-slate-800 opacity-50" />
-                      <p className="text-slate-500 text-sm">לא נמצאו רישומי נוכחות</p>
-                    </div>
-                  )}
+                  ))}
                 </div>
-
-                <div className="p-5 border-t border-white/5">
-                  <button
-                    onClick={() => setSelectedPatientForAttendance(null)}
-                    className="w-full py-3.5 bg-white/5 border border-white/10 rounded-2xl hover:bg-white/10 transition-all font-bold text-sm"
-                  >
-                    סגור
-                  </button>
+                <div className="p-4 border-t border-white/5">
+                  <button onClick={() => setHistPatient(null)} className="w-full py-3 bg-white/5 rounded-xl font-bold text-sm hover:bg-white/10 transition-all">סגור</button>
                 </div>
               </motion.div>
             </div>
           )}
 
-          {selectedPatientForEdit && (
+          {/* ── Quick edit modal ── */}
+          {editPatient && (
             <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                onClick={() => setSelectedPatientForEdit(null)}
-                className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm"
-              />
-              <motion.div
-                initial={{ y: "100%" }}
-                animate={{ y: 0 }}
-                exit={{ y: "100%" }}
-                transition={{ type: "spring", damping: 25, stiffness: 200 }}
-                className="relative bg-slate-900 border-t sm:border border-white/10 w-full max-w-lg rounded-t-[3rem] sm:rounded-[3rem] overflow-hidden shadow-2xl"
-              >
-                <div className="w-12 h-1.5 bg-white/10 rounded-full mx-auto mt-4 mb-2 sm:hidden" />
-
-                <div className="p-6 border-b border-white/10 flex justify-between items-center">
-                  <div>
-                    <h3 className="font-bold text-xl tracking-tight">עריכה מהירה</h3>
-                    <p className="text-slate-500 text-[10px] font-bold uppercase mt-1">{editForm.firstName} {editForm.lastName}</p>
-                  </div>
-                  <button
-                    onClick={() => setSelectedPatientForEdit(null)}
-                    className="p-3 bg-white/5 border border-white/10 rounded-2xl text-slate-500 hover:text-white transition-all"
-                  >
-                    <X className="w-5 h-5" />
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                onClick={() => setEditPatient(null)}
+                className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
+              <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
+                transition={{ type: "spring", damping: 26, stiffness: 260 }}
+                className="relative bg-slate-900 border-t sm:border border-white/10 w-full max-w-md rounded-t-3xl sm:rounded-2xl overflow-hidden shadow-2xl">
+                <div className="w-10 h-1 bg-white/10 rounded-full mx-auto mt-3 mb-1 sm:hidden" />
+                <div className="flex items-center justify-between p-5 border-b border-white/8">
+                  <h3 className="font-bold text-base">עריכה מהירה</h3>
+                  <button onClick={() => setEditPatient(null)} className="p-2 rounded-xl hover:bg-white/5 text-slate-500 hover:text-white transition-colors">
+                    <X className="w-4 h-4" />
                   </button>
                 </div>
-
-                <div className="p-6 space-y-5 max-h-[55vh] overflow-y-auto no-scrollbar">
+                <div className="p-5 space-y-4 max-h-[55vh] overflow-y-auto">
                   <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-slate-500 uppercase px-1">שם פרטי</label>
-                      <input
-                        value={editForm.firstName || ""}
-                        onChange={(e) => setEditForm({ ...editForm, firstName: e.target.value })}
-                        className="w-full bg-white/5 border border-white/10 rounded-2xl p-3 text-sm focus:border-blue-500 transition-all outline-none"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-slate-500 uppercase px-1">שם משפחה</label>
-                      <input
-                        value={editForm.lastName || ""}
-                        onChange={(e) => setEditForm({ ...editForm, lastName: e.target.value })}
-                        className="w-full bg-white/5 border border-white/10 rounded-2xl p-3 text-sm focus:border-blue-500 transition-all outline-none"
-                      />
-                    </div>
+                    {[["שם פרטי","firstName"],["שם משפחה","lastName"]].map(([label, field]) => (
+                      <div key={field}>
+                        <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1.5">{label}</label>
+                        <input value={(editForm as any)[field] || ""}
+                          onChange={e => setEditForm(f => ({ ...f, [field]: e.target.value }))}
+                          className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-sm focus:border-blue-500 outline-none transition-colors" />
+                      </div>
+                    ))}
                   </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase px-1">תעודת זהות</label>
-                    <input
-                      value={editForm.idNumber || ""}
-                      onChange={(e) => setEditForm({ ...editForm, idNumber: e.target.value })}
-                      className="w-full bg-white/5 border border-white/10 rounded-2xl p-3 text-sm focus:border-blue-500 transition-all outline-none"
-                    />
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1.5">תעודת זהות</label>
+                    <input value={editForm.idNumber || ""}
+                      onChange={e => setEditForm(f => ({ ...f, idNumber: e.target.value }))}
+                      className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-sm focus:border-blue-500 outline-none transition-colors" />
                   </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase px-1">קבוצה (חוסן)</label>
-                    <select
-                      value={editForm.hosenType || ""}
-                      onChange={(e) => setEditForm({ ...editForm, hosenType: e.target.value })}
-                      className="w-full bg-white/5 border border-white/10 rounded-2xl p-3 text-sm focus:border-blue-500 transition-all outline-none"
-                    >
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1.5">קבוצה</label>
+                    <select value={editForm.hosenType || ""}
+                      onChange={e => setEditForm(f => ({ ...f, hosenType: e.target.value }))}
+                      className="w-full bg-slate-800 border border-white/10 rounded-xl p-3 text-sm focus:border-blue-500 outline-none transition-colors">
                       <option value="">בחר קבוצה</option>
                       {groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
                     </select>
                   </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase px-1">עו״ס מטפל</label>
-                    <select
-                      value={editForm.assignedWorkerId || ""}
-                      onChange={(e) => setEditForm({ ...editForm, assignedWorkerId: e.target.value })}
-                      className="w-full bg-white/5 border border-white/10 rounded-2xl p-3 text-sm focus:border-blue-500 transition-all outline-none"
-                    >
-                      <option value="">בחר עו״ס</option>
-                      {socialWorkers.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
-                    </select>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase px-1">סטטוס</label>
-                    <select
-                      value={editForm.status || ""}
-                      onChange={(e) => setEditForm({ ...editForm, status: e.target.value as PatientStatus })}
-                      className="w-full bg-white/5 border border-white/10 rounded-2xl p-3 text-sm focus:border-blue-500 transition-all outline-none"
-                    >
-                      {Object.entries(statusLabels).map(([value, label]) => (
-                        <option key={value} value={value}>{label}</option>
-                      ))}
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1.5">סטטוס</label>
+                    <select value={editForm.status || "active"}
+                      onChange={e => setEditForm(f => ({ ...f, status: e.target.value as PatientStatus }))}
+                      className="w-full bg-slate-800 border border-white/10 rounded-xl p-3 text-sm focus:border-blue-500 outline-none transition-colors">
+                      {Object.entries(STATUS_META).map(([v, m]) => <option key={v} value={v}>{m.label}</option>)}
                     </select>
                   </div>
                 </div>
-
-                <div className="p-6 border-t border-white/10 flex gap-3">
-                  <button
-                    onClick={() => setSelectedPatientForEdit(null)}
-                    className="flex-1 py-3.5 bg-white/5 border border-white/10 rounded-2xl hover:bg-white/10 transition-all font-bold text-sm"
-                  >
-                    ביטול
-                  </button>
-                  <button
-                    onClick={handleSaveQuickEdit}
-                    disabled={isSaving}
-                    className="flex-1 py-3.5 bg-blue-600 rounded-2xl hover:bg-blue-500 transition-all font-bold text-sm shadow-xl shadow-blue-600/20 disabled:opacity-50 flex items-center justify-center gap-2"
-                  >
-                    {isSaving ? <Loader2 className="w-5 h-5 animate-spin" /> : "שמור שינויים"}
+                <div className="p-5 border-t border-white/8 flex gap-3">
+                  <button onClick={() => setEditPatient(null)} className="flex-1 py-3 bg-white/5 rounded-xl font-bold text-sm hover:bg-white/10 transition-all">ביטול</button>
+                  <button onClick={saveEdit} disabled={isSaving}
+                    className="flex-1 py-3 bg-blue-600 rounded-xl font-bold text-sm hover:bg-blue-500 transition-all shadow-lg shadow-blue-600/20 disabled:opacity-50 flex items-center justify-center gap-2">
+                    {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : "שמור"}
                   </button>
                 </div>
               </motion.div>
             </div>
           )}
         </AnimatePresence>
-      </main>
+      </div>
     </RoleGuard>
   );
 }

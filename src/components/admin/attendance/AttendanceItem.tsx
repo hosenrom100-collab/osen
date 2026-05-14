@@ -4,114 +4,91 @@ import { Check, X } from "lucide-react";
 import { motion } from "framer-motion";
 
 interface AttendanceItemProps {
-  patient: {
-    id: string;
-    firstName: string;
-    lastName: string;
-  };
+  patient: { id: string; firstName: string; lastName: string };
   status: "present" | "absent" | "unset";
   onToggle: (status: "present" | "absent") => void;
 }
 
+const COLORS = ["bg-blue-600","bg-violet-600","bg-rose-600","bg-amber-600","bg-teal-600","bg-indigo-600"];
+const avatarColor = (name: string) => COLORS[name.charCodeAt(0) % COLORS.length];
+
 export function AttendanceItem({ patient, status, onToggle }: AttendanceItemProps) {
   const initials = `${patient.firstName?.[0] ?? ""}${patient.lastName?.[0] ?? ""}`.toUpperCase();
+  const isPresent = status === "present";
+  const isAbsent  = status === "absent";
+  const isPending = status === "unset";
 
   return (
-    <motion.div
-      layout
-      className={`rounded-[2rem] overflow-hidden border-2 transition-colors duration-300 ${
-        status === "present"
-          ? "border-emerald-500/40 shadow-lg shadow-emerald-500/10"
-          : status === "absent"
-          ? "border-rose-500/40 shadow-lg shadow-rose-500/10"
-          : "border-white/8"
-      }`}
-    >
-      {/* ── Patient info row ── */}
-      <div
-        className={`flex items-center gap-4 px-5 py-4 transition-colors duration-300 ${
-          status === "present"
-            ? "bg-emerald-500/8"
-            : status === "absent"
-            ? "bg-rose-500/8"
-            : "bg-white/[0.03]"
-        }`}
-      >
-        {/* Avatar with initials */}
-        <div
-          className={`w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0 font-black text-xl tracking-tight transition-colors duration-300 ${
-            status === "present"
-              ? "bg-emerald-500/20 text-emerald-300"
-              : status === "absent"
-              ? "bg-rose-500/20 text-rose-300"
-              : "bg-slate-800 text-slate-500"
-          }`}
-        >
+    <div className={`rounded-2xl overflow-hidden transition-all duration-200 ${
+      isPresent ? "ring-1 ring-emerald-500/40 shadow-lg shadow-emerald-500/5" :
+      isAbsent  ? "ring-1 ring-rose-500/40 shadow-lg shadow-rose-500/5" :
+      "ring-1 ring-white/8"
+    }`}>
+      {/* Patient row */}
+      <div className={`flex items-center gap-4 px-4 py-3.5 transition-colors duration-200 ${
+        isPresent ? "bg-emerald-500/6" :
+        isAbsent  ? "bg-rose-500/6" :
+        "bg-white/[0.03]"
+      }`}>
+        {/* Avatar */}
+        <div className={`w-12 h-12 rounded-xl flex-shrink-0 flex items-center justify-center font-black text-base text-white ${
+          isPending ? "bg-slate-800" : avatarColor(patient.firstName)
+        }`}>
           {initials}
         </div>
 
-        {/* Name + status */}
+        {/* Info */}
         <div className="flex-1 min-w-0">
-          <h4 className="font-black text-[17px] tracking-tight leading-tight text-white">
+          <p className="font-bold text-[16px] leading-tight text-white truncate">
             {patient.firstName} {patient.lastName}
-          </h4>
-          <p
-            className={`text-xs font-bold mt-1 transition-colors duration-300 ${
-              status === "present"
-                ? "text-emerald-400"
-                : status === "absent"
-                ? "text-rose-400"
-                : "text-slate-600"
-            }`}
-          >
-            {status === "present"
-              ? "✓  נוכח היום"
-              : status === "absent"
-              ? "✗  נפקד"
-              : "ממתין לסימון"}
+          </p>
+          <p className={`text-[11px] font-semibold mt-0.5 ${
+            isPresent ? "text-emerald-400" :
+            isAbsent  ? "text-rose-400" :
+            "text-slate-600"
+          }`}>
+            {isPresent ? "נוכח היום" : isAbsent ? "נפקד" : "טרם נסמן"}
           </p>
         </div>
 
-        {/* Quick-state indicator dot */}
-        <div
-          className={`w-3 h-3 rounded-full flex-shrink-0 transition-colors duration-300 ${
-            status === "present"
-              ? "bg-emerald-400 shadow-lg shadow-emerald-400/60"
-              : status === "absent"
-              ? "bg-rose-400 shadow-lg shadow-rose-400/60"
-              : "bg-slate-700"
-          }`}
-        />
+        {/* Status dot */}
+        <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${
+          isPresent ? "bg-emerald-400 shadow shadow-emerald-400/80" :
+          isAbsent  ? "bg-rose-400 shadow shadow-rose-400/80" :
+          "bg-slate-700"
+        }`} />
       </div>
 
-      {/* ── Action buttons ── */}
-      <div className="flex divide-x divide-white/5 border-t-2 border-white/5">
+      {/* Action buttons */}
+      <div className="flex">
         <motion.button
           whileTap={{ scale: 0.97 }}
           onClick={() => onToggle("absent")}
-          className={`flex-1 py-[18px] flex items-center justify-center gap-2 font-black text-sm transition-colors duration-200 ${
-            status === "absent"
+          className={`flex-1 h-12 flex items-center justify-center gap-2 text-sm font-black transition-colors duration-150 border-t border-white/5 ${
+            isAbsent
               ? "bg-rose-600 text-white"
-              : "bg-transparent text-slate-500 hover:bg-rose-500/10 hover:text-rose-400 active:bg-rose-500/20"
+              : "bg-transparent text-slate-500 hover:text-rose-400 hover:bg-rose-500/8 active:bg-rose-500/15"
           }`}
         >
-          <X className={`w-4 h-4 ${status === "absent" ? "opacity-100" : "opacity-60"}`} />
+          <X className="w-4 h-4" />
           נפקד
         </motion.button>
+
+        <div className="w-px bg-white/5" />
 
         <motion.button
           whileTap={{ scale: 0.97 }}
           onClick={() => onToggle("present")}
-          className={`flex-1 py-[18px] flex items-center justify-center gap-2 font-black text-sm transition-colors duration-200 ${
-            status === "present"
+          className={`flex-1 h-12 flex items-center justify-center gap-2 text-sm font-black transition-colors duration-150 border-t border-white/5 ${
+            isPresent
               ? "bg-emerald-600 text-white"
-              : "bg-transparent text-slate-500 hover:bg-emerald-500/10 hover:text-emerald-400 active:bg-emerald-500/20"
+              : "bg-transparent text-slate-500 hover:text-emerald-400 hover:bg-emerald-500/8 active:bg-emerald-500/15"
           }`}
         >
-          <Check className={`w-4 h-4 ${status === "present" ? "opacity-100" : "opacity-60"}`} />
+          <Check className="w-4 h-4" />
           נוכח
         </motion.button>
       </div>
-    </motion.div>
+    </div>
   );
 }
