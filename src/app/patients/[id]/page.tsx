@@ -248,36 +248,36 @@ export default function PatientDetailPage() {
             )}
 
             {activeTab === "reports" && (
-              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} key="reports" className="space-y-6">
-                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="bg-[var(--card-bg)] border border-[var(--border)] p-8 rounded-[2.5rem] shadow-sm flex flex-col items-center text-center">
-                       <div className="w-16 h-16 rounded-2xl bg-emerald-600/10 flex items-center justify-center text-emerald-600 mb-6">
-                          <FileText className="w-8 h-8" />
+              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} key="reports" className="space-y-4">
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-4xl mx-auto">
+                    <div className="bg-[var(--card-bg)] border border-[var(--border)] p-6 rounded-[2rem] shadow-sm flex flex-col items-center text-center transition-all hover:border-emerald-500/30 group">
+                       <div className="w-12 h-12 rounded-xl bg-emerald-600/10 flex items-center justify-center text-emerald-600 mb-4 group-hover:scale-110 transition-transform">
+                          <FileText className="w-6 h-6" />
                        </div>
-                       <h4 className="text-lg font-black mb-2">אישור השתתפות בתוכנית</h4>
-                       <p className="text-xs text-[var(--foreground)]/40 font-bold uppercase tracking-widest mb-8">מסמך רשמי המעיד על פעילות המטופל</p>
+                       <h4 className="text-base font-black mb-1">אישור השתתפות בתוכנית</h4>
+                       <p className="text-[10px] text-[var(--foreground)]/40 font-bold uppercase tracking-widest mb-6">מסמך רשמי המעיד על פעילות המטופל</p>
                        <button 
                         onClick={() => generateReport('participation')}
                         disabled={reportLoading}
-                        className="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-4 rounded-2xl text-xs font-black uppercase tracking-widest transition-all shadow-xl shadow-emerald-600/20 flex items-center justify-center gap-3"
+                        className="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg shadow-emerald-600/10 flex items-center justify-center gap-2"
                        >
-                         {reportLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                         {reportLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
                          הפק דוח השתתפות
                        </button>
                     </div>
 
-                    <div className="bg-[var(--card-bg)] border border-[var(--border)] p-8 rounded-[2.5rem] shadow-sm flex flex-col items-center text-center">
-                       <div className="w-16 h-16 rounded-2xl bg-blue-600/10 flex items-center justify-center text-blue-600 mb-6">
-                          <ClipboardList className="w-8 h-8" />
+                    <div className="bg-[var(--card-bg)] border border-[var(--border)] p-6 rounded-[2rem] shadow-sm flex flex-col items-center text-center transition-all hover:border-blue-500/30 group">
+                       <div className="w-12 h-12 rounded-xl bg-blue-600/10 flex items-center justify-center text-blue-600 mb-4 group-hover:scale-110 transition-transform">
+                          <ClipboardList className="w-6 h-6" />
                        </div>
-                       <h4 className="text-lg font-black mb-2">דוח נוכחות חודשי</h4>
-                       <p className="text-xs text-[var(--foreground)]/40 font-bold uppercase tracking-widest mb-8">פירוט ימי נוכחות והיעדרות לפי חודש</p>
+                       <h4 className="text-base font-black mb-1">דוח נוכחות חודשי</h4>
+                       <p className="text-[10px] text-[var(--foreground)]/40 font-bold uppercase tracking-widest mb-6">פירוט ימי נוכחות והיעדרות לפי חודש</p>
                        
-                       <div className="flex gap-2 w-full mb-4">
+                       <div className="flex gap-2 w-full mb-3">
                          <select 
                           value={selectedMonth} 
                           onChange={(e) => setSelectedMonth(e.target.value)}
-                          className="flex-1 bg-[var(--foreground)]/5 border border-[var(--border)] rounded-xl px-4 py-2 text-xs font-bold"
+                          className="flex-1 bg-[var(--foreground)]/5 border border-[var(--border)] rounded-lg px-3 py-2 text-[10px] font-bold outline-none focus:border-blue-500/50"
                          >
                             {Array.from({ length: 12 }).map((_, i) => {
                               const d = subMonths(new Date(), i);
@@ -293,9 +293,9 @@ export default function PatientDetailPage() {
                        <button 
                         onClick={() => generateReport('attendance')}
                         disabled={reportLoading}
-                        className="w-full bg-[var(--foreground)] text-[var(--background)] py-4 rounded-2xl text-xs font-black uppercase tracking-widest transition-all hover:opacity-90 flex items-center justify-center gap-3"
+                        className="w-full bg-[var(--foreground)] text-[var(--background)] py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all hover:opacity-90 flex items-center justify-center gap-2"
                        >
-                         {reportLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Printer className="w-4 h-4" />}
+                         {reportLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Printer className="w-3.5 h-3.5" />}
                          הפק דוח נוכחות חודשי
                        </button>
                     </div>
