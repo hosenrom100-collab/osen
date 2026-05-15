@@ -46,18 +46,24 @@ export default function UserManagementPage() {
       setPrograms(pSnap.docs.map(d => ({ id: d.id, name: d.data().name })));
       setGroups(gSnap.docs.map(d => ({ id: d.id, ...d.data() } as Group)));
       
-      const userList: UserProfile[] = uSnap.docs.map(d => {
-        const data = d.data();
-        return {
-          id: d.id,
-          email: data.email || "",
-          name: data.displayName || data.name || "ללא שם",
-          roles: data.roles || (data.role ? [data.role] : ["employee"]),
-          status: data.status || "pending",
-          assignedProgramIds: data.assignedProgramIds || [],
-          assignedGroupIds: data.assignedGroupIds || data.assignedGroups || []
-        };
-      });
+      const userList: UserProfile[] = uSnap.docs
+        .filter(d => {
+          const data = d.data();
+          const roles = data.roles || (data.role ? [data.role] : []);
+          return !roles.includes("participant") && data.role !== "participant";
+        })
+        .map(d => {
+          const data = d.data();
+          return {
+            id: d.id,
+            email: data.email || "",
+            name: data.displayName || data.name || "ללא שם",
+            roles: data.roles || (data.role ? [data.role] : ["employee"]),
+            status: data.status || "pending",
+            assignedProgramIds: data.assignedProgramIds || [],
+            assignedGroupIds: data.assignedGroupIds || data.assignedGroups || []
+          };
+        });
       setUsers(userList);
     } catch (error) {
       console.error("Error fetching data:", error);

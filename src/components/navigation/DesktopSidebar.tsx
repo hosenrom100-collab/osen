@@ -12,6 +12,7 @@ import { NotificationCenter } from "../notifications/NotificationCenter";
 
 const NAV = [
   { href: "/",           icon: Home,          label: "בית",           color: "text-indigo-400" },
+  { href: "/admin/inbox",icon: MessageSquare, label: "תיבת הודעות",    color: "text-blue-400" },
   { href: "/attendance", icon: ClipboardList, label: "נוכחות",        color: "text-emerald-400" },
   { href: "/patients",   icon: Users,         label: "מטופלים",       color: "text-sky-400" },
   { href: "/shopping",   icon: ShoppingCart,  label: "קניות",         color: "text-orange-400" },
