@@ -17,14 +17,20 @@ export function RoleGuard({
   fallback = null,
   redirectTo 
 }: RoleGuardProps) {
-  const { role, loading, isWhitelisted } = useAuth();
+  const { roles, role, loading, isWhitelisted } = useAuth();
   const router = useRouter();
 
+  // Combine roles array and singular role for comparison
+  const userRoles = [...roles];
+  if (role && !userRoles.includes(role)) userRoles.push(role);
+
+  const hasAccess = isWhitelisted && userRoles.some(r => allowedRoles.includes(r));
+
   useEffect(() => {
-    if (!loading && redirectTo && (!isWhitelisted || !role || !allowedRoles.includes(role))) {
+    if (!loading && redirectTo && !hasAccess) {
       router.push(redirectTo);
     }
-  }, [loading, role, isWhitelisted, allowedRoles, redirectTo, router]);
+  }, [loading, hasAccess, redirectTo, router]);
 
   if (loading) {
     return (
@@ -34,7 +40,7 @@ export function RoleGuard({
     );
   }
 
-  if (!isWhitelisted || !role || !allowedRoles.includes(role)) {
+  if (!hasAccess) {
     return <>{fallback}</>;
   }
 

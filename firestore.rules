@@ -11,7 +11,8 @@ service cloud.firestore {
     }
     
     function hasRole(role) {
-      return isAuthenticated() && getUserData().role == role;
+      let data = getUserData();
+      return isAuthenticated() && (data.role == role || (data.roles != null && role in data.roles));
     }
     
     function isAdmin() {

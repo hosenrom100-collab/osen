@@ -66,11 +66,16 @@ export default function UserManagementPage() {
     }
   };
 
-  const updateUser = async (userId: string, updates: Partial<UserProfile>) => {
+  const updateUser = async (userId: string, updates: any) => {
     setUpdatingId(userId);
     try {
-      await updateDoc(doc(db, "users", userId), { ...updates, updatedAt: new Date() });
-      setUsers(users.map(u => u.id === userId ? { ...u, ...updates } : u));
+      const finalUpdates = { ...updates };
+      if (updates.roles && updates.roles.length > 0) {
+        finalUpdates.role = updates.roles[0];
+      }
+      
+      await updateDoc(doc(db, "users", userId), { ...finalUpdates, updatedAt: new Date() });
+      setUsers(users.map(u => u.id === userId ? { ...u, ...finalUpdates } : u));
     } catch (error) {
       console.error("Error updating user:", error);
     } finally {
