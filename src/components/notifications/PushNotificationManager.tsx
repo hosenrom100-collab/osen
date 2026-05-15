@@ -16,6 +16,7 @@ interface ToastMessage {
   link?: string;
   receivedAt: string;
   read: boolean;
+  senderName?: string;
 }
 
 export function PushNotificationManager() {
@@ -82,7 +83,8 @@ export function PushNotificationManager() {
           body,
           link,
           receivedAt: new Date().toISOString(),
-          read: false
+          read: false,
+          senderName: payload.data?.senderName as string | undefined
         };
 
         setToast(newNotif);
@@ -141,7 +143,14 @@ export function PushNotificationManager() {
                 <Bell className="w-6 h-6" />
               </div>
               <div className="flex-1 min-w-0 pt-0.5">
-                <p className="font-black text-sm text-emerald-900 leading-tight mb-1">{toast.title}</p>
+                <div className="flex items-center justify-between gap-2 mb-1">
+                  <p className="font-black text-sm text-emerald-900 leading-tight truncate">{toast.title}</p>
+                  {toast.senderName && (
+                    <span className="text-[9px] font-bold text-emerald-600 bg-emerald-500/10 px-2 py-0.5 rounded-lg border border-emerald-500/10 shrink-0">
+                      מאת: {toast.senderName}
+                    </span>
+                  )}
+                </div>
                 {toast.body && (
                   <p className="text-emerald-800/70 text-[11px] leading-relaxed line-clamp-2 font-bold">{toast.body}</p>
                 )}

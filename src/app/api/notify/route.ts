@@ -121,9 +121,13 @@ export async function POST(req: Request) {
       const result = await admin.messaging().sendEachForMulticast({
         tokens: allTokens,
         notification: { title, body: body || "" },
+        data: { 
+          link: String(link || "/"),
+          senderName: String(senderName || "מערכת")
+        },
         webpush: {
           notification: { icon: "/icon-192.png", badge: "/icon-192.png" },
-          fcmOptions: { link },
+          fcmOptions: { link: String(link || "/") },
         },
       });
       successCount = result.successCount;
