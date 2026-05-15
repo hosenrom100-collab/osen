@@ -29,9 +29,9 @@ if (!admin.apps.length) {
 // Body: { userId?, role?, groupId?, programId?, everyone?, title, body, link? }
 export async function POST(req: Request) {
   try {
-    const { 
-      userId, role, groupId, programId, everyone, 
-      title, body, link = "/", senderId, senderName 
+    const {
+      userId, userIds, role, groupId, programId, everyone,
+      title, body, link = "/", senderId, senderName
     } = await req.json();
 
     if (!title) return NextResponse.json({ error: "title is required" }, { status: 400 });
@@ -51,6 +51,14 @@ export async function POST(req: Request) {
         tokensByUser.set(userId, data.fcmTokens);
       } else {
         console.log(`[Notify] No FCM tokens found for user ${userId}`);
+      }
+    } else if (userIds && Array.isArray(userIds) && userIds.length > 0) {
+      console.log(`[Notify] Targeting specific users: ${userIds.join(", ")}`);
+      for (const uid of userIds) {
+        targetUserIds.add(uid);
+        const snap = await admin.firestore().collection("users").doc(uid).get();
+        const data = snap.data();
+        if (data?.fcmTokens?.length) tokensByUser.set(uid, data.fcmTokens);
       }
     } else if (role) {
       console.log(`[Notify] Targeting role: ${role}`);

@@ -309,21 +309,37 @@ export default function ParticipantPortal() {
         status: "pending",
         createdAt: serverTimestamp(),
       };
-      const docRef = await setDoc(doc(collection(db, "document_requests")), reqData);
-      
-      // Notify SW
+      await setDoc(doc(collection(db, "document_requests")), reqData);
+
+      // Push push + Firestore notification to SW
       if (swData) {
-        await setDoc(doc(collection(db, "messages")), {
-          participants: [user.uid, swData.id],
+        const docTypeLabel = type === 'stay' ? 'אישור שהייה' : 'דו"ח נוכחות חודשי';
+        const senderName = user.displayName || 'משתתף';
+
+        await setDoc(doc(collection(db, "notifications")), {
+          title: 'בקשת מסמך חדשה',
+          body: `${senderName} ביקש ${docTypeLabel}`,
+          recipientIds: [swData.id],
           senderId: user.uid,
-          text: `שלום, הגשתי בקשה ל${type === 'stay' ? 'אישור שהייה' : 'דו"ח נוכחות חודשי'}.`,
-          timestamp: serverTimestamp(),
-          isDocRequest: true,
+          createdAt: serverTimestamp(),
+          readBy: [],
+          type: 'chat',
+          link: '/admin/notifications',
         });
+
+        fetch('/api/notify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title: 'בקשת מסמך חדשה',
+            body: `${senderName} ביקש ${docTypeLabel}`,
+            userId: swData.id,
+            link: '/admin/notifications',
+          }),
+        }).catch(console.error);
       }
 
       alert("בקשתך התקבלה ותטופל בקרוב.");
-      // Refresh local state (optimistic or re-fetch)
       setDocRequests(prev => [{ ...reqData, createdAt: new Date() }, ...prev]);
     } catch (e) { console.error(e); }
     finally { setDocBusy(false); }

@@ -4,7 +4,8 @@ import { useAuth } from "@/context/AuthContext";
 import { RoleGuard } from "@/components/auth/RoleGuard";
 import { PatientForm } from "@/components/patients/PatientForm";
 import { useState, useEffect, useRef } from "react";
-import { db } from "@/lib/firebase/config";
+import { db, storage } from "@/lib/firebase/config";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import {
   doc, getDoc, collection, query, where, orderBy, getDocs, limit, updateDoc, onSnapshot, serverTimestamp, setDoc,
 } from "firebase/firestore";
@@ -201,38 +202,76 @@ export default function PatientDetailPage() {
   }
 
   const handleProcessRequest = async (request: any) => {
-    if (!patient) return;
+    if (!patient || !reportRef.current) return;
     setReportLoading(true);
     try {
       const docTitle = request.type === 'stay' ? 'אישור שהייה' : `דו״ח נוכחות - ${request.month || format(new Date(), "MM/yyyy")}`;
-      
-      const docData = {
+
+      // Generate PDF from the hidden template
+      await new Promise(r => setTimeout(r, 100));
+      const canvas = await html2canvas(reportRef.current, {
+        scale: 2, useCORS: true, logging: false, backgroundColor: "#ffffff"
+      });
+      const imgData = canvas.toDataURL("image/jpeg", 1.0);
+      const pdf = new jsPDF("p", "mm", "a4");
+      const imgWidth = 210;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      pdf.addImage(imgData, "JPEG", 0, 0, imgWidth, imgHeight);
+
+      // Upload to Firebase Storage and get download URL
+      const pdfBlob = pdf.output("blob");
+      const storageRef = ref(storage, `documents/${patient.id}/${Date.now()}_${request.type}.pdf`);
+      await uploadBytes(storageRef, pdfBlob, { contentType: "application/pdf" });
+      const downloadUrl = await getDownloadURL(storageRef);
+
+      // Save document record with real URL
+      const newDocRef = doc(collection(db, "documents"));
+      await setDoc(newDocRef, {
         patientId: patient.id,
         title: docTitle,
         type: request.type,
-        url: "#", 
+        url: downloadUrl,
         createdAt: serverTimestamp(),
-        processedBy: authUser?.uid
-      };
+        processedBy: authUser?.uid,
+      });
 
-      await setDoc(doc(collection(db, "documents")), docData);
-      
       await updateDoc(doc(db, "document_requests", request.id), {
         status: "completed",
-        processedAt: serverTimestamp()
+        processedAt: serverTimestamp(),
+        documentId: newDocRef.id,
       });
 
-      await setDoc(doc(collection(db, "messages")), {
-        participants: [authUser?.uid, participantUid].filter(Boolean),
-        senderId: authUser?.uid,
-        text: `המסמך שביקשת (${docTitle}) מוכן וממתין לך באיזור האישי.`,
-        timestamp: serverTimestamp(),
-      });
+      // Notify participant via Firestore notification + push
+      if (participantUid) {
+        await setDoc(doc(collection(db, "notifications")), {
+          title: 'מסמך מוכן להורדה',
+          body: `${docTitle} מוכן לצפייה ולהורדה באיזור האישי שלך`,
+          recipientIds: [participantUid],
+          senderId: authUser?.uid,
+          createdAt: serverTimestamp(),
+          readBy: [],
+          type: 'chat',
+          link: '/portal',
+        });
+
+        fetch('/api/notify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title: 'מסמך מוכן להורדה',
+            body: `${docTitle} מוכן לצפייה ולהורדה באיזור האישי שלך`,
+            userId: participantUid,
+            link: '/portal',
+          }),
+        }).catch(console.error);
+      }
 
       alert("המסמך הופק ונשלח בהצלחה!");
       fetchPatientData();
-    } catch (e) { console.error(e); }
-    finally { setReportLoading(false); }
+    } catch (e) {
+      console.error(e);
+      alert("שגיאה בהפקת המסמך");
+    } finally { setReportLoading(false); }
   };
 
   function effectiveEndDate(p: Patient): Date | null {

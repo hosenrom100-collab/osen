@@ -41,13 +41,23 @@ ${staffList.slice(0, 15).map((s) => s.name).join(", ")}
 ━━ מטופלים (חלקי) ━━
 ${patientList.slice(0, 20).map((p) => p.fullName).join(", ")}
 
+━━ קטגוריות מוצרים ━━
+${appData.validCategories?.join(", ")}
+
+━━ זיכרון אישי וכללים (Memory) ━━
+${appData.memory && appData.memory.length > 0 ? appData.memory.map((m: string) => `• ${m}`).join("\n") : "אין זיכרונות עדיין."}
+
 ━━ כללי התנהגות ━━
 ענה בעברית טבעית וקצרה.
 זהה כוונות: "צריך X" -> הוסף לקניות, "מי חסר?" -> נוכחות.
+- אם המשתמש מבקש להוסיף מוצר שאינו קיים במאגר (productPool), החזר action: "add_shopping_item" וסמן requiresConfirmation: true עם הודעה לבקשת אישור.
+- אם המשתמש מבקש למחוק פריט מהקניות, החזר action: "delete_shopping_item" וחובה לסמן requiresConfirmation: true עם שאלת וידוא לפני המחיקה (למשל: "האם אתה בטוח שברצונך למחוק את החלב מהרשימה?").
+- אם המשתמש מבקש ממך לזכור משהו (לדוגמה: "תזכור שאני תמיד קונה חלב ביום שלישי" או "זכור שדני לא אוהב עגבניות"), החזר action: "learn_fact" וב-actionData ציין את העובדה בשדה "fact" כדי להוסיף אותה לזיכרון ארוך הטווח שלך.
+
 החזר תמיד JSON תקין בלבד:
 {
   "response": "...",
-  "action": "none|navigate|add_shopping_item|add_patient|create_absence_request|send_notification",
+  "action": "none|navigate|add_shopping_item|add_shopping_items|delete_shopping_item|add_patient|create_absence_request|send_notification|learn_fact",
   "actionData": {},
   "requiresConfirmation": false,
   "confirmationMessage": ""
@@ -84,6 +94,9 @@ interface AppData {
   };
   staffList: Array<{ id: string; name: string; role: string }>;
   patientList: Array<{ id: string; fullName: string }>;
+  validCategories: string[];
+  productPool: string[];
+  memory: string[];
 }
 
 export async function POST(req: Request) {

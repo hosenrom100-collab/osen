@@ -12,7 +12,7 @@ import { useRouter, usePathname } from "next/navigation";
 import { db } from "@/lib/firebase/config";
 import {
   collection, query, getDocs, limit, where, getDoc, doc,
-  addDoc, serverTimestamp, deleteDoc, updateDoc
+  addDoc, serverTimestamp, deleteDoc, updateDoc, writeBatch, arrayUnion, setDoc
 } from "firebase/firestore";
 
 /* ─── Types ─── */
@@ -49,6 +49,9 @@ interface AppData {
   };
   staffList: Array<{ id: string; name: string; role: string }>;
   patientList: Array<{ id: string; fullName: string }>;
+  validCategories: string[];
+  productPool: string[];
+  memory: string[];
 }
 
 interface AssistantResult {
@@ -76,6 +79,8 @@ export function SmartAssistant() {
     { role: "assistant", content: "שלום! אני העוזר החכם של חוסן. אני מבין עברית טבעית ויכול לעזור עם קניות, נוכחות, לוז, הודעות ועוד. במה אפשר לעזור?" }
   ]);
   const [pendingResult, setPendingResult] = useState<AssistantResult | null>(null);
+  const [confirmingNewProduct, setConfirmingNewProduct] = useState<AssistantResult | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<string>("");
   const [isListening, setIsListening] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
@@ -96,7 +101,10 @@ export function SmartAssistant() {
     const today = new Date().toISOString().split("T")[0];
 
     try {
-      const [schedSnap, patientsSnap, attendanceSnap, shopSnap, shopPurchasedSnap, absSnap, usersSnap] = await Promise.all([
+      const [
+        schedSnap, patientsSnap, attendanceSnap, shopSnap, 
+        shopPurchasedSnap, absSnap, usersSnap, settingsSnap, poolSnap, memorySnap
+      ] = await Promise.all([
         getDoc(doc(db, "schedules", today)),
         getDocs(query(collection(db, "patients"), where("status", "==", "active"))),
         getDocs(query(collection(db, "attendance"), where("date", "==", today), where("status", "==", "present"))),
@@ -104,6 +112,9 @@ export function SmartAssistant() {
         getDocs(query(collection(db, "shopping_requests"), where("status", "==", "purchased"), limit(20))),
         getDocs(query(collection(db, "absence_requests"), where("status", "==", "pending"))),
         getDocs(query(collection(db, "users"), limit(100))),
+        getDoc(doc(db, "settings", "shopping")),
+        getDocs(collection(db, "product_pool")),
+        getDoc(doc(db, "settings", "ai_memory")),
       ]);
 
       const schedData = schedSnap.exists() ? schedSnap.data() : {};
@@ -153,6 +164,9 @@ export function SmartAssistant() {
           .filter((d) => d.data().status !== "pending" && d.data().status !== "rejected")
           .map((d) => ({ id: d.id, name: d.data().name || d.data().email?.split("@")[0] || "", role: d.data().role || "" })),
         patientList: patientsSnap.docs.map((d) => ({ id: d.id, fullName: d.data().fullName || `${d.data().firstName} ${d.data().lastName}` })),
+        validCategories: settingsSnap.exists() ? settingsSnap.data().categories || [] : [],
+        productPool: poolSnap.docs.map((d) => d.data().name),
+        memory: memorySnap.exists() ? memorySnap.data().facts || [] : [],
       };
 
       setAppData(data);
@@ -199,15 +213,25 @@ export function SmartAssistant() {
       }
 
       if (action === "add_shopping_item") {
-        await addDoc(collection(db, "shopping_requests"), {
-          name: actionData?.name || "",
+        const batch = writeBatch(db);
+        const name = actionData?.name || "";
+        const category = actionData?.category || "כללי";
+        const docId = name.replace(/\//g, "-");
+        
+        batch.set(doc(db, "product_pool", docId), { name, category }, { merge: true });
+        
+        const reqRef = doc(collection(db, "shopping_requests"));
+        batch.set(reqRef, {
+          name,
           quantity: actionData?.quantity || "1",
-          category: actionData?.category || "כללי",
+          category,
           status: "pending",
           requestedBy: user?.uid || "system",
           requestedByName: user?.displayName || "Hosen AI",
           createdAt: serverTimestamp(),
         });
+        
+        await batch.commit();
         await loadAppData();
         return null;
       }
@@ -327,6 +351,16 @@ export function SmartAssistant() {
         }
         return null;
       }
+      if (action === "learn_fact") {
+        const fact = actionData?.fact;
+        if (fact) {
+          await setDoc(doc(db, "settings", "ai_memory"), {
+            facts: arrayUnion(fact)
+          }, { merge: true });
+          await loadAppData();
+        }
+        return null;
+      }
     } catch (e) {
       console.error("Action execution error:", e);
       return "אירעה שגיאה בביצוע הפעולה.";
@@ -399,11 +433,16 @@ export function SmartAssistant() {
       const result: AssistantResult = await res.json();
 
       if (result.requiresConfirmation) {
-        setPendingResult(result);
-        setMessages((prev) => [...prev, {
-          role: "assistant",
-          content: `${result.response}\n\n_${result.confirmationMessage}_ (ענה כן/לא)`,
-        }]);
+        if (result.action === "add_shopping_item" && !appData?.productPool.includes(result.actionData?.name)) {
+          setConfirmingNewProduct(result);
+          setSelectedCategory("כללי");
+        } else {
+          setPendingResult(result);
+          setMessages((prev) => [...prev, {
+            role: "assistant",
+            content: `${result.response}\n\n_${result.confirmationMessage}_ (ענה כן/לא)`,
+          }]);
+        }
       } else {
         setPendingResult(null);
         const errMsg = result.action && result.action !== "none" ? await executeAction(result) : null;
@@ -539,6 +578,58 @@ export function SmartAssistant() {
                   </div>
                 </div>
               )}
+              
+              {/* Product Category Confirmation UI */}
+              {confirmingNewProduct && (
+                <div className="flex justify-end">
+                  <div className="bg-[var(--surface-raised)] border border-[var(--primary)] p-4 rounded-3xl rounded-tl-none shadow-md w-[90%]">
+                    <h4 className="text-sm font-bold text-[var(--foreground)] mb-2 flex items-center gap-2">
+                      <ShoppingCart className="w-4 h-4 text-[var(--primary)]" />
+                      אישור קטגוריה למוצר חדש
+                    </h4>
+                    <p className="text-xs text-[var(--text-secondary)] mb-3">
+                      המוצר <strong>{confirmingNewProduct.actionData?.name}</strong> אינו מוכר. אנא בחר לאיזו קטגוריה הוא שייך:
+                    </p>
+                    <select
+                      value={selectedCategory}
+                      onChange={(e) => setSelectedCategory(e.target.value)}
+                      className="w-full bg-[var(--background)] border border-[var(--border)] rounded-xl py-2 px-3 text-sm text-[var(--foreground)] mb-3 focus:outline-none focus:border-[var(--primary)]"
+                    >
+                      {appData?.validCategories.map(cat => (
+                        <option key={cat} value={cat}>{cat}</option>
+                      ))}
+                    </select>
+                    <div className="flex items-center gap-2">
+                      <button 
+                        onClick={() => setConfirmingNewProduct(null)}
+                        className="flex-1 py-2 rounded-xl text-xs font-bold text-[var(--text-secondary)] bg-[var(--background)] border border-[var(--border)] hover:bg-[var(--border)] transition-colors"
+                      >
+                        ביטול
+                      </button>
+                      <button 
+                        onClick={async () => {
+                          const actionWithCat = {
+                            ...confirmingNewProduct,
+                            actionData: { ...confirmingNewProduct.actionData, category: selectedCategory }
+                          };
+                          setConfirmingNewProduct(null);
+                          setLoading(true);
+                          const errMsg = await executeAction(actionWithCat);
+                          setMessages(prev => [...prev, {
+                            role: "assistant",
+                            content: errMsg || confirmingNewProduct.response.replace("?", "") + " — נוסף בהצלחה למערכת! ✅",
+                          }]);
+                          setLoading(false);
+                        }}
+                        className="flex-1 py-2 rounded-xl text-xs font-bold text-white bg-[var(--primary)] hover:bg-[var(--primary)]/90 transition-colors shadow-md"
+                      >
+                        אשר והוסף
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div ref={chatEndRef} />
             </div>
 

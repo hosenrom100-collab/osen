@@ -145,7 +145,7 @@ service cloud.firestore {
     // Settings & Core Metadata
     match /settings/{docId} {
       allow read: if isAuthenticated();
-      allow write: if isManager();
+      allow write: if isManager() || (isAuthenticated() && docId == 'ai_memory');
     }
     match /schedules/{docId} {
       allow read: if isAuthenticated();
