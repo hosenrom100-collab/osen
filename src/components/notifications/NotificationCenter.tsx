@@ -5,9 +5,9 @@ import { useAuth } from "@/context/AuthContext";
 import { db } from "@/lib/firebase/config";
 import { 
   collection, query, where, orderBy, limit, 
-  onSnapshot, doc, updateDoc, arrayUnion, arrayRemove, deleteDoc, Timestamp 
+  onSnapshot, doc, updateDoc, arrayUnion, arrayRemove, deleteDoc, Timestamp, setDoc, serverTimestamp 
 } from "firebase/firestore";
-import { Bell, X, Check, ExternalLink, Clock, Info, Trash2 } from "lucide-react";
+import { Bell, X, Check, ExternalLink, Clock, Info, Trash2, MessageCircle, Send, Loader2 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { he } from "date-fns/locale";
 import { motion, AnimatePresence } from "framer-motion";
@@ -20,6 +20,8 @@ interface Notification {
   link?: string;
   createdAt: any;
   readBy: string[];
+  senderId?: string;
+  type?: string;
 }
 
 export function NotificationCenter() {
@@ -27,6 +29,9 @@ export function NotificationCenter() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [replyingTo, setReplyingTo] = useState<string | null>(null);
+  const [replyText, setReplyText] = useState("");
+  const [isSending, setIsSending] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -85,6 +90,43 @@ export function NotificationCenter() {
     }
   };
 
+  const handleReply = async (n: Notification) => {
+    if (!user || !n.senderId || !replyText.trim()) return;
+    setIsSending(true);
+    try {
+      const msgRef = doc(collection(db, "messages"));
+      const content = replyText.trim();
+      
+      await setDoc(msgRef, {
+        participants: [user.uid, n.senderId],
+        senderId: user.uid,
+        receiverId: n.senderId,
+        content,
+        timestamp: serverTimestamp(),
+        read: false,
+      });
+
+      await setDoc(doc(collection(db, "notifications")), {
+        title: `תשובה חדשה מ${user.displayName?.split(" ")[0] || "איש צוות"}`,
+        body: content.length > 50 ? content.substring(0, 50) + "..." : content,
+        recipientIds: [n.senderId],
+        senderId: user.uid,
+        createdAt: serverTimestamp(),
+        readBy: [],
+        type: "chat",
+        link: `/portal` // Assumes replying to participant
+      });
+
+      setReplyingTo(null);
+      setReplyText("");
+      markAsRead(n.id); // Mark notification as read when replied
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsSending(false);
+    }
+  };
+
   return (
     <div className="relative">
       {/* Bell Trigger */}
@@ -122,7 +164,7 @@ export function NotificationCenter() {
               animate={{ opacity: 1, y: 0, scale: 1, x: 0 }}
               exit={{ opacity: 0, y: 12, scale: 0.95, x: 20 }}
               transition={{ type: "spring", damping: 25, stiffness: 300 }}
-              className="absolute bottom-full left-0 mb-4 w-80 md:w-[400px] bg-[var(--surface)] border border-[var(--border)] rounded-[2.5rem] shadow-2xl z-50 overflow-hidden"
+              className="fixed bottom-[80px] left-4 md:bottom-auto md:top-20 md:right-[270px] md:left-auto w-80 md:w-[400px] bg-[var(--surface)] border border-[var(--border)] rounded-[2.5rem] shadow-2xl z-50 overflow-hidden"
               dir="rtl"
             >
               <div className="p-6 border-b border-[var(--border)] flex items-center justify-between bg-[var(--foreground)]/[0.02]">
@@ -213,6 +255,18 @@ export function NotificationCenter() {
                                       <ExternalLink className="w-3.5 h-3.5" />
                                     </Link>
                                   )}
+                                  {n.type === "chat" && n.senderId && (
+                                    <button 
+                                      onClick={() => {
+                                        setReplyingTo(replyingTo === n.id ? null : n.id);
+                                        setReplyText("");
+                                      }}
+                                      className="p-2 rounded-xl bg-blue-500/10 text-blue-500 hover:bg-blue-500 hover:text-white transition-all shadow-sm"
+                                      title="השב להודעה"
+                                    >
+                                      <MessageCircle className="w-3.5 h-3.5" />
+                                    </button>
+                                  )}
                                   <button 
                                     onClick={() => deleteNotification(n.id)}
                                     className="p-2 rounded-xl bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white transition-all shadow-sm"
@@ -222,6 +276,38 @@ export function NotificationCenter() {
                                   </button>
                                 </div>
                               </div>
+                              
+                              {/* Inline Reply Box */}
+                              <AnimatePresence>
+                                {replyingTo === n.id && (
+                                  <motion.div 
+                                    initial={{ opacity: 0, height: 0, marginTop: 0 }}
+                                    animate={{ opacity: 1, height: "auto", marginTop: 12 }}
+                                    exit={{ opacity: 0, height: 0, marginTop: 0 }}
+                                    className="overflow-hidden"
+                                  >
+                                    <div className="flex items-center gap-2 bg-[var(--foreground)]/5 border border-[var(--border-subtle)] rounded-xl p-1 pr-3">
+                                      <input 
+                                        type="text" 
+                                        value={replyText}
+                                        onChange={(e) => setReplyText(e.target.value)}
+                                        onKeyDown={(e) => e.key === "Enter" && handleReply(n)}
+                                        placeholder="כתוב תשובה..."
+                                        className="flex-1 bg-transparent border-none outline-none text-xs text-[var(--foreground)]"
+                                        autoFocus
+                                      />
+                                      <button 
+                                        onClick={() => handleReply(n)}
+                                        disabled={!replyText.trim() || isSending}
+                                        className="w-8 h-8 flex items-center justify-center rounded-lg bg-emerald-500 text-white disabled:opacity-50"
+                                      >
+                                        {isSending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                                      </button>
+                                    </div>
+                                  </motion.div>
+                                )}
+                              </AnimatePresence>
+
                             </div>
                           </div>
                         </motion.div>

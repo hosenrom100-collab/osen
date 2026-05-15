@@ -45,7 +45,7 @@ export function DesktopSidebar() {
   const displayRole = role || roles[0] || "";
 
   return (
-    <aside className="hidden md:flex w-64 shrink-0 h-screen sticky top-0 flex-col bg-[var(--sidebar-bg)] border-l border-[var(--border)] z-20 overflow-hidden">
+    <aside className="hidden md:flex w-64 shrink-0 h-screen sticky top-0 flex-col bg-[var(--sidebar-bg)] border-l border-[var(--border)] z-20">
 
       {/* App Brand */}
       <div className="flex items-center gap-3 px-6 h-20 shrink-0 border-b border-[var(--border-subtle)]">
@@ -144,9 +144,11 @@ export function DesktopSidebar() {
               {ROLE_HE[displayRole] || displayRole}
             </p>
           </div>
-          <NotificationCenter />
           <Settings className="w-4 h-4 text-[var(--foreground)]/20 group-hover:text-[var(--foreground)]/60 transition-colors" />
         </Link>
+        <div className="mt-2 flex items-center justify-end">
+          <NotificationCenter />
+        </div>
       </div>
     </aside>
   );

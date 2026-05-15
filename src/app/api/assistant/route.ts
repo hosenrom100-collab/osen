@@ -58,7 +58,12 @@ ${appData.memory && appData.memory.length > 0 ? appData.memory.map((m: string) =
 {
   "response": "...",
   "action": "none|navigate|add_shopping_item|add_shopping_items|delete_shopping_item|add_patient|create_absence_request|send_notification|learn_fact",
-  "actionData": {},
+  "actionData": {
+    "name": "שם המוצר (אם מוסיפים לקניות)",
+    "quantity": "כמות",
+    "searchTerm": "מילת חיפוש (למחיקת קניות)",
+    "fact": "העובדה לשמירה (עבור learn_fact)"
+  },
   "requiresConfirmation": false,
   "confirmationMessage": ""
 }`;

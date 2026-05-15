@@ -214,11 +214,19 @@ export function SmartAssistant() {
 
       if (action === "add_shopping_item") {
         const batch = writeBatch(db);
-        const name = actionData?.name || "";
-        const category = actionData?.category || "כללי";
-        const docId = name.replace(/\//g, "-");
+        let name = actionData?.name || actionData?.product || actionData?.item || "";
+        name = String(name).trim();
         
-        batch.set(doc(db, "product_pool", docId), { name, category }, { merge: true });
+        if (!name) {
+          return "לא הצלחתי לזהות את שם המוצר מהבקשה. נסה שוב.";
+        }
+
+        const category = actionData?.category || "כללי";
+        const docId = name.replace(/\//g, "-").replace(/\s+/g, "_");
+        
+        if (docId) {
+          batch.set(doc(db, "product_pool", docId), { name, category }, { merge: true });
+        }
         
         const reqRef = doc(collection(db, "shopping_requests"));
         batch.set(reqRef, {

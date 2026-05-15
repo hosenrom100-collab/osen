@@ -15,7 +15,7 @@ import {
   AlertCircle, ChevronLeft, Printer, Download, FileText,
   X, Check, Info, History, Send, Bell, MessageCircle,
 } from "lucide-react";
-import { useRouter, useParams } from "next/navigation";
+import { useRouter, useParams, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { format, subMonths, addMonths, differenceInDays, parseISO, isValid } from "date-fns";
 import { he } from "date-fns/locale";
@@ -49,12 +49,14 @@ export default function PatientDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { isAdmin, isManager, user: authUser } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const reportRef = useRef<HTMLDivElement>(null);
 
   const [patient, setPatient] = useState<Patient | null>(null);
   const [attendance, setAttendance] = useState<Attendance[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"overview" | "attendance" | "reports" | "messages">("overview");
+  const initialTab = (searchParams.get("tab") as "overview" | "attendance" | "reports" | "messages") || "overview";
+  const [activeTab, setActiveTab] = useState<"overview" | "attendance" | "reports" | "messages">(initialTab);
   const [messages, setMessages] = useState<any[]>([]);
   const [participantUid, setParticipantUid] = useState<string | null>(null);
   const [newMessage, setNewMessage] = useState("");
@@ -707,23 +709,34 @@ export default function PatientDetailPage() {
                       <p className="text-sm">אין הודעות עדיין. שלח הודעה למשתתף כדי להתחיל בשיחה.</p>
                     </div>
                   ) : (
-                    messages.map((m: any, i) => (
-                      <div 
-                        key={m.id || i} 
-                        className={`flex ${m.senderId === authUser?.uid ? 'justify-end' : 'justify-start'}`}
-                      >
-                        <div className={`max-w-[70%] rounded-2xl px-5 py-3 text-sm shadow-sm ${
-                          m.senderId === authUser?.uid 
-                            ? 'bg-slate-900 text-white rounded-br-none' 
-                            : 'bg-white border border-slate-200 text-slate-800 rounded-bl-none'
-                        }`}>
-                          <p className="leading-relaxed">{m.content}</p>
-                          <p className={`text-[8px] mt-1.5 opacity-50 font-bold uppercase tracking-widest ${m.senderId === authUser?.uid ? 'text-left' : 'text-right'}`}>
-                            {m.timestamp?.toDate ? format(m.timestamp.toDate(), "HH:mm | dd/MM", { locale: he }) : "שולח..."}
-                          </p>
+                    messages.map((m: any, i) => {
+                      const isMe = m.senderId === authUser?.uid;
+                      const isParticipant = m.senderId === participantUid;
+                      // const isOtherStaff = !isMe && !isParticipant;
+                      
+                      return (
+                        <div 
+                          key={m.id || i} 
+                          className={`flex ${isMe ? 'justify-end' : 'justify-start'} mb-2`}
+                        >
+                          <div className={`max-w-[70%] rounded-2xl px-5 py-3 text-sm shadow-sm ${
+                            isMe 
+                              ? 'bg-slate-900 text-white rounded-br-none' 
+                              : isParticipant
+                                ? 'bg-white border border-slate-200 text-slate-800 rounded-bl-none'
+                                : 'bg-teal-50 border border-teal-100 text-teal-900 rounded-bl-none'
+                          }`}>
+                            {!isMe && !isParticipant && (
+                              <p className="text-[10px] font-black text-teal-600 mb-1">איש צוות אחר</p>
+                            )}
+                            <p className="leading-relaxed">{m.content}</p>
+                            <p className={`text-[8px] mt-1.5 opacity-50 font-bold uppercase tracking-widest ${isMe ? 'text-left' : 'text-right'}`}>
+                              {m.timestamp?.toDate ? format(m.timestamp.toDate(), "HH:mm | dd/MM", { locale: he }) : "שולח..."}
+                            </p>
+                          </div>
                         </div>
-                      </div>
-                    ))
+                      );
+                    })
                   )}
                 </div>
 
