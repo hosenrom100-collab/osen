@@ -276,31 +276,31 @@ export default function NotificationsPage() {
 
   return (
     <RoleGuard allowedRoles={["admin", "manager"]} redirectTo="/">
-      <div dir="rtl" className="min-h-screen bg-slate-50/50">
+      <div dir="rtl" className="min-h-screen bg-[var(--background)]">
 
         {/* ── Header ── */}
-        <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-slate-100 px-4 md:px-8">
+        <header className="sticky top-0 z-40 bg-[var(--background)]/80 backdrop-blur-md border-b border-[var(--border)] px-4 md:px-8">
           <div className="flex items-center gap-4 h-16">
-            <div className="hidden md:flex items-center gap-2 text-[11px] text-slate-400">
-              <Link href="/admin" className="hover:text-slate-900 transition-colors">ניהול</Link>
+            <div className="hidden md:flex items-center gap-2 text-[11px] text-[var(--muted)]">
+              <Link href="/admin" className="hover:text-[var(--foreground)] transition-colors">ניהול</Link>
               <ChevronLeft className="w-3 h-3 rotate-180" />
-              <span className="text-slate-900 font-bold">הודעות פוש</span>
+              <span className="text-[var(--foreground)] font-bold">הודעות פוש</span>
             </div>
             
             <button
               onClick={() => router.push("/admin")}
-              className="md:hidden p-2 rounded-xl text-slate-400 hover:text-slate-900 transition-colors"
+              className="md:hidden p-2 rounded-xl text-[var(--muted)] hover:text-[var(--foreground)] transition-colors"
             >
               <ArrowRight className="w-5 h-5" />
             </button>
 
             <div className="flex items-center gap-2.5">
-              <div className="w-10 h-10 rounded-2xl bg-slate-900 flex items-center justify-center text-white">
+              <div className="w-10 h-10 rounded-2xl bg-[var(--foreground)] flex items-center justify-center text-[var(--background)]">
                 <Bell className="w-5 h-5" />
               </div>
               <div>
-                <h1 className="text-sm font-black text-slate-900">הודעות ועדכונים</h1>
-                <p className="text-[10px] text-slate-400 font-bold">ניהול תקשורת והתראות לצוות</p>
+                <h1 className="text-sm font-black text-[var(--foreground)]">הודעות ועדכונים</h1>
+                <p className="text-[10px] text-[var(--muted)] font-bold">ניהול תקשורת והתראות לצוות</p>
               </div>
             </div>
           </div>
@@ -313,10 +313,10 @@ export default function NotificationsPage() {
             {/* ── Right: Composer (7 cols) ── */}
             <div className="lg:col-span-7 space-y-6">
               
-              <div className="bg-white border border-slate-100 rounded-3xl p-6 md:p-8 space-y-8">
+              <div className="bg-[var(--surface)] border border-[var(--border)] rounded-3xl p-6 md:p-8 space-y-8 shadow-xl">
                 <div>
-                  <h2 className="text-lg font-black text-slate-900 mb-1">שליחת הודעה חדשה</h2>
-                  <p className="text-xs text-slate-400 font-bold">בחר קהל יעד ונסח את ההודעה</p>
+                  <h2 className="text-lg font-black text-[var(--foreground)] mb-1">שליחת הודעה חדשה</h2>
+                  <p className="text-xs text-[var(--muted)] font-bold">בחר קהל יעד ונסח את ההודעה</p>
                 </div>
 
           {/* ── Target ── */}
@@ -332,8 +332,8 @@ export default function NotificationsPage() {
                           onClick={() => { setMode(m.id); resetTarget(); }}
                           className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-black border transition-all ${
                             active
-                              ? "bg-slate-900 border-slate-900 text-white"
-                              : "bg-slate-50 border-slate-100 text-slate-400 hover:border-slate-200 hover:text-slate-600"
+                              ? "bg-[var(--foreground)] border-[var(--foreground)] text-[var(--background)]"
+                              : "bg-[var(--foreground)]/5 border-[var(--border)] text-[var(--muted)] hover:border-[var(--muted)]/50 hover:text-[var(--foreground)]"
                           }`}
                         >
                           <m.icon className="w-4 h-4" />
@@ -357,16 +357,16 @@ export default function NotificationsPage() {
                     {mode === "roles" && (
                       <motion.div key="roles"
                         initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-                        className="bg-slate-50 border border-slate-100 rounded-2xl p-6 space-y-6"
+                        className="bg-[var(--foreground)]/5 border border-[var(--border)] rounded-2xl p-6 space-y-6"
                       >
                         <div>
-                          <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-3">חתכים מהירים</p>
+                          <p className="text-[10px] text-[var(--muted)] font-black uppercase tracking-widest mb-3">חתכים מהירים</p>
                           <div className="flex gap-2 flex-wrap">
                             {SEGMENTS.map(s => (
                               <button
                                 key={s.label}
                                 onClick={() => setSelectedRoles(s.roles)}
-                                className="text-xs px-4 py-2 rounded-xl bg-white border border-slate-100 hover:border-slate-300 hover:text-slate-900 font-bold transition-all"
+                                className="text-xs px-4 py-2 rounded-xl bg-[var(--surface)] border border-[var(--border)] hover:border-[var(--muted)] hover:text-[var(--foreground)] font-bold transition-all"
                               >
                                 {s.label}
                               </button>
@@ -411,7 +411,7 @@ export default function NotificationsPage() {
                           <select
                             value={selectedGroupId}
                             onChange={e => setSelectedGroupId(e.target.value)}
-                            className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-5 py-3.5 text-sm font-bold text-slate-900 focus:outline-none focus:border-slate-900 transition-colors appearance-none"
+                            className="w-full bg-[var(--foreground)]/5 border border-[var(--border)] rounded-2xl px-5 py-3.5 text-sm font-bold text-[var(--foreground)] focus:outline-none focus:border-[var(--foreground)] transition-colors appearance-none"
                           >
                             <option value="">בחר קבוצה...</option>
                             {groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
@@ -432,7 +432,7 @@ export default function NotificationsPage() {
                           <select
                             value={selectedProgramId}
                             onChange={e => setSelectedProgramId(e.target.value)}
-                            className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-5 py-3.5 text-sm font-bold text-slate-900 focus:outline-none focus:border-slate-900 transition-colors appearance-none"
+                            className="w-full bg-[var(--foreground)]/5 border border-[var(--border)] rounded-2xl px-5 py-3.5 text-sm font-bold text-[var(--foreground)] focus:outline-none focus:border-[var(--foreground)] transition-colors appearance-none"
                           >
                             <option value="">בחר תוכנית...</option>
                             {programs.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
@@ -447,13 +447,13 @@ export default function NotificationsPage() {
                         className="space-y-3"
                       >
                         <div className="relative">
-                          <Search className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                          <Search className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--muted)]/50" />
                           <input
                             type="text"
                             placeholder="חיפוש לפי שם או אימייל..."
                             value={userSearch}
                             onChange={e => setUserSearch(e.target.value)}
-                            className="w-full bg-slate-50 border border-slate-100 rounded-2xl pr-11 pl-4 py-3.5 text-sm font-bold focus:outline-none focus:border-slate-900 transition-colors placeholder:text-slate-400"
+                            className="w-full bg-[var(--foreground)]/5 border border-[var(--border)] rounded-2xl pr-11 pl-4 py-3.5 text-sm font-bold focus:outline-none focus:border-[var(--foreground)] transition-colors placeholder:text-[var(--muted)]/40"
                           />
                         </div>
                         <div className="max-h-64 overflow-y-auto space-y-2 p-1">
@@ -463,12 +463,12 @@ export default function NotificationsPage() {
                               onClick={() => { setSelectedUserId(u.id); setSelectedUserName(u.name); }}
                               className={`w-full flex items-center gap-4 px-4 py-3 rounded-2xl text-sm text-right transition-all border ${
                                 selectedUserId === u.id
-                                  ? "bg-slate-900 border-slate-900 text-white"
-                                  : "bg-white border-slate-100 hover:border-slate-300"
+                                  ? "bg-[var(--foreground)] border-[var(--foreground)] text-[var(--background)]"
+                                  : "bg-[var(--surface)] border border-[var(--border)] hover:border-[var(--muted)]/50"
                               }`}
                             >
                               <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-xs font-black shrink-0 ${
-                                selectedUserId === u.id ? "bg-white/10 text-white" : "bg-slate-100 text-slate-600"
+                                selectedUserId === u.id ? "bg-[var(--background)]/10 text-[var(--background)]" : "bg-[var(--foreground)]/5 text-[var(--muted)]"
                               }`}>
                                 {u.name.charAt(0)}
                               </div>
@@ -497,7 +497,7 @@ export default function NotificationsPage() {
                       value={title}
                       onChange={e => setTitle(e.target.value)}
                       maxLength={100}
-                      className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-4 text-sm font-bold focus:outline-none focus:border-slate-900 transition-colors placeholder:text-slate-400"
+                      className="w-full bg-[var(--foreground)]/5 border border-[var(--border)] rounded-2xl px-6 py-4 text-sm font-bold focus:outline-none focus:border-[var(--foreground)] transition-colors placeholder:text-[var(--muted)]/40"
                     />
 
                     <textarea
@@ -506,7 +506,7 @@ export default function NotificationsPage() {
                       onChange={e => setBody(e.target.value)}
                       maxLength={300}
                       rows={4}
-                      className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-4 text-sm font-bold focus:outline-none focus:border-slate-900 transition-colors placeholder:text-slate-400 resize-none"
+                      className="w-full bg-[var(--foreground)]/5 border border-[var(--border)] rounded-2xl px-6 py-4 text-sm font-bold focus:outline-none focus:border-[var(--foreground)] transition-colors placeholder:text-[var(--muted)]/40 resize-none"
                     />
 
                     <div className="flex flex-col gap-3">
@@ -531,7 +531,7 @@ export default function NotificationsPage() {
                               placeholder="קישור (למשל: /attendance/overview)"
                               value={link}
                               onChange={e => setLink(e.target.value)}
-                              className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-4 text-sm font-bold focus:outline-none focus:border-slate-900 transition-colors placeholder:text-slate-400"
+                              className="w-full bg-[var(--foreground)]/5 border border-[var(--border)] rounded-2xl px-6 py-4 text-sm font-bold focus:outline-none focus:border-[var(--foreground)] transition-colors placeholder:text-[var(--muted)]/40"
                             />
                           </motion.div>
                         )}
@@ -545,7 +545,7 @@ export default function NotificationsPage() {
                   <button
                     onClick={handleSend}
                     disabled={sending || !isValid()}
-                    className="w-full flex items-center justify-center gap-3 py-5 rounded-2xl bg-slate-900 hover:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed text-white font-black text-sm transition-all active:scale-[0.98]"
+                    className="w-full flex items-center justify-center gap-3 py-5 rounded-2xl bg-[var(--foreground)] hover:opacity-90 disabled:opacity-30 disabled:cursor-not-allowed text-[var(--background)] font-black text-sm transition-all active:scale-[0.98] shadow-xl shadow-[var(--foreground)]/10"
                   >
                     {sending ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
                     שלח הודעה כעת
@@ -582,15 +582,15 @@ export default function NotificationsPage() {
             <div className="lg:col-span-5 space-y-8 h-[calc(100vh-140px)] overflow-y-auto no-scrollbar pb-10">
               
               {/* 📥 INBOX: Received Notifications */}
-              <div className="bg-white border border-slate-100 rounded-3xl flex flex-col shrink-0">
-                <div className="p-6 border-b border-slate-50 flex items-center justify-between">
+              <div className="bg-[var(--surface)] border border-[var(--border)] rounded-3xl flex flex-col shrink-0 shadow-lg">
+                <div className="p-6 border-b border-[var(--border-subtle)] flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center">
+                    <div className="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center">
                       <Mail className="w-4 h-4" />
                     </div>
                     <div>
-                      <h2 className="text-sm font-black text-slate-900">התראות שקיבלתי</h2>
-                      <p className="text-[10px] text-slate-400 font-bold">הודעות פוש אחרונות למכשיר זה</p>
+                      <h2 className="text-sm font-black text-[var(--foreground)]">התראות שקיבלתי</h2>
+                      <p className="text-[10px] text-[var(--muted)] font-bold">הודעות פוש אחרונות למכשיר זה</p>
                     </div>
                   </div>
                   {inbox.some(m => m.read) && (
@@ -605,7 +605,7 @@ export default function NotificationsPage() {
 
                 <div className="p-4 space-y-3">
                   {inbox.length === 0 ? (
-                    <div className="py-12 flex flex-col items-center justify-center text-slate-300 gap-2 text-center">
+                    <div className="py-12 flex flex-col items-center justify-center text-[var(--muted)]/20 gap-2 text-center">
                       <Bell className="w-8 h-8 opacity-20" />
                       <p className="text-[10px] font-bold">התיבה ריקה</p>
                     </div>
@@ -616,17 +616,17 @@ export default function NotificationsPage() {
                         onClick={() => markAsRead(msg.id)}
                         className={`group relative border rounded-2xl p-4 transition-all cursor-pointer ${
                           msg.read 
-                            ? "bg-slate-50/30 border-slate-50 opacity-60" 
-                            : "bg-white border-slate-100 shadow-sm hover:border-slate-200"
+                            ? "bg-[var(--foreground)]/[0.02] border-transparent opacity-60" 
+                            : "bg-[var(--surface-raised)] border-[var(--border)] shadow-sm hover:border-[var(--muted)]/50"
                         }`}
                       >
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-2 mb-1">
                               {!msg.read && <div className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />}
-                              <p className="text-xs font-black text-slate-900 truncate">{msg.title}</p>
+                              <p className="text-xs font-black text-[var(--foreground)] truncate">{msg.title}</p>
                             </div>
-                            <p className="text-[11px] text-slate-500 line-clamp-1">{msg.body}</p>
+                            <p className="text-[11px] text-[var(--muted)] line-clamp-1">{msg.body}</p>
                             <p className="text-[9px] text-slate-400 font-bold mt-2">
                               {new Date(msg.receivedAt).toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" })}
                             </p>
@@ -655,15 +655,15 @@ export default function NotificationsPage() {
               </div>
 
               {/* 📋 LOGS: Sent History */}
-              <div className="bg-white border border-slate-100 rounded-3xl flex flex-col shrink-0">
-                <div className="p-6 border-b border-slate-50 flex items-center justify-between">
+              <div className="bg-[var(--surface)] border border-[var(--border)] rounded-3xl flex flex-col shrink-0 shadow-lg">
+                <div className="p-6 border-b border-[var(--border-subtle)] flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-xl bg-slate-900/10 text-slate-900 flex items-center justify-center">
+                    <div className="w-8 h-8 rounded-xl bg-[var(--foreground)]/10 text-[var(--foreground)] flex items-center justify-center">
                       <Clock className="w-4 h-4" />
                     </div>
                     <div>
-                      <h2 className="text-sm font-black text-slate-900">היסטוריית שליחות</h2>
-                      <p className="text-[10px] text-slate-400 font-bold">תיעוד הודעות שנשלחו מהמערכת</p>
+                      <h2 className="text-sm font-black text-[var(--foreground)]">היסטוריית שליחות</h2>
+                      <p className="text-[10px] text-[var(--muted)] font-bold">תיעוד הודעות שנשלחו מהמערכת</p>
                     </div>
                   </div>
                   {logs.length > 0 && (
@@ -686,25 +686,25 @@ export default function NotificationsPage() {
                     logs.map((log, i) => (
                       <div
                         key={log.id}
-                        className="group bg-slate-50/50 border border-slate-100 rounded-2xl p-4 hover:bg-white hover:border-slate-200 transition-all"
+                        className="group bg-[var(--foreground)]/[0.02] border border-[var(--border)] rounded-2xl p-4 hover:bg-[var(--surface-raised)] hover:border-[var(--muted)]/50 transition-all"
                       >
                         <div className="flex items-start justify-between gap-4">
                           <div className="min-w-0 flex-1">
-                            <p className="text-xs font-black text-slate-900 leading-tight mb-1">{log.title}</p>
+                            <p className="text-xs font-black text-[var(--foreground)] leading-tight mb-1">{log.title}</p>
                             {log.body && (
-                              <p className="text-[10px] text-slate-500 line-clamp-1 mb-3">{log.body}</p>
+                              <p className="text-[10px] text-[var(--muted)] line-clamp-1 mb-3">{log.body}</p>
                             )}
                             
-                            <div className="flex flex-wrap items-center gap-3 pt-3 border-t border-slate-100/50">
-                              <div className="flex items-center gap-1 text-[9px] text-slate-400 font-bold">
+                            <div className="flex flex-wrap items-center gap-3 pt-3 border-t border-[var(--border-subtle)]">
+                              <div className="flex items-center gap-1 text-[9px] text-[var(--muted)] font-bold">
                                 <User className="w-2.5 h-2.5" />
                                 {log.targetLabel}
                               </div>
-                              <div className="flex items-center gap-1 text-[9px] text-emerald-600 font-black">
+                              <div className="flex items-center gap-1 text-[9px] text-emerald-500 font-black">
                                 <CheckCircle2 className="w-2.5 h-2.5" />
                                 {log.sentCount}
                               </div>
-                              <div className="flex items-center gap-1 text-[9px] text-slate-400 font-medium mr-auto">
+                              <div className="flex items-center gap-1 text-[9px] text-[var(--muted)] font-medium mr-auto">
                                 <Clock className="w-2.5 h-2.5" />
                                 {formatTime(log.sentAt)}
                               </div>

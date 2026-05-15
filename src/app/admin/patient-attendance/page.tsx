@@ -36,16 +36,16 @@ function MiniCalendar({ value, onChange }: { value: string; onChange: (d: string
   const days = eachDayOfInterval({ start: startOfWeek(startOfMonth(view)), end: endOfWeek(endOfMonth(view)) });
   const WD = ["א","ב","ג","ד","ה","ו","ש"];
   return (
-    <div className="select-none bg-white border border-slate-100 rounded-[2rem] p-6">
+    <div className="select-none bg-[var(--surface-raised)] border border-[var(--border)] rounded-[2rem] p-6 shadow-xl">
       <div className="flex items-center justify-between mb-6">
-        <span className="text-sm font-black text-slate-900 uppercase tracking-tight">{format(view, "MMMM yyyy", { locale: he })}</span>
+        <span className="text-sm font-black text-[var(--foreground)] uppercase tracking-tight">{format(view, "MMMM yyyy", { locale: he })}</span>
         <div className="flex gap-1">
-          <button onClick={() => setView(subMonths(view, 1))} className="p-2 rounded-xl hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-100"><ChevronRight className="w-4 h-4 text-slate-400" /></button>
-          <button onClick={() => setView(addMonths(view, 1))} className="p-2 rounded-xl hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-100"><ChevronLeft className="w-4 h-4 text-slate-400" /></button>
+          <button onClick={() => setView(subMonths(view, 1))} className="p-2 rounded-xl hover:bg-[var(--foreground)]/5 transition-colors border border-transparent hover:border-[var(--border)]"><ChevronRight className="w-4 h-4 text-[var(--muted)]" /></button>
+          <button onClick={() => setView(addMonths(view, 1))} className="p-2 rounded-xl hover:bg-[var(--foreground)]/5 transition-colors border border-transparent hover:border-[var(--border)]"><ChevronLeft className="w-4 h-4 text-[var(--muted)]" /></button>
         </div>
       </div>
       <div className="grid grid-cols-7 gap-1 mb-2">
-        {WD.map(d => <div key={d} className="text-[10px] font-black text-slate-300 text-center py-1 uppercase tracking-widest">{d}</div>)}
+        {WD.map(d => <div key={d} className="text-[10px] font-black text-[var(--muted)]/50 text-center py-1 uppercase tracking-widest">{d}</div>)}
       </div>
       <div className="grid grid-cols-7 gap-1">
         {days.map((day, i) => {
@@ -55,9 +55,9 @@ function MiniCalendar({ value, onChange }: { value: string; onChange: (d: string
           return (
             <button key={i} onClick={() => onChange(format(day, "yyyy-MM-dd"))}
               className={`aspect-square rounded-xl text-[11px] font-black flex items-center justify-center transition-all ${
-                isSel   ? "bg-slate-900 text-white shadow-lg shadow-slate-900/20" :
-                isToday ? "bg-slate-100 text-slate-900" :
-                inMonth ? "text-slate-600 hover:bg-slate-50" : "text-slate-200"
+                isSel   ? "bg-[var(--foreground)] text-[var(--background)] shadow-lg" :
+                isToday ? "bg-[var(--primary)]/10 text-[var(--primary)]" :
+                inMonth ? "text-[var(--foreground)] hover:bg-[var(--foreground)]/5" : "text-[var(--muted)]/20"
               }`}>
               {format(day, "d")}
             </button>
@@ -177,30 +177,30 @@ function AttendancePageContent() {
   };
 
   return (
-    <div dir="rtl" className="min-h-screen bg-slate-50 text-slate-900 pb-32">
+    <div dir="rtl" className="min-h-screen bg-[var(--background)] text-[var(--foreground)] pb-32">
       
       {/* ── Sticky Header ── */}
-      <header className="sticky top-0 z-40 bg-white border-b border-slate-100 px-4 pt-4 pb-2">
+      <header className="sticky top-0 z-40 bg-[var(--background)]/95 backdrop-blur-xl border-b border-[var(--border)] px-4 pt-4 pb-2">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
-            <button onClick={() => router.push("/")} className="w-10 h-10 flex items-center justify-center bg-slate-50 rounded-xl text-slate-400">
+            <button onClick={() => router.push("/")} className="w-10 h-10 flex items-center justify-center bg-[var(--foreground)]/5 rounded-xl text-[var(--muted)]">
               <ChevronRight className="w-5 h-5" />
             </button>
             <div>
-              <h1 className="text-sm font-black text-slate-900 leading-none">נוכחות</h1>
-              <p className="text-[10px] text-slate-400 font-bold mt-1 uppercase tracking-widest">Attendance Check</p>
+              <h1 className="text-sm font-black text-[var(--foreground)] leading-none">נוכחות</h1>
+              <p className="text-[10px] text-[var(--muted)] font-bold mt-1 uppercase tracking-widest">Attendance Check</p>
             </div>
           </div>
 
           {/* Mobile Date Switcher: Compact arrows */}
-          <div className="flex md:hidden items-center bg-slate-50 rounded-xl p-1">
-            <button onClick={() => changeDate(-1)} className="p-2 text-slate-400">
+          <div className="flex md:hidden items-center bg-[var(--foreground)]/5 rounded-xl p-1 border border-[var(--border)]">
+            <button onClick={() => changeDate(-1)} className="p-2 text-[var(--muted)]">
               <ChevronRight className="w-4 h-4" />
             </button>
-            <span className="text-[10px] font-black text-slate-900 px-2 min-w-[70px] text-center">
+            <span className="text-[10px] font-black text-[var(--foreground)] px-2 min-w-[70px] text-center">
               {isSameDay(parseISO(selectedDate), new Date()) ? "היום" : format(parseISO(selectedDate), "d/MM")}
             </span>
-            <button onClick={() => changeDate(1)} className="p-2 text-slate-400">
+            <button onClick={() => changeDate(1)} className="p-2 text-[var(--muted)]">
               <ChevronLeft className="w-4 h-4" />
             </button>
           </div>
@@ -208,9 +208,9 @@ function AttendancePageContent() {
           {/* Desktop Calendar Toggle */}
           <button 
             onClick={() => setShowCalendar(!showCalendar)}
-            className="hidden md:flex items-center gap-2 px-4 h-10 bg-slate-900 rounded-xl text-xs font-black text-white shadow-lg shadow-slate-900/20 transition-all"
+            className="hidden md:flex items-center gap-2 px-4 h-10 bg-[var(--foreground)] rounded-xl text-xs font-black text-[var(--background)] shadow-lg shadow-[var(--foreground)]/10 transition-all"
           >
-            <CalendarIcon className="w-4 h-4" />
+            <LucideCalendar className="w-4 h-4" />
             {format(parseISO(selectedDate), "d בMMMM", { locale: he })}
           </button>
         </div>
@@ -223,8 +223,8 @@ function AttendancePageContent() {
               onClick={() => setSelectedGroup(g.id)}
               className={`whitespace-nowrap px-4 h-8 rounded-xl text-[10px] font-black transition-all ${
                 selectedGroup === g.id 
-                  ? 'bg-slate-100 text-slate-900' 
-                  : 'text-slate-400'
+                  ? 'bg-[var(--foreground)] text-[var(--background)]' 
+                  : 'text-[var(--muted)]'
               }`}
             >
               {g.name}
@@ -239,7 +239,7 @@ function AttendancePageContent() {
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
-              className="hidden md:block absolute top-full left-0 right-0 bg-white border-b border-slate-100 shadow-xl z-50 p-4"
+              className="hidden md:block absolute top-full left-0 right-0 bg-[var(--background)] border-b border-[var(--border)] shadow-2xl z-50 p-4"
             >
               <div className="max-w-sm mx-auto">
                 <MiniCalendar value={selectedDate} onChange={(d) => { setSelectedDate(d); setShowCalendar(false); }} />
@@ -255,13 +255,13 @@ function AttendancePageContent() {
         <div className="space-y-4">
           <div className="flex items-center gap-2">
             <div className="flex-1 relative">
-              <Search className="absolute right-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-300" />
+              <Search className="absolute right-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[var(--muted)]/50" />
               <input 
                 type="text" 
                 placeholder="חפש מטופל..."
                 value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value)}
-                className="w-full bg-white border border-slate-100 rounded-2xl pr-10 pl-4 h-12 text-[11px] font-black outline-none focus:border-slate-200"
+                className="w-full bg-[var(--foreground)]/5 border border-[var(--border)] text-[var(--foreground)] rounded-2xl pr-10 pl-4 h-12 text-[11px] font-black outline-none focus:border-[var(--primary)]"
               />
             </div>
             {stats.total > stats.present + stats.absent && (
@@ -278,17 +278,17 @@ function AttendancePageContent() {
           <div className="flex items-center justify-between px-2">
             <div className="flex gap-4">
               <div className="flex flex-col">
-                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">נוכחות</span>
-                <span className="text-sm font-black text-slate-900">{stats.present} / {stats.total}</span>
+                <span className="text-[9px] font-black text-[var(--muted)]/50 uppercase tracking-widest">נוכחות</span>
+                <span className="text-sm font-black text-[var(--foreground)]">{stats.present} / {stats.total}</span>
               </div>
               <div className="flex flex-col">
-                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">היעדרות</span>
+                <span className="text-[9px] font-black text-[var(--muted)]/50 uppercase tracking-widest">היעדרות</span>
                 <span className="text-sm font-black text-rose-500">{stats.absent}</span>
               </div>
             </div>
-            <div className="h-1 flex-1 max-w-[100px] bg-slate-100 rounded-full mx-4 overflow-hidden">
+            <div className="h-1 flex-1 max-w-[100px] bg-[var(--foreground)]/5 rounded-full mx-4 overflow-hidden">
               <div 
-                className="h-full bg-slate-900 transition-all duration-500" 
+                className="h-full bg-[var(--foreground)] transition-all duration-500" 
                 style={{ width: `${(stats.present / stats.total) * 100}%` }}
               />
             </div>
@@ -296,21 +296,21 @@ function AttendancePageContent() {
         </div>
 
         {/* Patient List - Unified Card */}
-        <div className="bg-white border border-slate-100 rounded-[2rem] overflow-hidden shadow-sm">
+        <div className="bg-[var(--surface)] border border-[var(--border)] rounded-[2rem] overflow-hidden shadow-xl">
           <AnimatePresence mode="wait">
             {loading ? (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                 className="flex flex-col items-center justify-center py-20 gap-4">
-                <Loader2 className="w-8 h-8 text-slate-200 animate-spin" />
+                <Loader2 className="w-8 h-8 text-[var(--muted)]/20 animate-spin" />
               </motion.div>
             ) : filteredPatients.length === 0 ? (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-                className="flex flex-col items-center justify-center py-20 text-slate-300 italic text-xs gap-3">
+                className="flex flex-col items-center justify-center py-20 text-[var(--muted)]/40 italic text-xs gap-3">
                 <Users className="w-8 h-8 opacity-20" />
                 <p>אין מטופלים להצגה</p>
               </motion.div>
             ) : (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="divide-y divide-slate-50">
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="divide-y divide-[var(--border-subtle)]">
                 {filteredPatients.map((p) => (
                   <AttendanceItem 
                     key={p.id} 

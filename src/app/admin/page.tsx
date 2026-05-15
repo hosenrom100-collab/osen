@@ -11,18 +11,18 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 
 const MODULES = [
-  { title: "ניהול צוות",         desc: "אישור עובדים והרשאות",       icon: ShieldCheck,   path: "/admin/users",              color: "text-violet-500 bg-violet-50",  roles: ["admin","manager"] },
-  { title: "תוכניות וקבוצות",    desc: "תוכניות ולוחות זמנים",         icon: Layers,        path: "/admin/programs",           color: "text-blue-500 bg-blue-50",      roles: ["admin","manager"] },
-  { title: "מטופלים",             desc: "מאגר מטופלים ותיקי חוסן",              icon: Users,         path: "/patients",                 color: "text-teal-500 bg-teal-50",      roles: ["admin","manager","instructor"] },
-  { title: "נוכחות מטופלים",     desc: "סימון נוכחות יומית",                   icon: ClipboardList, path: "/admin/patient-attendance",  color: "text-emerald-500 bg-emerald-50",roles: ["admin","manager","instructor","employee"] },
-  { title: "נוכחות צוות",        desc: "מעקב שעות ונוכחות",             icon: Users,         path: "/admin/staff-attendance",   color: "text-orange-500 bg-orange-50",  roles: ["admin","manager"] },
-  { title: "בקשות היעדרות",       desc: "אישור ודחיית בקשות",           icon: AlertCircle,   path: "/admin/leaves",             color: "text-rose-500 bg-rose-50",      roles: ["admin","manager"] },
-  { title: "מיקומי פעילות",       desc: "הגדרת מיקומי סדנאות",        icon: MapPin,        path: "/admin/locations",          color: "text-amber-500 bg-amber-50",    roles: ["admin","manager"] },
-  { title: "ניהול לוז יומי",      desc: "שיבוץ מדריכים ופעילויות",              icon: Calendar,      path: "/admin/schedule",           color: "text-rose-500 bg-rose-50",      roles: ["admin","manager"] },
-  { title: "דוחות",               desc: "ייצוא נתונים וסיכומים",          icon: BarChart3,     path: "/reports",                  color: "text-cyan-500 bg-cyan-50",      roles: ["admin","manager"] },
-  { title: "לוגיסטיקה ורכש",     desc: "ניהול מלאי וציוד",                    icon: Package,       path: "/admin/resources",          color: "text-amber-500 bg-amber-50",    roles: ["admin","manager","logistics"] },
-  { title: "הודעות לצוות",        desc: "שליחת פוש נוטיפיקציות",       icon: Bell,          path: "/admin/notifications",      color: "text-pink-500 bg-pink-50",      roles: ["admin","manager"] },
-  { title: "מעקב מטופלים",        desc: "תוכניות שיקום והארכות",   icon: ClipboardList, path: "/patients/tracking",        color: "text-teal-500 bg-teal-50",      roles: ["admin","manager","social_worker"] },
+  { title: "ניהול צוות",         desc: "אישור עובדים והרשאות",       icon: ShieldCheck,   path: "/admin/users",              color: "text-violet-500 bg-violet-500/10",  roles: ["admin","manager"] },
+  { title: "תוכניות וקבוצות",    desc: "תוכניות ולוחות זמנים",         icon: Layers,        path: "/admin/programs",           color: "text-blue-500 bg-blue-500/10",      roles: ["admin","manager"] },
+  { title: "מטופלים",             desc: "מאגר מטופלים ותיקי חוסן",              icon: Users,         path: "/patients",                 color: "text-teal-500 bg-teal-500/10",      roles: ["admin","manager","instructor"] },
+  { title: "נוכחות מטופלים",     desc: "סימון נוכחות יומית",                   icon: ClipboardList, path: "/admin/patient-attendance",  color: "text-emerald-500 bg-emerald-500/10",roles: ["admin","manager","instructor","employee"] },
+  { title: "נוכחות צוות",        desc: "מעקב שעות ונוכחות",             icon: Users,         path: "/admin/staff-attendance",   color: "text-orange-500 bg-orange-500/10",  roles: ["admin","manager"] },
+  { title: "בקשות היעדרות",       desc: "אישור ודחיית בקשות",           icon: AlertCircle,   path: "/admin/leaves",             color: "text-rose-500 bg-rose-500/10",      roles: ["admin","manager"] },
+  { title: "מיקומי פעילות",       desc: "הגדרת מיקומי סדנאות",        icon: MapPin,        path: "/admin/locations",          color: "text-amber-500 bg-amber-500/10",    roles: ["admin","manager"] },
+  { title: "ניהול לוז יומי",      desc: "שיבוץ מדריכים ופעילויות",              icon: Calendar,      path: "/admin/schedule",           color: "text-rose-500 bg-rose-500/10",      roles: ["admin","manager"] },
+  { title: "דוחות",               desc: "ייצוא נתונים וסיכומים",          icon: BarChart3,     path: "/reports",                  color: "text-cyan-500 bg-cyan-500/10",      roles: ["admin","manager"] },
+  { title: "לוגיסטיקה ורכש",     desc: "ניהול מלאי וציוד",                    icon: Package,       path: "/admin/resources",          color: "text-amber-500 bg-amber-500/10",    roles: ["admin","manager","logistics"] },
+  { title: "הודעות לצוות",        desc: "שליחת פוש נוטיפיקציות",       icon: Bell,          path: "/admin/notifications",      color: "text-pink-500 bg-pink-500/10",      roles: ["admin","manager"] },
+  { title: "מעקב מטופלים",        desc: "תוכניות שיקום והארכות",   icon: ClipboardList, path: "/patients/tracking",        color: "text-teal-500 bg-teal-500/10",      roles: ["admin","manager","social_worker"] },
 ];
 
 const ROLE_HE: Record<string, string> = {
@@ -31,10 +31,10 @@ const ROLE_HE: Record<string, string> = {
 };
 
 export default function AdminDashboard() {
-  const { role } = useAuth();
+  const { roles, role } = useAuth();
   const router   = useRouter();
 
-  const modules = MODULES.filter(m => role && m.roles.includes(role));
+  const modules = MODULES.filter(m => roles.some(r => m.roles.includes(r)));
   const roleLabel = ROLE_HE[role || ""] ?? role;
 
   return (
@@ -56,8 +56,8 @@ export default function AdminDashboard() {
             </button>
 
             <div className="flex items-center gap-2 md:hidden">
-              <Shield className="w-4 h-4 text-slate-400" />
-              <h1 className="text-sm font-black text-slate-900">ניהול</h1>
+              <Shield className="w-4 h-4 text-[var(--muted)]" />
+              <h1 className="text-sm font-black text-[var(--foreground)]">ניהול</h1>
             </div>
 
             <div className="hidden md:flex items-center gap-2">
@@ -66,7 +66,7 @@ export default function AdminDashboard() {
             </div>
 
             <div className="mr-auto">
-              <span className="text-[10px] font-black text-slate-500 bg-slate-50 border border-slate-100 px-3 py-1 rounded-lg uppercase tracking-widest">
+              <span className="text-[10px] font-black text-[var(--foreground)] bg-[var(--foreground)]/5 border border-[var(--border)] px-3 py-1 rounded-lg uppercase tracking-widest">
                 {roleLabel}
               </span>
             </div>
@@ -85,14 +85,14 @@ export default function AdminDashboard() {
                   <button
                     key={mod.title}
                     onClick={() => router.push(mod.path)}
-                    className="group flex flex-col items-start gap-4 p-5 bg-white border border-slate-100 rounded-2xl hover:border-slate-300 transition-all text-right active:scale-[0.98]"
+                    className="group flex flex-col items-start gap-4 p-5 bg-[var(--surface)] border border-[var(--border)] rounded-2xl hover:border-[var(--muted)]/30 transition-all text-right active:scale-[0.98] shadow-lg shadow-[var(--foreground)]/[0.02]"
                   >
                     <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${bgCls} ${textCls} border border-transparent group-hover:border-current/10`}>
                       <mod.icon className="w-5 h-5" />
                     </div>
                     <div className="min-w-0">
-                      <p className="text-xs font-black leading-tight text-slate-900">{mod.title}</p>
-                      <p className="text-[9px] text-slate-400 mt-1.5 font-bold uppercase tracking-widest leading-relaxed line-clamp-2">{mod.desc}</p>
+                      <p className="text-xs font-black leading-tight text-[var(--foreground)]">{mod.title}</p>
+                      <p className="text-[9px] text-[var(--muted)] mt-1.5 font-bold uppercase tracking-widest leading-relaxed line-clamp-2">{mod.desc}</p>
                     </div>
                   </button>
                 );

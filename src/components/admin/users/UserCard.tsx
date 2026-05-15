@@ -27,26 +27,26 @@ export function UserCard({ user, index, updatingId, programs, groups, onUpdate }
 
   return (
     <div
-      className={`bg-white border border-slate-100 rounded-2xl overflow-hidden transition-all ${isExpanded ? 'ring-1 ring-rose-500/10' : ''}`}
+      className={`bg-[var(--surface)] border border-[var(--border)] rounded-2xl overflow-hidden transition-all ${isExpanded ? 'ring-1 ring-[var(--primary)]/10' : ''}`}
     >
       {/* Main Row */}
       <div className="p-6 md:p-8 flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="flex items-center gap-6">
-          <div className="w-14 h-14 rounded-xl bg-slate-50 flex items-center justify-center text-slate-300">
+          <div className="w-14 h-14 rounded-xl bg-[var(--foreground)]/5 flex items-center justify-center text-[var(--muted)]/50">
             <User className="w-7 h-7" />
           </div>
           <div>
             <div className="flex items-center gap-3">
-              <h3 className="text-lg font-black tracking-tight text-slate-900">{user.name}</h3>
+              <h3 className="text-lg font-black tracking-tight text-[var(--foreground)]">{user.name}</h3>
               <div className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest border ${
-                user.status === 'approved' ? 'bg-emerald-50 border-emerald-100 text-emerald-500' :
-                user.status === 'pending' ? 'bg-orange-50 border-orange-100 text-orange-500' :
-                'bg-rose-50 border-rose-100 text-rose-500'
+                user.status === 'approved' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500' :
+                user.status === 'pending' ? 'bg-orange-500/10 border-orange-500/20 text-orange-500' :
+                'bg-rose-500/10 border-rose-500/20 text-rose-500'
               }`}>
                 {user.status === 'approved' ? 'פעיל' : user.status === 'pending' ? 'ממתין' : 'חסום'}
               </div>
             </div>
-            <p className="text-xs font-bold text-slate-400 mt-0.5">{user.email}</p>
+            <p className="text-xs font-bold text-[var(--muted)]/60 mt-0.5">{user.email}</p>
           </div>
         </div>
 

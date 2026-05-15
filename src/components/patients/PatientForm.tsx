@@ -28,7 +28,13 @@ function autoEndDate(startDate: string): string {
   } catch { return ""; }
 }
 
-export function PatientForm() {
+interface PatientFormProps {
+  patientId?: string;
+  initialData?: any;
+  onSuccess?: () => void;
+}
+
+export function PatientForm({ patientId, initialData, onSuccess }: PatientFormProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
 
@@ -36,20 +42,20 @@ export function PatientForm() {
   const [allGroups,     setAllGroups]     = useState<Group[]>([]);
   const [socialWorkers, setSocialWorkers] = useState<{ id: string; name: string }[]>([]);
 
-  const [selectedProgramId, setSelectedProgramId] = useState("");
+  const [selectedProgramId, setSelectedProgramId] = useState(initialData?.programId || "");
   const [formData, setFormData] = useState({
-    firstName:          "",
-    lastName:           "",
-    idNumber:           "",
-    phone:              "",
-    startDate:          new Date().toISOString().split("T")[0],
-    endDate:            autoEndDate(new Date().toISOString().split("T")[0]),
-    hosenType:          "",
-    programId:          "",
-    status:             "active" as const,
-    assignedWorkerId:   "",
-    rehabPlan:          "",
-    rehabPlanCompleted: false,
+    firstName:          initialData?.firstName || "",
+    lastName:           initialData?.lastName || "",
+    idNumber:           initialData?.idNumber || "",
+    phone:              initialData?.phone || "",
+    startDate:          initialData?.startDate || new Date().toISOString().split("T")[0],
+    endDate:            initialData?.endDate || autoEndDate(new Date().toISOString().split("T")[0]),
+    hosenType:          initialData?.hosenType || "",
+    programId:          initialData?.programId || "",
+    status:             (initialData?.status || "active") as any,
+    assignedWorkerId:   initialData?.assignedWorkerId || "",
+    rehabPlan:          initialData?.rehabPlan || "",
+    rehabPlanCompleted: initialData?.rehabPlanCompleted || false,
   });
 
   const set = (patch: Partial<typeof formData>) =>
@@ -96,14 +102,28 @@ export function PatientForm() {
     if (!formData.hosenType) { return; }
     setLoading(true);
     try {
-      await addDoc(collection(db, "patients"), {
-        ...formData,
-        fullName:  `${formData.firstName} ${formData.lastName}`,
-        createdAt: serverTimestamp(),
-      });
-      router.push("/patients");
+      if (patientId) {
+        const { doc, updateDoc } = await import("firebase/firestore");
+        await updateDoc(doc(db, "patients", patientId), {
+          ...formData,
+          fullName: `${formData.firstName} ${formData.lastName}`,
+          updatedAt: serverTimestamp(),
+        });
+      } else {
+        await addDoc(collection(db, "patients"), {
+          ...formData,
+          fullName:  `${formData.firstName} ${formData.lastName}`,
+          createdAt: serverTimestamp(),
+        });
+      }
+      
+      if (onSuccess) {
+        onSuccess();
+      } else {
+        router.push("/patients");
+      }
     } catch {
-      alert("שגיאה בהוספת מטופל");
+      alert(patientId ? "שגיאה בעדכון מטופל" : "שגיאה בהוספת מטופל");
     } finally {
       setLoading(false);
     }
@@ -228,7 +248,7 @@ export function PatientForm() {
         className="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-4 rounded-2xl text-sm font-black uppercase tracking-widest transition-all shadow-xl shadow-emerald-600/20 flex items-center justify-center gap-3 active:scale-95 disabled:opacity-50"
       >
         {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <CheckCircle className="w-5 h-5" />}
-        פתיחת תיק מטופל
+        {patientId ? "שמירת שינויים" : "פתיחת תיק מטופל"}
       </button>
     </form>
   );

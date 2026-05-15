@@ -295,14 +295,14 @@ export default function Home() {
                 <img 
                   src={photoURL} 
                   alt={firstName} 
-                  className="w-7 h-7 rounded-full object-cover border border-slate-100"
+                  className="w-7 h-7 rounded-full object-cover border border-[var(--border)]"
                 />
               ) : (
-                <div className="w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-400 shrink-0">
+                <div className="w-7 h-7 rounded-full bg-[var(--foreground)]/5 flex items-center justify-center text-xs font-bold text-[var(--muted)] shrink-0">
                   {firstName.charAt(0)}
                 </div>
               )}
-              <span className="text-sm font-black text-slate-900">{greeting()}, {firstName}</span>
+              <span className="text-sm font-black text-[var(--foreground)]">{greeting()}, {firstName}</span>
             </div>
           </div>
 
@@ -401,21 +401,21 @@ export default function Home() {
                     <select autoFocus value={dutyId}
                       onChange={e => updateDuty(e.target.value)}
                       onBlur={() => setIsEditingDuty(false)}
-                      className="bg-white border border-slate-100 rounded-lg px-2 py-1 text-xs outline-none focus:border-blue-500">
+                      className="bg-[var(--surface-raised)] border border-[var(--border)] text-[var(--foreground)] rounded-lg px-2 py-1 text-xs outline-none focus:border-[var(--primary)]">
                       <option value="">ללא מדריך תורן</option>
                       {allStaff.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                     </select>
                   ) : dutyName ? (
                     <button
                       onClick={() => (isAdmin || isManager) && setIsEditingDuty(true)}
-                      className="flex items-center gap-1.5 text-[10px] font-black text-rose-500 bg-rose-50 rounded-lg border border-rose-100 px-2.5 py-1 transition-all active:scale-[0.98]"
+                      className="flex items-center gap-1.5 text-[10px] font-black text-rose-500 bg-rose-500/10 rounded-lg border border-rose-500/20 px-2.5 py-1 transition-all active:scale-[0.98]"
                     >
                       <span className="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0" />
                       תורן: {dutyName}
                     </button>
                   ) : (isAdmin || isManager) && (
                     <button onClick={() => setIsEditingDuty(true)}
-                      className="text-[10px] text-slate-400 font-bold hover:text-rose-500 flex items-center gap-1 transition-colors">
+                      className="text-[10px] text-[var(--muted)] font-bold hover:text-rose-500 flex items-center gap-1 transition-colors">
                       <Plus className="w-3 h-3" />הגדר מדריך תורן
                     </button>
                   )}
@@ -435,15 +435,15 @@ export default function Home() {
                       initial={{ x: -20, opacity: 0 }}
                       animate={{ x: 0, opacity: 1 }}
                       key={i}
-                      className="bg-rose-50 border border-rose-100 rounded-2xl p-4 flex items-center justify-between"
+                      className="bg-rose-500/5 border border-rose-500/15 rounded-2xl p-4 flex items-center justify-between"
                     >
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center text-rose-600 border border-rose-100">
+                        <div className="w-10 h-10 rounded-xl bg-rose-500/10 flex items-center justify-center text-rose-500 border border-rose-500/20">
                           <AlertTriangle className="w-5 h-5" />
                         </div>
                         <div>
-                          <p className="text-[10px] font-black text-rose-600 uppercase tracking-widest">התראת כוח אדם</p>
-                          <p className="text-xs font-bold text-rose-500">{c.userName} משובץ ל{c.type === 'duty' ? 'מדריך תורן' : 'פעילות'} אך רשום כנעדר</p>
+                          <p className="text-[10px] font-black text-rose-500 uppercase tracking-widest">התראת כוח אדם</p>
+                          <p className="text-xs font-bold text-rose-500/80">{c.userName} משובץ ל{c.type === 'duty' ? 'מדריך תורן' : 'פעילות'} אך רשום כנעדר</p>
                         </div>
                       </div>
                       <Link href="/admin/staff" className="px-3 py-1.5 rounded-lg bg-rose-500 text-white text-[9px] font-black uppercase tracking-widest">נהל</Link>
@@ -541,22 +541,22 @@ export default function Home() {
             {/* Quick actions — only show links not in sidebar already */}
             <nav className="grid grid-cols-2 gap-2" aria-label="פעולות מהירות">
               {[
-                { href: "/attendance", icon: ClipboardList, label: "נוכחות", color: "text-emerald-500 bg-emerald-50" },
-                { href: "/patients",   icon: Users,         label: "מטופלים", color: "text-blue-500 bg-blue-50" },
-                { href: "/shopping",   icon: ShoppingCart,  label: "קניות",   color: "text-amber-500 bg-amber-50" },
-                ...(isAdmin || isManager ? [{ href: "/admin", icon: Shield, label: "ניהול", color: "text-slate-500 bg-slate-50" }] : [
-                  { href: "/calendar", icon: Calendar, label: "לוח שנה", color: "text-rose-500 bg-rose-50" },
+                { href: "/attendance", icon: ClipboardList, label: "נוכחות", color: "text-emerald-500 bg-emerald-500/10 border-emerald-500/20" },
+                { href: "/patients",   icon: Users,         label: "מטופלים", color: "text-blue-500 bg-blue-500/10 border-blue-500/20" },
+                { href: "/shopping",   icon: ShoppingCart,  label: "קניות",   color: "text-amber-500 bg-amber-500/10 border-amber-500/20" },
+                ...(isAdmin || isManager ? [{ href: "/admin", icon: Shield, label: "ניהול", color: "text-[var(--muted)] bg-[var(--foreground)]/5 border-[var(--border)]" }] : [
+                  { href: "/calendar", icon: Calendar, label: "לוח שנה", color: "text-rose-500 bg-rose-500/10 border-rose-500/20" },
                 ]),
               ].map(({ href, icon: Icon, label, color }) => (
                 <Link key={href} href={href}
-                  className={`flex items-center gap-2 px-3 py-3 rounded-2xl border border-slate-100 text-xs font-black transition-all active:scale-[0.98] ${color.split(" ")[1]}`}>
-                  <Icon className={`w-4 h-4 shrink-0 ${color.split(" ")[0]}`} />
+                  className={`flex items-center gap-2 px-3 py-3 rounded-2xl border text-xs font-black transition-all active:scale-[0.98] ${color}`}>
+                  <Icon className={`w-4 h-4 shrink-0`} />
                   {label}
                   {href === "/shopping" && shoppingCount > 0 && (
-                    <span className="mr-auto text-[10px] font-black text-amber-500 bg-white px-1.5 py-0.5 rounded-lg border border-amber-100">{shoppingCount}</span>
+                    <span className="mr-auto text-[10px] font-black text-amber-500 bg-amber-500/10 px-1.5 py-0.5 rounded-lg border border-amber-500/20">{shoppingCount}</span>
                   )}
                   {href === "/attendance" && totalMissing > 0 && (
-                    <span className="mr-auto text-[10px] font-black text-emerald-500 bg-white px-1.5 py-0.5 rounded-lg border border-emerald-100">{totalMissing}</span>
+                    <span className="mr-auto text-[10px] font-black text-emerald-500 bg-emerald-500/10 px-1.5 py-0.5 rounded-lg border border-emerald-500/20">{totalMissing}</span>
                   )}
                 </Link>
               ))}
@@ -575,7 +575,7 @@ export default function Home() {
             <motion.div
               initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
               transition={{ type: "spring", damping: 28, stiffness: 280 }}
-              className="relative bg-white border-t border-slate-100 w-full max-w-sm rounded-t-[2.5rem]"
+              className="relative bg-[var(--surface)] border-t border-[var(--border)] w-full max-w-sm rounded-t-[2.5rem]"
             >
               <div className="w-8 h-1 bg-[var(--foreground)]/10 rounded-full mx-auto mt-3 mb-1" />
               <div className="flex items-center justify-between px-5 py-3.5 border-b border-[var(--border)]">

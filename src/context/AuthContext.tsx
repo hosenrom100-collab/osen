@@ -77,7 +77,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const userStatus = (data.status as UserStatus) || "approved";
 
             setStatus(userStatus);
-            setRole(userRole);
+            setRole(userRole || userRoles[0]);
             setRoles(userRoles);
             setAssignedGroups(data.assignedGroups || []);
             setPrimaryGroupIdState(data.primaryGroupId || null);

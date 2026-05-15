@@ -2,6 +2,7 @@
 
 import { useAuth } from "@/context/AuthContext";
 import { RoleGuard } from "@/components/auth/RoleGuard";
+import { PatientForm } from "@/components/patients/PatientForm";
 import { useState, useEffect, useRef } from "react";
 import { db } from "@/lib/firebase/config";
 import { 
@@ -50,6 +51,7 @@ export default function PatientDetailPage() {
   const [groups, setGroups] = useState<Group[]>([]);
   const [reportLoading, setReportLoading] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState(format(new Date(), "yyyy-MM"));
+  const [showEditModal, setShowEditModal] = useState(false);
 
   useEffect(() => { if (id) fetchPatientData(); }, [id]);
 
@@ -150,7 +152,10 @@ export default function PatientDetailPage() {
 
             <div className="flex items-center gap-2">
                {(isAdmin || isManager) && (
-                 <button className="hidden sm:flex items-center gap-2 bg-slate-900 text-white px-5 py-2.5 rounded-xl text-xs font-black transition-all">
+                 <button 
+                  onClick={() => setShowEditModal(true)}
+                  className="flex items-center gap-2 bg-slate-900 text-white px-5 py-2.5 rounded-xl text-xs font-black transition-all active:scale-95 hover:bg-slate-800 shadow-lg shadow-black/10"
+                 >
                    <Edit3 className="w-4 h-4" />
                    <span>ערוך תיק</span>
                  </button>
@@ -371,6 +376,56 @@ export default function PatientDetailPage() {
           </div>
         </div>
 
+        <AnimatePresence>
+          {showEditModal && patient && (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setShowEditModal(false)}
+                className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+              />
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                className="relative w-full max-w-2xl bg-[var(--card-bg)] border border-[var(--border)] rounded-[3rem] shadow-2xl overflow-hidden"
+              >
+                <div className="flex items-center justify-between p-8 pb-0">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center">
+                      <Edit3 className="w-6 h-6 text-emerald-500" />
+                    </div>
+                    <div>
+                      <h2 className="text-xl font-black tracking-tight">עריכת פרטי מטופל</h2>
+                      <p className="text-[10px] text-[var(--foreground)]/40 font-bold uppercase tracking-widest mt-0.5">
+                        {patient.firstName} {patient.lastName}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setShowEditModal(false)}
+                    className="p-3 hover:bg-[var(--foreground)]/5 rounded-2xl transition-all"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <div className="p-8 max-h-[80vh] overflow-y-auto no-scrollbar">
+                  <PatientForm
+                    patientId={patient.id}
+                    initialData={patient}
+                    onSuccess={() => {
+                      setShowEditModal(false);
+                      fetchPatientData();
+                    }}
+                  />
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
       </div>
     </RoleGuard>
   );
