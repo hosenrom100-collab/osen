@@ -595,6 +595,78 @@ export default function PatientDetailPage() {
               </motion.div>
             )}
 
+            {activeTab === "messages" && (
+              <motion.div 
+                initial={{ opacity: 0, y: 10 }} 
+                animate={{ opacity: 1, y: 0 }} 
+                exit={{ opacity: 0, y: -10 }} 
+                key="messages" 
+                className="bg-white border border-slate-200 rounded-[2.5rem] shadow-sm flex flex-col h-[600px] overflow-hidden"
+              >
+                {/* Chat Header */}
+                <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                   <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-emerald-600 font-black">
+                        {patientName.charAt(0)}
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-black leading-tight">שיחה עם {patientName}</h3>
+                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">צ׳אט משתתף בזמן אמת</p>
+                      </div>
+                   </div>
+                </div>
+
+                {/* Messages Area */}
+                <div className="flex-1 overflow-y-auto p-8 space-y-4 no-scrollbar bg-gradient-to-b from-transparent to-slate-50/30">
+                  {messages.length === 0 ? (
+                    <div className="h-full flex flex-col items-center justify-center text-center opacity-20 italic">
+                      <MessageCircle className="w-12 h-12 mb-4 opacity-10" />
+                      <p className="text-sm">אין הודעות עדיין. שלח הודעה למשתתף כדי להתחיל בשיחה.</p>
+                    </div>
+                  ) : (
+                    messages.map((m: any, i) => (
+                      <div 
+                        key={m.id || i} 
+                        className={`flex ${m.senderId === authUser?.uid ? 'justify-end' : 'justify-start'}`}
+                      >
+                        <div className={`max-w-[70%] rounded-2xl px-5 py-3 text-sm shadow-sm ${
+                          m.senderId === authUser?.uid 
+                            ? 'bg-slate-900 text-white rounded-br-none' 
+                            : 'bg-white border border-slate-200 text-slate-800 rounded-bl-none'
+                        }`}>
+                          <p className="leading-relaxed">{m.content}</p>
+                          <p className={`text-[8px] mt-1.5 opacity-50 font-bold uppercase tracking-widest ${m.senderId === authUser?.uid ? 'text-left' : 'text-right'}`}>
+                            {m.timestamp?.toDate ? format(m.timestamp.toDate(), "HH:mm | dd/MM", { locale: he }) : "שולח..."}
+                          </p>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                {/* Input Area */}
+                <div className="p-6 bg-white border-t border-slate-100">
+                   <div className="flex gap-3 bg-slate-50 border border-slate-200 p-2 rounded-2xl focus-within:border-emerald-500/30 focus-within:bg-white transition-all">
+                      <input 
+                        type="text" 
+                        value={newMessage}
+                        onChange={e => setNewMessage(e.target.value)}
+                        onKeyDown={e => e.key === 'Enter' && sendMessage()}
+                        placeholder="כתוב הודעה למשתתף..."
+                        className="flex-1 bg-transparent border-none outline-none text-sm px-4 py-2"
+                      />
+                      <button 
+                        onClick={sendMessage}
+                        disabled={!newMessage.trim()}
+                        className="w-12 h-12 bg-emerald-500 text-white rounded-xl flex items-center justify-center hover:bg-emerald-600 transition-all active:scale-90 disabled:opacity-30 shadow-lg shadow-emerald-500/20"
+                      >
+                        <Send className="w-5 h-5" />
+                      </button>
+                   </div>
+                </div>
+              </motion.div>
+            )}
+
             {activeTab === "reports" && (
               <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} key="reports" className="space-y-4">
                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-4xl mx-auto">

@@ -18,6 +18,7 @@ import { he } from "date-fns/locale";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { NotificationCenter } from "@/components/notifications/NotificationCenter";
+import { FloatingChat } from "@/components/chat/FloatingChat";
 import { useSettings } from "@/context/SettingsContext";
 
 /* ─── Types ──────────────────────────────────────────────────────────────── */
@@ -59,15 +60,13 @@ export default function ParticipantPortal() {
   const [idNumber, setIdNumber] = useState("");
   const [error,     setError]     = useState<string | null>(null);
   const [saving,    setSaving]    = useState(false);
-  const [activeTab, setActiveTab] = useState<"schedule" | "attendance" | "messages" | "documents">("schedule");
+  const [activeTab, setActiveTab] = useState<"schedule" | "attendance" | "documents">("schedule");
   const [docRequests, setDocRequests] = useState<any[]>([]);
   const [myDocs, setMyDocs] = useState<any[]>([]);
   const [docBusy, setDocBusy] = useState(false);
   const [patientData, setPatientData] = useState<any>(null);
   const [swData, setSwData] = useState<any>(null);
   const [attendanceHistory, setAttendanceHistory] = useState<any[]>([]);
-  const [messages, setMessages] = useState<any[]>([]);
-  const [newMessage, setNewMessage] = useState("");
 
   const today      = useMemo(() => format(new Date(), "yyyy-MM-dd"), []);
   const todayLabel = useMemo(() => format(new Date(), "EEEE, d בMMMM", { locale: he }), []);
@@ -149,51 +148,6 @@ export default function ParticipantPortal() {
     } catch (e) { console.error(e); }
   }
 
-  // Real-time messages
-  useEffect(() => {
-    if (!user || !onboardingComplete || activeTab !== "messages") return;
-
-    const uId = user.uid;
-    const q = query(
-      collection(db, "messages"),
-      where("participants", "array-contains" as any, uId),
-      orderBy("timestamp", "asc")
-    );
-
-    const unsubscribe = onSnapshot(q, (snap) => {
-      setMessages(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-    });
-
-    return () => unsubscribe();
-  }, [user, onboardingComplete, activeTab]);
-
-  async function sendMessage() {
-    if (!newMessage.trim() || !user || !swData) return;
-    const content = newMessage.trim();
-    setNewMessage("");
-    try {
-      const msgRef = doc(collection(db, "messages"));
-      await setDoc(msgRef, {
-        participants: [user.uid, swData.id],
-        senderId: user.uid,
-        receiverId: swData.id,
-        content,
-        timestamp: serverTimestamp(),
-        read: false,
-      });
-
-      // Create a notification for the SW
-      await setDoc(doc(collection(db, "notifications")), {
-        title: `הודעה חדשה מ${patient?.name || "משתתף"}`,
-        body: content.length > 50 ? content.substring(0, 50) + "..." : content,
-        recipientIds: [swData.id],
-        senderId: user.uid,
-        createdAt: serverTimestamp(),
-        readBy: [],
-        link: `/patients/${patient?.id}?tab=messages`
-      });
-    } catch (e) { console.error(e); }
-  }
 
   async function loadScheduleAndRefs() {
     setLoading(true);
@@ -546,13 +500,6 @@ export default function ParticipantPortal() {
                 נוכחות
               </button>
               <button
-                onClick={() => setActiveTab("messages")}
-                className={`flex-1 flex items-center justify-center gap-2 py-2 text-xs font-bold rounded-lg transition-all ${activeTab === 'messages' ? 'bg-[var(--foreground)] text-[var(--background)]' : 'text-[var(--muted)]'}`}
-              >
-                <MessageCircle className="w-3.5 h-3.5" />
-                הודעות
-              </button>
-              <button
                 onClick={() => setActiveTab("documents")}
                 className={`flex-1 flex items-center justify-center gap-2 py-2 text-xs font-bold rounded-lg transition-all ${activeTab === 'documents' ? 'bg-[var(--foreground)] text-[var(--background)]' : 'text-[var(--muted)]'}`}
               >
@@ -802,60 +749,18 @@ export default function ParticipantPortal() {
               </div>
             )}
 
-            {activeTab === "messages" && (
-              <div className="flex flex-col h-[calc(100vh-280px)]">
-                {swData && (
-                  <div className="flex items-center gap-3 p-3 bg-teal-500/5 border border-teal-500/10 rounded-xl mb-4">
-                    <div className="w-8 h-8 rounded-full bg-teal-500/10 flex items-center justify-center text-teal-400 text-xs font-bold">
-                      {swData.name?.charAt(0)}
-                    </div>
-                    <div>
-                      <p className="text-xs font-bold">שיחה עם {swData.name}</p>
-                      <p className="text-[9px] text-[var(--muted)]">עו"ס מלווה</p>
-                    </div>
-                  </div>
-                )}
-
-                <div className="flex-1 overflow-y-auto space-y-3 mb-4 no-scrollbar pr-1">
-                  {messages.map((m, i) => (
-                    <div key={i} className={`flex ${m.senderId === user?.uid ? 'justify-end' : 'justify-start'}`}>
-                      <div className={`max-w-[80%] rounded-2xl px-4 py-2 text-sm ${
-                        m.senderId === user?.uid 
-                          ? 'bg-teal-600 text-white rounded-br-none' 
-                          : 'bg-[var(--surface)] border border-[var(--border)] text-[var(--foreground)] rounded-bl-none'
-                      }`}>
-                        {m.content}
-                        <p className={`text-[8px] mt-1 opacity-50 ${m.senderId === user?.uid ? 'text-right' : 'text-left'}`}>
-                          {m.timestamp?.toDate ? format(m.timestamp.toDate(), "HH:mm") : ""}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                  {messages.length === 0 && (
-                    <div className="text-center py-20 opacity-20 italic text-xs">אין הודעות עדיין</div>
-                  )}
-                </div>
-
-                <div className="flex gap-2 bg-[var(--surface)] border border-[var(--border)] p-2 rounded-2xl">
-                  <input
-                    type="text"
-                    value={newMessage}
-                    onChange={e => setNewMessage(e.target.value)}
-                    onKeyDown={e => e.key === 'Enter' && sendMessage()}
-                    placeholder="כתוב הודעה לעו״ס..."
-                    className="flex-1 bg-transparent border-none outline-none text-sm px-2"
-                  />
-                  <button
-                    onClick={sendMessage}
-                    disabled={!newMessage.trim() || !swData}
-                    className="w-10 h-10 bg-teal-600 text-white rounded-xl flex items-center justify-center disabled:opacity-30 transition-all active:scale-90"
-                  >
-                    <Send className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-            )}
           </Fragment>
+        )}
+        
+        {/* Floating Chat */}
+        {user && swData && (
+          <FloatingChat 
+            senderId={user.uid}
+            senderName={user.displayName || "משתתף"}
+            recipientId={swData.id}
+            recipientName={swData.name}
+            patientId={patientData?.id}
+          />
         )}
       </main>
     </div>

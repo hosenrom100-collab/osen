@@ -178,7 +178,6 @@ export default function NotificationsPage() {
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
-                    </div>
                   </div>
                 </motion.div>
               );
