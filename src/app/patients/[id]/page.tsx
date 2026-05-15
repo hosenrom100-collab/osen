@@ -121,12 +121,13 @@ export default function PatientDetailPage() {
 
     const q = query(
       collection(db, "messages"),
-      where("participants", "array-contains" as any, participantUid),
-      orderBy("timestamp", "asc")
+      where("participants", "array-contains", participantUid),
+      orderBy("timestamp", "desc"),
+      limit(50)
     );
 
     const unsubscribe = onSnapshot(q, (snap) => {
-      setMessages(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      setMessages(snap.docs.map(d => ({ id: d.id, ...d.data() })).reverse());
     });
 
     return () => unsubscribe();

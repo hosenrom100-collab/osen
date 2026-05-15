@@ -41,7 +41,8 @@ export default function InboxPage() {
     const q = query(
       collection(db, "messages"),
       where("participants", "array-contains", user.uid),
-      orderBy("timestamp", "desc")
+      orderBy("timestamp", "desc"),
+      limit(200)
     );
 
     const unsubscribe = onSnapshot(q, async (snap) => {
@@ -100,13 +101,15 @@ export default function InboxPage() {
     const q = query(
       collection(db, "messages"),
       where("participants", "array-contains", user.uid),
-      orderBy("timestamp", "asc")
+      orderBy("timestamp", "desc"),
+      limit(100)
     );
 
     const unsubscribe = onSnapshot(q, (snap) => {
       const list = snap.docs
         .map(d => ({ id: d.id, ...d.data() } as Message))
-        .filter(m => m.participants.includes(selectedContact.id));
+        .filter(m => m.participants.includes(selectedContact.id))
+        .reverse();
       
       setMessages(list);
       

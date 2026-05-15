@@ -41,7 +41,7 @@ export function NotificationCenter() {
       collection(db, "notifications"),
       where("recipientIds", "array-contains", user.uid),
       orderBy("createdAt", "desc"),
-      limit(20)
+      limit(5)
     );
 
     const unsubscribe = onSnapshot(q, (snap) => {
@@ -286,14 +286,18 @@ export function NotificationCenter() {
                                     exit={{ opacity: 0, height: 0, marginTop: 0 }}
                                     className="overflow-hidden"
                                   >
-                                    <div className="flex items-center gap-2 bg-[var(--foreground)]/5 border border-[var(--border-subtle)] rounded-xl p-1 pr-3">
-                                      <input 
-                                        type="text" 
+                                    <div className="flex items-start gap-2 bg-[var(--foreground)]/5 border border-[var(--border-subtle)] rounded-xl p-2 pr-3">
+                                      <textarea 
                                         value={replyText}
                                         onChange={(e) => setReplyText(e.target.value)}
-                                        onKeyDown={(e) => e.key === "Enter" && handleReply(n)}
-                                        placeholder="כתוב תשובה..."
-                                        className="flex-1 bg-transparent border-none outline-none text-xs text-[var(--foreground)]"
+                                        onKeyDown={(e) => {
+                                          if (e.key === "Enter" && !e.shiftKey) {
+                                            e.preventDefault();
+                                            handleReply(n);
+                                          }
+                                        }}
+                                        placeholder="כתוב תשובה... (Shift+Enter לשורה חדשה)"
+                                        className="flex-1 bg-transparent border-none outline-none text-xs text-[var(--foreground)] resize-none h-16 min-h-[64px]"
                                         autoFocus
                                       />
                                       <button 

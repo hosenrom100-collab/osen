@@ -43,13 +43,15 @@ export function FloatingChat({
     const q = query(
       collection(db, "messages"),
       where("participants", "array-contains", senderId),
-      orderBy("timestamp", "asc")
+      orderBy("timestamp", "desc"),
+      limit(50)
     );
 
     const unsubscribe = onSnapshot(q, (snap) => {
       const list = snap.docs
         .map(d => ({ id: d.id, ...d.data() } as Message))
-        .filter(m => m.participants.includes(recipientId)); // Ensure it's this specific thread
+        .filter(m => m.participants.includes(recipientId))
+        .reverse();
       
       setMessages(list);
       setLoading(false);
