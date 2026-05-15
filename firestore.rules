@@ -36,14 +36,40 @@ service cloud.firestore {
 
     // Patients collection
     match /patients/{patientId} {
-      allow read: if isAuthenticated();
+      // Participants can read only their own record. Staff can read all.
+      allow read: if isAuthenticated() && (
+        (getUserData().patientId == patientId) || 
+        isManager() || hasRole('social_worker') || hasRole('instructor')
+      );
       allow write: if isManager() || hasRole('professional_manager');
     }
     
     // Attendance collection
     match /attendance/{docId} {
-      allow read: if isAuthenticated();
+      // Participants can read only their own attendance.
+      allow read: if isAuthenticated() && (
+        (resource.data.patientId == getUserData().patientId) || 
+        isManager() || hasRole('social_worker') || hasRole('instructor')
+      );
       allow write: if isAuthenticated();
+    }
+
+    // Document Requests
+    match /document_requests/{docId} {
+      allow read: if isAuthenticated() && (
+        (resource.data.patientId == getUserData().patientId) || 
+        isManager() || hasRole('social_worker')
+      );
+      allow write: if isAuthenticated();
+    }
+
+    // Documents (Issued)
+    match /documents/{docId} {
+      allow read: if isAuthenticated() && (
+        (resource.data.patientId == getUserData().patientId) || 
+        isManager() || hasRole('social_worker')
+      );
+      allow write: if isManager() || hasRole('social_worker');
     }
 
     // Staff Attendance

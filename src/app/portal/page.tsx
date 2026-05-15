@@ -11,9 +11,9 @@ import {
 import {
   Calendar, MapPin, Users, Check, X, Clock, Loader2,
   Plus, LogOut, User, MessageCircle, BarChart3, Send,
-  Moon, Sun,
+  Moon, Sun, FileText, Shield, Download,
 } from "lucide-react";
-import { format, parseISO } from "date-fns";
+import { format, parseISO, addMonths, differenceInDays, isBefore } from "date-fns";
 import { he } from "date-fns/locale";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
@@ -53,11 +53,16 @@ export default function ParticipantPortal() {
   const [signups,    setSignups]    = useState<Record<string, string[]>>({});
   const [loading,    setLoading]    = useState(true);
   const [busy,       setBusy]       = useState<string | null>(null);
+  const [showRenewalPrompt, setShowRenewalPrompt] = useState(false);
+  const [renewalBusy, setRenewalBusy] = useState(false);
 
   const [idNumber, setIdNumber] = useState("");
   const [error,     setError]     = useState<string | null>(null);
   const [saving,    setSaving]    = useState(false);
-  const [activeTab, setActiveTab] = useState<"schedule" | "attendance" | "messages">("schedule");
+  const [activeTab, setActiveTab] = useState<"schedule" | "attendance" | "messages" | "documents">("schedule");
+  const [docRequests, setDocRequests] = useState<any[]>([]);
+  const [myDocs, setMyDocs] = useState<any[]>([]);
+  const [docBusy, setDocBusy] = useState(false);
   const [patientData, setPatientData] = useState<any>(null);
   const [swData, setSwData] = useState<any>(null);
   const [attendanceHistory, setAttendanceHistory] = useState<any[]>([]);
@@ -96,6 +101,16 @@ export default function ParticipantPortal() {
         const pData = pSnap.data();
         setPatientData({ id: pSnap.id, ...pData });
 
+        // Check for renewal (if end date is near)
+        if (pData.startDate) {
+          const start = parseISO(pData.startDate);
+          const end = pData.endDate ? parseISO(pData.endDate) : addMonths(start, 3);
+          const daysLeft = differenceInDays(end, new Date());
+          if (daysLeft >= 0 && daysLeft <= 14) {
+            setShowRenewalPrompt(true);
+          }
+        }
+
         if (pData.assignedWorkerId) {
           const swSnap = await getDoc(doc(db, "users", pData.assignedWorkerId));
           if (swSnap.exists()) setSwData({ id: swSnap.id, ...swSnap.data() });
@@ -123,6 +138,14 @@ export default function ParticipantPortal() {
         .sort((a, b) => b.date.localeCompare(a.date));
 
       setAttendanceHistory(history);
+
+      // Load documents and requests
+      const [docsSnap, reqSnap] = await Promise.all([
+        getDocs(query(collection(db, "documents"), where("patientId", "==", uData.patientId), orderBy("createdAt", "desc"))),
+        getDocs(query(collection(db, "document_requests"), where("patientId", "==", uData.patientId), orderBy("createdAt", "desc")))
+      ]);
+      setMyDocs(docsSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+      setDocRequests(reqSnap.docs.map(d => ({ id: d.id, ...d.data() })));
     } catch (e) { console.error(e); }
   }
 
@@ -253,6 +276,74 @@ export default function ParticipantPortal() {
     finally { setBusy(null); }
   }
 
+  /* Request participation extension */
+  async function requestExtension() {
+    if (!user || !patientData || !swData || renewalBusy) return;
+    setRenewalBusy(true);
+    try {
+      const msg = `שלום, אני מעוניין/ת להאריך את ההשתתפות שלי ב-3 חודשים נוספים.`;
+      await setDoc(doc(collection(db, "messages")), {
+        participants: [user.uid, swData.id],
+        senderId: user.uid,
+        text: msg,
+        timestamp: serverTimestamp(),
+        isRequest: true,
+      });
+      
+      // Also update patient record to show they requested
+      await updateDoc(doc(db, "patients", patientData.id), {
+        extensionRequested: true,
+        extensionRequestedAt: serverTimestamp(),
+      });
+
+      setShowRenewalPrompt(false);
+      alert("בקשתך נשלחה לעו״ס. ניצור איתך קשר בקרוב!");
+    } catch (e) { console.error(e); }
+    finally { setRenewalBusy(false); }
+  }
+
+  /* Request a document */
+  async function requestDoc(type: "stay" | "attendance") {
+    if (!user || !patientData || docBusy) return;
+    const month = type === "attendance" ? format(new Date(), "yyyy-MM") : null;
+    
+    // Check if already pending
+    const existing = docRequests.find(r => r.type === type && r.status === "pending" && (type !== "attendance" || r.month === month));
+    if (existing) {
+      alert("כבר קיימת בקשה פתוחה לסוג מסמך זה.");
+      return;
+    }
+
+    setDocBusy(true);
+    try {
+      const reqData = {
+        patientId: patientData.id,
+        patientName: `${patientData.firstName} ${patientData.lastName}`,
+        type,
+        month,
+        status: "pending",
+        createdAt: serverTimestamp(),
+      };
+      const docRef = await setDoc(doc(collection(db, "document_requests")), reqData);
+      
+      // Notify SW
+      if (swData) {
+        await setDoc(doc(collection(db, "messages")), {
+          participants: [user.uid, swData.id],
+          senderId: user.uid,
+          text: `שלום, הגשתי בקשה ל${type === 'stay' ? 'אישור שהייה' : 'דו"ח נוכחות חודשי'}.`,
+          timestamp: serverTimestamp(),
+          isDocRequest: true,
+        });
+      }
+
+      alert("בקשתך התקבלה ותטופל בקרוב.");
+      // Refresh local state (optimistic or re-fetch)
+      setDocRequests(prev => [{ ...reqData, createdAt: new Date() }, ...prev]);
+    } catch (e) { console.error(e); }
+    finally { setDocBusy(false); }
+  }
+
   /* Derived */
   const locName = (id: string) => locations.find(l => l.id === id)?.name ?? "";
 
@@ -374,7 +465,59 @@ export default function ParticipantPortal() {
         {/* ══ MAIN PORTAL VIEW ══ */}
         {onboardingComplete && (
           <Fragment>
-            {/* Tabs Navigation */}
+            {/* Renewal Prompt */}
+            {showRenewalPrompt && (
+              <motion.div 
+                initial={{ opacity: 0, y: -20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mb-6 bg-amber-500/10 border border-amber-500/20 rounded-2xl p-6 relative overflow-hidden"
+              >
+                <div className="relative z-10">
+                  <div className="flex items-center gap-2 text-amber-500 mb-2">
+                    <Clock className="w-4 h-4" />
+                    <span className="text-[10px] font-black uppercase tracking-wider">תקופת ההשתתפות מסתיימת בקרוב</span>
+                  </div>
+                  <h3 className="text-lg font-black mb-2">היי {user?.displayName?.split(" ")[0]}, תרצה/י להמשיך איתנו?</h3>
+                  <p className="text-sm text-[var(--muted)] mb-4 leading-relaxed">
+                    תקופת 3 החודשים הראשונה שלך מסתיימת בקרוב. האם תרצה/י להאריך את ההשתתפות בעוד 3 חודשים?
+                  </p>
+                  <div className="flex gap-2">
+                    <button 
+                      onClick={requestExtension}
+                      disabled={renewalBusy}
+                      className="flex-1 bg-amber-500 text-white text-xs font-black py-2.5 rounded-xl shadow-lg shadow-amber-500/20 active:scale-95 transition-all disabled:opacity-50"
+                    >
+                      {renewalBusy ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : "כן, אשמח להאריך!"}
+                    </button>
+                    <button 
+                      onClick={() => setShowRenewalPrompt(false)}
+                      className="px-4 text-xs font-bold text-[var(--muted)]"
+                    >
+                      לא עכשיו
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
+            {/* Welcome Greeting */}
+            <div className="mb-8 relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-teal-500/10 via-emerald-500/5 to-transparent border border-teal-500/20 p-8">
+              <div className="relative z-10">
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-teal-400 mb-3 opacity-80">שלום וברוך הבא לבית שלך</p>
+                <h2 className="text-3xl font-black text-[var(--foreground)] leading-tight mb-2">
+                  שלום, {user?.displayName?.split(" ")[0] || "חבר/ה"} ✨
+                </h2>
+                <p className="text-sm text-[var(--muted)] max-w-[240px] leading-relaxed">
+                  אנחנו שמחים לראות אותך כאן. מה נרצה לעשות היום?
+                </p>
+              </div>
+              
+              {/* Abstract decorative elements */}
+              <div className="absolute -top-12 -left-12 w-48 h-48 bg-teal-500/10 rounded-full blur-3xl" />
+              <div className="absolute -bottom-12 -right-12 w-48 h-48 bg-emerald-500/10 rounded-full blur-3xl" />
+            </div>
+
+            {/* Main Tabs */}
             <div className="flex bg-[var(--surface)] border border-[var(--border)] p-1 rounded-xl mb-6">
               <button
                 onClick={() => setActiveTab("schedule")}
@@ -397,7 +540,87 @@ export default function ParticipantPortal() {
                 <MessageCircle className="w-3.5 h-3.5" />
                 הודעות
               </button>
+              <button
+                onClick={() => setActiveTab("documents")}
+                className={`flex-1 flex items-center justify-center gap-2 py-2 text-xs font-bold rounded-lg transition-all ${activeTab === 'documents' ? 'bg-[var(--foreground)] text-[var(--background)]' : 'text-[var(--muted)]'}`}
+              >
+                <FileText className="w-3.5 h-3.5" />
+                מסמכים
+              </button>
             </div>
+
+            {activeTab === "documents" && (
+              <div className="space-y-6">
+                {/* Request section */}
+                <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-6">
+                  <h3 className="text-sm font-black mb-4">בקשת מסמכים חדשים</h3>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button 
+                      onClick={() => requestDoc("stay")}
+                      disabled={docBusy}
+                      className="flex flex-col items-center gap-3 p-4 rounded-2xl bg-teal-500/5 border border-teal-500/10 hover:bg-teal-500/10 transition-all text-center"
+                    >
+                      <div className="w-10 h-10 rounded-xl bg-teal-500/10 text-teal-500 flex items-center justify-center">
+                        <Shield className="w-5 h-5" />
+                      </div>
+                      <span className="text-xs font-black">אישור שהייה</span>
+                    </button>
+                    <button 
+                      onClick={() => requestDoc("attendance")}
+                      disabled={docBusy}
+                      className="flex flex-col items-center gap-3 p-4 rounded-2xl bg-sky-500/5 border border-sky-500/10 hover:bg-sky-500/10 transition-all text-center"
+                    >
+                      <div className="w-10 h-10 rounded-xl bg-sky-500/10 text-sky-500 flex items-center justify-center">
+                        <BarChart3 className="w-5 h-5" />
+                      </div>
+                      <span className="text-xs font-black">דו״ח נוכחות</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Status section */}
+                <div className="space-y-3">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-[var(--muted)] px-1">מסמכים ובקשות</p>
+                  
+                  {/* Pending Requests */}
+                  {docRequests.map((req, i) => (
+                    <div key={i} className="flex items-center justify-between bg-[var(--surface)] border border-[var(--border)] rounded-xl px-4 py-3 opacity-70">
+                      <div className="flex items-center gap-3">
+                        <Clock className="w-4 h-4 text-amber-400" />
+                        <div>
+                          <p className="text-sm font-bold">{req.type === 'stay' ? 'אישור שהייה' : 'דו״ח נוכחות'}</p>
+                          <p className="text-[10px] text-[var(--muted)]">ממתין לטיפול עו״ס</p>
+                        </div>
+                      </div>
+                      <span className="text-[10px] font-black bg-amber-500/10 text-amber-500 px-2 py-1 rounded">בטיפול</span>
+                    </div>
+                  ))}
+
+                  {/* Ready Documents */}
+                  {myDocs.map((doc, i) => (
+                    <div key={i} className="flex items-center justify-between bg-[var(--surface)] border border-[var(--border)] rounded-xl px-4 py-3">
+                      <div className="flex items-center gap-3">
+                        <FileText className="w-4 h-4 text-teal-400" />
+                        <div>
+                          <p className="text-sm font-bold">{doc.title}</p>
+                          <p className="text-[10px] text-[var(--muted)]">{doc.createdAt ? format(doc.createdAt.toDate(), "dd/MM/yyyy") : ""}</p>
+                        </div>
+                      </div>
+                      <button 
+                        onClick={() => window.open(doc.url, '_blank')}
+                        className="p-2 rounded-lg bg-teal-500/10 text-teal-500 hover:bg-teal-500 hover:text-white transition-all"
+                      >
+                        <Download className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+
+                  {docRequests.length === 0 && myDocs.length === 0 && (
+                    <div className="text-center py-12 opacity-20 italic text-sm">טרם ביקשת מסמכים</div>
+                  )}
+                </div>
+              </div>
+            )}
 
             {activeTab === "schedule" && (
               <Fragment>

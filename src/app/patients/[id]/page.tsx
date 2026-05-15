@@ -66,6 +66,8 @@ export default function PatientDetailPage() {
   const [editingEndDate, setEditingEndDate] = useState(false);
   const [editEndDateVal, setEditEndDateVal] = useState("");
   const [socialWorkers, setSocialWorkers] = useState<{ id: string; name: string }[]>([]);
+  const [docRequests, setDocRequests] = useState<any[]>([]);
+  const [processedDocs, setProcessedDocs] = useState<any[]>([]);
 
   useEffect(() => { if (id) fetchPatientData(); }, [id]);
 
@@ -143,6 +145,41 @@ export default function PatientDetailPage() {
     } catch (e) { console.error(e); }
   }
 
+  const handleProcessRequest = async (request: any) => {
+    if (!patient) return;
+    setReportLoading(true);
+    try {
+      const docTitle = request.type === 'stay' ? 'אישור שהייה' : `דו״ח נוכחות - ${request.month || format(new Date(), "MM/yyyy")}`;
+      
+      const docData = {
+        patientId: patient.id,
+        title: docTitle,
+        type: request.type,
+        url: "#", 
+        createdAt: serverTimestamp(),
+        processedBy: authUser?.uid
+      };
+
+      await setDoc(doc(collection(db, "documents")), docData);
+      
+      await updateDoc(doc(db, "document_requests", request.id), {
+        status: "completed",
+        processedAt: serverTimestamp()
+      });
+
+      await setDoc(doc(collection(db, "messages")), {
+        participants: [authUser?.uid, participantUid].filter(Boolean),
+        senderId: authUser?.uid,
+        text: `המסמך שביקשת (${docTitle}) מוכן וממתין לך באיזור האישי.`,
+        timestamp: serverTimestamp(),
+      });
+
+      alert("המסמך הופק ונשלח בהצלחה!");
+      fetchPatientData();
+    } catch (e) { console.error(e); }
+    finally { setReportLoading(false); }
+  };
+
   function effectiveEndDate(p: Patient): Date | null {
     if (p.endDate) { try { const d = parseISO(p.endDate); return isValid(d) ? d : null; } catch { return null; } }
     if (p.startDate) { try { const d = parseISO(p.startDate); return isValid(d) ? addMonths(d, 3) : null; } catch { return null; } }
@@ -201,7 +238,6 @@ export default function PatientDetailPage() {
     setReportLoading(true);
     
     try {
-      // Small delay to ensure styles are applied
       await new Promise(r => setTimeout(r, 100));
       
       const canvas = await html2canvas(reportRef.current, {
@@ -245,7 +281,6 @@ export default function PatientDetailPage() {
     <RoleGuard allowedRoles={["admin", "manager", "instructor", "social_worker"]} redirectTo="/login">
       <div dir="rtl" className="min-h-screen bg-[var(--background)] text-[var(--foreground)]">
         
-        {/* ── Header ── */}
         <header className="sticky top-0 z-40 bg-[var(--background)]/70 backdrop-blur-2xl border-b border-[var(--border)]">
           <div className="max-w-7xl mx-auto px-4 md:px-8 h-20 flex items-center justify-between">
             <div className="flex items-center gap-5">
