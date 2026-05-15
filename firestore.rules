@@ -53,16 +53,34 @@ service cloud.firestore {
       allow write: if isAuthenticated();
     }
 
-    // Shopping List
-    match /shopping_list/{docId} {
+    // Notifications
+    match /notifications/{docId} {
+      allow read: if isAuthenticated() && (resource.data.recipientIds == null || request.auth.uid in resource.data.recipientIds);
+      allow write: if isAuthenticated();
+    }
+
+    // Shopping Requests
+    match /shopping_requests/{docId} {
       allow read: if isAuthenticated();
       allow write: if isAuthenticated();
+    }
+
+    // Product Pool
+    match /product_pool/{docId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin() || isManager() || hasRole('logistics');
+    }
+
+    // Settings
+    match /settings/{docId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin() || isManager();
     }
 
     // Schedules
     match /schedules/{docId} {
       allow read: if isAuthenticated();
-      allow write: if isAdmin() || isManager();
+      allow write: if isManager();
     }
 
     // Global deny for everything else
