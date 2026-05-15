@@ -29,18 +29,9 @@ export function AttendanceItem({ patient, status, onToggle }: AttendanceItemProp
         "bg-[var(--border)]"
       }`} />
 
-      {/* Avatar */}
-      <div className={`w-11 h-11 rounded-2xl shrink-0 flex items-center justify-center font-black text-sm transition-all duration-200 ${
-        isPresent ? "bg-emerald-500/15 text-emerald-500" :
-        isAbsent  ? "bg-rose-500/15 text-rose-500" :
-        "bg-[var(--foreground)]/5 text-[var(--muted)]/40"
-      }`}>
-        {initials}
-      </div>
-
       {/* Name + status label */}
       <div className="flex-1 min-w-0">
-        <p className="font-black text-sm text-[var(--foreground)] leading-tight truncate">
+        <p className="font-black text-base text-[var(--foreground)] leading-tight truncate">
           {patient.firstName} {patient.lastName}
         </p>
         <p className={`text-[10px] font-bold mt-0.5 transition-colors ${
@@ -48,7 +39,7 @@ export function AttendanceItem({ patient, status, onToggle }: AttendanceItemProp
           isAbsent  ? "text-rose-400" :
           "text-[var(--muted)]/50"
         }`}>
-          {isPresent ? "נוכח" : isAbsent ? "נעדר" : "ממתין"}
+          {isPresent ? "נוכח" : isAbsent ? "נעדר" : "ממתין לבדיקה"}
         </p>
       </div>
 
