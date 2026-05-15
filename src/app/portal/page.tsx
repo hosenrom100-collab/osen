@@ -5,17 +5,17 @@ import { useState, useEffect, useMemo } from "react";
 import { db } from "@/lib/firebase/config";
 import {
   collection, getDocs, doc, getDoc, updateDoc, setDoc,
-  query, orderBy, arrayUnion, arrayRemove, serverTimestamp,
+  query, orderBy, arrayUnion, arrayRemove,
+  where, limit,
 } from "firebase/firestore";
 import {
   Calendar, MapPin, Users, Check, X, Clock, Loader2,
-  Plus, LogOut, User, ChevronRight,
+  Plus, LogOut, User,
 } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { he } from "date-fns/locale";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { NotificationCenter } from "@/components/notifications/NotificationCenter";
 
 /* ─── Types ──────────────────────────────────────────────────────────────── */
@@ -51,13 +51,12 @@ export default function ParticipantPortal() {
   const [loading,    setLoading]    = useState(true);
   const [busy,       setBusy]       = useState<string | null>(null);
 
-  // Onboarding: program + group selection
-  const [selProgram, setSelProgram] = useState("");
-  const [selGroup,   setSelGroup]   = useState("");
-  const [saving,     setSaving]     = useState(false);
+  const [idNumber, setIdNumber] = useState("");
+  const [error,     setError]     = useState<string | null>(null);
+  const [saving,    setSaving]    = useState(false);
 
-  const today      = format(new Date(), "yyyy-MM-dd");
-  const todayLabel = format(new Date(), "EEEE, d בMMMM", { locale: he });
+  const today      = useMemo(() => format(new Date(), "yyyy-MM-dd"), []);
+  const todayLabel = useMemo(() => format(new Date(), "EEEE, d בMMMM", { locale: he }), []);
 
   const myGroupId   = assignedGroups[0] ?? null;
   const myProgramId = preferredProgramIds[0] ?? null;
@@ -70,7 +69,7 @@ export default function ParticipantPortal() {
 
   useEffect(() => {
     if (user) loadScheduleAndRefs();
-  }, [user]);
+  }, [user, today]);
 
   async function loadScheduleAndRefs() {
     setLoading(true);
@@ -94,19 +93,43 @@ export default function ParticipantPortal() {
     finally { setLoading(false); }
   }
 
-  /* Save onboarding selection */
+  /* Save onboarding via ID lookup */
   async function saveOnboarding() {
-    if (!selProgram || !selGroup || !user) return;
+    if (!idNumber || !user) return;
     setSaving(true);
+    setError(null);
     try {
+      // Find patient by ID
+      const pSnap = await getDocs(query(
+        collection(db, "patients"),
+        where("idNumber", "==", idNumber),
+        limit(1)
+      ));
+
+      if (pSnap.empty) {
+        setError("לא נמצא מטופל עם תעודת זהות זו. אנא וודא/י שהמספר תקין או פנה/י לצוות.");
+        setSaving(false);
+        return;
+      }
+
+      const pDoc  = pSnap.docs[0];
+      const pData = pDoc.data();
+
+      // Link user to patient
       await updateDoc(doc(db, "users", user.uid), {
-        assignedGroups:      [selGroup],
-        preferredProgramIds: [selProgram],
+        patientId:           pDoc.id,
+        assignedGroups:      pData.hosenType ? [pData.hosenType] : [],
+        preferredProgramIds: pData.programId ? [pData.programId] : [],
         onboardingComplete:  true,
       });
+
       window.location.reload();
-    } catch (e) { console.error(e); }
-    finally { setSaving(false); }
+    } catch (e) {
+      console.error(e);
+      setError("שגיאה בחיבור הנתונים. נסה/י שנית מאוחר יותר.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   /* Sign up for an activity */
@@ -172,11 +195,6 @@ export default function ParticipantPortal() {
     return null;
   }
 
-  const programGroups = useMemo(
-    () => groups.filter(g => g.programId === selProgram),
-    [groups, selProgram]
-  );
-
   const programName = programs.find(p => p.id === myProgramId)?.name;
   const groupName   = groups.find(g => g.id === myGroupId)?.name;
 
@@ -217,7 +235,7 @@ export default function ParticipantPortal() {
 
       <main className="px-4 md:px-6 py-5 pb-28 max-w-xl mx-auto">
 
-        {/* ══ ONBOARDING — select program + group ══ */}
+        {/* ══ ONBOARDING — ID verification ══ */}
         {!onboardingComplete && (
           <section className="space-y-6">
             <div className="text-center py-8">
@@ -226,46 +244,33 @@ export default function ParticipantPortal() {
               </div>
               <h2 className="text-xl font-black">ברוך/ה הבא/ה!</h2>
               <p className="text-sm text-[var(--muted)] mt-2 max-w-xs mx-auto">
-                בחר/י את התוכנית והקבוצה שלך כדי לצפות בפעילויות ולהירשם
+                הזינו מספר תעודת זהות כדי להתחבר לתיק האישי שלכם
               </p>
             </div>
 
             <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-5 space-y-4">
               <div>
-                <label className="text-[10px] font-black uppercase tracking-widest text-[var(--muted)] mb-2 block">תוכנית</label>
-                <select
-                  value={selProgram}
-                  onChange={e => { setSelProgram(e.target.value); setSelGroup(""); }}
+                <label className="text-[10px] font-black uppercase tracking-widest text-[var(--muted)] mb-2 block">מספר תעודת זהות</label>
+                <input
+                  type="text"
+                  value={idNumber}
+                  onChange={e => setIdNumber(e.target.value)}
+                  placeholder="000000000"
                   className="w-full bg-[var(--background)] border border-[var(--border)] rounded-xl px-4 py-3 text-sm text-[var(--foreground)] focus:outline-none focus:border-teal-500/50 transition-colors"
-                >
-                  <option value="">בחר תוכנית...</option>
-                  {programs.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                </select>
+                />
               </div>
 
-              <AnimatePresence>
-                {selProgram && (
-                  <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
-                    <label className="text-[10px] font-black uppercase tracking-widest text-[var(--muted)] mb-2 block">קבוצה</label>
-                    <select
-                      value={selGroup}
-                      onChange={e => setSelGroup(e.target.value)}
-                      className="w-full bg-[var(--background)] border border-[var(--border)] rounded-xl px-4 py-3 text-sm text-[var(--foreground)] focus:outline-none focus:border-teal-500/50 transition-colors"
-                    >
-                      <option value="">בחר קבוצה...</option>
-                      {programGroups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
-                    </select>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+              {error && (
+                <p className="text-[10px] text-rose-400 font-bold px-1">{error}</p>
+              )}
 
               <button
                 onClick={saveOnboarding}
-                disabled={!selProgram || !selGroup || saving}
+                disabled={!idNumber || saving}
                 className="w-full py-3 bg-teal-600 hover:bg-teal-500 disabled:opacity-40 text-white rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
               >
                 {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-                אישור וכניסה לפורטל
+                אימות פרטים וכניסה
               </button>
             </div>
           </section>

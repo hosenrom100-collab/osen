@@ -4,10 +4,13 @@
       "Bash(cat)",
       "Read(//tmp/**)",
       "Bash(node -e ' *)",
-      "Bash(npx tsc *)"
+      "Bash(npx tsc *)",
+      "Bash(npm install *)",
+      "Bash(npm uninstall *)"
     ],
     "additionalDirectories": [
-      "/Users/amireyal/ hosen-connect/src/app/admin/programs"
+      "/Users/amireyal/ hosen-connect/src/app/admin/programs",
+      "/Users/amireyal/ hosen-connect/src/app/api"
     ]
   }
 }

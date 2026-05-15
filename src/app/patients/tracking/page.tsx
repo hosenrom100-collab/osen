@@ -370,7 +370,7 @@ export default function PatientTrackingPage() {
                         "ימים נותרים",
                         "הארכה נשלחה",
                         "הארכה התקבלה",
-                        "שיקום בוצע",
+                        "תוכנית שיקום",
                         'עו"ס',
                       ].map(h => (
                         <th key={h} className="px-4 py-3 text-[10px] font-black uppercase tracking-wider text-[var(--muted)] whitespace-nowrap">

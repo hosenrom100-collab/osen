@@ -10,7 +10,6 @@ interface AttendanceItemProps {
 }
 
 export function AttendanceItem({ patient, status, onToggle }: AttendanceItemProps) {
-  const initials = `${patient.firstName?.[0] ?? ""}${patient.lastName?.[0] ?? ""}`.toUpperCase();
   const isPresent = status === "present";
   const isAbsent  = status === "absent";
 
@@ -31,15 +30,15 @@ export function AttendanceItem({ patient, status, onToggle }: AttendanceItemProp
 
       {/* Name + status label */}
       <div className="flex-1 min-w-0">
-        <p className="font-black text-base text-[var(--foreground)] leading-tight truncate">
+        <p className="font-black text-lg text-slate-800 leading-none mb-1">
           {patient.firstName} {patient.lastName}
         </p>
-        <p className={`text-[10px] font-bold mt-0.5 transition-colors ${
+        <p className={`text-[10px] font-bold transition-colors uppercase tracking-widest ${
           isPresent ? "text-emerald-500" :
           isAbsent  ? "text-rose-400" :
-          "text-[var(--muted)]/50"
+          "text-slate-300"
         }`}>
-          {isPresent ? "נוכח" : isAbsent ? "נעדר" : "ממתין לבדיקה"}
+          {isPresent ? "נוכח במפגש" : isAbsent ? "לא הגיע" : "טרם עודכן"}
         </p>
       </div>
 

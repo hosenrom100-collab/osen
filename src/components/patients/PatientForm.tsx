@@ -223,24 +223,24 @@ export function PatientForm({ patientId, initialData, onSuccess }: PatientFormPr
       </div>
 
       {/* ── Rehab Plan ── */}
-      <label
-        className="flex items-center gap-4 bg-[var(--foreground)]/[0.02] border border-[var(--border)] rounded-2xl p-5 cursor-pointer group"
+      <div
+        className="flex items-center gap-4 bg-[var(--foreground)]/[0.02] border border-[var(--border)] rounded-2xl p-5 cursor-pointer group select-none"
         onClick={() => set({ rehabPlanCompleted: !formData.rehabPlanCompleted })}
       >
         <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all shrink-0 ${
           formData.rehabPlanCompleted
-            ? "bg-teal-500 border-teal-500"
+            ? "bg-teal-500 border-teal-500 shadow-[0_0_10px_rgba(20,184,166,0.3)]"
             : "border-[var(--border)] group-hover:border-teal-500/50"
         }`}>
           {formData.rehabPlanCompleted && <CheckCircle className="w-4 h-4 text-white" />}
         </div>
         <div>
-          <p className="text-sm font-black">תוכנית שיקום בוצעה</p>
+          <p className="text-sm font-black">תוכנית שיקום</p>
           <p className="text-[10px] text-[var(--foreground)]/40 font-bold uppercase tracking-widest mt-0.5">
             סמן כאשר תוכנית השיקום הוצאה ואושרה
           </p>
         </div>
-      </label>
+      </div>
 
       <button 
         type="submit" 

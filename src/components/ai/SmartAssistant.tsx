@@ -1,17 +1,19 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { 
-  Sparkles, X, Send, Search, Bot, Lightbulb, 
-  ArrowRight, Users, ShoppingCart, Calendar, 
-  MessageSquare, Loader2, Command, Zap, Shield, Mic, MicOff
+import {
+  Sparkles, X, Send, Bot,
+  ArrowRight, Users, ShoppingCart, Calendar,
+  Loader2, Zap, Shield, Mic, MicOff, RefreshCw
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter, usePathname } from "next/navigation";
-import { format } from "date-fns";
 import { db } from "@/lib/firebase/config";
-import { collection, query, getDocs, limit, where, getDoc, doc, addDoc, serverTimestamp, deleteDoc } from "firebase/firestore";
+import {
+  collection, query, getDocs, limit, where, getDoc, doc,
+  addDoc, serverTimestamp, deleteDoc, updateDoc
+} from "firebase/firestore";
 
 /* ─── Types ─── */
 
@@ -20,482 +22,428 @@ interface Insight {
   type: "info" | "warning" | "success";
   text: string;
   icon: any;
-  actionLabel?: string;
   actionPath?: string;
 }
 
-interface Command {
-  keywords: string[];
+interface Message {
+  role: "user" | "assistant";
+  content: string;
+}
+
+interface AppData {
+  today: string;
+  schedule: {
+    activities: Array<{ name: string; time?: string; location?: string }>;
+    dutyInstructorName?: string;
+    hasDutyInstructor: boolean;
+  };
+  attendance: { totalActive: number; totalPresent: number; missingCount: number };
+  shopping: {
+    pendingCount: number;
+    pendingItems: Array<{ name: string; quantity: string }>;
+    recentPurchases: Array<{ name: string; date: string }>;
+  };
+  absences: {
+    pendingCount: number;
+    pendingRequests: Array<{ id: string; userName: string; date: string }>;
+  };
+  staffList: Array<{ id: string; name: string; role: string }>;
+  patientList: Array<{ id: string; fullName: string }>;
+}
+
+interface AssistantResult {
   response: string;
-  action?: () => void;
-  icon: any;
+  action: string;
+  actionData?: Record<string, any>;
+  requiresConfirmation?: boolean;
+  confirmationMessage?: string;
 }
 
 /* ─── Component ─── */
 
 export function SmartAssistant() {
-  const { user, loading: authLoading, isAdmin, isManager, isLogistics } = useAuth();
+  const { user, loading: authLoading, isAdmin, isManager } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
+
   const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [dataLoading, setDataLoading] = useState(false);
   const [insights, setInsights] = useState<Insight[]>([]);
-  const [messages, setMessages] = useState<{ role: "user" | "assistant", content: string }[]>([
-    { role: "assistant", content: "שלום! אני העוזר החכם של חוסן. איך אני יכול לעזור לך היום?" }
+  const [appData, setAppData] = useState<AppData | null>(null);
+  const [messages, setMessages] = useState<Message[]>([
+    { role: "assistant", content: "שלום! אני העוזר החכם של חוסן. אני מבין עברית טבעית ויכול לעזור עם קניות, נוכחות, לוז, הודעות ועוד. במה אפשר לעזור?" }
   ]);
-  const [pendingAction, setPendingAction] = useState<{ type: string, data: any } | null>(null);
+  const [pendingResult, setPendingResult] = useState<AssistantResult | null>(null);
   const [isListening, setIsListening] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
-
-  const toggleListening = () => {
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      alert("הדפדפן שלך לא תומך בזיהוי קולי. נסה להשתמש בכרום או ספארי.");
-      return;
-    }
-
-    if (isListening) {
-      setIsListening(false);
-      return;
-    }
-
-    const recognition = new SpeechRecognition();
-    recognition.lang = "he-IL";
-    recognition.continuous = false;
-    recognition.interimResults = true; // Show text while speaking
-
-    recognition.onstart = () => setIsListening(true);
-    recognition.onend = () => setIsListening(false);
-    recognition.onerror = (event: any) => {
-      if (event.error === "no-speech") {
-        console.warn("לא זוהה דיבור. נסה שוב.");
-      } else if (event.error === "not-allowed") {
-        alert("גישה למיקרופון נדחתה. יש לאשר גישה בהגדרות הדפדפן.");
-      } else {
-        console.error("Speech Recognition Error", event.error);
-      }
-      setIsListening(false);
-    };
-
-    recognition.onresult = (event: any) => {
-      const transcript = Array.from(event.results)
-        .map((result: any) => result[0])
-        .map((result: any) => result.transcript)
-        .join("");
-      
-      setInput(transcript);
-
-      if (event.results[0].isFinal) {
-        handleCommand(transcript);
-      }
-    };
-
-    recognition.start();
-  };
-
-  // Load insights once open
-  useEffect(() => {
-    if (isOpen) {
-      loadInsights();
-    }
-  }, [isOpen]);
-
-  // Scroll to bottom
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  const loadInsights = async () => {
-    const newInsights: Insight[] = [];
+  useEffect(() => {
+    if (isOpen && !appData) {
+      loadAppData();
+    }
+  }, [isOpen]);
+
+  /* ─── Load full app context ─── */
+  const loadAppData = useCallback(async () => {
+    if (!user) return;
+    setDataLoading(true);
     const today = new Date().toISOString().split("T")[0];
-    
+
     try {
-      // 1. Check Schedule & Duty Instructor
-      const schedSnap = await getDoc(doc(db, "schedules", today));
-      const schedData = schedSnap.exists() ? schedSnap.data() : {};
-      const dailyActivities = schedData.activities || [];
-      const dutyId = schedData.dutyInstructorId || schedData.dutyId || "";
-
-      if (!dutyId && (isAdmin || isManager)) {
-        // Find available instructors
-        const [usersSnap, staffAttSnap] = await Promise.all([
-          getDocs(query(collection(db, "users"), where("role", "==", "instructor"))),
-          getDocs(query(collection(db, "staff_attendance"), where("date", "==", today)))
-        ]);
-
-        const absentIds = new Set(staffAttSnap.docs
-          .filter(d => d.data().status === "absent" || d.data().status === "leave")
-          .map(d => d.data().userId));
-        
-        const available = usersSnap.docs
-          .filter(d => !absentIds.has(d.id))
-          .map(d => d.data().name || d.data().email.split("@")[0]);
-
-        if (available.length > 0) {
-          newInsights.push({
-            id: "missing-duty",
-            type: "warning",
-            text: `טרם הוגדר מדריך תורן להיום. המדריכים הזמינים כרגע: ${available.slice(0, 2).join(", ")}`,
-            icon: Shield,
-            actionLabel: "הגדר תורן",
-            actionPath: "/"
-          });
-        }
-      }
-      
-      if (dailyActivities.length === 0) {
-        newInsights.push({
-          id: "no-schedule",
-          type: "info",
-          text: "אין פעילויות מתוכננות להיום בלוח הזמנים",
-          icon: Calendar,
-          actionPath: "/calendar"
-        });
-      }
-
-      // 2. Check Attendance (Missing patients)
-      const [patientsSnap, attendanceSnap] = await Promise.all([
+      const [schedSnap, patientsSnap, attendanceSnap, shopSnap, shopPurchasedSnap, absSnap, usersSnap] = await Promise.all([
+        getDoc(doc(db, "schedules", today)),
         getDocs(query(collection(db, "patients"), where("status", "==", "active"))),
-        getDocs(query(collection(db, "attendance"), where("date", "==", today), where("status", "==", "present")))
+        getDocs(query(collection(db, "attendance"), where("date", "==", today), where("status", "==", "present"))),
+        getDocs(query(collection(db, "shopping_requests"), where("status", "==", "pending"))),
+        getDocs(query(collection(db, "shopping_requests"), where("status", "==", "purchased"), limit(20))),
+        getDocs(query(collection(db, "absence_requests"), where("status", "==", "pending"))),
+        getDocs(query(collection(db, "users"), limit(100))),
       ]);
-      
+
+      const schedData = schedSnap.exists() ? schedSnap.data() : {};
+      const dutyId = schedData.dutyInstructorId || schedData.dutyId || "";
+      let dutyName: string | undefined;
+      if (dutyId) {
+        const dutyDoc = await getDoc(doc(db, "users", dutyId));
+        dutyName = dutyDoc.exists() ? dutyDoc.data().name : undefined;
+      }
+
       const totalActive = patientsSnap.size;
       const totalPresent = attendanceSnap.size;
-      const missing = totalActive - totalPresent;
 
-      if (missing > 0 && totalPresent > 0) {
-        newInsights.push({
-          id: "missing-patients",
-          type: "warning",
-          text: `שים לב: ${missing} מטופלים רשומים כנעדרים היום`,
-          icon: Users,
-          actionPath: "/admin/patient-attendance"
-        });
-      }
+      const data: AppData = {
+        today,
+        schedule: {
+          activities: (schedData.activities || []).map((a: any) => ({
+            name: a.name || a.title || "",
+            time: a.time || a.startTime || "",
+            location: a.location || "",
+          })),
+          dutyInstructorName: dutyName,
+          hasDutyInstructor: !!dutyId,
+        },
+        attendance: {
+          totalActive,
+          totalPresent,
+          missingCount: Math.max(0, totalActive - totalPresent),
+        },
+        shopping: {
+          pendingCount: shopSnap.size,
+          pendingItems: shopSnap.docs.map((d) => ({ name: d.data().name, quantity: d.data().quantity || "1" })),
+          recentPurchases: shopPurchasedSnap.docs.map((d) => ({
+            name: d.data().name,
+            date: d.data().createdAt?.toDate ? d.data().createdAt.toDate().toLocaleDateString("he-IL") : "",
+          })),
+        },
+        absences: {
+          pendingCount: absSnap.size,
+          pendingRequests: absSnap.docs.map((d) => ({
+            id: d.id,
+            userName: d.data().userName || "",
+            date: d.data().date || "",
+          })),
+        },
+        staffList: usersSnap.docs
+          .filter((d) => d.data().status !== "pending" && d.data().status !== "rejected")
+          .map((d) => ({ id: d.id, name: d.data().name || d.data().email?.split("@")[0] || "", role: d.data().role || "" })),
+        patientList: patientsSnap.docs.map((d) => ({ id: d.id, fullName: d.data().fullName || `${d.data().firstName} ${d.data().lastName}` })),
+      };
 
-      // 3. Check Shopping Requests
-      const shopSnap = await getDocs(query(collection(db, "shopping_requests"), where("status", "==", "pending"), limit(5)));
-      if (!shopSnap.empty) {
-        newInsights.push({
-          id: "shopping",
-          type: "warning",
-          text: `ישנן ${shopSnap.size} בקשות רכש הממתינות לאישור`,
-          icon: ShoppingCart,
-          actionPath: "/shopping"
-        });
-      }
-
-      // 4. Check Absence Requests (For Managers)
-      if (isAdmin || isManager) {
-        const absSnap = await getDocs(query(collection(db, "absence_requests"), where("status", "==", "pending")));
-        if (!absSnap.empty) {
-          newInsights.push({
-            id: "pending-absences",
-            type: "warning",
-            text: `ישנן ${absSnap.size} בקשות היעדרות הממתינות לאישורך`,
-            icon: Calendar,
-            actionLabel: "נהל",
-            actionPath: "/admin/staff-attendance"
-          });
-        }
-      }
-
-      setInsights(newInsights);
+      setAppData(data);
+      buildInsights(data);
     } catch (e) {
-      console.error("Failed to load insights:", e);
+      console.error("Failed to load app data:", e);
+    } finally {
+      setDataLoading(false);
     }
+  }, [user, isAdmin, isManager]);
+
+  /* ─── Build insights from app data ─── */
+  const buildInsights = (data: AppData) => {
+    const newInsights: Insight[] = [];
+
+    if (!data.schedule.hasDutyInstructor && (isAdmin || isManager)) {
+      newInsights.push({ id: "duty", type: "warning", text: "לא הוגדר מדריך תורן להיום", icon: Shield, actionPath: "/" });
+    }
+    if (data.attendance.missingCount > 0 && data.attendance.totalPresent > 0) {
+      newInsights.push({ id: "attendance", type: "warning", text: `${data.attendance.missingCount} מטופלים נעדרים היום`, icon: Users, actionPath: "/admin/patient-attendance" });
+    }
+    if (data.shopping.pendingCount > 0) {
+      newInsights.push({ id: "shopping", type: "warning", text: `${data.shopping.pendingCount} פריטי קניות ממתינים`, icon: ShoppingCart, actionPath: "/shopping" });
+    }
+    if ((isAdmin || isManager) && data.absences.pendingCount > 0) {
+      newInsights.push({ id: "absences", type: "warning", text: `${data.absences.pendingCount} בקשות היעדרות ממתינות`, icon: Calendar, actionPath: "/admin/staff-attendance" });
+    }
+    if (data.schedule.activities.length === 0) {
+      newInsights.push({ id: "schedule", type: "info", text: "אין פעילויות מתוכננות להיום", icon: Calendar, actionPath: "/calendar" });
+    }
+
+    setInsights(newInsights);
   };
 
-  const handleCommand = async (text: string) => {
-    if (!text.trim()) return;
-    
-    setMessages(prev => [...prev, { role: "user", content: text }]);
-    setInput("");
-    setLoading(true);
-
-    const normalized = text.toLowerCase();
-    let response = "אני לא בטוח שהבנתי, תוכל לנסות שוב? אני יכול לעזור עם חיפוש מטופלים, רשימת קניות, או הצגת הלוז.";
+  /* ─── Execute action returned by Gemini ─── */
+  const executeAction = async (result: AssistantResult): Promise<string | null> => {
+    const { action, actionData } = result;
     const today = new Date().toISOString().split("T")[0];
 
-    // Simulate AI thinking
-    await new Promise(resolve => setTimeout(resolve, 600));
+    try {
+      if (action === "navigate" && actionData?.path) {
+        router.push(actionData.path);
+        return null;
+      }
 
-    // Check for pending actions (confirmations)
-    if (pendingAction && (normalized === "כן" || normalized.includes("כן") || normalized.includes("תוסיף") || normalized.includes("תעשה זאת") || normalized.includes("עוד"))) {
-      if (pendingAction.type === "add_meat") {
-        try {
-          await addDoc(collection(db, "shopping_requests"), {
-            name: `בשר לקציצות (${pendingAction.data.people} איש)`,
-            quantity: `${pendingAction.data.kg} ק"ג`,
-            status: "pending", category: "בשר ודגים",
-            requestedBy: user?.uid || "system", requestedByName: user?.displayName || "Hosen AI", createdAt: serverTimestamp()
-          });
-          response = `הוספתי ${pendingAction.data.kg} ק"ג בשר לרשימת הקניות.`;
-          setPendingAction(null);
-          router.push("/shopping");
-        } catch (e) { response = "שגיאה בהוספת הפריט."; }
-      } else if (pendingAction.type === "approve_absence") {
-        try {
-          const { updateDoc } = await import("firebase/firestore");
-          await updateDoc(doc(db, "absence_requests", pendingAction.data.id), { status: "approved" });
-          response = `אישרתי את בקשת ההיעדרות של ${pendingAction.data.userName}.`;
-          setPendingAction(null);
-        } catch (e) { response = "שגיאה באישור הבקשה."; }
-      } else if (pendingAction.type === "item_ref") {
-        try {
-          await addDoc(collection(db, "shopping_requests"), {
-            name: pendingAction.data.name,
-            quantity: "1", status: "pending", category: "כללי",
-            requestedBy: user?.uid || "system", requestedByName: user?.displayName || "Hosen AI", createdAt: serverTimestamp()
-          });
-          response = `הוספתי עוד ${pendingAction.data.name} לרשימת הקניות.`;
-          setPendingAction(null);
-          router.push("/shopping");
-        } catch (e) { response = "שגיאה בהוספת הפריט."; }
-      }
-    }
-    // Command Logic: Deletion (Shopping)
-    else if (normalized.includes("מחק") || normalized.includes("תמחוק") || normalized.includes("תוריד") || normalized.includes("אל תקנה")) {
-      const itemToDelete = text.replace(/מחק|תמחוק|תוריד|אל תקנה|מהרשימה|מרשימת הקניות|של|ה/g, "").trim();
-      if (itemToDelete) {
-        try {
-          const q = query(collection(db, "shopping_requests"), where("status", "in", ["pending", "approved"]));
-          const snap = await getDocs(q);
-          const match = snap.docs.find(d => d.data().name.includes(itemToDelete));
-          if (match) {
-            await deleteDoc(match.ref);
-            response = `בסדר גמור, מחקתי את ${itemToDelete} מרשימת הקניות.`;
-          } else {
-            response = `חיפשתי ${itemToDelete} ברשימת הקניות ולא מצאתי פריט כזה.`;
-          }
-        } catch (e) { response = "הייתה תקלה במחיקה."; }
-      }
-    } 
-    // Command Logic: Addition (Patients / Shopping / Calculation)
-    else if (normalized.includes("הוסף") || normalized.includes("תרשום") || normalized.includes("תקים") || normalized.includes("תוסיף") || normalized.includes("תקנה") || normalized.includes("לקנות") || normalized.includes("חסר")) {
-      if (normalized.includes("מטופל") || normalized.includes("חולה") || normalized.includes("אדם")) {
-        const cleanText = text.replace(/הוסף|תרשום|תקים|מטופל|מטופלים|חדש|חדשים|:/g, "").trim();
-        const names = cleanText.split(/,|\n/).map(n => n.trim()).filter(Boolean);
-        if (names.length > 0) {
-          try {
-            let addedCount = 0;
-            for (const fullName of names) {
-              const parts = fullName.split(" ");
-              await addDoc(collection(db, "patients"), {
-                firstName: parts[0], lastName: parts.slice(1).join(" ") || "", fullName,
-                status: "active", createdAt: serverTimestamp(), startDate: today, idNumber: ""
-              });
-              addedCount++;
-            }
-            response = `הוספתי את ${addedCount === 1 ? names[0] : `${addedCount} מטופלים`} למערכת.`;
-            router.push("/patients");
-          } catch (e) { response = "שגיאה בהוספת המטופלים."; }
-        } else response = "תכתוב לי את השמות של המטופלים.";
-      } 
-      else {
-        const clean = text.replace(/הוסף|תוסיף|תקנה|לקנות|חסר|לרשימה|של|ה|/g, "").trim();
-        if (clean && clean.length > 1) {
-          try {
-            await addDoc(collection(db, "shopping_requests"), {
-              name: clean, quantity: "1", status: "pending", category: "כללי",
-              requestedBy: user?.uid || "system", requestedByName: user?.displayName || "Hosen AI", createdAt: serverTimestamp()
-            });
-            response = `הוספתי ${clean} לרשימת הקניות.`;
-            router.push("/shopping");
-          } catch (e) { response = "שגיאה בהוספת הפריט."; }
-        } else response = "מה חסר? תכתוב לי את שם הפריט.";
-      }
-    }
-    // Command Logic: Calculation
-    else if (normalized.includes("בשר") && normalized.includes("איש") && (normalized.includes("כמה") || normalized.includes("כמות") || normalized.includes("קציצות"))) {
-      const peopleMatch = text.match(/\d+/);
-      const people = peopleMatch ? parseInt(peopleMatch[0]) : 20;
-      const kgNeeded = (people * 0.2).toFixed(1);
-      response = `בשביל ${people} איש, אני ממליץ לקנות כ-${kgNeeded} ק"ג בשר (מחושב לפי 200 גרם לאדם). האם תרצה שאוסיף את זה לרשימת הקניות?`;
-      setPendingAction({ type: "add_meat", data: { people, kg: kgNeeded } });
-    }
-    // Command Logic: History Search
-    else if (normalized.includes("קנינו") || normalized.includes("רכשנו") || normalized.includes("הוזמן") || normalized.includes("היה")) {
-      const itemName = text.replace(/האם|קנינו|לאחרונה|רכשנו|הוזמן|היה|כבר|את|ה/g, "").replace(/[?!.,:]/g, "").trim();
-      if (itemName) {
-        try {
-          const q = query(collection(db, "shopping_requests"), where("status", "==", "purchased"));
-          const snap = await getDocs(q);
-          const match = snap.docs
-            .filter(d => d.data().name.includes(itemName) || itemName.includes(d.data().name))
-            .sort((a, b) => (b.data().createdAt?.seconds || 0) - (a.data().createdAt?.seconds || 0))[0];
-          
-          if (match) {
-            const date = match.data().createdAt?.toDate ? match.data().createdAt.toDate().toLocaleDateString("he-IL") : "לאחרונה";
-            response = `כן, רכשנו ${match.data().name} בתאריך ${date}. האם תרצה שאוסיף עוד חבילה לרשימת הקניות?`;
-            setPendingAction({ type: "item_ref", data: { name: match.data().name } });
-          } else {
-            response = `לא מצאתי תיעוד לרכישה של ${itemName} בתקופה האחרונה.`;
-          }
-        } catch (e) { response = "שגיאה בחיפוש בהיסטוריה."; }
-      }
-    }
-    // Command Logic: Absence Approval (For Managers)
-    else if ((isAdmin || isManager) && (normalized.includes("תאשר") || normalized.includes("תדחה") || normalized.includes("אישור") || normalized.includes("דחייה") || normalized.includes("תאשרי")) && (normalized.includes("היעדרות") || normalized.includes("העדרות") || normalized.includes("בקשה"))) {
-      const name = text.replace(/תאשר|תדחה|אישור|דחייה|תאשרי|את|הבקשה|של|היעדרות|העדרות|ל|/g, "").trim();
-      const isApprove = normalized.includes("תאשר") || normalized.includes("אישור") || normalized.includes("תאשרי");
-      try {
-        const q = query(collection(db, "absence_requests"), where("status", "==", "pending"));
-        const snap = await getDocs(q);
-        const matches = snap.docs.filter(d => d.data().userName.includes(name) || name.includes(d.data().userName));
-        
-        if (matches.length === 1) {
-          const match = matches[0];
-          const data = match.data();
-          const { updateDoc } = await import("firebase/firestore");
-          await updateDoc(match.ref, { status: isApprove ? "approved" : "rejected" });
-          response = `${isApprove ? "אישרתי" : "דחיתי"} את בקשת ההיעדרות של ${data.userName} לתאריך ${data.date}.`;
-        } else if (matches.length > 1) {
-          response = `מצאתי מספר בקשות עבור ${name}. לאיזה מהן התכוונת? (${matches.map(m => m.data().date).join(", ")})`;
-        } else if (!name) {
-          response = `מצאתי ${snap.size} בקשות ממתינות: ${snap.docs.map(d => d.data().userName).join(", ")}. את מי לאשר?`;
-        } else {
-          response = `לא מצאתי בקשת היעדרות ממתינה עבור ${name}.`;
-        }
-      } catch (e) { response = "שגיאה בגישה לבקשות."; }
-    }
-    // Command Logic: Show Absences (For Managers)
-    else if ((isAdmin || isManager) && (normalized.includes("מי") || normalized.includes("תראה") || normalized.includes("איזה")) && (normalized.includes("נעדר") || normalized.includes("מבקש") || normalized.includes("היעדרות"))) {
-      try {
-        const q = query(collection(db, "absence_requests"), where("status", "==", "pending"));
-        const snap = await getDocs(q);
-        if (snap.empty) {
-          response = "אין בקשות היעדרות ממתינות כרגע.";
-        } else {
-          const list = snap.docs.map(d => `${d.data().userName} (${d.data().date})`).join(", ");
-          response = `ישנן ${snap.size} בקשות ממתינות: ${list}. האם תרצה לאשר מישהו מהם?`;
-        }
-      } catch (e) { response = "שגיאה בטעינת הבקשות."; }
-    }
-    // Command Logic: Absence Submission (For Users)
-    else if (normalized.includes("היעדרות") || normalized.includes("העדרות") || normalized.includes("חופש") || normalized.includes("חופשה") || (normalized.includes("לא") && normalized.includes("אהיה"))) {
-      const dateMatch = text.match(/(\d{1,2})[\/.](\d{1,2})/);
-      const day = dateMatch ? dateMatch[1].padStart(2, "0") : null;
-      const month = dateMatch ? dateMatch[2].padStart(2, "0") : null;
-      const absenceDate = day && month ? `${new Date().getFullYear()}-${month}-${day}` : today;
-      try {
-        await addDoc(collection(db, "absence_requests"), {
-          userId: user?.uid || "system", userName: user?.displayName || "User",
-          date: absenceDate, reason: text.replace(/תשלח|לי|בקשת|היעדרות|העדרות|חופש|חופשה|ל|בתאריך/g, "").trim() || "סיבה לא צוינה",
-          status: "pending", createdAt: serverTimestamp()
+      if (action === "add_shopping_item") {
+        await addDoc(collection(db, "shopping_requests"), {
+          name: actionData?.name || "",
+          quantity: actionData?.quantity || "1",
+          category: actionData?.category || "כללי",
+          status: "pending",
+          requestedBy: user?.uid || "system",
+          requestedByName: user?.displayName || "Hosen AI",
+          createdAt: serverTimestamp(),
         });
+        await loadAppData();
+        return null;
+      }
 
-        // Trigger push notification for managers
+      if (action === "add_shopping_items" && actionData?.items?.length) {
+        for (const item of actionData.items) {
+          await addDoc(collection(db, "shopping_requests"), {
+            name: item.name,
+            quantity: item.quantity || "1",
+            category: item.category || "כללי",
+            status: "pending",
+            requestedBy: user?.uid || "system",
+            requestedByName: user?.displayName || "Hosen AI",
+            createdAt: serverTimestamp(),
+          });
+        }
+        await loadAppData();
+        return null;
+      }
+
+      if (action === "delete_shopping_item") {
+        const q = query(collection(db, "shopping_requests"), where("status", "in", ["pending", "approved"]));
+        const snap = await getDocs(q);
+        const term = (actionData?.searchTerm || "").toLowerCase();
+        const match = snap.docs.find((d) => d.data().name?.toLowerCase().includes(term) || term.includes(d.data().name?.toLowerCase()));
+        if (match) {
+          await deleteDoc(match.ref);
+          await loadAppData();
+        }
+        return null;
+      }
+
+      if (action === "add_patient") {
+        await addDoc(collection(db, "patients"), {
+          firstName: actionData?.firstName || "",
+          lastName: actionData?.lastName || "",
+          fullName: actionData?.fullName || "",
+          status: "active",
+          createdAt: serverTimestamp(),
+          startDate: today,
+          idNumber: "",
+        });
+        await loadAppData();
+        router.push("/patients");
+        return null;
+      }
+
+      if (action === "add_patients" && actionData?.patients?.length) {
+        for (const p of actionData.patients) {
+          await addDoc(collection(db, "patients"), {
+            firstName: p.firstName || "",
+            lastName: p.lastName || "",
+            fullName: p.fullName || "",
+            status: "active",
+            createdAt: serverTimestamp(),
+            startDate: today,
+            idNumber: "",
+          });
+        }
+        await loadAppData();
+        router.push("/patients");
+        return null;
+      }
+
+      if (action === "create_absence_request") {
+        await addDoc(collection(db, "absence_requests"), {
+          userId: user?.uid || "system",
+          userName: user?.displayName || "User",
+          date: actionData?.date || today,
+          reason: actionData?.reason || "סיבה לא צוינה",
+          status: "pending",
+          createdAt: serverTimestamp(),
+        });
         fetch("/api/notify", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             role: ["admin", "manager"],
             title: "בקשת היעדרות חדשה",
-            body: `${user?.displayName || "איש צוות"} ביקש היעדרות לתאריך ${day ? `${day}.${month}` : "היום"}`,
-            link: "/admin/staff-attendance"
-          })
-        }).catch(e => console.error("Notification failed", e));
-
-        response = `הגשתי עבורך בקשת היעדרות לתאריך ${day ? `${day}.${month}` : "היום"}.`;
-        router.push("/profile");
-      } catch (e) { response = "שגיאה בהגשת הבקשה."; }
-    }
-    else if (normalized.includes("מטופל") || normalized.includes("חולה") || normalized.includes("רשימה")) {
-      response = "מעביר אותך לרשימת המטופלים.";
-      router.push("/patients");
-    } else if (normalized.includes("קניות") || normalized.includes("אוכל") || normalized.includes("חוסר")) {
-      const shopSnap = await getDocs(query(collection(db, "shopping_requests"), where("status", "==", "pending")));
-      response = shopSnap.empty ? "אין בקשות רכש ממתינות." : `ישנן ${shopSnap.size} בקשות רכש הממתינות לאישור.`;
-      router.push("/shopping");
-    } else if (normalized.includes("לוז") || normalized.includes("לוח זמנים") || normalized.includes("פעילות")) {
-      const schedSnap = await getDoc(doc(db, "schedules", today));
-      const count = schedSnap.exists() ? (schedSnap.data().activities || []).length : 0;
-      response = count > 0 ? `ישנן ${count} פעילויות בלוז היום.` : "לוח הזמנים להיום ריק.";
-      router.push("/");
-    } else if (normalized.includes("תורן") || normalized.includes("מי אחראי")) {
-      const schedSnap = await getDoc(doc(db, "schedules", today));
-      const dutyId = schedSnap.exists() ? (schedSnap.data().dutyInstructorId || schedSnap.data().dutyId) : null;
-      if (dutyId) {
-        const userDoc = await getDoc(doc(db, "users", dutyId));
-        response = `המדריך התורן היום הוא ${userDoc.exists() ? userDoc.data().name : "לא ידוע"}.`;
-      } else {
-        const [uSnap, aSnap] = await Promise.all([
-          getDocs(query(collection(db, "users"), where("role", "==", "instructor"))),
-          getDocs(query(collection(db, "staff_attendance"), where("date", "==", today)))
-        ]);
-        const absIds = new Set(aSnap.docs.filter(d => d.data().status !== "present").map(d => d.data().userId));
-        const avail = uSnap.docs.filter(d => !absIds.has(d.id)).map(d => d.data().name);
-        response = avail.length > 0 ? `טרם הוגדר תורן. מומלץ לשבץ את: ${avail.join(", ")}.` : "אין מדריכים זמינים.";
+            body: `${user?.displayName || "איש צוות"} ביקש היעדרות לתאריך ${actionData?.date || "היום"}`,
+            link: "/admin/staff-attendance",
+          }),
+        }).catch(() => {});
+        await loadAppData();
+        return null;
       }
-      router.push("/");
-    } else if (normalized.includes("דוח") || normalized.includes("דיווח") || normalized.includes("אקסל")) {
-      response = "אני פותח את עמוד הדוחות.";
-      router.push("/reports");
-    } else if (normalized.includes("שלום") || normalized.includes("היי") || normalized.includes("בוקר טוב")) {
-      response = `שלום ${user?.displayName?.split(" ")[0] || ""}! איך אני יכול לעזור?`;
-    } else if (normalized.includes("מי חסר") || normalized.includes("נוכחות")) {
-      const [aSnap, pSnap] = await Promise.all([
-        getDocs(query(collection(db, "attendance"), where("date", "==", today), where("status", "==", "present"))),
-        getDocs(query(collection(db, "patients"), where("status", "==", "active")))
-      ]);
-      const miss = pSnap.size - aSnap.size;
-      response = miss > 0 ? `ישנם ${miss} מטופלים שטרם נרשמו כנוכחים.` : "כל המטופלים נוכחים היום.";
-      router.push("/admin/patient-attendance");
-    } else if (normalized.includes("שלח הודעה") || normalized.includes("תשלח הודעה") || normalized.includes("תשלחי הודעה")) {
-      // Improved regex to handle optional prefixes like "ל", "אל", "עבור"
-      const match = text.match(/(?:שלח|תשלח|תשלחי)\s+הודעה\s+(?:ל|אל|עבור)?\s*([^\s]+)\s+(.+)/i);
-      if (match) {
-        let recipientName = match[1];
-        const messageBody = match[2];
-        
-        // Strip common Hebrew prefixes if they are attached to the name
-        if (recipientName.startsWith("ל") && recipientName.length > 2) {
-          recipientName = recipientName.substring(1);
-        }
 
-        try {
-          const usersSnap = await getDocs(query(collection(db, "users"), limit(100)));
-          const targetUser = usersSnap.docs.find(d => {
-            const name = d.data().name?.toLowerCase() || "";
-            return name.includes(recipientName.toLowerCase()) || recipientName.toLowerCase().includes(name);
+      if (action === "approve_absence" || action === "reject_absence") {
+        const targetName = (actionData?.userName || "").toLowerCase();
+        const pending = appData?.absences.pendingRequests || [];
+        const match = pending.find((r) => r.userName.toLowerCase().includes(targetName) || targetName.includes(r.userName.toLowerCase()));
+        if (match) {
+          await updateDoc(doc(db, "absence_requests", match.id), {
+            status: action === "approve_absence" ? "approved" : "rejected",
           });
-
-          if (targetUser) {
-            const targetData = targetUser.data();
-            const res = await fetch("/api/notify", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                userId: targetUser.id,
-                title: `הודעה מ${user?.displayName || "איש צוות"}`,
-                body: messageBody,
-                senderId: user?.uid,
-                senderName: user?.displayName
-              })
-            });
-
-            if (res.ok) {
-              response = `שלחתי את ההודעה ל${targetData.name}: "${messageBody}"`;
-            } else {
-              response = `הייתה תקלה בשליחת ההודעה ל${targetData.name}.`;
-            }
-          } else {
-            response = `לא מצאתי איש צוות בשם ${recipientName}.`;
-          }
-        } catch (e) {
-          response = "שגיאה בחיפוש המשתמש.";
+          await loadAppData();
         }
-      } else {
-        response = "בכדי לשלוח הודעה, כתוב למשל: 'שלח הודעה לעמיר מה נשמע?'";
+        return null;
+      }
+
+      if (action === "send_notification") {
+        const targetName = (actionData?.targetName || "").toLowerCase();
+        const staff = appData?.staffList || [];
+        const targetUser = staff.find((s) => s.name.toLowerCase().includes(targetName) || targetName.includes(s.name.toLowerCase()));
+        if (targetUser) {
+          await fetch("/api/notify", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              userId: targetUser.id,
+              title: `הודעה מ${user?.displayName || "איש צוות"}`,
+              body: actionData?.message || "",
+              senderId: user?.uid,
+              senderName: user?.displayName,
+            }),
+          });
+        }
+        return null;
+      }
+    } catch (e) {
+      console.error("Action execution error:", e);
+      return "אירעה שגיאה בביצוע הפעולה.";
+    }
+
+    return null;
+  };
+
+  /* ─── Send message to Gemini ─── */
+  const handleSend = async (text: string) => {
+    if (!text.trim() || loading) return;
+
+    // Handle confirmation of pending action
+    const confirmWords = ["כן", "בסדר", "אוקי", "אוקי", "כן תוסיף", "תעשה זאת", "בטח", "אישור"];
+    const cancelWords = ["לא", "ביטול", "בטל", "לא רוצה"];
+    const lc = text.toLowerCase().trim();
+
+    if (pendingResult) {
+      if (confirmWords.some((w) => lc.includes(w))) {
+        setMessages((prev) => [...prev, { role: "user", content: text }]);
+        setInput("");
+        setLoading(true);
+        const errMsg = await executeAction(pendingResult);
+        setMessages((prev) => [...prev, {
+          role: "assistant",
+          content: errMsg || pendingResult.response.replace("?", "") + " — בוצע! ✅",
+        }]);
+        setPendingResult(null);
+        setLoading(false);
+        return;
+      } else if (cancelWords.some((w) => lc.includes(w))) {
+        setMessages((prev) => [
+          ...prev,
+          { role: "user", content: text },
+          { role: "assistant", content: "בסדר, ביטלתי את הפעולה." },
+        ]);
+        setInput("");
+        setPendingResult(null);
+        return;
       }
     }
 
-    setMessages(prev => [...prev, { role: "assistant", content: response }]);
-    setLoading(false);
+    setMessages((prev) => [...prev, { role: "user", content: text }]);
+    setInput("");
+    setLoading(true);
+
+    try {
+      const userContext = {
+        userName: user?.displayName || "משתמש",
+        userRole: isAdmin ? "admin" : isManager ? "manager" : "instructor",
+        isAdmin: !!isAdmin,
+        isManager: !!(isAdmin || isManager),
+      };
+
+      const conversationMessages = [
+        ...messages,
+        { role: "user" as const, content: text },
+      ];
+
+      const res = await fetch("/api/assistant", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messages: conversationMessages,
+          userContext,
+          appData: appData || { today: new Date().toISOString().split("T")[0], schedule: { activities: [], hasDutyInstructor: false }, attendance: { totalActive: 0, totalPresent: 0, missingCount: 0 }, shopping: { pendingCount: 0, pendingItems: [], recentPurchases: [] }, absences: { pendingCount: 0, pendingRequests: [] }, staffList: [], patientList: [] },
+        }),
+      });
+
+      const result: AssistantResult = await res.json();
+
+      if (result.requiresConfirmation) {
+        setPendingResult(result);
+        setMessages((prev) => [...prev, {
+          role: "assistant",
+          content: `${result.response}\n\n_${result.confirmationMessage}_ (ענה כן/לא)`,
+        }]);
+      } else {
+        setPendingResult(null);
+        const errMsg = result.action && result.action !== "none" ? await executeAction(result) : null;
+        setMessages((prev) => [...prev, {
+          role: "assistant",
+          content: errMsg || result.response,
+        }]);
+      }
+    } catch (e) {
+      console.error("Assistant fetch error:", e);
+      setMessages((prev) => [...prev, { role: "assistant", content: "שגיאת תקשורת. בדוק את החיבור ונסה שוב." }]);
+    } finally {
+      setLoading(false);
+    }
   };
+
+  /* ─── Voice input ─── */
+  const toggleListening = () => {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert("הדפדפן שלך לא תומך בזיהוי קולי. נסה כרום או ספארי.");
+      return;
+    }
+    if (isListening) { setIsListening(false); return; }
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = "he-IL";
+    recognition.continuous = false;
+    recognition.interimResults = true;
+    recognition.onstart = () => setIsListening(true);
+    recognition.onend = () => setIsListening(false);
+    recognition.onerror = () => setIsListening(false);
+    recognition.onresult = (event: any) => {
+      const transcript = Array.from(event.results).map((r: any) => r[0].transcript).join("");
+      setInput(transcript);
+      if (event.results[0].isFinal) handleSend(transcript);
+    };
+    recognition.start();
+  };
+
   if (authLoading || !user || pathname === "/login") return null;
 
   return (
@@ -508,10 +456,9 @@ export function SmartAssistant() {
             exit={{ opacity: 0, scale: 0.95, y: 20, filter: "blur(10px)" }}
             className="absolute bottom-20 right-0 md:right-auto md:left-0 w-[calc(100vw-48px)] md:w-[400px] h-[calc(100vh-140px)] md:h-[600px] bg-[var(--surface)]/90 backdrop-blur-3xl border border-[var(--border-strong)] rounded-[32px] shadow-[0_32px_64px_-12px_rgba(0,0,0,0.5)] flex flex-col overflow-hidden pointer-events-auto"
           >
-            {/* Header: Premium Gradient & Glass */}
+            {/* Header */}
             <div className="relative p-6 border-b border-[var(--border)] overflow-hidden">
               <div className="absolute inset-0 bg-gradient-to-br from-[var(--primary)]/10 to-transparent pointer-events-none" />
-              
               <div className="relative flex items-center justify-between mb-4">
                 <div className="flex items-center gap-4">
                   <div className="relative">
@@ -523,47 +470,62 @@ export function SmartAssistant() {
                   <div>
                     <h3 className="text-base font-black text-[var(--foreground)] tracking-tight">Hosen AI</h3>
                     <div className="flex items-center gap-1.5 mt-0.5">
-                      <span className="text-[10px] text-emerald-500 font-black uppercase tracking-[0.1em]">מערכת פעילה</span>
+                      {dataLoading
+                        ? <span className="text-[10px] text-amber-500 font-black uppercase tracking-[0.1em]">טוען נתונים...</span>
+                        : <span className="text-[10px] text-emerald-500 font-black uppercase tracking-[0.1em]">מערכת פעילה</span>
+                      }
                     </div>
                   </div>
                 </div>
-                <button 
-                  onClick={() => setIsOpen(false)}
-                  className="p-2.5 hover:bg-[var(--foreground)]/5 rounded-2xl transition-all active:scale-90"
-                >
-                  <X className="w-5 h-5 text-[var(--text-secondary)]" />
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={loadAppData}
+                    disabled={dataLoading}
+                    title="רענן נתונים"
+                    className="p-2 hover:bg-[var(--foreground)]/5 rounded-xl transition-all disabled:opacity-30"
+                  >
+                    <RefreshCw className={`w-4 h-4 text-[var(--text-secondary)] ${dataLoading ? "animate-spin" : ""}`} />
+                  </button>
+                  <button
+                    onClick={() => setIsOpen(false)}
+                    className="p-2.5 hover:bg-[var(--foreground)]/5 rounded-2xl transition-all active:scale-90"
+                  >
+                    <X className="w-5 h-5 text-[var(--text-secondary)]" />
+                  </button>
+                </div>
               </div>
 
-              {/* Proactive Insights: Sleek List */}
-              <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
-                {insights.map(insight => (
-                  <motion.div 
-                    key={insight.id}
-                    initial={{ x: 20, opacity: 0 }}
-                    animate={{ x: 0, opacity: 1 }}
-                    onClick={() => insight.actionPath && (router.push(insight.actionPath), setIsOpen(false))}
-                    className={`p-3 rounded-2xl border text-[10px] font-black flex items-center gap-2.5 transition-all cursor-pointer hover:bg-[var(--foreground)]/[0.03] group whitespace-nowrap shrink-0 ${
-                      insight.type === "warning" ? "bg-amber-500/5 border-amber-500/20 text-amber-700" :
-                      insight.type === "success" ? "bg-emerald-500/5 border-emerald-500/20 text-emerald-700" :
-                      "bg-[var(--primary)]/5 border-[var(--primary)]/20 text-[var(--primary)]"
-                    }`}
-                  >
-                    <insight.icon className="w-4 h-4 shrink-0 opacity-70" />
-                    <span className="flex-1 uppercase tracking-wider">{insight.text}</span>
-                    <ArrowRight className="w-3 h-3 opacity-40 group-hover:opacity-100 transition-all" />
-                  </motion.div>
-                ))}
-              </div>
+              {/* Insights */}
+              {insights.length > 0 && (
+                <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+                  {insights.map((insight) => (
+                    <motion.div
+                      key={insight.id}
+                      initial={{ x: 20, opacity: 0 }}
+                      animate={{ x: 0, opacity: 1 }}
+                      onClick={() => insight.actionPath && (router.push(insight.actionPath), setIsOpen(false))}
+                      className={`p-3 rounded-2xl border text-[10px] font-black flex items-center gap-2.5 transition-all cursor-pointer hover:bg-[var(--foreground)]/[0.03] group whitespace-nowrap shrink-0 ${
+                        insight.type === "warning" ? "bg-amber-500/5 border-amber-500/20 text-amber-700" :
+                        insight.type === "success" ? "bg-emerald-500/5 border-emerald-500/20 text-emerald-700" :
+                        "bg-[var(--primary)]/5 border-[var(--primary)]/20 text-[var(--primary)]"
+                      }`}
+                    >
+                      <insight.icon className="w-4 h-4 shrink-0 opacity-70" />
+                      <span className="flex-1 uppercase tracking-wider">{insight.text}</span>
+                      <ArrowRight className="w-3 h-3 opacity-40 group-hover:opacity-100 transition-all" />
+                    </motion.div>
+                  ))}
+                </div>
+              )}
             </div>
 
-            {/* Chat Area: Clean Typography */}
+            {/* Chat area */}
             <div className="flex-1 overflow-y-auto p-6 space-y-6 no-scrollbar bg-gradient-to-b from-transparent to-[var(--background)]/30">
               {messages.map((m, i) => (
                 <div key={i} className={`flex ${m.role === "user" ? "justify-start" : "justify-end"}`}>
-                  <div className={`group relative max-w-[85%] p-4 rounded-3xl text-sm font-medium leading-relaxed shadow-sm ${
-                    m.role === "user" 
-                      ? "bg-[var(--surface-raised)] text-[var(--foreground)] rounded-tr-none border border-[var(--border)]" 
+                  <div className={`group relative max-w-[85%] p-4 rounded-3xl text-sm font-medium leading-relaxed shadow-sm whitespace-pre-line ${
+                    m.role === "user"
+                      ? "bg-[var(--surface-raised)] text-[var(--foreground)] rounded-tr-none border border-[var(--border)]"
                       : "bg-[var(--primary)] text-white rounded-tl-none shadow-[0_8px_16px_-4px_rgba(var(--primary-rgb),0.3)]"
                   }`}>
                     {m.content}
@@ -580,30 +542,30 @@ export function SmartAssistant() {
               <div ref={chatEndRef} />
             </div>
 
-            {/* Input Area: Integrated & High-End */}
+            {/* Input area */}
             <div className="p-6 bg-[var(--surface)] border-t border-[var(--border)]">
               <div className="relative flex items-center gap-3">
                 <div className="relative flex-1 group">
-                  <input 
+                  <input
                     value={input}
-                    onChange={e => setInput(e.target.value)}
-                    onKeyDown={e => e.key === "Enter" && handleCommand(input)}
-                    placeholder={isListening ? "אני מקשיב..." : "איך אני יכול לעזור היום?"}
+                    onChange={(e) => setInput(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSend(input)}
+                    placeholder={isListening ? "אני מקשיב..." : "כתוב בחופשיות — אני מבין הכל..."}
                     className={`w-full bg-[var(--background)] border ${isListening ? "border-rose-500/50 shadow-[0_0_20px_rgba(244,63,94,0.15)]" : "border-[var(--border-strong)]"} rounded-[20px] py-4 px-5 pl-14 text-sm text-[var(--foreground)] placeholder:text-[var(--text-muted)] focus:border-[var(--primary)] focus:bg-[var(--surface-raised)] outline-none transition-all duration-300`}
                   />
-                  <button 
-                    onClick={() => handleCommand(input)}
+                  <button
+                    onClick={() => handleSend(input)}
                     disabled={!input.trim() || loading || isListening}
                     className="absolute left-2.5 top-2.5 w-9 h-9 bg-[var(--primary)] hover:bg-[var(--primary)]/90 disabled:opacity-20 text-white rounded-xl transition-all flex items-center justify-center shadow-lg active:scale-90"
                   >
                     <Send className="w-4 h-4" />
                   </button>
                 </div>
-                <button 
+                <button
                   onClick={toggleListening}
                   className={`p-4 rounded-[20px] transition-all duration-300 ${
-                    isListening 
-                      ? "bg-rose-500 text-white animate-pulse shadow-[0_0_20px_rgba(244,63,94,0.3)]" 
+                    isListening
+                      ? "bg-rose-500 text-white animate-pulse shadow-[0_0_20px_rgba(244,63,94,0.3)]"
                       : "bg-[var(--background)] text-[var(--text-secondary)] border border-[var(--border-strong)] hover:border-[var(--primary)] hover:text-[var(--primary)] active:scale-90"
                   }`}
                 >
@@ -611,9 +573,9 @@ export function SmartAssistant() {
                 </button>
               </div>
               <div className="flex items-center justify-between mt-5 px-1">
-                <span className="text-[9px] font-black text-[var(--text-muted)] uppercase tracking-[0.2em]">Hosen AI v2.0</span>
+                <span className="text-[9px] font-black text-[var(--text-muted)] uppercase tracking-[0.2em]">Hosen AI · Gemini Flash</span>
                 <div className="flex items-center gap-3 text-[var(--text-muted)]">
-                  <Command className="w-3 h-3" />
+                  <Sparkles className="w-3 h-3" />
                   <Zap className="w-3 h-3" />
                 </div>
               </div>
@@ -622,7 +584,7 @@ export function SmartAssistant() {
         )}
       </AnimatePresence>
 
-      {/* Floating Action Button: Professional & Animated */}
+      {/* FAB */}
       <motion.button
         whileHover={{ scale: 1.05, y: -2 }}
         whileTap={{ scale: 0.95 }}
@@ -636,8 +598,6 @@ export function SmartAssistant() {
         <div className="relative z-10">
           {isOpen ? <X className="w-5 h-5" /> : <Bot className="w-6 h-6" />}
         </div>
-        
-        {/* Unread / Attention Indicator */}
         {!isOpen && insights.length > 0 && (
           <span className="absolute top-3 right-3 w-2.5 h-2.5 bg-rose-500 border-2 border-[var(--primary)] rounded-full z-20 animate-bounce" />
         )}
