@@ -5,9 +5,9 @@ import { useAuth } from "@/context/AuthContext";
 import { db } from "@/lib/firebase/config";
 import { 
   collection, query, where, orderBy, limit, 
-  onSnapshot, doc, updateDoc, arrayUnion, Timestamp 
+  onSnapshot, doc, updateDoc, arrayUnion, arrayRemove, deleteDoc, Timestamp 
 } from "firebase/firestore";
-import { Bell, X, Check, ExternalLink, Clock, Info, CheckCircle2 } from "lucide-react";
+import { Bell, X, Check, ExternalLink, Clock, Info, Trash2 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { he } from "date-fns/locale";
 import { motion, AnimatePresence } from "framer-motion";
@@ -61,6 +61,19 @@ export function NotificationCenter() {
       });
     } catch (e) {
       console.error("Failed to mark as read:", e);
+    }
+  };
+
+  const deleteNotification = async (id: string) => {
+    if (!user) return;
+    try {
+      // We remove the user from recipientIds. If it becomes empty, we could delete the doc,
+      // but simple removal from recipientIds is enough for the user to "delete" it.
+      await updateDoc(doc(db, "notifications", id), {
+        recipientIds: arrayRemove(user.uid)
+      });
+    } catch (e) {
+      console.error("Failed to delete notification:", e);
     }
   };
 
@@ -200,6 +213,13 @@ export function NotificationCenter() {
                                       <ExternalLink className="w-3.5 h-3.5" />
                                     </Link>
                                   )}
+                                  <button 
+                                    onClick={() => deleteNotification(n.id)}
+                                    className="p-2 rounded-xl bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white transition-all shadow-sm"
+                                    title="מחק התראה"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
                                 </div>
                               </div>
                             </div>

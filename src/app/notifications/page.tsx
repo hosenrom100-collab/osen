@@ -5,9 +5,9 @@ import { useAuth } from "@/context/AuthContext";
 import { db } from "@/lib/firebase/config";
 import { 
   collection, query, where, orderBy, limit, 
-  onSnapshot, doc, updateDoc, arrayUnion 
+  onSnapshot, doc, updateDoc, arrayUnion, arrayRemove 
 } from "firebase/firestore";
-import { Bell, Clock, ChevronRight, ExternalLink, CheckCircle2, MessageSquare } from "lucide-react";
+import { Bell, Clock, ChevronRight, ExternalLink, CheckCircle2, MessageSquare, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { he } from "date-fns/locale";
 import { motion, AnimatePresence } from "framer-motion";
@@ -60,6 +60,17 @@ export default function NotificationsPage() {
       });
     } catch (e) {
       console.error("Failed to mark as read:", e);
+    }
+  };
+
+  const deleteNotification = async (id: string) => {
+    if (!user) return;
+    try {
+      await updateDoc(doc(db, "notifications", id), {
+        recipientIds: arrayRemove(user.uid)
+      });
+    } catch (e) {
+      console.error("Failed to delete notification:", e);
     }
   };
 
@@ -159,20 +170,13 @@ export default function NotificationsPage() {
                         </Link>
                       ) : <div />}
 
-                      <div className="flex items-center gap-2">
-                        {isRead ? (
-                          <div className="flex items-center gap-1.5 text-[10px] font-bold text-[var(--muted)] opacity-40">
-                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-                            נקרא
-                          </div>
-                        ) : (
-                          <button
-                            onClick={(e) => { e.stopPropagation(); markAsRead(n.id); }}
-                            className="text-[10px] font-black text-emerald-500 hover:bg-emerald-500/10 px-3 py-1.5 rounded-xl border border-emerald-500/20 transition-all"
-                          >
-                            סמן כנקרא
-                          </button>
-                        )}
+                        <button
+                          onClick={(e) => { e.stopPropagation(); deleteNotification(n.id); }}
+                          className="p-2 rounded-xl text-rose-500 hover:bg-rose-500/10 transition-all border border-transparent hover:border-rose-500/20"
+                          title="מחק הודעה"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
                       </div>
                     </div>
                   </div>

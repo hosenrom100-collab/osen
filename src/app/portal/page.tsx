@@ -172,13 +172,25 @@ export default function ParticipantPortal() {
     const content = newMessage.trim();
     setNewMessage("");
     try {
-      await setDoc(doc(collection(db, "messages")), {
+      const msgRef = doc(collection(db, "messages"));
+      await setDoc(msgRef, {
         participants: [user.uid, swData.id],
         senderId: user.uid,
         receiverId: swData.id,
         content,
         timestamp: serverTimestamp(),
         read: false,
+      });
+
+      // Create a notification for the SW
+      await setDoc(doc(collection(db, "notifications")), {
+        title: `הודעה חדשה מ${patient?.name || "משתתף"}`,
+        body: content.length > 50 ? content.substring(0, 50) + "..." : content,
+        recipientIds: [swData.id],
+        senderId: user.uid,
+        createdAt: serverTimestamp(),
+        readBy: [],
+        link: `/patients/${patient?.id}?tab=messages`
       });
     } catch (e) { console.error(e); }
   }

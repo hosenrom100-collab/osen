@@ -142,6 +142,17 @@ export default function PatientDetailPage() {
         timestamp: serverTimestamp(),
         read: false,
       });
+
+      // Create a notification for the participant
+      await setDoc(doc(collection(db, "notifications")), {
+        title: `הודעה חדשה מהצוות`,
+        body: content.length > 50 ? content.substring(0, 50) + "..." : content,
+        recipientIds: [participantUid],
+        senderId: authUser.uid,
+        createdAt: serverTimestamp(),
+        readBy: [],
+        link: `/portal`
+      });
     } catch (e) { console.error(e); }
   }
 
