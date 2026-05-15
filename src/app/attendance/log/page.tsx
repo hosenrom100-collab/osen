@@ -64,6 +64,8 @@ function AttendanceLogPageContent() {
       const allRecords: AttendanceRecord[] = [];
       attendanceSnap.forEach(doc => {
         const data = doc.data();
+        if (data.status === "unset") return;
+        
         const patientInfo = patientsMap[data.patientId] || { name: "מטופל לא ידוע", hosenType: "unknown" };
         allRecords.push({
           id: doc.id,

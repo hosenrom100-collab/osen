@@ -69,7 +69,19 @@ export default function PatientDetailPage() {
         limit(50)
       );
       const attSnap = await getDocs(attQuery);
-      setAttendance(attSnap.docs.map(d => ({ id: d.id, ...d.data() } as Attendance)));
+      const rawAtt = attSnap.docs.map(d => ({ id: d.id, ...d.data() } as Attendance));
+      
+      // De-duplicate by date, keeping the first (latest due to orderBy("date", "desc"))
+      const uniqueAtt: Attendance[] = [];
+      const seenDates = new Set<string>();
+      rawAtt.forEach(record => {
+        if (!seenDates.has(record.date) && (record.status as string) !== "unset") {
+          seenDates.add(record.date);
+          uniqueAtt.push(record);
+        }
+      });
+      
+      setAttendance(uniqueAtt);
     } catch (err) { console.error(err); } finally { setLoading(false); }
   };
 

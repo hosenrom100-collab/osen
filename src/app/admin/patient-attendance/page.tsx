@@ -3,7 +3,7 @@
 import { RoleGuard } from "@/components/auth/RoleGuard";
 import { useState, useEffect, Suspense } from "react";
 import { db } from "@/lib/firebase/config";
-import { collection, getDocs, query, where, doc, setDoc, orderBy } from "firebase/firestore";
+import { collection, getDocs, query, where, doc, setDoc, orderBy, deleteDoc } from "firebase/firestore";
 import {
   ClipboardList, ArrowRight, Calendar as CalendarIcon, Search,
   Loader2, Send, CheckCircle, Check, X, ChevronLeft, ChevronRight, Info,
@@ -130,12 +130,16 @@ function AttendancePageContent() {
     setAttendance(prev => ({ ...prev, [pId]: newStatus }));
     try {
       const attId = `${pId}_${selectedDate}`;
-      await setDoc(doc(db, "attendance", attId), {
-        patientId: pId,
-        date: selectedDate,
-        status: newStatus,
-        updatedAt: new Date().toISOString()
-      });
+      if (newStatus === "unset") {
+        await deleteDoc(doc(db, "attendance", attId));
+      } else {
+        await setDoc(doc(db, "attendance", attId), {
+          patientId: pId,
+          date: selectedDate,
+          status: newStatus,
+          updatedAt: new Date().toISOString()
+        });
+      }
     } catch (err) { console.error(err); }
   };
 
