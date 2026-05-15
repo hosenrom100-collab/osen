@@ -37,9 +37,9 @@ const ROLE_HE: Record<string, string> = {
 
 export function DesktopSidebar() {
   const pathname = usePathname();
-  const { user, roles, role, isManager, photoURL } = useAuth();
+  const { user, roles, role, isManager, photoURL, isParticipant } = useAuth();
 
-  if (pathname === "/login") return null;
+  if (pathname === "/login" || pathname.startsWith("/portal") || isParticipant) return null;
 
   const initials = (user?.displayName || user?.email || "?").charAt(0).toUpperCase();
   const displayRole = role || roles[0] || "";

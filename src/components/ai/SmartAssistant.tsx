@@ -62,7 +62,7 @@ interface AssistantResult {
 /* ─── Component ─── */
 
 export function SmartAssistant() {
-  const { user, loading: authLoading, isAdmin, isManager } = useAuth();
+  const { user, loading: authLoading, isAdmin, isManager, role, isParticipant } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
 
@@ -444,7 +444,7 @@ export function SmartAssistant() {
     recognition.start();
   };
 
-  if (authLoading || !user || pathname === "/login") return null;
+  if (authLoading || !user || pathname === "/login" || pathname.startsWith("/portal") || isParticipant || role === "participant") return null;
 
   return (
     <div className="fixed bottom-24 md:bottom-8 right-4 md:right-auto md:left-8 z-[100] font-sans pointer-events-none">

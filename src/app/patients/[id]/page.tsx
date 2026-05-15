@@ -6,13 +6,13 @@ import { PatientForm } from "@/components/patients/PatientForm";
 import { useState, useEffect, useRef } from "react";
 import { db } from "@/lib/firebase/config";
 import {
-  doc, getDoc, collection, query, where, orderBy, getDocs, limit, updateDoc
+  doc, getDoc, collection, query, where, orderBy, getDocs, limit, updateDoc, onSnapshot, serverTimestamp, setDoc,
 } from "firebase/firestore";
 import {
   Calendar, Loader2, Shield,
   Edit3, CheckCircle, CheckCircle2,
   AlertCircle, ChevronLeft, Printer, Download, FileText,
-  X, Check, Info, History, Send, Bell
+  X, Check, Info, History, Send, Bell, MessageCircle,
 } from "lucide-react";
 import { useRouter, useParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
@@ -46,14 +46,17 @@ interface Attendance { id: string; date: string; status: "present" | "absent" | 
 
 export default function PatientDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const { isAdmin, isManager } = useAuth();
+  const { isAdmin, isManager, user: authUser } = useAuth();
   const router = useRouter();
   const reportRef = useRef<HTMLDivElement>(null);
 
   const [patient, setPatient] = useState<Patient | null>(null);
   const [attendance, setAttendance] = useState<Attendance[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"overview" | "attendance" | "reports">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "attendance" | "reports" | "messages">("overview");
+  const [messages, setMessages] = useState<any[]>([]);
+  const [participantUid, setParticipantUid] = useState<string | null>(null);
+  const [newMessage, setNewMessage] = useState("");
   const [groups, setGroups] = useState<Group[]>([]);
   const [programs, setPrograms] = useState<{ id: string; name: string }[]>([]);
   const [reportLoading, setReportLoading] = useState(false);
@@ -101,8 +104,44 @@ export default function PatientDetailPage() {
       });
       
       setAttendance(uniqueAtt);
+      const uSnap = await getDocs(query(collection(db, "users"), where("patientId", "==", id), limit(1)));
+      if (!uSnap.empty) setParticipantUid(uSnap.docs[0].id);
+
     } catch (err) { console.error(err); } finally { setLoading(false); }
   };
+
+  // Real-time messages
+  useEffect(() => {
+    if (!participantUid || activeTab !== "messages") return;
+
+    const q = query(
+      collection(db, "messages"),
+      where("participants", "array-contains" as any, participantUid),
+      orderBy("timestamp", "asc")
+    );
+
+    const unsubscribe = onSnapshot(q, (snap) => {
+      setMessages(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    });
+
+    return () => unsubscribe();
+  }, [participantUid, activeTab]);
+
+  async function sendMessage() {
+    if (!newMessage.trim() || !authUser || !participantUid) return;
+    const content = newMessage.trim();
+    setNewMessage("");
+    try {
+      await setDoc(doc(collection(db, "messages")), {
+        participants: [authUser.uid, participantUid],
+        senderId: authUser.uid,
+        receiverId: participantUid,
+        content,
+        timestamp: serverTimestamp(),
+        read: false,
+      });
+    } catch (e) { console.error(e); }
+  }
 
   function effectiveEndDate(p: Patient): Date | null {
     if (p.endDate) { try { const d = parseISO(p.endDate); return isValid(d) ? d : null; } catch { return null; } }
@@ -273,6 +312,7 @@ export default function PatientDetailPage() {
              {[
                { id: "overview", label: "סקירה", icon: Info },
                { id: "attendance", label: "נוכחות", icon: History },
+               { id: "messages", label: "הודעות", icon: MessageCircle },
                { id: "reports", label: "דוחות", icon: FileText },
              ].map((tab) => (
                <button 

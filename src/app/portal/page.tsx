@@ -1,22 +1,24 @@
 "use client";
 
 import { useAuth } from "@/context/AuthContext";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, Fragment } from "react";
 import { db } from "@/lib/firebase/config";
 import {
   collection, getDocs, doc, getDoc, updateDoc, setDoc,
   query, orderBy, arrayUnion, arrayRemove,
-  where, limit,
+  where, limit, onSnapshot, serverTimestamp,
 } from "firebase/firestore";
 import {
   Calendar, MapPin, Users, Check, X, Clock, Loader2,
-  Plus, LogOut, User,
+  Plus, LogOut, User, MessageCircle, BarChart3, Send,
+  Moon, Sun,
 } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { he } from "date-fns/locale";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { NotificationCenter } from "@/components/notifications/NotificationCenter";
+import { useSettings } from "@/context/SettingsContext";
 
 /* ─── Types ──────────────────────────────────────────────────────────────── */
 
@@ -41,6 +43,7 @@ export default function ParticipantPortal() {
     user, logout, role, isWhitelisted,
     assignedGroups, preferredProgramIds, onboardingComplete,
   } = useAuth();
+  const { theme, setTheme } = useSettings();
   const router = useRouter();
 
   const [programs,   setPrograms]   = useState<Program[]>([]);
@@ -54,6 +57,12 @@ export default function ParticipantPortal() {
   const [idNumber, setIdNumber] = useState("");
   const [error,     setError]     = useState<string | null>(null);
   const [saving,    setSaving]    = useState(false);
+  const [activeTab, setActiveTab] = useState<"schedule" | "attendance" | "messages">("schedule");
+  const [patientData, setPatientData] = useState<any>(null);
+  const [swData, setSwData] = useState<any>(null);
+  const [attendanceHistory, setAttendanceHistory] = useState<any[]>([]);
+  const [messages, setMessages] = useState<any[]>([]);
+  const [newMessage, setNewMessage] = useState("");
 
   const today      = useMemo(() => format(new Date(), "yyyy-MM-dd"), []);
   const todayLabel = useMemo(() => format(new Date(), "EEEE, d בMMMM", { locale: he }), []);
@@ -68,8 +77,88 @@ export default function ParticipantPortal() {
   }, [user, role, isWhitelisted, router]);
 
   useEffect(() => {
-    if (user) loadScheduleAndRefs();
-  }, [user, today]);
+    if (user && onboardingComplete) {
+      loadScheduleAndRefs();
+      loadPatientAndAttendance();
+    }
+  }, [user, today, onboardingComplete]);
+
+  async function loadPatientAndAttendance() {
+    if (!user) return;
+    try {
+      const uSnap = await getDoc(doc(db, "users", user.uid));
+      if (!uSnap.exists()) return;
+      const uData = uSnap.data();
+      if (!uData.patientId) return;
+
+      const pSnap = await getDoc(doc(db, "patients", uData.patientId));
+      if (pSnap.exists()) {
+        const pData = pSnap.data();
+        setPatientData({ id: pSnap.id, ...pData });
+
+        if (pData.assignedWorkerId) {
+          const swSnap = await getDoc(doc(db, "users", pData.assignedWorkerId));
+          if (swSnap.exists()) setSwData({ id: swSnap.id, ...swSnap.data() });
+        }
+      }
+
+      // Load attendance history
+      const attSnap = await getDocs(query(
+        collection(db, "attendance"),
+        where("patientId", "==", uData.patientId),
+        orderBy("date", "desc")
+      ));
+      
+      // Deduplicate by date (keep only one status per day, priority to 'present')
+      const dailyStatus: Record<string, string> = {};
+      attSnap.docs.forEach(d => {
+        const data = d.data();
+        if (!dailyStatus[data.date] || data.status === 'present') {
+          dailyStatus[data.date] = data.status;
+        }
+      });
+
+      const history = Object.entries(dailyStatus)
+        .map(([date, status]) => ({ date, status }))
+        .sort((a, b) => b.date.localeCompare(a.date));
+
+      setAttendanceHistory(history);
+    } catch (e) { console.error(e); }
+  }
+
+  // Real-time messages
+  useEffect(() => {
+    if (!user || !onboardingComplete || activeTab !== "messages") return;
+
+    const uId = user.uid;
+    const q = query(
+      collection(db, "messages"),
+      where("participants", "array-contains" as any, uId),
+      orderBy("timestamp", "asc")
+    );
+
+    const unsubscribe = onSnapshot(q, (snap) => {
+      setMessages(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    });
+
+    return () => unsubscribe();
+  }, [user, onboardingComplete, activeTab]);
+
+  async function sendMessage() {
+    if (!newMessage.trim() || !user || !swData) return;
+    const content = newMessage.trim();
+    setNewMessage("");
+    try {
+      await setDoc(doc(collection(db, "messages")), {
+        participants: [user.uid, swData.id],
+        senderId: user.uid,
+        receiverId: swData.id,
+        content,
+        timestamp: serverTimestamp(),
+        read: false,
+      });
+    } catch (e) { console.error(e); }
+  }
 
   async function loadScheduleAndRefs() {
     setLoading(true);
@@ -224,6 +313,12 @@ export default function ParticipantPortal() {
           )}
           <div className="flex items-center gap-2 shrink-0">
             <NotificationCenter />
+            <button 
+              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+              className="p-1.5 rounded-lg text-[var(--muted)] hover:text-[var(--foreground)] transition-colors"
+            >
+              {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            </button>
             <span className="text-xs text-[var(--muted)] hidden md:inline">{user?.displayName?.split(" ")[0]}</span>
             <button onClick={logout}
               className="p-1.5 rounded-lg text-[var(--muted)] hover:text-[var(--foreground)] transition-colors">
@@ -278,7 +373,34 @@ export default function ParticipantPortal() {
 
         {/* ══ MAIN PORTAL VIEW ══ */}
         {onboardingComplete && (
-          <>
+          <Fragment>
+            {/* Tabs Navigation */}
+            <div className="flex bg-[var(--surface)] border border-[var(--border)] p-1 rounded-xl mb-6">
+              <button
+                onClick={() => setActiveTab("schedule")}
+                className={`flex-1 flex items-center justify-center gap-2 py-2 text-xs font-bold rounded-lg transition-all ${activeTab === 'schedule' ? 'bg-[var(--foreground)] text-[var(--background)]' : 'text-[var(--muted)]'}`}
+              >
+                <Calendar className="w-3.5 h-3.5" />
+                פעילויות
+              </button>
+              <button
+                onClick={() => setActiveTab("attendance")}
+                className={`flex-1 flex items-center justify-center gap-2 py-2 text-xs font-bold rounded-lg transition-all ${activeTab === 'attendance' ? 'bg-[var(--foreground)] text-[var(--background)]' : 'text-[var(--muted)]'}`}
+              >
+                <BarChart3 className="w-3.5 h-3.5" />
+                נוכחות
+              </button>
+              <button
+                onClick={() => setActiveTab("messages")}
+                className={`flex-1 flex items-center justify-center gap-2 py-2 text-xs font-bold rounded-lg transition-all ${activeTab === 'messages' ? 'bg-[var(--foreground)] text-[var(--background)]' : 'text-[var(--muted)]'}`}
+              >
+                <MessageCircle className="w-3.5 h-3.5" />
+                הודעות
+              </button>
+            </div>
+
+            {activeTab === "schedule" && (
+              <Fragment>
             {/* Date header */}
             <div className="flex items-center justify-between mb-5">
               <div>
@@ -403,11 +525,11 @@ export default function ParticipantPortal() {
                             {isBusy ? (
                               <Loader2 className="w-3.5 h-3.5 animate-spin" />
                             ) : isSignedUp ? (
-                              <><X className="w-3.5 h-3.5" />בטל</>
+                              <span className="flex items-center gap-1.5"><X className="w-3.5 h-3.5" />בטל</span>
                             ) : conflict ? (
                               "חופף"
                             ) : (
-                              <><Plus className="w-3.5 h-3.5" />הירשם</>
+                              <span className="flex items-center gap-1.5"><Plus className="w-3.5 h-3.5" />הירשם</span>
                             )}
                           </button>
                         )}
@@ -417,7 +539,88 @@ export default function ParticipantPortal() {
                 })}
               </div>
             )}
-          </>
+          </Fragment>
+        )}
+
+            {activeTab === "attendance" && (
+              <div className="space-y-6">
+                <div className="bg-teal-500/5 border border-teal-500/15 rounded-2xl p-6 text-center">
+                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-teal-400 mb-2">סה״כ ימי נוכחות</p>
+                  <h3 className="text-3xl font-black">{attendanceHistory.filter(h => h.status === 'present').length}</h3>
+                  <p className="text-xs text-[var(--muted)] mt-1">ימי נוכחות מתחילת ההשתתפות</p>
+                </div>
+
+                <div className="space-y-2">
+                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--muted)] px-1 mb-3">היסטוריה אחרונה</p>
+                  {attendanceHistory.map((h, i) => (
+                    <div key={i} className="flex items-center justify-between bg-[var(--surface)] border border-[var(--border)] rounded-xl px-4 py-3">
+                      <span className="text-sm font-bold">{format(parseISO(h.date), "dd/MM/yyyy", { locale: he })}</span>
+                      <span className={`text-[10px] font-black px-2 py-1 rounded ${h.status === 'present' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'}`}>
+                        {h.status === 'present' ? 'נוכח' : 'נעדר'}
+                      </span>
+                    </div>
+                  ))}
+                  {attendanceHistory.length === 0 && (
+                    <div className="text-center py-10 opacity-30 italic text-sm">לא נמצאו נתוני נוכחות</div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {activeTab === "messages" && (
+              <div className="flex flex-col h-[calc(100vh-280px)]">
+                {swData && (
+                  <div className="flex items-center gap-3 p-3 bg-teal-500/5 border border-teal-500/10 rounded-xl mb-4">
+                    <div className="w-8 h-8 rounded-full bg-teal-500/10 flex items-center justify-center text-teal-400 text-xs font-bold">
+                      {swData.name?.charAt(0)}
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold">שיחה עם {swData.name}</p>
+                      <p className="text-[9px] text-[var(--muted)]">עו"ס מלווה</p>
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex-1 overflow-y-auto space-y-3 mb-4 no-scrollbar pr-1">
+                  {messages.map((m, i) => (
+                    <div key={i} className={`flex ${m.senderId === user?.uid ? 'justify-end' : 'justify-start'}`}>
+                      <div className={`max-w-[80%] rounded-2xl px-4 py-2 text-sm ${
+                        m.senderId === user?.uid 
+                          ? 'bg-teal-600 text-white rounded-br-none' 
+                          : 'bg-[var(--surface)] border border-[var(--border)] text-[var(--foreground)] rounded-bl-none'
+                      }`}>
+                        {m.content}
+                        <p className={`text-[8px] mt-1 opacity-50 ${m.senderId === user?.uid ? 'text-right' : 'text-left'}`}>
+                          {m.timestamp?.toDate ? format(m.timestamp.toDate(), "HH:mm") : ""}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                  {messages.length === 0 && (
+                    <div className="text-center py-20 opacity-20 italic text-xs">אין הודעות עדיין</div>
+                  )}
+                </div>
+
+                <div className="flex gap-2 bg-[var(--surface)] border border-[var(--border)] p-2 rounded-2xl">
+                  <input
+                    type="text"
+                    value={newMessage}
+                    onChange={e => setNewMessage(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && sendMessage()}
+                    placeholder="כתוב הודעה לעו״ס..."
+                    className="flex-1 bg-transparent border-none outline-none text-sm px-2"
+                  />
+                  <button
+                    onClick={sendMessage}
+                    disabled={!newMessage.trim() || !swData}
+                    className="w-10 h-10 bg-teal-600 text-white rounded-xl flex items-center justify-center disabled:opacity-30 transition-all active:scale-90"
+                  >
+                    <Send className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            )}
+          </Fragment>
         )}
       </main>
     </div>
