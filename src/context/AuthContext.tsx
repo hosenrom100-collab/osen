@@ -101,11 +101,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setOnboardingComplete(!!data.onboardingComplete);
 
             // Sync profile info if missing or outdated
-            if (!data.photoURL && firebaseUser.photoURL) {
+            if ((!data.photoURL && firebaseUser.photoURL) || (!data.displayName && firebaseUser.displayName)) {
+              const newName = data.displayName || data.name || firebaseUser.displayName || "";
               await updateDoc(doc(db, "users", firebaseUser.uid), { 
-                photoURL: firebaseUser.photoURL,
-                displayName: data.displayName || firebaseUser.displayName,
-                email: data.email || firebaseUser.email
+                photoURL: data.photoURL || firebaseUser.photoURL || "",
+                displayName: newName,
+                name: newName,
+                email: data.email || firebaseUser.email || ""
               });
             }
           } else {
@@ -125,9 +127,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             // Auto-create document for staff who log in for the first time
             // This ensures they appear in the admin panel for approval
             const userRef = doc(db, "users", firebaseUser.uid);
+            const initialName = firebaseUser.displayName || "";
             await setDoc(userRef, {
               email: firebaseUser.email || "",
-              displayName: firebaseUser.displayName || "",
+              displayName: initialName,
+              name: initialName, // Sync for compatibility with other parts of the app
               photoURL: firebaseUser.photoURL || "",
               role: "employee",
               roles: ["employee"],

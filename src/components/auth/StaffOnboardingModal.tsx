@@ -21,6 +21,7 @@ export function StaffOnboardingModal() {
   const { user, onboardingComplete, role } = useAuth();
   const [isOpen, setIsOpen] = useState(!onboardingComplete && !!user);
   const [schedule, setSchedule] = useState<Record<string, { start: string, end: string }>>({});
+  const [name, setName] = useState(user?.displayName || "");
   const [loading, setLoading] = useState(false);
 
   if (onboardingComplete || !user || !isOpen || role === "participant") return null;
@@ -45,6 +46,10 @@ export function StaffOnboardingModal() {
   };
 
   const handleSave = async () => {
+    if (!name.trim()) {
+      alert("נא להזין שם מלא");
+      return;
+    }
     if (Object.keys(schedule).length === 0) {
       alert("יש לבחור לפחות יום עבודה אחד");
       return;
@@ -52,6 +57,8 @@ export function StaffOnboardingModal() {
     setLoading(true);
     try {
       await updateDoc(doc(db, "users", user.uid), {
+        displayName: name,
+        name: name,
         workSchedule: schedule,
         onboardingComplete: true
       });
@@ -80,11 +87,27 @@ export function StaffOnboardingModal() {
               </div>
               <div>
                 <h2 className="text-2xl font-black text-[var(--foreground)]">ברוך הבא!</h2>
-                <p className="text-sm text-[var(--foreground)]/50 font-medium">כדי שנוכל לסנכרן את הנוכחות שלך, אנא הגדר את ימי ושעות העבודה הקבועים שלך.</p>
+                <p className="text-sm text-[var(--foreground)]/50 font-medium">אנא הגדר את פרטיך האישיים ושעות העבודה שלך.</p>
               </div>
             </div>
 
-            <div className="space-y-4 max-h-[50vh] overflow-y-auto pr-2 custom-scrollbar">
+            <div className="space-y-6">
+              <div className="space-y-2">
+                <label className="text-xs font-black uppercase tracking-widest text-[var(--foreground)]/40 mr-1">שם מלא</label>
+                <input 
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="הזן את שמך המלא"
+                  className="w-full bg-[var(--foreground)]/[0.02] border border-[var(--border)] rounded-2xl px-6 py-4 text-sm font-bold outline-none focus:border-rose-500 transition-colors"
+                />
+              </div>
+
+              <div className="space-y-4 max-h-[40vh] overflow-y-auto pr-2 custom-scrollbar">
+                <div className="flex items-center gap-3 text-xs font-black uppercase tracking-widest text-[var(--foreground)]/40 mr-1 mb-2">
+                  <Clock className="w-4 h-4" />
+                  ימי עבודה קבועים
+                </div>
               {DAYS.map((day) => (
                 <div 
                   key={day.id}
@@ -145,8 +168,9 @@ export function StaffOnboardingModal() {
               </button>
             </div>
           </div>
-        </motion.div>
-      </div>
+        </div>
+      </motion.div>
+    </div>
     </AnimatePresence>
   );
 }

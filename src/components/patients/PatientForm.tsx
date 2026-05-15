@@ -79,8 +79,12 @@ export function PatientForm({ patientId, initialData, onSuccess }: PatientFormPr
       const workers: { id: string; name: string }[] = [];
       usersSnap.forEach(d => {
         const data = d.data();
-        if (["social_worker","admin","manager"].includes(data.role))
+        const userRoles = (data.roles as string[]) || (data.role ? [data.role] : []);
+        const isWorker = userRoles.some(r => ["social_worker", "admin", "manager"].includes(r));
+        
+        if (isWorker) {
           workers.push({ id: d.id, name: data.displayName || data.name || data.email });
+        }
       });
       setSocialWorkers(workers);
     };
@@ -97,7 +101,11 @@ export function PatientForm({ patientId, initialData, onSuccess }: PatientFormPr
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.hosenType) { return; }
+    const hasGroups = programGroups.length > 0;
+    if (hasGroups && !formData.hosenType) { 
+      alert("נא לבחור קבוצה");
+      return; 
+    }
     setLoading(true);
     try {
       if (patientId) {
@@ -168,9 +176,15 @@ export function PatientForm({ patientId, initialData, onSuccess }: PatientFormPr
 
           <div>
             <label className={LABEL}><Users className="w-3 h-3" /> קבוצה</label>
-            <select required value={formData.hosenType} onChange={e => set({ hosenType: e.target.value })} className={FIELD} disabled={!selectedProgramId && ungroupedGroups.length === 0}>
-              <option value="">בחר קבוצה...</option>
-              {(selectedProgramId ? programGroups : ungroupedGroups).map(g => (
+            <select 
+              required={programGroups.length > 0} 
+              value={formData.hosenType} 
+              onChange={e => set({ hosenType: e.target.value })} 
+              className={FIELD} 
+              disabled={!selectedProgramId || (selectedProgramId && programGroups.length === 0)}
+            >
+              <option value="">{programGroups.length === 0 ? "אין קבוצות בתוכנית זו" : "בחר קבוצה..."}</option>
+              {programGroups.map(g => (
                 <option key={g.id} value={g.id}>{g.name}</option>
               ))}
             </select>

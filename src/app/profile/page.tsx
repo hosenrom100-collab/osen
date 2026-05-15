@@ -117,7 +117,7 @@ export default function ProfilePage() {
       <div dir="rtl" className="min-h-screen bg-[var(--background)] text-[var(--foreground)]">
         
         {/* Header */}
-        <header className="sticky top-0 z-40 bg-[var(--background)]/80 backdrop-blur-xl border-b border-[var(--border)] px-6 h-16 flex items-center justify-between">
+        <header className="sticky top-0 z-40 bg-[var(--background)]/80 backdrop-blur-xl border-b border-[var(--border)] px-4 md:px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <button onClick={() => router.push("/")} className="p-2 hover:bg-[var(--foreground)]/5 rounded-xl transition-all">
               <ChevronRight className="w-5 h-5" />
@@ -130,21 +130,21 @@ export default function ProfilePage() {
           </button>
         </header>
 
-        <main className="max-w-5xl mx-auto p-6 md:p-12 pb-32">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
+        <main className="max-w-5xl mx-auto p-4 md:p-12 pb-32">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-12">
             
             {/* Sidebar: Profile Summary */}
-            <div className="space-y-6">
-              <div className="bg-[var(--card-bg)] border border-[var(--border)] rounded-[3rem] p-10 text-center shadow-sm">
-                <div className="relative inline-block mb-8">
+            <div className="space-y-4 md:space-y-6">
+              <div className="bg-[var(--card-bg)] border border-[var(--border)] rounded-3xl md:rounded-[3rem] p-6 md:p-10 text-center shadow-sm">
+                <div className="relative inline-block mb-6 md:mb-8">
                   {photoURL ? (
                     <img 
                       src={photoURL} 
                       alt={displayName} 
-                      className="w-32 h-32 rounded-[2.5rem] object-cover shadow-2xl shadow-rose-500/30 border-4 border-[var(--card-bg)]"
+                      className="w-24 h-24 md:w-32 md:h-32 rounded-2xl md:rounded-[2.5rem] object-cover shadow-2xl shadow-rose-500/30 border-4 border-[var(--card-bg)]"
                     />
                   ) : (
-                    <div className="w-32 h-32 rounded-[2.5rem] bg-gradient-to-br from-rose-500 to-rose-600 flex items-center justify-center text-4xl font-black text-white shadow-2xl shadow-rose-500/30">
+                    <div className="w-24 h-24 md:w-32 md:h-32 rounded-2xl md:rounded-[2.5rem] bg-gradient-to-br from-rose-500 to-rose-600 flex items-center justify-center text-3xl md:text-4xl font-black text-white shadow-2xl shadow-rose-500/30">
                       {initials}
                     </div>
                   )}
@@ -199,30 +199,30 @@ export default function ProfilePage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                   
                   {/* Work Schedule Card */}
-                  <div className="bg-[var(--card-bg)] border border-[var(--border)] p-8 rounded-[2.5rem] shadow-sm">
-                    <div className="flex items-center justify-between mb-8">
+                  <div className="bg-[var(--card-bg)] border border-[var(--border)] p-6 md:p-8 rounded-3xl md:rounded-[2.5rem] shadow-sm">
+                    <div className="flex items-center justify-between mb-6 md:mb-8">
                       <div>
-                        <p className="text-lg font-black tracking-tight">לו״ז עבודה שבועי</p>
-                        <p className="text-xs text-[var(--foreground)]/40 font-bold mt-1">ימי עבודה והגדרות שעות</p>
+                        <p className="text-base md:text-lg font-black tracking-tight">לו״ז עבודה שבועי</p>
+                        <p className="text-[10px] md:text-xs text-[var(--foreground)]/40 font-bold mt-1">ימי עבודה והגדרות שעות</p>
                       </div>
                       <button 
                         onClick={() => setIsEditingSchedule(true)} 
-                        className="w-10 h-10 rounded-2xl bg-rose-500/10 text-rose-500 flex items-center justify-center hover:bg-rose-500 hover:text-white transition-all active:scale-90"
+                        className="w-8 h-8 md:w-10 md:h-10 rounded-xl md:rounded-2xl bg-rose-500/10 text-rose-500 flex items-center justify-center hover:bg-rose-500 hover:text-white transition-all active:scale-90"
                       >
                         <Edit2 className="w-4 h-4" />
                       </button>
                     </div>
 
-                    <div className="grid grid-cols-7 gap-2">
+                    <div className="grid grid-cols-7 gap-1 md:gap-2">
                       {DAYS.map(d => (
-                        <div key={d.id} className="flex flex-col items-center gap-3">
-                          <p className="text-sm font-black text-[var(--foreground)]/40">{d.abbr}</p>
-                          <div className={`w-full aspect-square rounded-2xl border flex items-center justify-center transition-all ${
+                        <div key={d.id} className="flex flex-col items-center gap-2 md:gap-3">
+                          <p className="text-[10px] md:text-sm font-black text-[var(--foreground)]/40">{d.abbr}</p>
+                          <div className={`w-full aspect-square rounded-lg md:rounded-2xl border flex items-center justify-center transition-all ${
                             workSchedule?.[d.id] 
                               ? 'bg-rose-500 border-rose-500 shadow-lg shadow-rose-500/20 text-white' 
                               : 'bg-[var(--foreground)]/[0.03] border-[var(--border)] opacity-20'
                           }`}>
-                            {workSchedule?.[d.id] && <Check className="w-4 h-4" />}
+                            {workSchedule?.[d.id] && <Check className="w-3 md:w-4 h-3 md:h-4" />}
                           </div>
                         </div>
                       ))}
@@ -231,13 +231,13 @@ export default function ProfilePage() {
 
                   <button 
                     onClick={() => setShowAbsenceModal(true)} 
-                    className="bg-orange-500/5 border border-orange-500/20 p-8 rounded-[2.5rem] flex flex-col justify-center items-center text-center hover:bg-orange-500/10 transition-all group shadow-sm"
+                    className="bg-orange-500/5 border border-orange-500/20 p-6 md:p-8 rounded-3xl md:rounded-[2.5rem] flex flex-col justify-center items-center text-center hover:bg-orange-500/10 transition-all group shadow-sm"
                   >
-                    <div className="w-16 h-16 rounded-[2rem] bg-orange-500/10 flex items-center justify-center text-orange-600 mb-4 group-hover:scale-110 transition-transform shadow-inner">
-                      <AlertTriangle className="w-7 h-7" />
+                    <div className="w-12 h-12 md:w-16 md:h-16 rounded-2xl md:rounded-[2rem] bg-orange-500/10 flex items-center justify-center text-orange-600 mb-3 md:mb-4 group-hover:scale-110 transition-transform shadow-inner">
+                      <AlertTriangle className="w-6 h-6 md:w-7 md:h-7" />
                     </div>
-                    <p className="text-lg font-black text-orange-700 tracking-tight">דיווח היעדרות</p>
-                    <p className="text-[11px] text-orange-500/60 font-black uppercase tracking-widest mt-1">חופשה · מחלה · אחר</p>
+                    <p className="text-base md:text-lg font-black text-orange-700 tracking-tight">דיווח היעדרות</p>
+                    <p className="text-[9px] md:text-[11px] text-orange-500/60 font-black uppercase tracking-widest mt-1">חופשה · מחלה · אחר</p>
                   </button>
                 </div>
               </section>
@@ -245,17 +245,17 @@ export default function ProfilePage() {
               {/* Interface Settings */}
               <section className="space-y-6">
                 <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-[var(--foreground)]/20 mr-2">העדפות ממשק ונגישות</h3>
-                <div className="bg-[var(--card-bg)] border border-[var(--border)] rounded-[2.5rem] divide-y divide-[var(--border)] overflow-hidden shadow-sm">
-                  <div className="p-8 flex items-center justify-between hover:bg-[var(--foreground)]/[0.01] transition-colors">
+                <div className="bg-[var(--card-bg)] border border-[var(--border)] rounded-3xl md:rounded-[2.5rem] divide-y divide-[var(--border)] overflow-hidden shadow-sm">
+                  <div className="p-6 md:p-8 flex items-center justify-between hover:bg-[var(--foreground)]/[0.01] transition-colors">
                     <div>
                       <p className="text-base font-black tracking-tight">ערכת נושא</p>
-                      <p className="text-xs text-[var(--foreground)]/40 font-bold mt-1">התאמת צבעי הממשק לפי העדפה אישית</p>
+                      <p className="text-xs text-[var(--foreground)]/40 font-bold mt-1">צבעי הממשק</p>
                     </div>
-                    <div className="flex items-center gap-4">
-                      <span className="text-[10px] font-black uppercase tracking-widest opacity-40">{theme === 'dark' ? 'Dark' : 'Light'}</span>
+                    <div className="flex items-center gap-3 md:gap-4">
+                      <span className="text-[10px] font-black uppercase tracking-widest opacity-40 hidden sm:inline">{theme === 'dark' ? 'Dark' : 'Light'}</span>
                       <button 
                         onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} 
-                        className="w-14 h-8 bg-[var(--foreground)]/5 border border-[var(--border)] rounded-full p-1.5 relative transition-colors hover:border-[var(--foreground)]/20"
+                        className="w-12 h-7 md:w-14 md:h-8 bg-[var(--foreground)]/5 border border-[var(--border)] rounded-full p-1 md:p-1.5 relative transition-colors"
                       >
                         <motion.div 
                           layout
@@ -266,23 +266,23 @@ export default function ProfilePage() {
                     </div>
                   </div>
                   
-                  <div className="p-8 space-y-6">
+                  <div className="p-6 md:p-8 space-y-4 md:space-y-6">
                     <div>
                       <p className="text-base font-black tracking-tight">גודל גופן</p>
-                      <p className="text-xs text-[var(--foreground)]/40 font-bold mt-1">שינוי גודל הטקסט בכל חלקי האפליקציה</p>
+                      <p className="text-xs text-[var(--foreground)]/40 font-bold mt-1">שינוי גודל הטקסט</p>
                     </div>
-                    <div className="flex gap-3">
+                    <div className="flex gap-2 md:gap-3">
                       {["small", "medium", "large"].map((size) => (
                         <button 
                           key={size} 
                           onClick={() => setFontSize(size as any)}
-                          className={`flex-1 py-3.5 rounded-2xl text-[11px] font-black uppercase tracking-[0.15em] border transition-all ${
+                          className={`flex-1 py-2.5 md:py-3.5 rounded-xl md:rounded-2xl text-[9px] md:text-[11px] font-black uppercase tracking-widest border transition-all ${
                             fontSize === size 
-                              ? 'bg-[var(--foreground)] text-[var(--background)] border-transparent shadow-xl' 
+                              ? 'bg-[var(--foreground)] text-[var(--background)] border-transparent shadow-lg' 
                               : 'bg-[var(--foreground)]/5 border-transparent text-[var(--foreground)]/40 hover:bg-[var(--foreground)]/10'
                           }`}
                         >
-                          {size === 'small' ? 'Small' : size === 'medium' ? 'Normal' : 'Large'}
+                          {size === 'small' ? 'S' : size === 'medium' ? 'M' : 'L'}
                         </button>
                       ))}
                     </div>
@@ -301,7 +301,7 @@ export default function ProfilePage() {
                 initial={{ opacity: 0, scale: 0.9, y: 20 }} 
                 animate={{ opacity: 1, scale: 1, y: 0 }} 
                 exit={{ opacity: 0, scale: 0.9, y: 20 }}
-                className="bg-[var(--card-bg)] border border-[var(--border)] rounded-[3rem] w-full max-w-lg p-10 shadow-2xl relative"
+                className="bg-[var(--card-bg)] border border-[var(--border)] rounded-[2rem] md:rounded-[3rem] w-full max-w-lg p-6 md:p-10 shadow-2xl relative"
               >
                 <div className="flex items-center justify-between mb-10">
                   <h3 className="text-2xl font-black tracking-tight">דיווח היעדרות</h3>
@@ -337,7 +337,7 @@ export default function ProfilePage() {
                 initial={{ opacity: 0, scale: 0.9, y: 20 }} 
                 animate={{ opacity: 1, scale: 1, y: 0 }} 
                 exit={{ opacity: 0, scale: 0.9, y: 20 }}
-                className="bg-[var(--card-bg)] border border-[var(--border)] rounded-[3rem] w-full max-w-2xl p-10 shadow-2xl"
+                className="bg-[var(--card-bg)] border border-[var(--border)] rounded-[2rem] md:rounded-[3rem] w-full max-w-2xl p-6 md:p-10 shadow-2xl"
               >
                 <div className="flex items-center justify-between mb-10">
                   <div>
@@ -350,7 +350,7 @@ export default function ProfilePage() {
                   {DAYS.map(day => (
                     <div 
                       key={day.id} 
-                      className={`p-6 rounded-[2rem] border flex flex-col md:flex-row md:items-center justify-between transition-all gap-4 ${
+                      className={`p-4 md:p-6 rounded-2xl md:rounded-[2rem] border flex flex-col md:flex-row md:items-center justify-between transition-all gap-4 ${
                         tempSchedule[day.id] ? 'bg-rose-500/5 border-rose-500/30 ring-1 ring-rose-500/10' : 'border-[var(--border)] opacity-60'
                       }`}
                     >

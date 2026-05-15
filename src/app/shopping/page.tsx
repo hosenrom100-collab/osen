@@ -514,7 +514,7 @@ export default function ShoppingPage() {
           </aside>
         </main>
 
-        <div className="md:hidden fixed bottom-6 left-4 right-4 z-40">
+        <div className="md:hidden fixed bottom-24 left-4 right-4 z-40">
           <button onClick={() => setOverlayOpen(true)} className="w-full flex items-center justify-center gap-3 bg-blue-600 hover:bg-blue-500 text-white py-4 rounded-2xl font-black text-sm transition-all active:scale-[0.98]">
             <Plus className="w-5 h-5" /> הוסף מוצר חדש
           </button>
