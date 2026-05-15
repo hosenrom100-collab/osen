@@ -159,7 +159,13 @@ export async function POST(req: Request) {
         body: body || "",
         link,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        target: { userId, role, groupId, programId, everyone },
+        target: { 
+          userId: userId || null, 
+          role: role || null, 
+          groupId: groupId || null, 
+          programId: programId || null, 
+          everyone: everyone || null 
+        },
         recipientIds: Array.from(targetUserIds),
         readBy: [], 
         type: "system",
