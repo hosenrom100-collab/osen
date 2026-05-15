@@ -8,9 +8,8 @@ import {
 } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 import {
-  UserPlus, Calendar, CreditCard, User,
-  ArrowRight, Loader2, CheckCircle, Briefcase, Layers, Users,
-  ClipboardList, ShieldCheck, Phone
+  Calendar, Loader2, CheckCircle, Briefcase, Layers, Users,
+  ShieldCheck, Phone
 } from "lucide-react";
 
 interface Program { id: string; name: string }
@@ -54,7 +53,6 @@ export function PatientForm({ patientId, initialData, onSuccess }: PatientFormPr
     programId:          initialData?.programId || "",
     status:             (initialData?.status || "active") as any,
     assignedWorkerId:   initialData?.assignedWorkerId || "",
-    rehabPlan:          initialData?.rehabPlan || "",
     rehabPlanCompleted: initialData?.rehabPlanCompleted || false,
   });
 
@@ -211,36 +209,24 @@ export function PatientForm({ patientId, initialData, onSuccess }: PatientFormPr
       </div>
 
       {/* ── Rehab Plan ── */}
-      <div className="bg-[var(--foreground)]/[0.02] border border-[var(--border)] rounded-[2.5rem] p-8 space-y-4">
-        <h3 className="text-xs font-black uppercase tracking-widest text-teal-500 mb-2">תוכנית שיקום</h3>
-        <div>
-          <label className={LABEL}><ClipboardList className="w-3 h-3" /> תיאור תוכנית השיקום</label>
-          <textarea
-            value={formData.rehabPlan}
-            onChange={e => set({ rehabPlan: e.target.value })}
-            rows={4}
-            placeholder="פרט את יעדי השיקום, האינטרוונציות המתוכננות ואבני דרך..."
-            className="w-full bg-[var(--background)] border border-[var(--border)] rounded-2xl px-4 py-3.5 text-sm font-bold outline-none focus:border-teal-500/50 transition-all text-[var(--foreground)] resize-none placeholder:text-[var(--foreground)]/20"
-          />
+      <label
+        className="flex items-center gap-4 bg-[var(--foreground)]/[0.02] border border-[var(--border)] rounded-2xl p-5 cursor-pointer group"
+        onClick={() => set({ rehabPlanCompleted: !formData.rehabPlanCompleted })}
+      >
+        <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all shrink-0 ${
+          formData.rehabPlanCompleted
+            ? "bg-teal-500 border-teal-500"
+            : "border-[var(--border)] group-hover:border-teal-500/50"
+        }`}>
+          {formData.rehabPlanCompleted && <CheckCircle className="w-4 h-4 text-white" />}
         </div>
-        <label className="flex items-center gap-3 cursor-pointer">
-          <div
-            onClick={() => set({ rehabPlanCompleted: !formData.rehabPlanCompleted })}
-            className={`w-5 h-5 rounded border flex items-center justify-center transition-all ${
-              formData.rehabPlanCompleted
-                ? "bg-teal-500 border-teal-500"
-                : "border-[var(--border)] hover:border-teal-500/50"
-            }`}
-          >
-            {formData.rehabPlanCompleted && (
-              <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 12 12">
-                <path d="M4.667 8.333L2 5.667l.933-.934 1.734 1.734 3.4-3.4.933.933z"/>
-              </svg>
-            )}
-          </div>
-          <span className="text-sm font-bold text-[var(--foreground)]/70">תוכנית השיקום הושלמה</span>
-        </label>
-      </div>
+        <div>
+          <p className="text-sm font-black">תוכנית שיקום בוצעה</p>
+          <p className="text-[10px] text-[var(--foreground)]/40 font-bold uppercase tracking-widest mt-0.5">
+            סמן כאשר תוכנית השיקום הוצאה ואושרה
+          </p>
+        </div>
+      </label>
 
       <button 
         type="submit" 

@@ -36,7 +36,10 @@ export async function POST(req: Request) {
     // Map: uid → fcmTokens[]
     const tokensByUser = new Map<string, string[]>();
 
+    const targetUserIds = new Set<string>();
+
     if (userId) {
+      targetUserIds.add(userId);
       const snap = await admin.firestore().collection("users").doc(userId).get();
       const data = snap.data();
       if (data?.fcmTokens?.length) {
@@ -48,8 +51,9 @@ export async function POST(req: Request) {
       snap.forEach((d) => {
         const data = d.data();
         const status = data.status ?? "approved";
-        if (status === "approved" && roles.includes(data.role) && data.fcmTokens?.length) {
-          tokensByUser.set(d.id, data.fcmTokens);
+        if (status === "approved" && roles.includes(data.role)) {
+          targetUserIds.add(d.id);
+          if (data.fcmTokens?.length) tokensByUser.set(d.id, data.fcmTokens);
         }
       });
     } else if (groupId) {
@@ -60,10 +64,10 @@ export async function POST(req: Request) {
         if (
           status === "approved" &&
           Array.isArray(data.assignedGroups) &&
-          data.assignedGroups.includes(groupId) &&
-          data.fcmTokens?.length
+          data.assignedGroups.includes(groupId)
         ) {
-          tokensByUser.set(d.id, data.fcmTokens);
+          targetUserIds.add(d.id);
+          if (data.fcmTokens?.length) tokensByUser.set(d.id, data.fcmTokens);
         }
       });
     } else if (programId) {
@@ -74,10 +78,10 @@ export async function POST(req: Request) {
         if (
           status === "approved" &&
           Array.isArray(data.preferredProgramIds) &&
-          data.preferredProgramIds.includes(programId) &&
-          data.fcmTokens?.length
+          data.preferredProgramIds.includes(programId)
         ) {
-          tokensByUser.set(d.id, data.fcmTokens);
+          targetUserIds.add(d.id);
+          if (data.fcmTokens?.length) tokensByUser.set(d.id, data.fcmTokens);
         }
       });
     } else if (everyone) {
@@ -85,8 +89,9 @@ export async function POST(req: Request) {
       snap.forEach((d) => {
         const data = d.data();
         const status = data.status ?? "approved";
-        if (status === "approved" && data.fcmTokens?.length) {
-          tokensByUser.set(d.id, data.fcmTokens);
+        if (status === "approved") {
+          targetUserIds.add(d.id);
+          if (data.fcmTokens?.length) tokensByUser.set(d.id, data.fcmTokens);
         }
       });
     } else {
@@ -94,47 +99,62 @@ export async function POST(req: Request) {
     }
 
     const allTokens = [...tokensByUser.values()].flat();
-    if (allTokens.length === 0) {
-      return NextResponse.json({ success: true, sent: 0, note: "no tokens" });
-    }
-
-    const result = await admin.messaging().sendEachForMulticast({
-      tokens: allTokens,
-      notification: { title, body: body || "" },
-      webpush: {
-        notification: { icon: "/icon-192.png", badge: "/icon-192.png" },
-        fcmOptions: { link },
-      },
-    });
-
-    // Clean up expired / invalid tokens
-    if (result.failureCount > 0) {
-      const staleTokens = new Set<string>();
-      result.responses.forEach((resp, idx) => {
-        const code = resp.error?.code ?? "";
-        if (
-          !resp.success &&
-          (code.includes("invalid-registration-token") ||
-            code.includes("registration-token-not-registered"))
-        ) {
-          staleTokens.add(allTokens[idx]);
-        }
+    
+    // Send push only if we have tokens
+    let successCount = 0;
+    let failureCount = 0;
+    
+    if (allTokens.length > 0) {
+      const result = await admin.messaging().sendEachForMulticast({
+        tokens: allTokens,
+        notification: { title, body: body || "" },
+        webpush: {
+          notification: { icon: "/icon-192.png", badge: "/icon-192.png" },
+          fcmOptions: { link },
+        },
       });
+      successCount = result.successCount;
+      failureCount = result.failureCount;
 
-      if (staleTokens.size > 0) {
-        const db = admin.firestore();
-        const batch = db.batch();
-        for (const [uid, tokens] of tokensByUser) {
-          const clean = tokens.filter((t) => !staleTokens.has(t));
-          if (clean.length !== tokens.length) {
-            batch.update(db.collection("users").doc(uid), { fcmTokens: clean });
+      // Clean up stale tokens
+      if (result.failureCount > 0) {
+        const staleTokens = new Set<string>();
+        result.responses.forEach((resp, idx) => {
+          const code = resp.error?.code ?? "";
+          if (!resp.success && (code.includes("invalid-registration-token") || code.includes("registration-token-not-registered"))) {
+            staleTokens.add(allTokens[idx]);
           }
+        });
+        if (staleTokens.size > 0) {
+          const db = admin.firestore();
+          const batch = db.batch();
+          for (const [uid, tokens] of tokensByUser) {
+            const clean = tokens.filter((t) => !staleTokens.has(t));
+            if (clean.length !== tokens.length) batch.update(db.collection("users").doc(uid), { fcmTokens: clean });
+          }
+          await batch.commit();
         }
-        await batch.commit();
       }
     }
 
-    return NextResponse.json({ success: true, sent: result.successCount, failed: result.failureCount });
+    // Store in Firestore for dashboard & read receipts
+    try {
+      const db = admin.firestore();
+      await db.collection("notifications").add({
+        title,
+        body: body || "",
+        link,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        target: { userId, role, groupId, programId, everyone },
+        recipientIds: Array.from(targetUserIds),
+        readBy: [], 
+        type: "system"
+      });
+    } catch (e) {
+      console.error("Failed to store notification:", e);
+    }
+
+    return NextResponse.json({ success: true, sent: successCount, failed: failureCount });
   } catch (err: any) {
     console.error("Notify error:", err);
     return NextResponse.json({ error: err.message }, { status: 500 });

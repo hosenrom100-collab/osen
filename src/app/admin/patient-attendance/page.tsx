@@ -36,7 +36,7 @@ function MiniCalendar({ value, onChange }: { value: string; onChange: (d: string
   const days = eachDayOfInterval({ start: startOfWeek(startOfMonth(view)), end: endOfWeek(endOfMonth(view)) });
   const WD = ["א","ב","ג","ד","ה","ו","ש"];
   return (
-    <div className="select-none bg-[var(--surface-raised)] border border-[var(--border)] rounded-[2rem] p-6 shadow-xl">
+    <div className="select-none bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-6">
       <div className="flex items-center justify-between mb-6">
         <span className="text-sm font-black text-[var(--foreground)] uppercase tracking-tight">{format(view, "MMMM yyyy", { locale: he })}</span>
         <div className="flex gap-1">
@@ -208,7 +208,7 @@ function AttendancePageContent() {
           {/* Desktop Calendar Toggle */}
           <button 
             onClick={() => setShowCalendar(!showCalendar)}
-            className="hidden md:flex items-center gap-2 px-4 h-10 bg-[var(--foreground)] rounded-xl text-xs font-black text-[var(--background)] shadow-lg shadow-[var(--foreground)]/10 transition-all"
+            className="hidden md:flex items-center gap-2 px-4 h-10 bg-[var(--foreground)] rounded-xl text-xs font-black text-[var(--background)] transition-all"
           >
             <LucideCalendar className="w-4 h-4" />
             {format(parseISO(selectedDate), "d בMMMM", { locale: he })}
@@ -239,7 +239,7 @@ function AttendancePageContent() {
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
-              className="hidden md:block absolute top-full left-0 right-0 bg-[var(--background)] border-b border-[var(--border)] shadow-2xl z-50 p-4"
+              className="hidden md:block absolute top-full left-0 right-0 bg-[var(--background)] border-b border-[var(--border)] z-50 p-4"
             >
               <div className="max-w-sm mx-auto">
                 <MiniCalendar value={selectedDate} onChange={(d) => { setSelectedDate(d); setShowCalendar(false); }} />

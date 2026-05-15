@@ -44,6 +44,22 @@ export default function ParticipantJoinPage() {
           fcmTokens:           [],
           notificationsEnabled: false,
         });
+
+        // Notify admins and managers
+        try {
+          fetch("/api/notify", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              role: ["admin", "manager"],
+              title: "משתתף חדש הצטרף",
+              body: `${result.user.displayName || result.user.email} הצטרף למערכת כמשתתף.`,
+              link: "/admin/users"
+            })
+          });
+        } catch (e) {
+          console.error("Notify failed:", e);
+        }
       }
       // AuthContext will pick up the new document via onSnapshot
       router.push("/portal");

@@ -5,18 +5,18 @@ import { RoleGuard } from "@/components/auth/RoleGuard";
 import { PatientForm } from "@/components/patients/PatientForm";
 import { useState, useEffect, useRef } from "react";
 import { db } from "@/lib/firebase/config";
-import { 
-  doc, getDoc, collection, query, where, orderBy, getDocs, limit 
+import {
+  doc, getDoc, collection, query, where, orderBy, getDocs, limit, updateDoc
 } from "firebase/firestore";
-import { 
-  User, Calendar, Clock, ArrowRight, Loader2, 
-  MapPin, Shield, Edit3, ClipboardList, CheckCircle,
-  AlertCircle, ChevronLeft, FileDown, Printer, Download, FileText,
-  X, Check, Info, History
+import {
+  Calendar, Loader2, Shield,
+  Edit3, CheckCircle, CheckCircle2,
+  AlertCircle, ChevronLeft, Printer, Download, FileText,
+  X, Check, Info, History, Send, Bell
 } from "lucide-react";
 import { useRouter, useParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { format, startOfMonth, endOfMonth, subMonths, eachDayOfInterval, isSameMonth } from "date-fns";
+import { format, subMonths, addMonths, differenceInDays, parseISO, isValid } from "date-fns";
 import { he } from "date-fns/locale";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
@@ -30,9 +30,15 @@ interface Patient {
   status: string;
   assignedWorkerId?: string;
   startDate?: string;
+  endDate?: string;
   phone?: string;
   email?: string;
   fullName?: string;
+  rehabPlanCompleted?: boolean;
+  extensionSent?: boolean;
+  extensionSentAt?: string;
+  extensionReceived?: boolean;
+  extensionReceivedAt?: string;
 }
 
 interface Group { id: string; name: string }
@@ -40,7 +46,7 @@ interface Attendance { id: string; date: string; status: "present" | "absent" | 
 
 export default function PatientDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const { isAdmin, isManager, role } = useAuth();
+  const { isAdmin, isManager } = useAuth();
   const router = useRouter();
   const reportRef = useRef<HTMLDivElement>(null);
 
@@ -52,6 +58,9 @@ export default function PatientDetailPage() {
   const [reportLoading, setReportLoading] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState(format(new Date(), "yyyy-MM"));
   const [showEditModal, setShowEditModal] = useState(false);
+  const [savingExt, setSavingExt] = useState<string | null>(null);
+  const [editingEndDate, setEditingEndDate] = useState(false);
+  const [editEndDateVal, setEditEndDateVal] = useState("");
 
   useEffect(() => { if (id) fetchPatientData(); }, [id]);
 
@@ -86,6 +95,50 @@ export default function PatientDetailPage() {
       setAttendance(uniqueAtt);
     } catch (err) { console.error(err); } finally { setLoading(false); }
   };
+
+  function effectiveEndDate(p: Patient): Date | null {
+    if (p.endDate) { try { const d = parseISO(p.endDate); return isValid(d) ? d : null; } catch { return null; } }
+    if (p.startDate) { try { const d = parseISO(p.startDate); return isValid(d) ? addMonths(d, 3) : null; } catch { return null; } }
+    return null;
+  }
+
+  async function markExtensionSent() {
+    if (!patient) return;
+    setSavingExt("sent");
+    try {
+      const now = new Date().toISOString();
+      await updateDoc(doc(db, "patients", patient.id), { extensionSent: true, extensionSentAt: now });
+      setPatient(p => p ? { ...p, extensionSent: true, extensionSentAt: now } : p);
+    } catch (e) { console.error(e); }
+    finally { setSavingExt(null); }
+  }
+
+  async function markExtensionReceived() {
+    if (!patient) return;
+    setSavingExt("recv");
+    try {
+      const end = effectiveEndDate(patient) ?? new Date();
+      const newEnd = format(addMonths(end, 3), "yyyy-MM-dd");
+      const now = new Date().toISOString();
+      await updateDoc(doc(db, "patients", patient.id), {
+        extensionReceived: true, extensionReceivedAt: now,
+        extensionSent: true, endDate: newEnd,
+      });
+      setPatient(p => p ? { ...p, extensionReceived: true, extensionReceivedAt: now, extensionSent: true, endDate: newEnd } : p);
+    } catch (e) { console.error(e); }
+    finally { setSavingExt(null); }
+  }
+
+  async function saveEndDate() {
+    if (!patient || !editEndDateVal) return;
+    setSavingExt("date");
+    try {
+      await updateDoc(doc(db, "patients", patient.id), { endDate: editEndDateVal });
+      setPatient(p => p ? { ...p, endDate: editEndDateVal } : p);
+      setEditingEndDate(false);
+    } catch (e) { console.error(e); }
+    finally { setSavingExt(null); }
+  }
 
   const generateReport = async (type: 'participation' | 'attendance') => {
     if (!patient || !reportRef.current) return;
@@ -228,12 +281,134 @@ export default function PatientDetailPage() {
                       </div>
                     </div>
                  </div>
-                 <div className="space-y-6">
-                    <div className="bg-emerald-600/5 border border-emerald-500/10 rounded-[2.5rem] p-8">
-                       <h4 className="text-emerald-500 text-xs font-black uppercase tracking-[0.2em] mb-4">סיכום סטטוס</h4>
-                       <p className="text-sm font-bold leading-relaxed opacity-80">
-                         המטופל משובץ כרגע בקבוצת {groupName}. סטטוס נוכחות מצטבר עומד על {Math.round((attendance.filter(a => a.status === 'present').length / (attendance.length || 1)) * 100)}% החודש.
-                       </p>
+                 <div className="space-y-4">
+                    {/* ── Stay Period Management ── */}
+                    {(() => {
+                      const endDate = effectiveEndDate(patient);
+                      const days = endDate ? differenceInDays(endDate, new Date()) : null;
+                      const isUrgent = days !== null && days >= 0 && days <= 14;
+                      const isExpired = days !== null && days < 0;
+                      return (
+                        <div className={`border rounded-[2rem] p-6 space-y-4 ${
+                          isExpired ? "bg-slate-500/5 border-slate-500/20" :
+                          isUrgent  ? "bg-rose-500/5 border-rose-500/20" :
+                          "bg-[var(--card-bg)] border-[var(--border)]"
+                        }`}>
+                          <div className="flex items-center gap-2">
+                            {isUrgent && <Bell className="w-3.5 h-3.5 text-rose-400 animate-pulse" />}
+                            <h4 className={`text-[10px] font-black uppercase tracking-[0.2em] ${isUrgent ? "text-rose-400" : "text-[var(--foreground)]/40"}`}>
+                              תקופת שהות
+                            </h4>
+                          </div>
+
+                          <div className="space-y-1.5 text-xs">
+                            <div className="flex justify-between">
+                              <span className="text-[var(--foreground)]/40">תחילה</span>
+                              <span className="font-bold">{patient.startDate ? format(parseISO(patient.startDate), "dd/MM/yyyy") : "—"}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-[var(--foreground)]/40">סיום</span>
+                              <span className={`font-bold ${isUrgent ? "text-rose-400" : isExpired ? "text-slate-400" : ""}`}>
+                                {endDate ? format(endDate, "dd/MM/yyyy") : "—"}
+                              </span>
+                            </div>
+                            {days !== null && (
+                              <div className="flex justify-between">
+                                <span className="text-[var(--foreground)]/40">נותרו</span>
+                                <span className={`font-black ${isExpired ? "text-slate-400" : isUrgent ? "text-rose-400" : "text-emerald-400"}`}>
+                                  {isExpired ? "תקופה פגה" : `${days} ימים`}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+
+                          {isUrgent && !patient.extensionSent && (
+                            <div className="bg-rose-500/10 rounded-xl px-3 py-2 text-[10px] text-rose-300 font-bold flex items-center gap-2">
+                              <AlertCircle className="w-3 h-3 shrink-0" />
+                              יש לשלוח בקשת הארכה בהקדם
+                            </div>
+                          )}
+
+                          <div className="space-y-2 pt-1">
+                            {patient.extensionSent ? (
+                              <div className="flex items-center gap-2 text-[11px] text-emerald-400 font-semibold px-1">
+                                <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                                הארכה נשלחה
+                                {patient.extensionSentAt && (
+                                  <span className="text-[10px] text-[var(--muted)] font-normal mr-auto">
+                                    {format(parseISO(patient.extensionSentAt), "dd/MM/yy")}
+                                  </span>
+                                )}
+                              </div>
+                            ) : (
+                              <button onClick={markExtensionSent} disabled={savingExt === "sent"}
+                                className="w-full flex items-center justify-center gap-2 px-3 py-2.5 text-[11px] font-black bg-orange-500/10 text-orange-400 border border-orange-500/20 rounded-xl hover:bg-orange-500/20 transition-all disabled:opacity-50">
+                                {savingExt === "sent" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                                סמן: הארכה נשלחה
+                              </button>
+                            )}
+
+                            {patient.extensionReceived ? (
+                              <div className="flex items-center gap-2 text-[11px] text-emerald-400 font-semibold px-1">
+                                <CheckCircle className="w-3.5 h-3.5 shrink-0" />
+                                הארכה התקבלה (+3 חודשים)
+                                {patient.extensionReceivedAt && (
+                                  <span className="text-[10px] text-[var(--muted)] font-normal mr-auto">
+                                    {format(parseISO(patient.extensionReceivedAt), "dd/MM/yy")}
+                                  </span>
+                                )}
+                              </div>
+                            ) : (
+                              <button onClick={markExtensionReceived} disabled={savingExt === "recv"}
+                                className="w-full flex items-center justify-center gap-2 px-3 py-2.5 text-[11px] font-black bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-xl hover:bg-emerald-500/20 transition-all disabled:opacity-50">
+                                {savingExt === "recv" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
+                                סמן: הארכה התקבלה (+3 חודשים)
+                              </button>
+                            )}
+                          </div>
+
+                          <div className="pt-2 border-t border-[var(--border)]">
+                            {editingEndDate ? (
+                              <div className="flex items-center gap-2">
+                                <input type="date" value={editEndDateVal}
+                                  onChange={e => setEditEndDateVal(e.target.value)} autoFocus
+                                  className="flex-1 bg-[var(--background)] border border-teal-500/40 rounded-lg px-2 py-1.5 text-xs focus:outline-none" />
+                                <button onClick={saveEndDate} disabled={savingExt === "date"}
+                                  className="p-1.5 rounded-lg bg-teal-500/15 text-teal-400 hover:bg-teal-500/25 transition-all">
+                                  {savingExt === "date" ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
+                                </button>
+                                <button onClick={() => setEditingEndDate(false)}
+                                  className="p-1.5 rounded-lg bg-[var(--foreground)]/5 text-[var(--muted)]">
+                                  <X className="w-3 h-3" />
+                                </button>
+                              </div>
+                            ) : (
+                              <button onClick={() => {
+                                  const end = effectiveEndDate(patient);
+                                  setEditEndDateVal(patient.endDate || (end ? format(end, "yyyy-MM-dd") : ""));
+                                  setEditingEndDate(true);
+                                }}
+                                className="w-full text-[10px] font-bold text-[var(--foreground)]/30 hover:text-[var(--foreground)]/60 flex items-center justify-center gap-1.5 transition-colors py-1">
+                                <Edit3 className="w-3 h-3" />
+                                שנה תאריך סיום (מצב חריג)
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })()}
+
+                    {/* ── Rehab Status ── */}
+                    <div className="bg-teal-500/5 border border-teal-500/10 rounded-[2rem] p-5">
+                      <h4 className="text-teal-500 text-[10px] font-black uppercase tracking-[0.2em] mb-3">שיקום</h4>
+                      <div className="flex items-center gap-3">
+                        <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 ${patient.rehabPlanCompleted ? "bg-teal-500 border-teal-500" : "border-[var(--border)]"}`}>
+                          {patient.rehabPlanCompleted && <Check className="w-3 h-3 text-white" />}
+                        </div>
+                        <span className="text-sm font-bold">
+                          {patient.rehabPlanCompleted ? "תוכנית שיקום בוצעה" : "שיקום טרם בוצע"}
+                        </span>
+                      </div>
                     </div>
                  </div>
               </motion.div>
@@ -285,7 +460,7 @@ export default function PatientDetailPage() {
 
                     <div className="bg-[var(--card-bg)] border border-[var(--border)] p-6 rounded-[2rem] shadow-sm flex flex-col items-center text-center transition-all hover:border-blue-500/30 group">
                        <div className="w-12 h-12 rounded-xl bg-blue-600/10 flex items-center justify-center text-blue-600 mb-4 group-hover:scale-110 transition-transform">
-                          <ClipboardList className="w-6 h-6" />
+                          <FileText className="w-6 h-6" />
                        </div>
                        <h4 className="text-base font-black mb-1">דוח נוכחות חודשי</h4>
                        <p className="text-[10px] text-[var(--foreground)]/40 font-bold uppercase tracking-widest mb-6">פירוט ימי נוכחות והיעדרות לפי חודש</p>

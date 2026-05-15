@@ -110,71 +110,73 @@ export default function PatientsPage() {
       <main className="min-h-screen bg-[var(--background)] text-[var(--foreground)] p-4 md:p-8">
         
         {/* Page Header */}
-           <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-            <div className="space-y-1">
-              <h1 className="text-2xl font-black tracking-tight">ניהול מטופלים</h1>
-              <p className="text-[10px] text-[var(--foreground)]/40 font-bold uppercase tracking-[0.2em] flex items-center gap-2">
-                <Users className="w-3 h-3 text-emerald-500" />
-                <span>{filtered.length} רשומות פעילות</span>
-              </p>
-            </div>
-
-            <div className="flex items-center gap-2">
-               <div className="flex bg-[var(--foreground)]/5 p-1 rounded-lg border border-[var(--border)] mr-4">
-                  <button onClick={() => setViewMode("table")} className={`p-1.5 rounded-md transition-all ${viewMode === 'table' ? 'bg-[var(--foreground)] text-[var(--background)] shadow-sm' : 'text-[var(--foreground)]/40'}`}>
-                    <List className="w-3.5 h-3.5" />
-                  </button>
-                  <button onClick={() => setViewMode("cards")} className={`p-1.5 rounded-md transition-all ${viewMode === 'cards' ? 'bg-[var(--foreground)] text-[var(--background)] shadow-sm' : 'text-[var(--foreground)]/40'}`}>
-                    <LayoutGrid className="w-3.5 h-3.5" />
-                  </button>
-               </div>
-
-               <button 
-                onClick={() => router.push("/patients/new")}
-                className="flex items-center gap-2 bg-[var(--foreground)] text-[var(--background)] px-5 py-2.5 rounded-xl text-xs font-black transition-all hover:opacity-90"
-               >
-                 <Plus className="w-4 h-4" />
-                 מטופל חדש
-               </button>
-            </div>
-          </div>        מטופל חדש
-               </button>
-            </div>
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="space-y-1">
+            <h1 className="text-2xl font-black tracking-tight">ניהול מטופלים</h1>
+            <p className="text-[10px] text-[var(--foreground)]/40 font-bold uppercase tracking-[0.2em] flex items-center gap-2">
+              <Users className="w-3 h-3 text-emerald-500" />
+              <span>{filtered.length} רשומות פעילות</span>
+            </p>
           </div>
 
-          <div className="mt-8 grid grid-cols-1 md:grid-cols-12 gap-2">
-            <div className="md:col-span-5 relative group">
-              <Search className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--muted)]/40" />
-              <input 
-                type="text" 
-                placeholder="חיפוש לפי שם או תעודת זהות..."
-                value={searchTerm}
-                onChange={e => setSearchTerm(e.target.value)}
-                className="w-full bg-[var(--foreground)]/5 border border-[var(--border)] rounded-xl pr-11 pl-4 py-2.5 text-xs font-bold outline-none focus:border-[var(--muted)]/50 transition-all"
-              />
-            </div>
-            
-            <div className="md:col-span-3">
-              <select 
-                value={selectedGroup}
-                onChange={e => setSelectedGroup(e.target.value)}
-                className="w-full bg-[var(--foreground)]/5 border border-[var(--border)] rounded-xl px-4 py-2.5 text-xs font-bold outline-none appearance-none cursor-pointer"
+          <div className="flex items-center gap-2">
+            <div className="flex bg-[var(--foreground)]/5 p-1 rounded-lg border border-[var(--border)] mr-4">
+              <button 
+                onClick={() => setViewMode("table")} 
+                className={`p-1.5 rounded-md transition-all ${viewMode === 'table' ? 'bg-[var(--foreground)] text-[var(--background)] shadow-sm' : 'text-[var(--foreground)]/40'}`}
               >
-                <option value="all">כל התוכניות</option>
-                {groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
-              </select>
+                <List className="w-3.5 h-3.5" />
+              </button>
+              <button 
+                onClick={() => setViewMode("cards")} 
+                className={`p-1.5 rounded-md transition-all ${viewMode === 'cards' ? 'bg-[var(--foreground)] text-[var(--background)] shadow-sm' : 'text-[var(--foreground)]/40'}`}
+              >
+                <LayoutGrid className="w-3.5 h-3.5" />
+              </button>
             </div>
+
+            <button 
+              onClick={() => router.push("/patients/new")}
+              className="flex items-center gap-2 bg-[var(--foreground)] text-[var(--background)] px-5 py-2.5 rounded-xl text-xs font-black transition-all hover:opacity-90"
+            >
+              <Plus className="w-4 h-4" />
+              מטופל חדש
+            </button>
           </div>
         </div>
 
-        <div className="max-w-7xl mx-auto">
+        <div className="mt-8 grid grid-cols-1 md:grid-cols-12 gap-2">
+          <div className="md:col-span-5 relative group">
+            <Search className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--muted)]/40" />
+            <input 
+              type="text" 
+              placeholder="חיפוש לפי שם או תעודת זהות..."
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+              className="w-full bg-[var(--foreground)]/5 border border-[var(--border)] rounded-xl pr-11 pl-4 py-2.5 text-xs font-bold outline-none focus:border-[var(--muted)]/50 transition-all"
+            />
+          </div>
+          
+          <div className="md:col-span-3">
+            <select 
+              value={selectedGroup}
+              onChange={e => setSelectedGroup(e.target.value)}
+              className="w-full bg-[var(--foreground)]/5 border border-[var(--border)] rounded-xl px-4 py-2.5 text-xs font-bold outline-none appearance-none cursor-pointer"
+            >
+              <option value="all">כל התוכניות</option>
+              {groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+            </select>
+          </div>
+        </div>
+
+        <div className="max-w-7xl mx-auto mt-8">
           {loading ? (
             <div className="flex flex-col items-center justify-center py-40 gap-4 opacity-20">
               <Loader2 className="w-10 h-10 animate-spin" />
               <p className="text-xs font-black uppercase tracking-widest">טוען נתונים...</p>
             </div>
           ) : filtered.length === 0 ? (
-            <div className="text-center py-40 bg-[var(--card-bg)] border border-dashed border-[var(--border)] rounded-[3rem] opacity-20">
+            <div className="text-center py-40 bg-[var(--foreground)]/5 border border-dashed border-[var(--border)] rounded-[3rem] opacity-20">
               <p className="text-lg font-bold italic">לא נמצאו מטופלים העונים לחיפוש</p>
             </div>
           ) : viewMode === "table" ? (
@@ -245,49 +247,47 @@ export default function PatientsPage() {
               </div>
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-2">
               {filtered.map((p) => (
                 <motion.div 
                   key={p.id}
                   layout
                   onClick={() => router.push(`/patients/${p.id}`)}
-                  className="bg-white border border-slate-100 rounded-2xl p-4 flex items-center gap-4 active:bg-slate-50 transition-all"
+                  className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-4 flex items-center gap-4 active:bg-[var(--foreground)]/5 transition-all group"
                 >
-                  {/* Avatar/Initial */}
-                  <div className="w-12 h-12 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400 text-sm font-black shrink-0">
+                  <div className="w-12 h-12 rounded-xl bg-[var(--foreground)]/5 flex items-center justify-center text-[var(--muted)]/50 text-sm font-black shrink-0">
                     {p.firstName?.[0]}{p.lastName?.[0]}
                   </div>
                   
-                  {/* Info */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-0.5">
-                      <h3 className="text-sm font-black text-slate-900 truncate">
+                      <h3 className="text-sm font-black text-[var(--foreground)] group-hover:text-emerald-500 transition-colors truncate">
                         {p.firstName} {p.lastName}
                       </h3>
-                      <div className={`w-1.5 h-1.5 rounded-full ${p.status === 'active' ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.3)]' : 'bg-slate-300'}`} />
+                      <div className={`w-1.5 h-1.5 rounded-full ${p.status === 'active' ? 'bg-emerald-500' : 'bg-[var(--muted)]/30'}`} />
                     </div>
                     <div className="flex items-center gap-2 overflow-hidden">
-                      <span className="text-[10px] font-bold text-slate-400 whitespace-nowrap">
+                      <span className="text-[10px] font-bold text-[var(--muted)]/60 whitespace-nowrap">
                         {groups.find(g => g.id === p.hosenType)?.name || p.hosenType || "כללי"}
                       </span>
-                      <span className="w-1 h-1 rounded-full bg-slate-200 shrink-0" />
-                      <span className="text-[10px] font-bold text-slate-400 truncate">
+                      <span className="w-1 h-1 rounded-full bg-[var(--border)] shrink-0" />
+                      <span className="text-[10px] font-bold text-[var(--muted)]/60 truncate">
                         {staff[p.assignedWorkerId || ""] || "לא שובץ"}
                       </span>
                     </div>
                   </div>
-                  {/* Actions */}
+                  
                   <div className="flex items-center gap-1 shrink-0">
                     {p.phone && (
                       <a 
                         href={`tel:${p.phone}`}
                         onClick={(e) => e.stopPropagation()}
-                        className="p-2.5 text-slate-400 hover:text-emerald-600 transition-colors"
+                        className="p-2.5 text-[var(--muted)]/40 hover:text-emerald-500 transition-colors"
                       >
                         <Phone className="w-4 h-4" />
                       </a>
                     )}
-                    <div className="p-2.5 text-slate-300">
+                    <div className="p-2.5 text-[var(--muted)]/20">
                       <ChevronLeft className="w-4 h-4" />
                     </div>
                   </div>

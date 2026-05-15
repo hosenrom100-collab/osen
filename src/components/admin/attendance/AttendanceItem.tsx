@@ -9,9 +9,6 @@ interface AttendanceItemProps {
   onToggle: (status: "present" | "absent") => void;
 }
 
-const COLORS = ["bg-blue-500","bg-violet-500","bg-rose-500","bg-amber-500","bg-teal-500","bg-indigo-500"];
-const avatarColor = (name: string) => COLORS[(name?.charCodeAt(0) ?? 0) % COLORS.length];
-
 export function AttendanceItem({ patient, status, onToggle }: AttendanceItemProps) {
   const initials = `${patient.firstName?.[0] ?? ""}${patient.lastName?.[0] ?? ""}`.toUpperCase();
   const isPresent = status === "present";
@@ -19,10 +16,12 @@ export function AttendanceItem({ patient, status, onToggle }: AttendanceItemProp
   const isPending = status === "unset";
 
   return (
-    <div className="bg-[var(--surface)] border-b border-[var(--border-subtle)] last:border-0 p-3 flex items-center gap-3 transition-all active:bg-[var(--foreground)]/5">
+    <div className="bg-[var(--surface)] border-b border-[var(--border)] last:border-0 p-3 flex items-center gap-3 transition-all">
       {/* Avatar */}
-      <div className={`w-10 h-10 rounded-xl flex-shrink-0 flex items-center justify-center font-black text-[10px] text-white transition-all ${
-        isPending ? "bg-[var(--foreground)]/5 !text-[var(--muted)]" : avatarColor(patient.firstName)
+      <div className={`w-10 h-10 rounded-xl flex-shrink-0 flex items-center justify-center font-black text-[10px] transition-all ${
+        isPending ? "bg-[var(--foreground)]/5 text-[var(--muted)]/40" : 
+        isPresent ? "bg-emerald-500/10 text-emerald-600" :
+        "bg-rose-500/10 text-rose-600"
       }`}>
         {initials}
       </div>

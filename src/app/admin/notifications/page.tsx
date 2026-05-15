@@ -27,10 +27,11 @@ interface NotifLog {
   title: string;
   body?: string;
   targetLabel: string;
-  sentAt: Timestamp;
+  createdAt: Timestamp;
   sentByName: string;
-  sentCount: number;
-  failedCount: number;
+  recipientIds: string[];
+  readBy: string[];
+  link?: string;
 }
 
 interface InboxMessage {
@@ -93,6 +94,7 @@ export default function NotificationsPage() {
   const [logs, setLogs] = useState<NotifLog[]>([]);
   const [inbox, setInbox] = useState<InboxMessage[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
+  const [selectedLogForStatus, setSelectedLogForStatus] = useState<NotifLog | null>(null);
 
   useEffect(() => {
     loadData();
@@ -155,9 +157,16 @@ export default function NotificationsPage() {
 
   async function loadLogs() {
     try {
-      const q = query(collection(db, "notificationLogs"), orderBy("sentAt", "desc"), limit(10));
+      const q = query(collection(db, "notifications"), orderBy("createdAt", "desc"), limit(20));
       const snap = await getDocs(q);
-      setLogs(snap.docs.map(d => ({ id: d.id, ...d.data() } as NotifLog)));
+      setLogs(snap.docs.map(d => ({ 
+        id: d.id, 
+        ...d.data(),
+        targetLabel: d.data().target?.everyone ? "כולם" : 
+                    d.data().target?.role ? `תפקיד: ${d.data().target.role}` :
+                    d.data().target?.groupId ? "קבוצה" :
+                    d.data().target?.userId ? "משתמש" : "אחר"
+      } as NotifLog)));
     } catch (e) {
       console.error(e);
     }
@@ -231,7 +240,7 @@ export default function NotificationsPage() {
   async function handleDeleteLog(id: string) {
     if (!confirm("האם למחוק את תיעוד ההודעה?")) return;
     try {
-      await deleteDoc(doc(db, "notificationLogs", id));
+      await deleteDoc(doc(db, "notifications", id));
       setLogs(prev => prev.filter(l => l.id !== id));
     } catch (e) {
       console.error("Delete error:", e);
@@ -702,15 +711,27 @@ export default function NotificationsPage() {
                               </div>
                               <div className="flex items-center gap-1 text-[9px] text-emerald-500 font-black">
                                 <CheckCircle2 className="w-2.5 h-2.5" />
-                                {log.sentCount}
+                                {log.recipientIds?.length || 0} נמענים
+                              </div>
+                              <div className="flex items-center gap-1 text-[9px] text-blue-500 font-black">
+                                <BookOpen className="w-2.5 h-2.5" />
+                                {log.readBy?.length || 0} קראו
                               </div>
                               <div className="flex items-center gap-1 text-[9px] text-[var(--muted)] font-medium mr-auto">
                                 <Clock className="w-2.5 h-2.5" />
-                                {formatTime(log.sentAt)}
+                                {formatTime(log.createdAt)}
                               </div>
                             </div>
                           </div>
                           
+                          <button 
+                            onClick={() => setSelectedLogForStatus(log)}
+                            className="p-2 text-blue-500 hover:bg-blue-500/10 rounded-lg transition-all"
+                            title="מי קרא?"
+                          >
+                            <User className="w-3.5 h-3.5" />
+                          </button>
+
                           <button 
                             onClick={() => handleDeleteLog(log.id)}
                             className="opacity-0 group-hover:opacity-100 p-2 text-slate-300 hover:text-rose-500 transition-all rounded-lg"
@@ -723,6 +744,89 @@ export default function NotificationsPage() {
                   )}
                 </div>
               </div>
+
+              {/* 🔍 READ STATUS MODAL */}
+              <AnimatePresence>
+                {selectedLogForStatus && (
+                  <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+                    <motion.div 
+                      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                      className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+                      onClick={() => setSelectedLogForStatus(null)}
+                    />
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                      animate={{ opacity: 1, scale: 1, y: 0 }}
+                      exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                      className="relative w-full max-w-lg bg-[var(--surface)] rounded-[2rem] border border-[var(--border)] shadow-2xl overflow-hidden flex flex-col max-h-[80vh]"
+                      dir="rtl"
+                    >
+                      <div className="p-6 border-b border-[var(--border)] flex items-center justify-between bg-[var(--foreground)]/[0.02]">
+                        <div>
+                          <h3 className="text-sm font-black text-[var(--foreground)]">מצב קריאה</h3>
+                          <p className="text-[10px] text-[var(--muted)] font-bold">{selectedLogForStatus.title}</p>
+                        </div>
+                        <button onClick={() => setSelectedLogForStatus(null)} className="p-2 hover:bg-[var(--foreground)]/5 rounded-xl transition-all">
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+
+                      <div className="flex-1 overflow-y-auto p-6 space-y-8 no-scrollbar">
+                        {/* Summary Stats */}
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="bg-emerald-500/5 border border-emerald-500/10 rounded-2xl p-4 text-center">
+                            <p className="text-[10px] font-black text-emerald-500 uppercase tracking-widest mb-1">קראו</p>
+                            <p className="text-2xl font-black text-emerald-600">{selectedLogForStatus.readBy?.length || 0}</p>
+                          </div>
+                          <div className="bg-rose-500/5 border border-rose-500/10 rounded-2xl p-4 text-center">
+                            <p className="text-[10px] font-black text-rose-500 uppercase tracking-widest mb-1">טרם קראו</p>
+                            <p className="text-2xl font-black text-rose-600">
+                              {(selectedLogForStatus.recipientIds?.length || 0) - (selectedLogForStatus.readBy?.length || 0)}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* List */}
+                        <div className="space-y-4">
+                          <p className="text-[10px] font-black text-[var(--muted)] uppercase tracking-widest px-2">פירוט נמענים</p>
+                          <div className="divide-y divide-[var(--border)]">
+                            {selectedLogForStatus.recipientIds?.map(uid => {
+                              const u = users.find(x => x.id === uid);
+                              const isRead = selectedLogForStatus.readBy?.includes(uid);
+                              return (
+                                <div key={uid} className="py-3 flex items-center justify-between gap-3">
+                                  <div className="flex items-center gap-3 min-w-0">
+                                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-[10px] font-black shrink-0 ${
+                                      isRead ? "bg-emerald-500/10 text-emerald-600" : "bg-[var(--foreground)]/5 text-[var(--muted)]"
+                                    }`}>
+                                      {u?.name.charAt(0) || "?"}
+                                    </div>
+                                    <div className="min-w-0">
+                                      <p className="text-xs font-bold text-[var(--foreground)] truncate">{u?.name || "משתמש לא ידוע"}</p>
+                                      <p className="text-[9px] text-[var(--muted)] truncate">{u?.email || uid}</p>
+                                    </div>
+                                  </div>
+                                  {isRead ? (
+                                    <span className="text-[9px] font-black text-emerald-500 bg-emerald-500/10 px-2 py-1 rounded-full flex items-center gap-1">
+                                      <CheckCircle2 className="w-2.5 h-2.5" />
+                                      נקרא
+                                    </span>
+                                  ) : (
+                                    <span className="text-[9px] font-black text-rose-500 bg-rose-500/10 px-2 py-1 rounded-full flex items-center gap-1">
+                                      <Clock className="w-2.5 h-2.5" />
+                                      ממתין
+                                    </span>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      </div>
+                    </motion.div>
+                  </div>
+                )}
+              </AnimatePresence>
 
             </div>
 

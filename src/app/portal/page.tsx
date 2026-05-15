@@ -16,6 +16,7 @@ import { he } from "date-fns/locale";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { NotificationCenter } from "@/components/notifications/NotificationCenter";
 
 /* ─── Types ──────────────────────────────────────────────────────────────── */
 
@@ -204,6 +205,7 @@ export default function ParticipantPortal() {
             </span>
           )}
           <div className="flex items-center gap-2 shrink-0">
+            <NotificationCenter />
             <span className="text-xs text-[var(--muted)] hidden md:inline">{user?.displayName?.split(" ")[0]}</span>
             <button onClick={logout}
               className="p-1.5 rounded-lg text-[var(--muted)] hover:text-[var(--foreground)] transition-colors">

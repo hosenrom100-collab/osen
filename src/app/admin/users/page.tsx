@@ -53,7 +53,7 @@ export default function UserManagementPage() {
           email: data.email || "",
           name: data.displayName || data.name || "ללא שם",
           roles: data.roles || (data.role ? [data.role] : ["employee"]),
-          status: data.status || "approved",
+          status: data.status || "pending",
           assignedProgramIds: data.assignedProgramIds || [],
           assignedGroupIds: data.assignedGroupIds || data.assignedGroups || []
         };

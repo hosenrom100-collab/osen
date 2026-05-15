@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { motion } from "framer-motion";
+import { NotificationCenter } from "../notifications/NotificationCenter";
 
 const NAV = [
   { href: "/",           icon: Home,          label: "בית"       },
@@ -143,6 +144,7 @@ export function DesktopSidebar() {
               {ROLE_HE[displayRole] || displayRole}
             </p>
           </div>
+          <NotificationCenter />
           <Settings className="w-4 h-4 text-[var(--foreground)]/20 group-hover:text-[var(--foreground)]/60 transition-colors" />
         </Link>
       </div>

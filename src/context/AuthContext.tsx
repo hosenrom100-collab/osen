@@ -3,7 +3,7 @@
 import { auth, db } from "@/lib/firebase/config";
 import { onAuthStateChanged, signInWithPopup, GoogleAuthProvider, signOut, User } from "firebase/auth";
 import { createContext, useContext, useEffect, useState } from "react";
-import { doc, getDoc, updateDoc, onSnapshot } from "firebase/firestore";
+import { doc, getDoc, updateDoc, onSnapshot, setDoc, serverTimestamp } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 
 export type UserRole = "admin" | "manager" | "instructor" | "social_worker" | "employee" | "logistics" | "participant";
@@ -74,7 +74,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const data       = snap.data();
             const userRole   = data.role as UserRole;
             const userRoles  = (data.roles as UserRole[]) || (userRole ? [userRole] : []);
-            const userStatus = (data.status as UserStatus) || "approved";
+            const userStatus = (data.status as UserStatus) || "pending";
 
             setStatus(userStatus);
             setRole(userRole || userRoles[0]);
@@ -109,11 +109,51 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               });
             }
           } else {
+            // New user detected
             setIsWhitelisted(false);
             setRole(null);
             setRoles([]);
             setStatus("pending");
             setAssignedGroups([]);
+
+            // If we are on the participant join page, don't auto-create here to avoid race conditions
+            if (typeof window !== "undefined" && window.location.pathname.includes("/portal/join")) {
+              setLoading(false);
+              return;
+            }
+
+            // Auto-create document for staff who log in for the first time
+            // This ensures they appear in the admin panel for approval
+            const userRef = doc(db, "users", firebaseUser.uid);
+            await setDoc(userRef, {
+              email: firebaseUser.email || "",
+              displayName: firebaseUser.displayName || "",
+              photoURL: firebaseUser.photoURL || "",
+              role: "employee",
+              roles: ["employee"],
+              status: "pending",
+              onboardingComplete: false,
+              createdAt: serverTimestamp(),
+              assignedGroups: [],
+              preferredProgramIds: [],
+              fcmTokens: [],
+            }, { merge: true });
+
+            // Notify admins and managers
+            try {
+              fetch("/api/notify", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  role: ["admin", "manager"],
+                  title: "איש צוות חדש ממתין לאישור",
+                  body: `${firebaseUser.displayName || firebaseUser.email} נרשם למערכת וממתין לאישור.`,
+                  link: "/admin/users"
+                })
+              });
+            } catch (e) {
+              console.error("Notify failed:", e);
+            }
           }
           setLoading(false);
         }, (err) => {
