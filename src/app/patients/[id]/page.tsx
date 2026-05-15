@@ -906,55 +906,63 @@ export default function PatientDetailPage() {
           </AnimatePresence>
         </main>
 
-        {/* ── PDF Template (Hidden from UI but visible to html2canvas) ── */}
-        <div className="fixed left-[-9999px] top-[-9999px]">
-          <div ref={reportRef} className="w-[210mm] p-[20mm] bg-white text-black font-sans leading-relaxed">
-            <div className="flex justify-between items-start border-b-2 border-emerald-600 pb-8 mb-12">
+        {/* ── PDF Template — inline styles only to avoid html2canvas lab() parse error ── */}
+        <div style={{ position: "fixed", left: -9999, top: -9999 }}>
+          <div ref={reportRef} style={{
+            width: "794px", padding: "80px", backgroundColor: "#ffffff",
+            color: "#000000", fontFamily: "Arial, sans-serif", lineHeight: 1.6, direction: "rtl"
+          }}>
+            {/* Header */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", borderBottom: "2px solid #059669", paddingBottom: "32px", marginBottom: "48px" }}>
               <div>
-                <h1 className="text-4xl font-black text-emerald-600 mb-2">מרכז חוסן</h1>
-                <h2 className="text-xl font-bold text-slate-500">חוות רום</h2>
+                <h1 style={{ fontSize: "32px", fontWeight: 900, color: "#059669", margin: "0 0 8px 0" }}>מרכז חוסן</h1>
+                <h2 style={{ fontSize: "18px", fontWeight: 700, color: "#64748b", margin: 0 }}>חוות רום</h2>
               </div>
-              <div className="text-left text-sm text-slate-400 font-mono">
-                <p>{format(new Date(), "dd/MM/yyyy")}</p>
-                <p>סימוכין: {id?.slice(-6).toUpperCase()}</p>
+              <div style={{ textAlign: "left", fontSize: "13px", color: "#94a3b8", fontFamily: "monospace" }}>
+                <p style={{ margin: "0 0 4px 0" }}>{format(new Date(), "dd/MM/yyyy")}</p>
+                <p style={{ margin: 0 }}>סימוכין: {id?.slice(-6).toUpperCase()}</p>
               </div>
             </div>
 
-            <div className="text-center mb-16">
-              <h3 className="text-3xl font-black mb-4">אישור השתתפות בתוכנית</h3>
-              <div className="w-24 h-1 bg-emerald-500 mx-auto rounded-full" />
+            {/* Title */}
+            <div style={{ textAlign: "center", marginBottom: "64px" }}>
+              <h3 style={{ fontSize: "26px", fontWeight: 900, margin: "0 0 16px 0" }}>אישור השתתפות בתוכנית</h3>
+              <div style={{ width: "96px", height: "4px", backgroundColor: "#10b981", margin: "0 auto", borderRadius: "9999px" }} />
             </div>
 
-            <div className="space-y-8 text-lg">
-              <p>לכל המעוניין,</p>
-              <p className="leading-loose">
+            {/* Body */}
+            <div style={{ fontSize: "17px" }}>
+              <p style={{ marginBottom: "24px" }}>לכל המעוניין,</p>
+              <p style={{ marginBottom: "24px", lineHeight: 2 }}>
                 הרינו לאשר כי המטופל/ת <strong>{patientName}</strong>, ת.ז <strong>{patient.idNumber}</strong>, משתתף/ת באופן פעיל בתוכנית המרכז במסגרת קבוצת <strong>{fullGroupName}</strong>.
               </p>
-              <p>המטופל/ת החל/ה את פעילותו/ה בתוכנית בתאריך {patient.startDate ? format(new Date(patient.startDate), "dd/MM/yyyy") : "—"}.</p>
-              
-              <div className="bg-slate-50 p-8 rounded-3xl border border-slate-100 my-12">
-                <h4 className="font-black text-sm uppercase tracking-widest text-slate-400 mb-4">סיכום נוכחות תקופתי</h4>
-                <div className="flex justify-around items-center">
-                  <div className="text-center">
-                    <p className="text-3xl font-black text-emerald-600">{attendance.filter(a => a.status === 'present').length}</p>
-                    <p className="text-xs font-bold text-slate-500">ימי נוכחות</p>
+              <p style={{ marginBottom: "24px" }}>
+                המטופל/ת החל/ה את פעילותו/ה בתוכנית בתאריך {patient.startDate ? format(new Date(patient.startDate), "dd/MM/yyyy") : "—"}.
+              </p>
+
+              {/* Stats box */}
+              <div style={{ backgroundColor: "#f8fafc", padding: "32px", borderRadius: "24px", border: "1px solid #f1f5f9", margin: "48px 0" }}>
+                <h4 style={{ fontWeight: 900, fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.15em", color: "#94a3b8", marginBottom: "16px" }}>סיכום נוכחות תקופתי</h4>
+                <div style={{ display: "flex", justifyContent: "space-around", alignItems: "center" }}>
+                  <div style={{ textAlign: "center" }}>
+                    <p style={{ fontSize: "28px", fontWeight: 900, color: "#059669", margin: "0 0 4px 0" }}>{attendance.filter(a => a.status === "present").length}</p>
+                    <p style={{ fontSize: "11px", fontWeight: 700, color: "#64748b", margin: 0 }}>ימי נוכחות</p>
                   </div>
-                  <div className="w-px h-12 bg-slate-200" />
-                  <div className="text-center">
-                    <p className="text-3xl font-black text-rose-600">{attendance.filter(a => a.status === 'absent').length}</p>
-                    <p className="text-xs font-bold text-slate-500">ימי היעדרות</p>
+                  <div style={{ width: "1px", height: "48px", backgroundColor: "#e2e8f0" }} />
+                  <div style={{ textAlign: "center" }}>
+                    <p style={{ fontSize: "28px", fontWeight: 900, color: "#e11d48", margin: "0 0 4px 0" }}>{attendance.filter(a => a.status === "absent").length}</p>
+                    <p style={{ fontSize: "11px", fontWeight: 700, color: "#64748b", margin: 0 }}>ימי היעדרות</p>
                   </div>
                 </div>
               </div>
 
-              <p className="mt-12">בברכה,</p>
-              <div className="mt-8">
-                <p className="font-black">הנהלת מרכז חוסן</p>
-                <p className="text-sm text-slate-500 italic">חוות רום - שיקום חקלאי וקהילתי</p>
-              </div>
+              <p style={{ marginTop: "48px", marginBottom: "8px" }}>בברכה,</p>
+              <p style={{ fontWeight: 900, margin: "0 0 4px 0" }}>הנהלת מרכז חוסן</p>
+              <p style={{ fontSize: "13px", color: "#64748b", fontStyle: "italic", margin: 0 }}>חוות רום - שיקום חקלאי וקהילתי</p>
             </div>
 
-            <div className="mt-24 pt-8 border-t border-slate-100 text-[10px] text-slate-400 text-center">
+            {/* Footer */}
+            <div style={{ marginTop: "96px", paddingTop: "24px", borderTop: "1px solid #f1f5f9", fontSize: "9px", color: "#94a3b8", textAlign: "center" }}>
               מסמך זה הופק באופן ממוחשב ואינו דורש חתימה | מרכז חוסן - חוות רום
             </div>
           </div>

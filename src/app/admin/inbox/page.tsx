@@ -4,8 +4,8 @@ import { useAuth } from "@/context/AuthContext";
 import { RoleGuard } from "@/components/auth/RoleGuard";
 import { useState, useEffect, useRef } from "react";
 import { db } from "@/lib/firebase/config";
-import { collection, query, where, orderBy, onSnapshot, getDocs, doc, setDoc, serverTimestamp, updateDoc, limit } from "firebase/firestore";
-import { MessageCircle, Send, Clock, User, Search, Loader2 } from "lucide-react";
+import { collection, query, where, orderBy, onSnapshot, getDocs, getDoc, doc, setDoc, serverTimestamp, updateDoc, limit, writeBatch } from "firebase/firestore";
+import { MessageCircle, Send, Clock, User, Search, Loader2, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { he } from "date-fns/locale";
 
@@ -68,22 +68,35 @@ export default function InboxPage() {
       // Fetch names
       const finalContacts = Array.from(contactMap.values());
       for (const c of finalContacts) {
-        // Try to get from users first
-        const uSnap = await getDocs(query(collection(db, "users"), where("uid", "==", c.id))); // using ID as doc id usually
-        if (!uSnap.empty) {
-          c.name = uSnap.docs[0].data().displayName || uSnap.docs[0].data().name || "משתתף";
-        } else {
-          // If not found, maybe patient record
-          const pDoc = await getDocs(query(collection(db, "patients"), where("idNumber", "==", c.id)));
-          if (!pDoc.empty) {
-            c.name = pDoc.docs[0].data().firstName + " " + pDoc.docs[0].data().lastName;
+        try {
+          const uSnap = await getDoc(doc(db, "users", c.id));
+          if (uSnap.exists()) {
+            const uData = uSnap.data();
+            let resolvedName = uData.displayName || uData.name || uData.email?.split('@')[0];
+            
+            // If they are a participant, try to get their real patient name
+            if (uData.patientId) {
+              const pSnap = await getDoc(doc(db, "patients", uData.patientId));
+              if (pSnap.exists()) {
+                const pData = pSnap.data();
+                if (pData.firstName && pData.lastName) {
+                  resolvedName = `${pData.firstName} ${pData.lastName}`;
+                }
+              }
+            }
+            c.name = resolvedName || "משתתף/ת";
           } else {
-            // Check direct doc id
-            try {
-              // We just set a fallback since we can't do multiple targeted lookups easily without a batch
-              c.name = "משתתף/ת";
-            } catch (e) {}
+             // Fallback if not in users
+             const pSnap = await getDoc(doc(db, "patients", c.id));
+             if (pSnap.exists()) {
+               const pData = pSnap.data();
+               c.name = `${pData.firstName} ${pData.lastName}`;
+             } else {
+               c.name = "משתתף/ת";
+             }
           }
+        } catch (e) {
+          c.name = "משתתף/ת";
         }
       }
 
@@ -167,6 +180,28 @@ export default function InboxPage() {
     } catch (e) { console.error(e); }
   };
 
+  const handleDeleteConversation = async () => {
+    if (!user || !selectedContact) return;
+    if (!confirm("האם למחוק את השיחה לצמיתות? פעולה זו אינה ניתנת לביטול.")) return;
+    
+    try {
+      const q1 = query(collection(db, "messages"), where("participants", "==", [user.uid, selectedContact.id]));
+      const q2 = query(collection(db, "messages"), where("participants", "==", [selectedContact.id, user.uid]));
+      
+      const [s1, s2] = await Promise.all([getDocs(q1), getDocs(q2)]);
+      
+      const batch = writeBatch(db);
+      s1.forEach(d => batch.delete(d.ref));
+      s2.forEach(d => batch.delete(d.ref));
+      
+      await batch.commit();
+      setSelectedContact(null);
+    } catch (e) {
+      console.error(e);
+      alert("אירעה שגיאה במחיקת השיחה.");
+    }
+  };
+
   return (
     <RoleGuard allowedRoles={["admin", "manager", "social_worker", "instructor"]} redirectTo="/">
       <div className="flex h-screen bg-[var(--background)]" dir="rtl">
@@ -223,14 +258,24 @@ export default function InboxPage() {
         <div className="flex-1 flex flex-col bg-[var(--background)]">
           {selectedContact ? (
             <>
-              <div className="h-16 border-b border-[var(--border)] bg-[var(--surface)] flex items-center px-6 gap-3 shrink-0">
-                <div className="w-10 h-10 rounded-full bg-teal-500/10 text-teal-500 flex items-center justify-center font-black">
-                  {selectedContact.name.charAt(0)}
+              <div className="h-16 border-b border-[var(--border)] bg-[var(--surface)] flex items-center justify-between px-6 shrink-0">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-teal-500/10 text-teal-500 flex items-center justify-center font-black">
+                    {selectedContact.name.charAt(0)}
+                  </div>
+                  <div>
+                    <h2 className="text-sm font-black leading-tight">{selectedContact.name}</h2>
+                    <p className="text-[10px] font-bold text-[var(--muted)]">שיחה פעילה</p>
+                  </div>
                 </div>
-                <div>
-                  <h2 className="text-sm font-black leading-tight">{selectedContact.name}</h2>
-                  <p className="text-[10px] font-bold text-[var(--muted)]">שיחה פעילה</p>
-                </div>
+                
+                <button 
+                  onClick={handleDeleteConversation}
+                  className="p-2 text-rose-500 hover:bg-rose-500/10 rounded-xl transition-colors"
+                  title="מחק שיחה"
+                >
+                  <Trash2 className="w-5 h-5" />
+                </button>
               </div>
 
               <div ref={scrollRef} className="flex-1 overflow-y-auto p-6 space-y-4">

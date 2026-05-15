@@ -88,7 +88,7 @@ export default function ShoppingPage() {
   const mobileInputRef = useRef<HTMLInputElement>(null);
   const overlayRef     = useRef<HTMLDivElement>(null);
 
-  const canApprove  = isAdmin || role === "manager" || role === "logistics";
+  const canApprove  = role === "manager";
   const canPurchase = isAdmin || role === "manager" || role === "logistics";
 
   // ── Bootstrap ──────────────────────────────────────────────────────────────

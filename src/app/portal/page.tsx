@@ -826,7 +826,7 @@ export default function ParticipantPortal() {
         {user && swData && (
           <FloatingChat 
             senderId={user.uid}
-            senderName={user.displayName || "משתתף"}
+            senderName={patientData ? `${patientData.firstName} ${patientData.lastName}` : (user.displayName || "משתתף")}
             recipientId={swData.id}
             recipientName={swData.name}
             patientId={patientData?.id}
