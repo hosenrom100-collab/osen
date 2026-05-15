@@ -684,56 +684,50 @@ export default function PatientDetailPage() {
             )}
 
             {activeTab === "messages" && (
-              <motion.div 
-                initial={{ opacity: 0, y: 10 }} 
-                animate={{ opacity: 1, y: 0 }} 
-                exit={{ opacity: 0, y: -10 }} 
-                key="messages" 
-                className="bg-white border border-slate-200 rounded-[2.5rem] shadow-sm flex flex-col h-[600px] overflow-hidden"
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                key="messages"
+                className="bg-white border border-slate-200 rounded-2xl md:rounded-[2.5rem] shadow-sm flex flex-col overflow-hidden"
+                style={{ height: "min(600px, calc(100svh - 180px))" }}
               >
                 {/* Chat Header */}
-                <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-                   <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-emerald-600 font-black">
-                        {patientName.charAt(0)}
-                      </div>
-                      <div>
-                        <h3 className="text-sm font-black leading-tight">שיחה עם {patientName}</h3>
-                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">צ׳אט משתתף בזמן אמת</p>
-                      </div>
-                   </div>
+                <div className="p-4 md:p-6 border-b border-slate-100 flex items-center gap-3 bg-slate-50/50 shrink-0">
+                  <div className="w-9 h-9 md:w-10 md:h-10 rounded-xl md:rounded-2xl bg-emerald-500/10 flex items-center justify-center text-emerald-600 font-black text-sm">
+                    {patientName.charAt(0)}
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-black leading-tight">שיחה עם {patientName}</h3>
+                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">צ׳אט בזמן אמת</p>
+                  </div>
                 </div>
 
                 {/* Messages Area */}
-                <div className="flex-1 overflow-y-auto p-8 space-y-4 no-scrollbar bg-gradient-to-b from-transparent to-slate-50/30">
+                <div className="flex-1 overflow-y-auto p-4 md:p-8 space-y-3 no-scrollbar bg-gradient-to-b from-transparent to-slate-50/30">
                   {messages.length === 0 ? (
                     <div className="h-full flex flex-col items-center justify-center text-center opacity-20 italic">
-                      <MessageCircle className="w-12 h-12 mb-4 opacity-10" />
-                      <p className="text-sm">אין הודעות עדיין. שלח הודעה למשתתף כדי להתחיל בשיחה.</p>
+                      <MessageCircle className="w-10 h-10 mb-3 opacity-10" />
+                      <p className="text-sm">אין הודעות עדיין.</p>
                     </div>
                   ) : (
                     messages.map((m: any, i) => {
                       const isMe = m.senderId === authUser?.uid;
                       const isParticipant = m.senderId === participantUid;
-                      // const isOtherStaff = !isMe && !isParticipant;
-                      
                       return (
-                        <div 
-                          key={m.id || i} 
-                          className={`flex ${isMe ? 'justify-end' : 'justify-start'} mb-2`}
-                        >
-                          <div className={`max-w-[70%] rounded-2xl px-5 py-3 text-sm shadow-sm ${
-                            isMe 
-                              ? 'bg-slate-900 text-white rounded-br-none' 
+                        <div key={m.id || i} className={`flex ${isMe ? "justify-end" : "justify-start"}`}>
+                          <div className={`max-w-[80%] md:max-w-[70%] rounded-2xl px-4 py-2.5 text-sm shadow-sm ${
+                            isMe
+                              ? "bg-slate-900 text-white rounded-br-none"
                               : isParticipant
-                                ? 'bg-white border border-slate-200 text-slate-800 rounded-bl-none'
-                                : 'bg-teal-50 border border-teal-100 text-teal-900 rounded-bl-none'
+                                ? "bg-white border border-slate-200 text-slate-800 rounded-bl-none"
+                                : "bg-teal-50 border border-teal-100 text-teal-900 rounded-bl-none"
                           }`}>
                             {!isMe && !isParticipant && (
                               <p className="text-[10px] font-black text-teal-600 mb-1">איש צוות אחר</p>
                             )}
                             <p className="leading-relaxed">{m.content}</p>
-                            <p className={`text-[8px] mt-1.5 opacity-50 font-bold uppercase tracking-widest ${isMe ? 'text-left' : 'text-right'}`}>
+                            <p className={`text-[9px] mt-1 opacity-40 font-bold ${isMe ? "text-left" : "text-right"}`}>
                               {m.timestamp?.toDate ? format(m.timestamp.toDate(), "HH:mm | dd/MM", { locale: he }) : "שולח..."}
                             </p>
                           </div>
@@ -744,24 +738,24 @@ export default function PatientDetailPage() {
                 </div>
 
                 {/* Input Area */}
-                <div className="p-6 bg-white border-t border-slate-100">
-                   <div className="flex gap-3 bg-slate-50 border border-slate-200 p-2 rounded-2xl focus-within:border-emerald-500/30 focus-within:bg-white transition-all">
-                      <input 
-                        type="text" 
-                        value={newMessage}
-                        onChange={e => setNewMessage(e.target.value)}
-                        onKeyDown={e => e.key === 'Enter' && sendMessage()}
-                        placeholder="כתוב הודעה למשתתף..."
-                        className="flex-1 bg-transparent border-none outline-none text-sm px-4 py-2"
-                      />
-                      <button 
-                        onClick={sendMessage}
-                        disabled={!newMessage.trim()}
-                        className="w-12 h-12 bg-emerald-500 text-white rounded-xl flex items-center justify-center hover:bg-emerald-600 transition-all active:scale-90 disabled:opacity-30 shadow-lg shadow-emerald-500/20"
-                      >
-                        <Send className="w-5 h-5" />
-                      </button>
-                   </div>
+                <div className="p-3 md:p-6 bg-white border-t border-slate-100 shrink-0">
+                  <div className="flex gap-2 md:gap-3 bg-slate-50 border border-slate-200 p-1.5 md:p-2 rounded-xl md:rounded-2xl focus-within:border-emerald-500/30 focus-within:bg-white transition-all">
+                    <input
+                      type="text"
+                      value={newMessage}
+                      onChange={e => setNewMessage(e.target.value)}
+                      onKeyDown={e => e.key === "Enter" && sendMessage()}
+                      placeholder="כתוב הודעה..."
+                      className="flex-1 bg-transparent border-none outline-none text-sm px-3 py-2"
+                    />
+                    <button
+                      onClick={sendMessage}
+                      disabled={!newMessage.trim()}
+                      className="w-10 h-10 md:w-12 md:h-12 bg-emerald-500 text-white rounded-lg md:rounded-xl flex items-center justify-center hover:bg-emerald-600 transition-all active:scale-90 disabled:opacity-30 shadow-lg shadow-emerald-500/20 shrink-0"
+                    >
+                      <Send className="w-4 h-4 md:w-5 md:h-5" />
+                    </button>
+                  </div>
                 </div>
               </motion.div>
             )}

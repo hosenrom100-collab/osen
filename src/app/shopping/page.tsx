@@ -183,7 +183,8 @@ export default function ShoppingPage() {
     const dup = requests.some((r) => r.name === name && r.status !== "purchased");
     if (dup) { flash(pool.find((p) => p.name === name)?.id ?? "dup"); return; }
     const docId = name.replace(/\//g, "-");
-    await setDoc(doc(db, "product_pool", docId), { name, category }, { merge: true });
+    // product_pool write may fail for non-manager/logistics — ignore and continue
+    try { await setDoc(doc(db, "product_pool", docId), { name, category }, { merge: true }); } catch { /* no permission — continue */ }
     await addDoc(collection(db, "shopping_requests"), {
       name, category, quantity: "", notes: "", priority, status: "pending",
       requestedBy: user?.uid, requestedByName: user?.displayName || user?.email,
@@ -617,15 +618,15 @@ export default function ShoppingPage() {
 
               {/* Suggestions list */}
               <div className="flex-1 overflow-y-auto p-4 space-y-2 pb-8">
-                {inputVal.trim() && !exactMatch && (
+                {inputVal.trim() && (
                   <button onClick={handleAddInput}
-                    className="w-full flex items-center gap-3 p-4 rounded-2xl bg-blue-600/10 border border-blue-500/20 text-blue-400 font-bold text-base text-right active:bg-blue-600/20 transition-all">
+                    className="w-full flex items-center gap-3 p-4 rounded-2xl bg-blue-600 text-white font-bold text-base text-right active:bg-blue-700 transition-all shadow-lg shadow-blue-600/30">
                     <Plus className="w-5 h-5 shrink-0" />
                     הוסף "{inputVal.trim()}" לרשימה
                   </button>
                 )}
                 {!inputVal.trim() && (
-                  <p className="text-center text-slate-600 text-sm py-8">הקלד שם מוצר לחיפוש או הוספה</p>
+                  <p className="text-center text-slate-400 text-sm py-8">הקלד שם מוצר לחיפוש או הוספה</p>
                 )}
                 {suggestions.map(p => {
                   const inList = alreadyInList(p.name);
@@ -635,16 +636,16 @@ export default function ShoppingPage() {
                       disabled={inList}
                       className={`w-full flex items-center justify-between p-4 rounded-2xl border text-right transition-all ${
                         inList
-                          ? "bg-white/[0.02] border-white/[0.04] opacity-40 cursor-default"
-                          : "bg-white/[0.04] border-white/[0.06] active:bg-white/[0.08]"
+                          ? "bg-slate-800 border-slate-700 opacity-50 cursor-default"
+                          : "bg-slate-800 border-slate-700 hover:bg-slate-700 active:bg-slate-600"
                       }`}>
                       <div className="flex items-center gap-3">
                         {inList
-                          ? <Check className="w-4 h-4 text-emerald-500 shrink-0" />
-                          : <Plus className="w-4 h-4 text-slate-500 shrink-0" />}
-                        <span className="font-bold text-[15px] text-slate-200">{p.name}</span>
+                          ? <Check className="w-4 h-4 text-emerald-400 shrink-0" />
+                          : <Plus className="w-4 h-4 text-blue-400 shrink-0" />}
+                        <span className="font-bold text-[15px] text-white">{p.name}</span>
                       </div>
-                      <CatBadge cat={p.category} />
+                      <span className="text-[11px] font-bold text-slate-400 bg-slate-700 px-2 py-0.5 rounded-full">{p.category}</span>
                     </button>
                   );
                 })}
