@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, ClipboardList, Users, ShoppingCart, User, Calendar } from "lucide-react";
+import { Home, ClipboardList, Users, ShoppingCart, User, Calendar, MessageSquare } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 
 const staffItems = [
   { href: "/",           icon: Home,          label: "בית"       },
+  { href: "/admin/inbox",icon: MessageSquare, label: "הודעות"   },
   { href: "/attendance", icon: ClipboardList, label: "נוכחות"   },
   { href: "/patients",   icon: Users,         label: "מטופלים"  },
   { href: "/shopping",   icon: ShoppingCart,  label: "קניות"    },
