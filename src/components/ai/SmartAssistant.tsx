@@ -444,6 +444,53 @@ export function SmartAssistant() {
       const miss = pSnap.size - aSnap.size;
       response = miss > 0 ? `ישנם ${miss} מטופלים שטרם נרשמו כנוכחים.` : "כל המטופלים נוכחים היום.";
       router.push("/admin/patient-attendance");
+    } else if (normalized.includes("שלח הודעה") || normalized.includes("תשלח הודעה") || normalized.includes("תשלחי הודעה")) {
+      // Improved regex to handle optional prefixes like "ל", "אל", "עבור"
+      const match = text.match(/(?:שלח|תשלח|תשלחי)\s+הודעה\s+(?:ל|אל|עבור)?\s*([^\s]+)\s+(.+)/i);
+      if (match) {
+        let recipientName = match[1];
+        const messageBody = match[2];
+        
+        // Strip common Hebrew prefixes if they are attached to the name
+        if (recipientName.startsWith("ל") && recipientName.length > 2) {
+          recipientName = recipientName.substring(1);
+        }
+
+        try {
+          const usersSnap = await getDocs(query(collection(db, "users"), limit(100)));
+          const targetUser = usersSnap.docs.find(d => {
+            const name = d.data().name?.toLowerCase() || "";
+            return name.includes(recipientName.toLowerCase()) || recipientName.toLowerCase().includes(name);
+          });
+
+          if (targetUser) {
+            const targetData = targetUser.data();
+            const res = await fetch("/api/notify", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                userId: targetUser.id,
+                title: `הודעה מ${user?.displayName || "איש צוות"}`,
+                body: messageBody,
+                senderId: user?.uid,
+                senderName: user?.displayName
+              })
+            });
+
+            if (res.ok) {
+              response = `שלחתי את ההודעה ל${targetData.name}: "${messageBody}"`;
+            } else {
+              response = `הייתה תקלה בשליחת ההודעה ל${targetData.name}.`;
+            }
+          } else {
+            response = `לא מצאתי איש צוות בשם ${recipientName}.`;
+          }
+        } catch (e) {
+          response = "שגיאה בחיפוש המשתמש.";
+        }
+      } else {
+        response = "בכדי לשלוח הודעה, כתוב למשל: 'שלח הודעה לעמיר מה נשמע?'";
+      }
     }
 
     setMessages(prev => [...prev, { role: "assistant", content: response }]);
@@ -452,14 +499,14 @@ export function SmartAssistant() {
   if (authLoading || !user || pathname === "/login") return null;
 
   return (
-    <div className="fixed bottom-24 md:bottom-8 right-4 md:right-8 z-[100] font-sans pointer-events-none">
+    <div className="fixed bottom-24 md:bottom-8 right-4 md:right-auto md:left-8 z-[100] font-sans pointer-events-none">
       <AnimatePresence>
         {isOpen && (
           <motion.div
             initial={{ opacity: 0, scale: 0.95, y: 20, filter: "blur(10px)" }}
             animate={{ opacity: 1, scale: 1, y: 0, filter: "blur(0px)" }}
             exit={{ opacity: 0, scale: 0.95, y: 20, filter: "blur(10px)" }}
-            className="absolute bottom-20 right-0 w-[calc(100vw-48px)] md:w-[400px] h-[calc(100vh-140px)] md:h-[600px] bg-[var(--surface)]/90 backdrop-blur-3xl border border-[var(--border-strong)] rounded-[32px] shadow-[0_32px_64px_-12px_rgba(0,0,0,0.5)] flex flex-col overflow-hidden pointer-events-auto"
+            className="absolute bottom-20 right-0 md:right-auto md:left-0 w-[calc(100vw-48px)] md:w-[400px] h-[calc(100vh-140px)] md:h-[600px] bg-[var(--surface)]/90 backdrop-blur-3xl border border-[var(--border-strong)] rounded-[32px] shadow-[0_32px_64px_-12px_rgba(0,0,0,0.5)] flex flex-col overflow-hidden pointer-events-auto"
           >
             {/* Header: Premium Gradient & Glass */}
             <div className="relative p-6 border-b border-[var(--border)] overflow-hidden">
@@ -497,9 +544,9 @@ export function SmartAssistant() {
                     animate={{ x: 0, opacity: 1 }}
                     onClick={() => insight.actionPath && (router.push(insight.actionPath), setIsOpen(false))}
                     className={`p-3 rounded-2xl border text-[10px] font-black flex items-center gap-2.5 transition-all cursor-pointer hover:bg-[var(--foreground)]/[0.03] group whitespace-nowrap shrink-0 ${
-                      insight.type === "warning" ? "bg-amber-500/5 border-amber-500/10 text-amber-200" :
-                      insight.type === "success" ? "bg-emerald-500/5 border-emerald-500/10 text-emerald-200" :
-                      "bg-[var(--primary)]/5 border-[var(--primary)]/10 text-blue-200"
+                      insight.type === "warning" ? "bg-amber-500/5 border-amber-500/20 text-amber-700" :
+                      insight.type === "success" ? "bg-emerald-500/5 border-emerald-500/20 text-emerald-700" :
+                      "bg-[var(--primary)]/5 border-[var(--primary)]/20 text-[var(--primary)]"
                     }`}
                   >
                     <insight.icon className="w-4 h-4 shrink-0 opacity-70" />
@@ -580,6 +627,7 @@ export function SmartAssistant() {
         whileHover={{ scale: 1.05, y: -2 }}
         whileTap={{ scale: 0.95 }}
         onClick={() => setIsOpen(!isOpen)}
+        title="העוזר החכם של חוסן"
         className={`w-12 h-12 md:w-14 md:h-14 rounded-2xl flex items-center justify-center shadow-[0_12px_24px_-8px_rgba(0,0,0,0.5)] transition-all relative overflow-hidden group pointer-events-auto ${
           isOpen ? "bg-[var(--surface-raised)] text-[var(--foreground)] rotate-90" : "bg-[var(--primary)] text-white"
         }`}

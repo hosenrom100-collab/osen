@@ -57,6 +57,7 @@ export function AttendanceItem({ patient, status, onToggle }: AttendanceItemProp
         <button
           onClick={() => onToggle("absent")}
           aria-label="סמן נעדר"
+          title="סמן נעדר"
           className={`h-11 w-14 rounded-xl flex items-center justify-center transition-all duration-150 active:scale-[0.92] ${
             isAbsent
               ? "bg-rose-500 text-white shadow-md shadow-rose-500/30"
@@ -68,6 +69,7 @@ export function AttendanceItem({ patient, status, onToggle }: AttendanceItemProp
         <button
           onClick={() => onToggle("present")}
           aria-label="סמן נוכח"
+          title="סמן נוכח"
           className={`h-11 w-14 rounded-xl flex items-center justify-center transition-all duration-150 active:scale-[0.92] ${
             isPresent
               ? "bg-emerald-500 text-white shadow-md shadow-emerald-500/30"

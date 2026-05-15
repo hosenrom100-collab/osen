@@ -40,6 +40,7 @@ export function BottomNav() {
             <Link
               key={item.href}
               href={item.href}
+              title={item.label}
               className="flex-1 flex flex-col items-center justify-center gap-1.5 h-full transition-colors duration-200"
             >
               <item.icon

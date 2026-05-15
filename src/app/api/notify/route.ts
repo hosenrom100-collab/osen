@@ -29,7 +29,10 @@ if (!admin.apps.length) {
 // Body: { userId?, role?, groupId?, programId?, everyone?, title, body, link? }
 export async function POST(req: Request) {
   try {
-    const { userId, role, groupId, programId, everyone, title, body, link = "/" } = await req.json();
+    const { 
+      userId, role, groupId, programId, everyone, 
+      title, body, link = "/", senderId, senderName 
+    } = await req.json();
 
     if (!title) return NextResponse.json({ error: "title is required" }, { status: 400 });
 
@@ -39,13 +42,18 @@ export async function POST(req: Request) {
     const targetUserIds = new Set<string>();
 
     if (userId) {
+      console.log(`[Notify] Targeting specific user: ${userId}`);
       targetUserIds.add(userId);
       const snap = await admin.firestore().collection("users").doc(userId).get();
       const data = snap.data();
       if (data?.fcmTokens?.length) {
+        console.log(`[Notify] Found ${data.fcmTokens.length} tokens for user ${userId}`);
         tokensByUser.set(userId, data.fcmTokens);
+      } else {
+        console.log(`[Notify] No FCM tokens found for user ${userId}`);
       }
     } else if (role) {
+      console.log(`[Notify] Targeting role: ${role}`);
       const roles = Array.isArray(role) ? role : [role];
       const snap = await admin.firestore().collection("users").get();
       snap.forEach((d) => {
@@ -57,6 +65,7 @@ export async function POST(req: Request) {
         }
       });
     } else if (groupId) {
+      console.log(`[Notify] Targeting group: ${groupId}`);
       const snap = await admin.firestore().collection("users").get();
       snap.forEach((d) => {
         const data = d.data();
@@ -71,6 +80,7 @@ export async function POST(req: Request) {
         }
       });
     } else if (programId) {
+      console.log(`[Notify] Targeting program: ${programId}`);
       const snap = await admin.firestore().collection("users").get();
       snap.forEach((d) => {
         const data = d.data();
@@ -85,6 +95,7 @@ export async function POST(req: Request) {
         }
       });
     } else if (everyone) {
+      console.log(`[Notify] Targeting everyone`);
       const snap = await admin.firestore().collection("users").get();
       snap.forEach((d) => {
         const data = d.data();
@@ -98,7 +109,9 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "target required: userId, role, groupId, programId, or everyone=true" }, { status: 400 });
     }
 
+    console.log(`[Notify] Total target recipients: ${targetUserIds.size}`);
     const allTokens = [...tokensByUser.values()].flat();
+    console.log(`[Notify] Total FCM tokens to send: ${allTokens.length}`);
     
     // Send push only if we have tokens
     let successCount = 0;
@@ -115,6 +128,7 @@ export async function POST(req: Request) {
       });
       successCount = result.successCount;
       failureCount = result.failureCount;
+      console.log(`[Notify] Multicast result: ${successCount} success, ${failureCount} failure`);
 
       // Clean up stale tokens
       if (result.failureCount > 0) {
@@ -148,7 +162,9 @@ export async function POST(req: Request) {
         target: { userId, role, groupId, programId, everyone },
         recipientIds: Array.from(targetUserIds),
         readBy: [], 
-        type: "system"
+        type: "system",
+        senderId: senderId || null,
+        senderName: senderName || "מערכת"
       });
     } catch (e) {
       console.error("Failed to store notification:", e);

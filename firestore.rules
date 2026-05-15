@@ -23,16 +23,21 @@ service cloud.firestore {
       return hasRole('manager') || isAdmin();
     }
 
+    // Global Admin override - Give Admins full access to EVERYTHING
+    match /{document=**} {
+      allow read, write: if isAdmin();
+    }
+
     // Users collection
     match /users/{userId} {
       allow read: if isAuthenticated();
-      allow write: if isAdmin();
+      allow write: if (isAuthenticated() && request.auth.uid == userId);
     }
 
     // Patients collection
     match /patients/{patientId} {
       allow read: if isAuthenticated();
-      allow write: if isAdmin() || hasRole('professional_manager');
+      allow write: if isManager() || hasRole('professional_manager');
     }
     
     // Attendance collection
@@ -44,19 +49,29 @@ service cloud.firestore {
     // Staff Attendance
     match /staff_attendance/{docId} {
       allow read: if isAuthenticated();
-      allow write: if isAuthenticated();
+      allow write: if isManager() || (isAuthenticated() && (resource == null || resource.data.userId == request.auth.uid));
     }
 
-    // Absence Requests
+    // Absence Requests (Multiple names used in app)
     match /absence_requests/{docId} {
       allow read: if isAuthenticated();
-      allow write: if isAuthenticated();
+      allow write: if isManager() || (isAuthenticated() && (resource == null || resource.data.userId == request.auth.uid));
+    }
+    match /absences/{docId} {
+      allow read: if isAuthenticated();
+      allow write: if isManager() || (isAuthenticated() && (resource == null || resource.data.userId == request.auth.uid));
+    }
+
+    // Schedule Conflicts
+    match /schedule_conflicts/{docId} {
+      allow read: if isAuthenticated();
+      allow write: if isManager() || (isAuthenticated() && (resource == null || resource.data.userId == request.auth.uid));
     }
 
     // Notifications
     match /notifications/{docId} {
-      allow read: if isAuthenticated() && (resource.data.recipientIds == null || request.auth.uid in resource.data.recipientIds);
-      allow write: if isAuthenticated();
+      allow read: if isAuthenticated();
+      allow write: if isManager() || isAuthenticated();
     }
 
     // Shopping Requests
@@ -68,13 +83,13 @@ service cloud.firestore {
     // Product Pool
     match /product_pool/{docId} {
       allow read: if isAuthenticated();
-      allow write: if isAdmin() || isManager() || hasRole('logistics');
+      allow write: if isManager() || hasRole('logistics');
     }
 
     // Settings
     match /settings/{docId} {
       allow read: if isAuthenticated();
-      allow write: if isAdmin() || isManager();
+      allow write: if isManager();
     }
 
     // Schedules
@@ -86,13 +101,19 @@ service cloud.firestore {
     // Programs
     match /programs/{docId} {
       allow read: if isAuthenticated();
-      allow write: if isAdmin() || isManager();
+      allow write: if isManager();
     }
 
     // Groups
     match /groups/{docId} {
       allow read: if isAuthenticated();
-      allow write: if isAdmin() || isManager();
+      allow write: if isManager();
+    }
+
+    // Locations
+    match /locations/{docId} {
+      allow read: if isAuthenticated();
+      allow write: if isManager();
     }
 
     // Global deny for everything else

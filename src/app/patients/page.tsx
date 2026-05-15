@@ -126,12 +126,14 @@ export default function PatientsPage() {
             <div className="flex bg-[var(--foreground)]/5 p-1 rounded-lg border border-[var(--border)] mr-4">
               <button 
                 onClick={() => setViewMode("table")} 
+                title="תצוגת טבלה"
                 className={`p-1.5 rounded-md transition-all ${viewMode === 'table' ? 'bg-[var(--foreground)] text-[var(--background)] shadow-sm' : 'text-[var(--foreground)]/40'}`}
               >
                 <List className="w-3.5 h-3.5" />
               </button>
               <button 
                 onClick={() => setViewMode("cards")} 
+                title="תצוגת כרטיסים"
                 className={`p-1.5 rounded-md transition-all ${viewMode === 'cards' ? 'bg-[var(--foreground)] text-[var(--background)] shadow-sm' : 'text-[var(--foreground)]/40'}`}
               >
                 <LayoutGrid className="w-3.5 h-3.5" />
@@ -140,6 +142,7 @@ export default function PatientsPage() {
 
             <button 
               onClick={() => router.push("/patients/new")}
+              title="הוספת מטופל חדש למערכת"
               className="flex items-center gap-2 bg-[var(--foreground)] text-[var(--background)] px-5 py-2.5 rounded-xl text-xs font-black transition-all hover:opacity-90"
             >
               <Plus className="w-4 h-4" />
@@ -149,7 +152,7 @@ export default function PatientsPage() {
         </div>
 
         <div className="mt-8 grid grid-cols-1 md:grid-cols-12 gap-2">
-          <div className="md:col-span-5 relative group">
+          <div className="md:col-span-8 relative group">
             <Search className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--muted)]/40" />
             <input 
               type="text" 
@@ -243,6 +246,7 @@ export default function PatientsPage() {
                         <td className="px-6 py-5 text-left">
                           <button 
                             onClick={(e) => handleDelete(p.id, e)}
+                            title="מחיקת מטופל"
                             className="p-2 hover:bg-rose-500/10 text-[var(--foreground)]/20 hover:text-rose-500 rounded-lg transition-all"
                           >
                             <Trash2 className="w-4 h-4" />

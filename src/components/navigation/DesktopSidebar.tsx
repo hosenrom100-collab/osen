@@ -11,19 +11,19 @@ import { motion } from "framer-motion";
 import { NotificationCenter } from "../notifications/NotificationCenter";
 
 const NAV = [
-  { href: "/",           icon: Home,          label: "בית"       },
-  { href: "/attendance", icon: ClipboardList, label: "נוכחות"   },
-  { href: "/patients",   icon: Users,         label: "מטופלים"  },
-  { href: "/shopping",   icon: ShoppingCart,  label: "קניות"    },
-  { href: "/reports",    icon: BarChart3,     label: "דוחות"    },
-  { href: "/calendar",   icon: ClipboardList, label: "לוח שנה"  },
+  { href: "/",           icon: Home,          label: "בית",           color: "text-indigo-400" },
+  { href: "/attendance", icon: ClipboardList, label: "נוכחות",        color: "text-emerald-400" },
+  { href: "/patients",   icon: Users,         label: "מטופלים",       color: "text-sky-400" },
+  { href: "/shopping",   icon: ShoppingCart,  label: "קניות",         color: "text-orange-400" },
+  { href: "/reports",    icon: BarChart3,     label: "דוחות",         color: "text-rose-400" },
+  { href: "/calendar",   icon: ClipboardList, label: "לוח שנה",       color: "text-violet-400" },
 ];
 
 const ADMIN_NAV = [
-  { href: "/admin",                 icon: Settings,      label: "ניהול" },
-  { href: "/admin/staff-attendance", icon: Clock,         label: "נוכחות צוות" },
-  { href: "/admin/notifications",    icon: MessageSquare, label: "הודעות" },
-  { href: "/admin/schedule",        icon: Calendar,      label: "עריכת לו״ז" },
+  { href: "/admin",                 icon: Settings,      label: "ניהול",        color: "text-slate-400" },
+  { href: "/admin/staff-attendance", icon: Clock,         label: "נוכחות צוות",   color: "text-amber-400" },
+  { href: "/admin/notifications",    icon: MessageSquare, label: "הודעות",        color: "text-pink-400" },
+  { href: "/admin/schedule",        icon: Calendar,      label: "עריכת לו״ז",    color: "text-cyan-400" },
 ];
 
 const ROLE_HE: Record<string, string> = {
@@ -65,7 +65,7 @@ export function DesktopSidebar() {
         <div>
           <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--foreground)]/30 px-4 mb-4">מרחב עבודה</p>
           <div className="space-y-1">
-            {NAV.map(({ href, icon: Icon, label }) => {
+            {NAV.map(({ href, icon: Icon, label, color }) => {
               const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
               return (
                 <Link key={href} href={href}
@@ -74,7 +74,7 @@ export function DesktopSidebar() {
                       ? "bg-[var(--foreground)]/10 text-[var(--foreground)]"
                       : "text-[var(--foreground)]/40 hover:text-[var(--foreground)] hover:bg-[var(--foreground)]/5"
                   }`}>
-                  <Icon className={`w-4 h-4 shrink-0 transition-colors ${active ? "text-[var(--foreground)]" : "text-[var(--foreground)]/30 group-hover:text-[var(--foreground)]/60"}`} />
+                  <Icon className={`w-4 h-4 shrink-0 transition-colors ${active ? color : "text-[var(--foreground)]/30 group-hover:text-[var(--foreground)]/60"}`} />
                   <span>{label}</span>
                   {active && (
                     <motion.div 
@@ -93,7 +93,7 @@ export function DesktopSidebar() {
           <div>
             <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--foreground)]/30 px-4 mb-4">ניהול ובקרה</p>
             <div className="space-y-1">
-              {ADMIN_NAV.map(({ href, icon: Icon, label }) => {
+              {ADMIN_NAV.map(({ href, icon: Icon, label, color }) => {
                 const active = pathname.startsWith(href);
                 return (
                   <Link key={href} href={href}
@@ -102,7 +102,7 @@ export function DesktopSidebar() {
                         ? "bg-[var(--foreground)]/10 text-[var(--foreground)]"
                         : "text-[var(--foreground)]/40 hover:text-[var(--foreground)] hover:bg-[var(--foreground)]/5"
                     }`}>
-                    <Icon className={`w-4 h-4 shrink-0 transition-colors ${active ? "text-[var(--foreground)]" : "text-[var(--foreground)]/30 group-hover:text-[var(--foreground)]/60"}`} />
+                    <Icon className={`w-4 h-4 shrink-0 transition-colors ${active ? color : "text-[var(--foreground)]/30 group-hover:text-[var(--foreground)]/60"}`} />
                     <span>{label}</span>
                     {active && (
                       <motion.div 

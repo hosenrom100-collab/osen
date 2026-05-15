@@ -263,19 +263,19 @@ export default function CalendarPage() {
 
   return (
     <RoleGuard allowedRoles={["admin","manager","instructor","social_worker","employee"]} redirectTo="/">
-      <div dir="rtl" className="flex flex-col h-screen bg-background text-foreground overflow-hidden font-sans selection:bg-rose-500/30">
+      <div dir="rtl" className="flex flex-col h-screen bg-background text-foreground overflow-hidden font-sans selection:bg-emerald-500/30">
         
         {/* ── Desktop CRM Header ── */}
         <header className="hidden md:flex items-center justify-between px-8 h-16 shrink-0 border-b border-border bg-card-bg/40 backdrop-blur-md z-30">
           <div className="flex items-center gap-6">
             <div className="flex flex-col">
               <div className="flex items-center gap-2 text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-0.5">
-                <Link href="/" className="hover:text-rose-400 transition-colors">בית</Link>
+                <Link href="/" className="hover:text-emerald-400 transition-colors">בית</Link>
                 <ChevronRight className="w-2.5 h-2.5 opacity-30" />
                 <span className="text-slate-400">יומן ושיבוצים</span>
               </div>
               <h1 className="text-lg font-bold text-white flex items-center gap-2">
-                <CalendarIcon className="w-4 h-4 text-rose-400" />
+                <CalendarIcon className="w-4 h-4 text-emerald-400" />
                 ניהול יומן עבודה
               </h1>
             </div>
@@ -309,7 +309,7 @@ export default function CalendarPage() {
             </button>
 
             <button onClick={() => { setEditingId(null); setShowCreate(true); }}
-              className="flex items-center gap-2 px-4 py-1.5 bg-rose-600 hover:bg-rose-500 text-white rounded-lg text-xs font-bold shadow-lg shadow-rose-600/20 transition-all active:scale-[0.98]">
+              className="flex items-center gap-2 px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold shadow-lg shadow-emerald-600/20 transition-all active:scale-[0.98]">
               <Plus className="w-3.5 h-3.5" />
               אירוע חדש
             </button>
@@ -325,7 +325,7 @@ export default function CalendarPage() {
             </div>
             <div className="flex items-center gap-2">
               <button onClick={() => fetchMonth(currentDate, true)} className="p-2 bg-white/5 rounded-lg"><RefreshCw className={`w-3.5 h-3.5 ${syncStatus === "loading" ? "animate-spin" : ""}`} /></button>
-              <button onClick={() => { setEditingId(null); setShowCreate(true); }} className="bg-rose-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold">חדש</button>
+              <button onClick={() => { setEditingId(null); setShowCreate(true); }} className="bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold">חדש</button>
             </div>
           </div>
         </header>
@@ -358,8 +358,8 @@ export default function CalendarPage() {
                     return (
                       <button key={i} onClick={() => { setSelectedDate(day); if(!inMonth) setCurrentDate(day); }}
                         className={`aspect-square flex items-center justify-center text-[10px] rounded-lg transition-all ${
-                          isSelected ? "bg-rose-600 text-white font-black" : 
-                          isToday ? "text-rose-400 bg-rose-500/10" :
+                          isSelected ? "bg-emerald-600 text-white font-black" : 
+                          isToday ? "text-emerald-400 bg-emerald-500/10" :
                           inMonth ? "text-slate-400 hover:bg-white/5" : "text-slate-700"
                         }`}>
                         {format(day, "d")}
@@ -376,7 +376,7 @@ export default function CalendarPage() {
               <div className="space-y-3">
                 {events.filter(e => getEventStart(e) >= new Date()).slice(0, 5).map(e => (
                    <div key={e.id} className="p-3 bg-white/[0.02] border border-white/[0.05] rounded-xl group hover:border-white/[0.1] transition-all cursor-default">
-                      <p className="text-xs font-bold text-slate-200 line-clamp-1 group-hover:text-rose-400 transition-colors">{e.summary}</p>
+                      <p className="text-xs font-bold text-slate-200 line-clamp-1 group-hover:text-emerald-400 transition-colors">{e.summary}</p>
                       <p className="text-[10px] text-slate-500 mt-1">{format(getEventStart(e), "d בMMM, HH:mm", { locale: he })}</p>
                    </div>
                 ))}
@@ -459,8 +459,8 @@ export default function CalendarPage() {
                         
                         <div className="flex items-center justify-between mb-1">
                           <span className={`text-xs font-black w-6 h-6 flex items-center justify-center rounded-full ${
-                            isToday ? "bg-rose-600 text-white shadow-lg shadow-rose-600/20" : 
-                            isSelected ? "text-rose-400" : "text-slate-600"
+                            isToday ? "bg-emerald-600 text-white shadow-lg shadow-emerald-600/20" : 
+                            isSelected ? "text-emerald-400" : "text-slate-600"
                           }`}>{format(day, "d")}</span>
                           {evs.length > 0 && <span className="text-[9px] font-bold text-slate-700 bg-white/5 px-1.5 py-0.5 rounded uppercase tracking-tighter">{evs.length} אירועים</span>}
                         </div>
@@ -470,11 +470,11 @@ export default function CalendarPage() {
                              <div key={e.id} onClick={() => openEdit(e)}
                                className="px-2 py-1 bg-white/[0.04] border border-white/[0.05] rounded text-[10px] text-slate-300 font-bold truncate hover:bg-white/[0.08] transition-colors cursor-pointer group flex items-center justify-between">
                                 <div className="flex items-center truncate">
-                                   <span className="text-rose-400/80 mr-1 text-[9px] shrink-0">{format(getEventStart(e), "HH:mm")}</span>
+                                   <span className="text-emerald-400/80 mr-1 text-[9px] shrink-0">{format(getEventStart(e), "HH:mm")}</span>
                                    <span className="truncate">{e.summary}</span>
                                 </div>
                                 <div className="hidden group-hover:flex items-center gap-1 shrink-0 ml-1">
-                                   <button onClick={(ev) => { ev.stopPropagation(); handleDelete(e.id); }} className="p-0.5 hover:text-rose-500 transition-colors"><Trash2 className="w-2.5 h-2.5" /></button>
+                                   <button onClick={(ev) => { ev.stopPropagation(); handleDelete(e.id); }} className="p-0.5 hover:text-emerald-500 transition-colors"><Trash2 className="w-2.5 h-2.5" /></button>
                                 </div>
                              </div>
                           ))}
@@ -495,11 +495,11 @@ export default function CalendarPage() {
                     return (
                       <button key={i} onClick={() => setSelectedDate(day)}
                         className={`flex flex-col items-center min-w-[48px] py-2 rounded-xl transition-all ${
-                          isSelected ? "bg-rose-600 text-white" : "bg-white/5 text-slate-400"
+                          isSelected ? "bg-emerald-600 text-white" : "bg-white/5 text-slate-400"
                         }`}>
                         <span className="text-[10px] font-bold uppercase">{format(day, "eee", { locale: he })}</span>
                         <span className="text-sm font-black">{format(day, "d")}</span>
-                        {isToday && !isSelected && <div className="w-1 h-1 bg-rose-500 rounded-full mt-1" />}
+                        {isToday && !isSelected && <div className="w-1 h-1 bg-emerald-500 rounded-full mt-1" />}
                       </button>
                     );
                   })}
@@ -549,7 +549,7 @@ export default function CalendarPage() {
                       {selectedEvs.map(e => (
                          <div key={e.id} onClick={() => openEdit(e)}
                             className="bg-white/5 border border-white/5 rounded-2xl p-4 flex gap-4 cursor-pointer hover:bg-white/10 transition-all active:scale-[0.99]">
-                            <div className="w-1 bg-rose-600 rounded-full shrink-0" />
+                            <div className="w-1 bg-emerald-600 rounded-full shrink-0" />
                             <div className="flex-1">
                                <p className="font-bold text-sm text-white mb-1">{e.summary}</p>
                                <div className="flex items-center gap-3 text-xs text-slate-500">
@@ -558,7 +558,7 @@ export default function CalendarPage() {
                                </div>
                             </div>
                             <div className="flex flex-col gap-2">
-                               <button onClick={(ev) => { ev.stopPropagation(); handleDelete(e.id); }} className="p-2 text-slate-700 active:text-rose-500 transition-colors"><Trash2 className="w-4 h-4" /></button>
+                               <button onClick={(ev) => { ev.stopPropagation(); handleDelete(e.id); }} className="p-2 text-slate-700 active:text-emerald-500 transition-colors"><Trash2 className="w-4 h-4" /></button>
                             </div>
                          </div>
                       ))}
@@ -579,7 +579,7 @@ export default function CalendarPage() {
                <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 10 }} className="relative bg-slate-900 border border-white/[0.1] rounded-3xl w-full max-w-md overflow-hidden shadow-2xl">
                   <div className="px-6 py-5 border-b border-white/[0.07] flex items-center justify-between bg-white/[0.02]">
                     <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                      {editingId ? <RefreshCw className="w-4 h-4 text-rose-500" /> : <Plus className="w-4 h-4 text-rose-500" />}
+                      {editingId ? <RefreshCw className="w-4 h-4 text-emerald-500" /> : <Plus className="w-4 h-4 text-emerald-500" />}
                       {editingId ? "עריכת אירוע" : "אירוע חדש"}
                     </h3>
                     <button onClick={() => setShowCreate(false)} className="p-2 hover:bg-white/5 rounded-xl transition-colors"><X className="w-4 h-4" /></button>
@@ -587,32 +587,32 @@ export default function CalendarPage() {
                   <div className="p-6 space-y-4">
                     <div className="space-y-1.5">
                       <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest px-1">כותרת האירוע</label>
-                      <input autoFocus value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder="לדוגמה: ישיבת צוות שבועית" className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-sm font-medium focus:border-rose-500/50 outline-none transition-all" />
+                      <input autoFocus value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder="לדוגמה: ישיבת צוות שבועית" className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-sm font-medium focus:border-emerald-500/50 outline-none transition-all" />
                     </div>
                     
                     <div className="grid grid-cols-3 gap-3">
                        <div className="space-y-1.5 col-span-1">
                         <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest px-1">תאריך</label>
-                        <input type="date" value={form.startDate} onChange={e => setForm(f => ({ ...f, startDate: e.target.value, endDate: e.target.value }))} className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-3 text-xs font-medium focus:border-rose-500/50 outline-none transition-all" />
+                        <input type="date" value={form.startDate} onChange={e => setForm(f => ({ ...f, startDate: e.target.value, endDate: e.target.value }))} className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-3 text-xs font-medium focus:border-emerald-500/50 outline-none transition-all" />
                        </div>
                        <div className="space-y-1.5">
                         <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest px-1">התחלה</label>
-                        <input type="time" value={form.startTime} onChange={e => setForm(f => ({ ...f, startTime: e.target.value }))} className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-3 text-xs font-medium focus:border-rose-500/50 outline-none transition-all" />
+                        <input type="time" value={form.startTime} onChange={e => setForm(f => ({ ...f, startTime: e.target.value }))} className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-3 text-xs font-medium focus:border-emerald-500/50 outline-none transition-all" />
                        </div>
                        <div className="space-y-1.5">
                         <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest px-1">סיום</label>
-                        <input type="time" value={form.endTime} onChange={e => setForm(f => ({ ...f, endTime: e.target.value }))} className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-3 text-xs font-medium focus:border-rose-500/50 outline-none transition-all" />
+                        <input type="time" value={form.endTime} onChange={e => setForm(f => ({ ...f, endTime: e.target.value }))} className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-3 text-xs font-medium focus:border-emerald-500/50 outline-none transition-all" />
                        </div>
                     </div>
 
                     <div className="space-y-1.5">
                       <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest px-1">מיקום (אופציונלי)</label>
-                      <input value={form.location} onChange={e => setForm(f => ({ ...f, location: e.target.value }))} placeholder="חדר ישיבות, זום..." className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-sm font-medium focus:border-rose-500/50 outline-none transition-all" />
+                      <input value={form.location} onChange={e => setForm(f => ({ ...f, location: e.target.value }))} placeholder="חדר ישיבות, זום..." className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-sm font-medium focus:border-emerald-500/50 outline-none transition-all" />
                     </div>
                   </div>
                   <div className="p-6 border-t border-white/[0.07] bg-white/[0.01] flex gap-3">
                     <button onClick={() => { setShowCreate(false); setEditingId(null); }} className="flex-1 py-3.5 bg-white/5 hover:bg-white/10 rounded-2xl font-bold text-sm text-slate-400">ביטול</button>
-                    <button onClick={handleSave} disabled={!form.title.trim() || creating} className="flex-1 py-3.5 bg-rose-600 hover:bg-rose-500 rounded-2xl font-bold text-sm text-white shadow-lg shadow-rose-600/20 flex items-center justify-center gap-2">
+                    <button onClick={handleSave} disabled={!form.title.trim() || creating} className="flex-1 py-3.5 bg-emerald-600 hover:bg-emerald-500 rounded-2xl font-bold text-sm text-white shadow-lg shadow-emerald-600/20 flex items-center justify-center gap-2">
                       {creating ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Check className="w-4 h-4" /> {editingId ? "עדכן אירוע" : "צור אירוע"}</>}
                     </button>
                   </div>

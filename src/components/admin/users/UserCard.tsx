@@ -61,6 +61,7 @@ export function UserCard({ user, index, updatingId, programs, groups, onUpdate }
 
           <button
             onClick={() => setIsExpanded(!isExpanded)}
+            title={isExpanded ? "סגור פירוט" : "ניהול שיוכים לתוכניות וקבוצות"}
             className="flex items-center gap-2 px-4 py-2 bg-[var(--foreground)]/5 border border-[var(--border)] rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-[var(--foreground)]/10 transition-all"
           >
             {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
@@ -71,6 +72,7 @@ export function UserCard({ user, index, updatingId, programs, groups, onUpdate }
             <button
               onClick={() => onUpdate({ status: "approved" })}
               disabled={isUpdating}
+              title="אשר כניסת עובד למערכת"
               className="flex items-center gap-2 px-6 py-2.5 bg-emerald-600 text-white rounded-xl text-xs font-black hover:bg-emerald-500 transition-all disabled:opacity-50"
             >
               <Check className="w-4 h-4" />
@@ -80,6 +82,7 @@ export function UserCard({ user, index, updatingId, programs, groups, onUpdate }
             <button
               onClick={() => onUpdate({ status: user.status === "blocked" ? "approved" : "blocked" })}
               disabled={isUpdating}
+              title={user.status === 'blocked' ? 'שחרר חסימה' : 'חסום גישה למערכת'}
               className={`p-2.5 rounded-xl border transition-all ${
                 user.status === 'blocked' 
                   ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500 hover:bg-emerald-500/20' 

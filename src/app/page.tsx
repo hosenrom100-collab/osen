@@ -8,12 +8,12 @@ import {
   LogOut, Users, Calendar, ShoppingCart, CheckCircle,
   Shield, MapPin, Edit3, ChevronLeft, Clock,
   ClipboardList, Layers, X, Check, ChevronDown, Plus,
-  AlertTriangle, Sparkles,
+  AlertTriangle, Sparkles, Bell
 } from "lucide-react";
 import Link from "next/link";
 import { db } from "@/lib/firebase/config";
 import {
-  collection, getDocs, query, where, doc, getDoc, orderBy, updateDoc, setDoc,
+  collection, getDocs, query, where, doc, getDoc, orderBy, updateDoc, setDoc, limit
 } from "firebase/firestore";
 import { format, addMonths, differenceInDays, parseISO, isValid } from "date-fns";
 import { he } from "date-fns/locale";
@@ -129,6 +129,8 @@ export default function Home() {
   const [expiringCount,   setExpiringCount]   = useState(0);
   const [userAbsence,     setUserAbsence]     = useState<any[]>([]);
   const [pendingAbsences, setPendingAbsences] = useState<number>(0);
+  const [recentNotifications, setRecentNotifications] = useState<any[]>([]);
+  const [unreadNotifCount, setUnreadNotifCount] = useState(0);
 
   const showAll = isAdmin || isManager;
 
@@ -245,6 +247,17 @@ export default function Home() {
           setConflicts(newConflicts);
         }
       }
+
+      // 5. Notifications
+      const nSnap = await getDocs(query(
+        collection(db, "notifications"),
+        where("recipientIds", "array-contains", user?.uid || ""),
+        orderBy("createdAt", "desc"),
+        limit(5)
+      ));
+      const nList = nSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+      setRecentNotifications(nList);
+      setUnreadNotifCount(nList.filter((n: any) => !n.readBy?.includes(user?.uid)).length);
     } catch (err) { console.error(err); }
     finally { setDataLoaded(true); }
   };
@@ -350,7 +363,7 @@ export default function Home() {
               <Link href="/attendance" className="flex items-center gap-1.5 hover:text-amber-500 transition-colors">
                 <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
                 <span className="font-semibold text-amber-500">{totalMissing}</span>
-                <span className="text-[var(--muted)]">ממתינים לסימון</span>
+                <span className="text-[var(--muted)]">מטופלים ממתינים לבדיקת נוכחות</span>
               </Link>
             )}
             {shoppingCount > 0 && (
@@ -381,7 +394,7 @@ export default function Home() {
           <div className="max-w-6xl mx-auto">
             <div className="flex items-center gap-2 mb-3">
               <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
-              <h2 className="text-[10px] font-black uppercase tracking-widest text-slate-500">תובנות חכמות וסדר יום</h2>
+              <h2 className="text-[10px] font-black uppercase tracking-widest text-[var(--foreground)]/50">תובנות חכמות וסדר יום</h2>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
               {(isAdmin || isManager) && pendingAbsences > 0 && (
@@ -392,8 +405,8 @@ export default function Home() {
                     <Clock className="w-4 h-4 text-amber-400" />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-[11px] font-bold text-slate-200">אישור היעדרויות</p>
-                    <p className="text-[10px] text-slate-500 truncate">{pendingAbsences} בקשות ממתינות לאישור</p>
+                    <p className="text-[11px] font-black text-[var(--foreground)]">אישור היעדרויות</p>
+                    <p className="text-[10px] text-[var(--foreground)]/40 font-bold truncate">{pendingAbsences} בקשות ממתינות לאישור</p>
                   </div>
                 </motion.div>
               )}
@@ -405,8 +418,8 @@ export default function Home() {
                     <Calendar className="w-4 h-4 text-indigo-400" />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-[11px] font-bold text-slate-200">ההיעדרויות שלי</p>
-                    <p className="text-[10px] text-slate-500 truncate">{userAbsence.length} בקשות בטיפול</p>
+                    <p className="text-[11px] font-black text-[var(--foreground)]">ההיעדרויות שלי</p>
+                    <p className="text-[10px] text-[var(--foreground)]/40 font-bold truncate">{userAbsence.length} בקשות בטיפול</p>
                   </div>
                 </motion.div>
               )}
@@ -418,8 +431,21 @@ export default function Home() {
                     <Shield className="w-4 h-4 text-blue-400" />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-[11px] font-bold text-slate-200">חידוש תוכניות</p>
-                    <p className="text-[10px] text-slate-500 truncate">{expiringCount} מטופלים לקראת סיום</p>
+                    <p className="text-[11px] font-black text-[var(--foreground)]">חידוש תוכניות</p>
+                    <p className="text-[10px] text-[var(--foreground)]/40 font-bold truncate">{expiringCount} מטופלים לקראת סיום</p>
+                  </div>
+                </motion.div>
+              )}
+              {unreadNotifCount > 0 && (
+                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
+                  className="bg-emerald-500/5 border border-emerald-500/10 rounded-2xl p-3 flex gap-3 items-center cursor-pointer hover:bg-emerald-500/10 transition-all group"
+                  onClick={() => router.push("/notifications")}>
+                  <div className="w-9 h-9 rounded-xl bg-emerald-500/10 flex items-center justify-center shrink-0 border border-emerald-500/20 group-hover:bg-emerald-500/20 transition-all">
+                    <Bell className="w-4 h-4 text-emerald-500" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-black text-[var(--foreground)]">הודעות חדשות</p>
+                    <p className="text-[10px] text-[var(--foreground)]/40 font-bold truncate">{unreadNotifCount} עדכונים שלא נקראו</p>
                   </div>
                 </motion.div>
               )}
@@ -431,8 +457,8 @@ export default function Home() {
                     <ShoppingCart className="w-4 h-4 text-rose-400" />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-[11px] font-bold text-slate-200">רכש ממתין</p>
-                    <p className="text-[10px] text-slate-500 truncate">{shoppingCount} בקשות ממתינות</p>
+                    <p className="text-[11px] font-black text-[var(--foreground)]">רכש ממתין</p>
+                    <p className="text-[10px] text-[var(--foreground)]/40 font-bold truncate">{shoppingCount} בקשות ממתינות</p>
                   </div>
                 </motion.div>
               )}
@@ -558,6 +584,35 @@ export default function Home() {
 
           {/* ── Sidebar — attendance + actions ── */}
           <aside className="space-y-4 md:order-2">
+
+            {/* Recent Notifications */}
+            <div className="border border-[var(--border)] rounded-xl overflow-hidden bg-[var(--card-bg,var(--surface))]">
+              <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border)]">
+                <div className="flex items-center gap-2">
+                  <Bell className="w-4 h-4 text-emerald-500" />
+                  <h2 className="text-sm font-semibold">עדכונים אחרונים</h2>
+                </div>
+                <button onClick={() => router.push("/notifications")} className="text-[10px] font-medium text-[var(--primary)] hover:underline">הכל</button>
+              </div>
+              <div className="p-3 space-y-2">
+                {recentNotifications.length === 0 ? (
+                  <p className="text-[10px] text-[var(--muted)] text-center py-4 opacity-40 italic">אין עדכונים חדשים</p>
+                ) : (
+                  recentNotifications.map(n => {
+                    const isRead = n.readBy?.includes(user?.uid);
+                    return (
+                      <div key={n.id} className={`p-3 rounded-xl border transition-all ${isRead ? "bg-[var(--foreground)]/2 border-transparent opacity-60" : "bg-emerald-500/5 border-emerald-500/10"}`}>
+                        <div className="flex items-center gap-2 mb-1">
+                          {!isRead && <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-lg shadow-emerald-500/30" />}
+                          <p className="text-[11px] font-black truncate">{n.title}</p>
+                        </div>
+                        <p className="text-[10px] text-[var(--muted)] line-clamp-2 leading-relaxed">{n.body}</p>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
 
             {/* Attendance by group */}
             <div className="border border-[var(--border)] rounded-xl overflow-hidden bg-[var(--card-bg,var(--surface))]">

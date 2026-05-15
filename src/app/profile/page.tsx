@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { db } from "@/lib/firebase/config";
-import { doc, updateDoc, collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { doc, updateDoc, collection, addDoc, serverTimestamp, query, where, getDocs, orderBy, deleteDoc } from "firebase/firestore";
 import { updateProfile } from "firebase/auth";
 import { format } from "date-fns";
 import { he } from "date-fns/locale";
@@ -38,6 +38,7 @@ export default function ProfilePage() {
   const [absenceDate, setAbsenceDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [absenceReason, setAbsenceReason] = useState("");
   const [isSubmittingAbsence, setIsSubmittingAbsence] = useState(false);
+  const [myAbsences, setMyAbsences] = useState<any[]>([]);
 
   const userRole = role || "user";
   const initials = displayName
@@ -47,7 +48,23 @@ export default function ProfilePage() {
   useEffect(() => {
     if (user?.displayName) setDisplayName(user.displayName);
     if (workSchedule) setTempSchedule(workSchedule);
+    if (user) fetchMyAbsences();
   }, [user, workSchedule]);
+
+  const fetchMyAbsences = async () => {
+    if (!user) return;
+    try {
+      const q = query(
+        collection(db, "absence_requests"),
+        where("userId", "==", user.uid),
+        orderBy("createdAt", "desc")
+      );
+      const snap = await getDocs(q);
+      setMyAbsences(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    } catch (e) {
+      console.error("Error fetching absences:", e);
+    }
+  };
 
   const handleSaveName = async () => {
     if (!user) return;
@@ -92,8 +109,38 @@ export default function ProfilePage() {
       setShowAbsenceModal(false);
       setAbsenceReason("");
       setMessage({ type: 'success', text: 'דיווח ההיעדרות נשלח' });
+      fetchMyAbsences();
     } catch (e) {
       setMessage({ type: 'error', text: 'שגיאה בשליחת הדיווח' });
+    } finally { setIsSubmittingAbsence(false); }
+  };
+
+  const handleCancelAbsence = async (abs: any) => {
+    if (!user || !confirm("האם אתה בטוח שברצונך לבטל את בקשת ההיעדרות?")) return;
+    setIsSubmittingAbsence(true);
+    try {
+      // 1. Delete Request
+      await deleteDoc(doc(db, "absence_requests", abs.id));
+
+      // 2. Cleanup staff_attendance if exists
+      const attQ = query(collection(db, "staff_attendance"), where("userId", "==", user.uid), where("date", "==", abs.date));
+      const attSnap = await getDocs(attQ);
+      for (const d of attSnap.docs) {
+        await deleteDoc(d.ref);
+      }
+
+      // 3. Cleanup schedule_conflicts if exists
+      const confQ = query(collection(db, "schedule_conflicts"), where("userId", "==", user.uid), where("date", "==", abs.date));
+      const confSnap = await getDocs(confQ);
+      for (const d of confSnap.docs) {
+        await deleteDoc(d.ref);
+      }
+
+      setMessage({ type: 'success', text: 'בקשת ההיעדרות בוטלה בהצלחה' });
+      fetchMyAbsences();
+    } catch (e) {
+      console.error(e);
+      setMessage({ type: 'error', text: 'שגיאה בביטול הבקשה' });
     } finally { setIsSubmittingAbsence(false); }
   };
 
@@ -241,6 +288,50 @@ export default function ProfilePage() {
                   </button>
                 </div>
               </section>
+
+              {/* My Absence Requests List */}
+              {myAbsences.length > 0 && (
+                <section className="space-y-6">
+                  <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-[var(--foreground)]/20 mr-2">בקשות ההיעדרות שלי</h3>
+                  <div className="bg-[var(--card-bg)] border border-[var(--border)] rounded-3xl md:rounded-[2.5rem] overflow-hidden shadow-sm">
+                    <div className="divide-y divide-[var(--border)]">
+                      {myAbsences.map((abs) => (
+                        <div key={abs.id} className="p-4 md:p-6 flex items-center justify-between hover:bg-[var(--foreground)]/[0.01] transition-colors">
+                          <div className="flex items-center gap-4">
+                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                              abs.status === 'approved' ? 'bg-emerald-500/10 text-emerald-500' :
+                              abs.status === 'rejected' ? 'bg-rose-500/10 text-rose-500' :
+                              'bg-orange-500/10 text-orange-500'
+                            }`}>
+                              <Calendar className="w-5 h-5" />
+                            </div>
+                            <div>
+                              <p className="text-sm font-black">{format(new Date(abs.date), "dd/MM/yyyy")}</p>
+                              <p className="text-[10px] font-bold text-[var(--foreground)]/40 truncate max-w-[150px] md:max-w-xs">{abs.reason}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <span className={`text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg border ${
+                              abs.status === 'approved' ? 'bg-emerald-500/5 border-emerald-500/20 text-emerald-500' :
+                              abs.status === 'rejected' ? 'bg-rose-500/5 border-rose-500/20 text-rose-500' :
+                              'bg-orange-500/5 border-orange-500/20 text-orange-500'
+                            }`}>
+                              {abs.status === 'approved' ? 'אושר' : abs.status === 'rejected' ? 'נדחה' : 'ממתין'}
+                            </span>
+                            <button 
+                              onClick={() => handleCancelAbsence(abs)}
+                              title="בטל בקשה"
+                              className="p-2 hover:bg-rose-500/10 text-rose-500/40 hover:text-rose-500 rounded-lg transition-all"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </section>
+              )}
 
               {/* Interface Settings */}
               <section className="space-y-6">

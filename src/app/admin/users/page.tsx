@@ -111,7 +111,7 @@ export default function UserManagementPage() {
             </div>
           </div>
 
-          <div className="relative max-w-md w-full">
+          <div className="relative max-w-2xl w-full">
             <Search className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
             <input
               type="text"

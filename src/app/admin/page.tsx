@@ -80,7 +80,7 @@ export default function AdminDashboard() {
               <ChevronLeft className="w-3 h-3 opacity-30 rotate-180" />
               <span className="text-[var(--foreground)]/70">ניהול</span>
             </div>
-            <button onClick={() => router.push("/")} className="md:hidden p-1.5 rounded-lg text-[var(--muted)] hover:text-[var(--foreground)] transition-colors">
+            <button onClick={() => router.push("/")} title="חזור לדף הבית" className="md:hidden p-1.5 rounded-lg text-[var(--muted)] hover:text-[var(--foreground)] transition-colors">
               <ChevronLeft className="w-4 h-4 rotate-180" />
             </button>
 
@@ -113,6 +113,7 @@ export default function AdminDashboard() {
                       <button
                         key={mod.title}
                         onClick={() => router.push(mod.path)}
+                        title={mod.desc}
                         className="group flex flex-col items-start gap-4 p-5 bg-[var(--surface)] border border-[var(--border)] rounded-2xl hover:border-[var(--muted)]/30 transition-all text-right active:scale-[0.98] shadow-lg shadow-[var(--foreground)]/[0.02]"
                       >
                         <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${bgCls} ${textCls} border border-transparent group-hover:border-current/10`}>

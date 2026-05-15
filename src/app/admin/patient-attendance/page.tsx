@@ -7,6 +7,7 @@ import { collection, getDocs, query, where, doc, setDoc, deleteDoc } from "fireb
 import {
   Search, Loader2, ChevronLeft, ChevronRight,
   Calendar as CalendarIcon, Users, CheckCircle,
+  ClipboardList
 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AttendanceItem } from "@/components/admin/attendance/AttendanceItem";
@@ -26,7 +27,8 @@ interface Patient {
   status?: string;
   fullName?: string;
 }
-interface Group { id: string; name: string }
+interface Group { id: string; name: string; programId?: string }
+interface SelectionItem { id: string; name: string; type: 'program' | 'group' }
 interface AttendanceRecord { [patientId: string]: "present" | "absent" | "unset" }
 
 function MiniCalendar({ value, onChange }: { value: string; onChange: (d: string) => void }) {
@@ -79,39 +81,67 @@ function AttendancePageContent() {
   const searchParams = useSearchParams();
   const router       = useRouter();
 
-  const [groups,        setGroups]        = useState<Group[]>([]);
-  const [selectedGroup, setSelectedGroup] = useState<string>(searchParams.get("group") || "");
-  const [patients,      setPatients]      = useState<Patient[]>([]);
-  const [attendance,    setAttendance]    = useState<AttendanceRecord>({});
-  const [loading,       setLoading]       = useState(true);
-  const [searchTerm,    setSearchTerm]    = useState("");
-  const [selectedDate,  setSelectedDate]  = useState(format(new Date(), "yyyy-MM-dd"));
-  const [showCalendar,  setShowCalendar]  = useState(false);
+  const [selectionItems, setSelectionItems] = useState<SelectionItem[]>([]);
+  const [selectedId,     setSelectedId]     = useState<string>(searchParams.get("group") || "");
+  const [patients,       setPatients]       = useState<Patient[]>([]);
+  const [attendance,     setAttendance]     = useState<AttendanceRecord>({});
+  const [loading,        setLoading]        = useState(true);
+  const [searchTerm,     setSearchTerm]     = useState("");
+  const [selectedDate,   setSelectedDate]   = useState(format(new Date(), "yyyy-MM-dd"));
+  const [showCalendar,   setShowCalendar]   = useState(false);
 
   useEffect(() => {
-    getDocs(collection(db, "groups")).then(snap => {
-      const gList = snap.docs.map(d => ({ id: d.id, name: d.data().name }));
-      setGroups(gList);
-      if (!selectedGroup && gList.length > 0) setSelectedGroup(gList[0].id);
-    });
+    const loadSelections = async () => {
+      const [progSnap, groupSnap] = await Promise.all([
+        getDocs(collection(db, "programs")),
+        getDocs(collection(db, "groups"))
+      ]);
+      
+      const progs = progSnap.docs.map(d => ({ id: d.id, name: d.data().name }));
+      const groups = groupSnap.docs.map(d => ({ id: d.id, name: d.data().name, programId: d.data().programId }));
+      
+      const items: SelectionItem[] = [];
+      progs.forEach(p => {
+        const pGroups = groups.filter(g => g.programId === p.id);
+        if (pGroups.length === 0) {
+          items.push({ id: p.id, name: p.name, type: 'program' });
+        } else {
+          pGroups.forEach(g => {
+            items.push({ id: g.id, name: `${p.name} - ${g.name}`, type: 'group' });
+          });
+        }
+      });
+      
+      setSelectionItems(items);
+      if (!selectedId && items.length > 0) setSelectedId(items[0].id);
+    };
+    loadSelections();
   }, []);
 
   useEffect(() => {
-    if (selectedGroup) {
-      const gName = groups.find(g => g.id === selectedGroup)?.name || "";
-      fetchData(selectedGroup, gName);
+    if (selectedId && selectionItems.length > 0) {
+      const selection = selectionItems.find(item => item.id === selectedId);
+      if (selection) {
+        fetchData(selection);
+      }
     }
-  }, [selectedGroup, selectedDate, groups]);
+  }, [selectedId, selectedDate, selectionItems]);
 
-  const fetchData = async (groupId: string, groupName: string) => {
+  const fetchData = async (selection: SelectionItem) => {
     setLoading(true);
     try {
       const pSnap = await getDocs(collection(db, "patients"));
       const list: Patient[] = [];
       pSnap.forEach(d => {
         const data = d.data();
-        if (data.status === "active" && (data.hosenType === groupId || data.hosenType === groupName)) {
-          list.push({ id: d.id, ...data } as Patient);
+        if (data.status === "active") {
+          const isMatch = selection.type === 'group'
+            ? (data.hosenType === selection.id)
+            : (data.programId === selection.id);
+            
+          if (isMatch) {
+            list.push({ id: d.id, ...data } as Patient);
+          }
         }
       });
       setPatients(list);
@@ -201,11 +231,18 @@ function AttendancePageContent() {
           </div>
 
           {/* Desktop: calendar toggle button */}
-          <button onClick={() => setShowCalendar(!showCalendar)}
-            className="hidden md:flex items-center gap-2 px-4 h-9 bg-[var(--foreground)]/5 border border-[var(--border)] rounded-xl text-xs font-black hover:bg-[var(--foreground)]/10 transition-colors">
-            <CalendarIcon className="w-3.5 h-3.5 text-emerald-500" />
-            {dayLabel} · {dateLabel}
-          </button>
+          <div className="hidden md:flex items-center gap-3">
+            <button onClick={() => router.push("/admin/attendance-matrix")}
+              className="flex items-center gap-2 px-4 h-9 bg-violet-500/10 border border-violet-500/20 rounded-xl text-xs font-black text-violet-400 hover:bg-violet-500/20 transition-colors">
+              <ClipboardList className="w-3.5 h-3.5" />
+              מבט טבלאי (אקסל)
+            </button>
+            <button onClick={() => setShowCalendar(!showCalendar)}
+              className="flex items-center gap-2 px-4 h-9 bg-[var(--foreground)]/5 border border-[var(--border)] rounded-xl text-xs font-black hover:bg-[var(--foreground)]/10 transition-colors">
+              <CalendarIcon className="w-3.5 h-3.5 text-emerald-500" />
+              {dayLabel} · {dateLabel}
+            </button>
+          </div>
         </div>
 
         {/* Mobile: prominent date navigation bar */}
@@ -227,16 +264,16 @@ function AttendancePageContent() {
           </button>
         </div>
 
-        {/* Group selector */}
+        {/* Selection selector */}
         <div className="flex gap-1.5 overflow-x-auto no-scrollbar px-4 pb-3">
-          {groups.map(g => (
-            <button key={g.id} onClick={() => setSelectedGroup(g.id)}
+          {selectionItems.map(item => (
+            <button key={item.id} onClick={() => setSelectedId(item.id)}
               className={`whitespace-nowrap px-4 h-8 rounded-xl text-[11px] font-black transition-all shrink-0 ${
-                selectedGroup === g.id
+                selectedId === item.id
                   ? "bg-[var(--foreground)] text-[var(--background)]"
                   : "bg-[var(--foreground)]/5 text-[var(--muted)] hover:bg-[var(--foreground)]/10"
               }`}>
-              {g.name}
+              {item.name}
             </button>
           ))}
         </div>
@@ -362,24 +399,6 @@ function AttendancePageContent() {
         </div>
       </main>
 
-      {/* ── FAB: Mark All Present ── */}
-      <AnimatePresence>
-        {hasUnset && !loading && (
-          <motion.div
-            initial={{ y: 100, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: 100, opacity: 0 }}
-            transition={{ type: "spring", damping: 25, stiffness: 300 }}
-            className="fixed bottom-20 inset-x-4 z-40 max-w-2xl mx-auto left-0 right-0"
-          >
-            <button onClick={markAllPresent}
-              className="w-full flex items-center justify-center gap-3 bg-emerald-500 hover:bg-emerald-400 text-white py-4 rounded-2xl font-black text-sm shadow-xl shadow-emerald-500/30 active:scale-[0.97] transition-all">
-              <CheckCircle className="w-5 h-5" />
-              סמן {stats.unset} ממתינים כנוכחים
-            </button>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   );
 }

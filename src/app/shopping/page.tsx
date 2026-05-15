@@ -10,7 +10,7 @@ import {
 import {
   ShoppingCart, Plus, Check, X, Clock, User,
   Search, Loader2, ArrowRight, Trash2, CheckCircle2,
-  Download, Flame, ChevronRight, Edit3
+  Download, Flame, ChevronRight, Edit3, RotateCcw
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { motion, AnimatePresence } from "framer-motion";
@@ -106,6 +106,13 @@ export default function ShoppingPage() {
     });
     return () => unsub();
   }, []);
+
+  useEffect(() => {
+    if (editItem) {
+      setEditName(editItem.name);
+      setEditCat(editItem.category);
+    }
+  }, [editItem]);
 
   const fetchPool = async () => {
     const snap = await getDocs(collection(db, "product_pool"));
@@ -288,7 +295,7 @@ export default function ShoppingPage() {
             </div>
 
             {/* Desktop Search/Add */}
-            <div className="relative w-80 group">
+            <div className="relative w-full max-w-xl group">
               <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500 group-focus-within:text-blue-400 transition-colors" />
               <input
                 ref={inputRef}
@@ -668,10 +675,15 @@ function DesktopRow({ req, onStatus, canApprove, onEdit, type }: {
       <td className="px-6 py-4"><div className="flex items-center gap-2"><div className="w-6 h-6 rounded-full bg-slate-800 flex items-center justify-center text-[10px] font-bold text-slate-400">{req.requestedByName?.charAt(0)}</div><span className="text-xs font-medium text-slate-400">{req.requestedByName}</span></div></td>
       <td className="px-6 py-4 text-left">
         <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-          {type === "pending" && canApprove && <button onClick={() => onStatus(req.id, "approved")} className="p-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 rounded-lg"><Check className="w-4 h-4" /></button>}
-          {type === "approved" && <button onClick={() => onStatus(req.id, "purchased")} className="p-2 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 rounded-lg"><ShoppingCart className="w-4 h-4" /></button>}
-          <button onClick={() => onEdit(req)} className="p-2 bg-white/5 hover:bg-white/10 text-slate-400 rounded-lg"><Edit3 className="w-4 h-4" /></button>
-          <button onClick={() => onStatus(req.id, "deleted")} className="p-2 bg-rose-500/5 hover:bg-rose-500/15 text-rose-400/50 hover:text-rose-400 rounded-lg"><Trash2 className="w-4 h-4" /></button>
+          {type === "pending" && canApprove && <button onClick={() => onStatus(req.id, "approved")} title="אשר לרכישה" className="p-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 rounded-lg"><Check className="w-4 h-4" /></button>}
+          {type === "approved" && (
+            <>
+              <button onClick={() => onStatus(req.id, "purchased")} title="סמן כנרכש" className="p-2 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 rounded-lg"><ShoppingCart className="w-4 h-4" /></button>
+              <button onClick={() => onStatus(req.id, "pending")} title="בטל אישור (החזר לממתינים)" className="p-2 bg-amber-500/10 hover:bg-amber-500/20 text-amber-500 rounded-lg"><RotateCcw className="w-4 h-4" /></button>
+            </>
+          )}
+          <button onClick={() => onEdit(req)} title="ערוך מוצר" className="p-2 bg-white/5 hover:bg-white/10 text-slate-400 rounded-lg"><Edit3 className="w-4 h-4" /></button>
+          <button onClick={() => onStatus(req.id, "deleted")} title="מחק" className="p-2 bg-rose-500/5 hover:bg-rose-500/15 text-rose-400/50 hover:text-rose-400 rounded-lg"><Trash2 className="w-4 h-4" /></button>
         </div>
       </td>
     </motion.tr>
@@ -718,6 +730,12 @@ function MobileCard({ req, onStatus, onEdit, canApprove }: {
 
         {/* Secondary actions */}
         <div className="flex items-center gap-1 shrink-0">
+          {isApproved && (
+            <button onClick={() => onStatus(req.id, "pending")} title="בטל אישור"
+              className="w-8 h-8 flex items-center justify-center rounded-lg text-amber-500/30 hover:text-amber-500 hover:bg-amber-500/10 transition-all">
+              <RotateCcw className="w-3.5 h-3.5" />
+            </button>
+          )}
           <button onClick={() => onEdit(req)}
             className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-600 hover:text-slate-300 hover:bg-white/5 transition-all">
             <Edit3 className="w-3.5 h-3.5" />
