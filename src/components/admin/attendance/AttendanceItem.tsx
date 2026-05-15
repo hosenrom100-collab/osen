@@ -42,12 +42,12 @@ export function AttendanceItem({ patient, status, onToggle }: AttendanceItemProp
       </div>
 
       {/* Modern Compact Toggles */}
-      <div className="flex items-center gap-1 bg-[var(--foreground)]/5 p-1 rounded-2xl border border-[var(--border)]">
+      <div className="flex items-center gap-1 bg-[var(--foreground)]/5 p-1 rounded-xl border border-[var(--border)]">
         <button
           onClick={() => onToggle("absent")}
-          className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${
+          className={`w-9 h-9 rounded-lg flex items-center justify-center transition-all ${
             isAbsent 
-              ? "bg-rose-500 text-white shadow-lg shadow-rose-500/20" 
+              ? "bg-rose-600 text-white" 
               : "text-[var(--muted)] hover:text-rose-500"
           }`}
         >
@@ -56,9 +56,9 @@ export function AttendanceItem({ patient, status, onToggle }: AttendanceItemProp
 
         <button
           onClick={() => onToggle("present")}
-          className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${
+          className={`w-9 h-9 rounded-lg flex items-center justify-center transition-all ${
             isPresent 
-              ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/20" 
+              ? "bg-emerald-600 text-white" 
               : "text-[var(--muted)] hover:text-emerald-500"
           }`}
         >

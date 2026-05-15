@@ -261,13 +261,13 @@ function AttendancePageContent() {
                 placeholder="חפש מטופל..."
                 value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value)}
-                className="w-full bg-[var(--foreground)]/5 border border-[var(--border)] text-[var(--foreground)] rounded-2xl pr-10 pl-4 h-12 text-[11px] font-black outline-none focus:border-[var(--primary)]"
+                className="w-full bg-[var(--foreground)]/5 border border-[var(--border)] text-[var(--foreground)] rounded-xl pr-10 pl-4 h-11 text-[11px] font-black outline-none focus:border-[var(--muted)]/50"
               />
             </div>
             {stats.total > stats.present + stats.absent && (
               <button 
                 onClick={markAllPresent}
-                className="w-12 h-12 bg-emerald-500 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-500/20"
+                className="w-11 h-11 bg-emerald-600 text-white rounded-xl flex items-center justify-center"
                 title="סמן הכל כנוכח"
               >
                 <CheckCircle className="w-5 h-5" />
@@ -296,7 +296,7 @@ function AttendancePageContent() {
         </div>
 
         {/* Patient List - Unified Card */}
-        <div className="bg-[var(--surface)] border border-[var(--border)] rounded-[2rem] overflow-hidden shadow-xl">
+        <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl overflow-hidden">
           <AnimatePresence mode="wait">
             {loading ? (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}

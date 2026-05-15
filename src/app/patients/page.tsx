@@ -110,45 +110,47 @@ export default function PatientsPage() {
       <main className="min-h-screen bg-[var(--background)] text-[var(--foreground)] p-4 md:p-8">
         
         {/* Page Header */}
-        <div className="max-w-7xl mx-auto mb-8">
-          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+           <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div className="space-y-1">
-              <h1 className="text-3xl font-black tracking-tight">ניהול מטופלים</h1>
+              <h1 className="text-2xl font-black tracking-tight">ניהול מטופלים</h1>
               <p className="text-[10px] text-[var(--foreground)]/40 font-bold uppercase tracking-[0.2em] flex items-center gap-2">
                 <Users className="w-3 h-3 text-emerald-500" />
-                <span>{filtered.length} רשומות פעילות במערכת</span>
+                <span>{filtered.length} רשומות פעילות</span>
               </p>
             </div>
 
-            <div className="flex items-center gap-3">
-               <div className="flex bg-[var(--foreground)]/5 p-1 rounded-xl border border-[var(--border)] mr-4">
-                  <button onClick={() => setViewMode("table")} className={`p-2 rounded-lg transition-all ${viewMode === 'table' ? 'bg-[var(--foreground)] text-[var(--background)] shadow-sm' : 'text-[var(--foreground)]/40'}`}>
-                    <List className="w-4 h-4" />
+            <div className="flex items-center gap-2">
+               <div className="flex bg-[var(--foreground)]/5 p-1 rounded-lg border border-[var(--border)] mr-4">
+                  <button onClick={() => setViewMode("table")} className={`p-1.5 rounded-md transition-all ${viewMode === 'table' ? 'bg-[var(--foreground)] text-[var(--background)] shadow-sm' : 'text-[var(--foreground)]/40'}`}>
+                    <List className="w-3.5 h-3.5" />
                   </button>
-                  <button onClick={() => setViewMode("cards")} className={`p-2 rounded-lg transition-all ${viewMode === 'cards' ? 'bg-[var(--foreground)] text-[var(--background)] shadow-sm' : 'text-[var(--foreground)]/40'}`}>
-                    <LayoutGrid className="w-4 h-4" />
+                  <button onClick={() => setViewMode("cards")} className={`p-1.5 rounded-md transition-all ${viewMode === 'cards' ? 'bg-[var(--foreground)] text-[var(--background)] shadow-sm' : 'text-[var(--foreground)]/40'}`}>
+                    <LayoutGrid className="w-3.5 h-3.5" />
                   </button>
                </div>
 
                <button 
                 onClick={() => router.push("/patients/new")}
-                className="flex items-center gap-2 bg-slate-900 hover:bg-slate-800 text-white px-6 py-3 rounded-2xl text-sm font-black transition-all"
+                className="flex items-center gap-2 bg-[var(--foreground)] text-[var(--background)] px-5 py-2.5 rounded-xl text-xs font-black transition-all hover:opacity-90"
                >
                  <Plus className="w-4 h-4" />
                  מטופל חדש
                </button>
             </div>
+          </div>        מטופל חדש
+               </button>
+            </div>
           </div>
 
-          <div className="mt-8 grid grid-cols-1 md:grid-cols-12 gap-3">
+          <div className="mt-8 grid grid-cols-1 md:grid-cols-12 gap-2">
             <div className="md:col-span-5 relative group">
-              <Search className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300 group-focus-within:text-slate-900 transition-colors" />
+              <Search className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--muted)]/40" />
               <input 
                 type="text" 
                 placeholder="חיפוש לפי שם או תעודת זהות..."
                 value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value)}
-                className="w-full bg-white border border-slate-100 rounded-2xl pr-12 pl-4 py-3 text-sm font-bold outline-none focus:border-slate-200 transition-all"
+                className="w-full bg-[var(--foreground)]/5 border border-[var(--border)] rounded-xl pr-11 pl-4 py-2.5 text-xs font-bold outline-none focus:border-[var(--muted)]/50 transition-all"
               />
             </div>
             
@@ -156,7 +158,7 @@ export default function PatientsPage() {
               <select 
                 value={selectedGroup}
                 onChange={e => setSelectedGroup(e.target.value)}
-                className="w-full bg-white border border-slate-100 rounded-2xl px-4 py-3 text-sm font-bold outline-none appearance-none cursor-pointer"
+                className="w-full bg-[var(--foreground)]/5 border border-[var(--border)] rounded-xl px-4 py-2.5 text-xs font-bold outline-none appearance-none cursor-pointer"
               >
                 <option value="all">כל התוכניות</option>
                 {groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
@@ -176,19 +178,19 @@ export default function PatientsPage() {
               <p className="text-lg font-bold italic">לא נמצאו מטופלים העונים לחיפוש</p>
             </div>
           ) : viewMode === "table" ? (
-            <div className="bg-[var(--card-bg)] border border-[var(--border)] rounded-[2.5rem] overflow-hidden shadow-2xl shadow-black/10">
+            <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl overflow-hidden">
               <div className="overflow-x-auto no-scrollbar">
                 <table className="w-full text-right border-collapse">
                   <thead>
-                    <tr className="bg-[var(--foreground)]/[0.03] border-b border-[var(--border)]">
-                      <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-[var(--foreground)]/30">מטופל</th>
-                      <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-[var(--foreground)]/30">תעודת זהות</th>
-                      <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-[var(--foreground)]/30">עו"ס מלווה</th>
-                      <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-[var(--foreground)]/30">תוכנית</th>
-                      <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-[var(--foreground)]/30">תאריך התחלה</th>
-                      <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-[var(--foreground)]/30">תאריך סיום</th>
-                      <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-[var(--foreground)]/30">סטטוס</th>
-                      <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-[var(--foreground)]/30 w-20"></th>
+                    <tr className="bg-[var(--foreground)]/5 border-b border-[var(--border)]">
+                      <th className="px-6 py-4 text-[9px] font-black uppercase tracking-widest text-[var(--muted)]">מטופל</th>
+                      <th className="px-6 py-4 text-[9px] font-black uppercase tracking-widest text-[var(--muted)]">תעודת זהות</th>
+                      <th className="px-6 py-4 text-[9px] font-black uppercase tracking-widest text-[var(--muted)]">עו"ס מלווה</th>
+                      <th className="px-6 py-4 text-[9px] font-black uppercase tracking-widest text-[var(--muted)]">תוכנית</th>
+                      <th className="px-6 py-4 text-[9px] font-black uppercase tracking-widest text-[var(--muted)]">תאריך התחלה</th>
+                      <th className="px-6 py-4 text-[9px] font-black uppercase tracking-widest text-[var(--muted)]">תאריך סיום</th>
+                      <th className="px-6 py-4 text-[9px] font-black uppercase tracking-widest text-[var(--muted)]">סטטוס</th>
+                      <th className="px-6 py-4 text-[9px] font-black uppercase tracking-widest text-[var(--muted)] w-16"></th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[var(--border)]">
@@ -222,9 +224,9 @@ export default function PatientsPage() {
                         </td>
                         <td className="px-6 py-5 text-xs font-bold opacity-60">{formatDate(p.startDate)}</td>
                         <td className="px-6 py-5 text-xs font-bold opacity-60">{formatDate(p.endDate)}</td>
-                        <td className="px-6 py-5">
+                        <td className="px-6 py-4">
                           <div className="flex items-center gap-2">
-                            <div className={`w-1.5 h-1.5 rounded-full ${p.status === 'active' ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-slate-400'}`} />
+                            <div className={`w-1.5 h-1.5 rounded-full ${p.status === 'active' ? 'bg-emerald-500' : 'bg-[var(--muted)]/30'}`} />
                             <span className="text-xs font-bold">{p.status === 'active' ? 'פעיל' : 'לא פעיל'}</span>
                           </div>
                         </td>
