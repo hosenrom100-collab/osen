@@ -55,6 +55,7 @@ export default function PatientDetailPage() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"overview" | "attendance" | "reports">("overview");
   const [groups, setGroups] = useState<Group[]>([]);
+  const [programs, setPrograms] = useState<{ id: string; name: string }[]>([]);
   const [reportLoading, setReportLoading] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState(format(new Date(), "yyyy-MM"));
   const [showEditModal, setShowEditModal] = useState(false);
@@ -70,8 +71,12 @@ export default function PatientDetailPage() {
       if (!patientDoc.exists()) { router.push("/patients"); return; }
       setPatient({ id: patientDoc.id, ...patientDoc.data() } as Patient);
 
-      const groupsSnap = await getDocs(collection(db, "groups"));
+      const [groupsSnap, progsSnap] = await Promise.all([
+        getDocs(collection(db, "groups")),
+        getDocs(collection(db, "programs"))
+      ]);
       setGroups(groupsSnap.docs.map(d => ({ id: d.id, name: d.data().name } as Group)));
+      setPrograms(progsSnap.docs.map(d => ({ id: d.id, name: d.data().name })));
 
       const attQuery = query(
         collection(db, "attendance"),
@@ -180,7 +185,10 @@ export default function PatientDetailPage() {
   if (!patient) return null;
 
   const patientName = patient.firstName && patient.lastName ? `${patient.firstName} ${patient.lastName}` : (patient.fullName || "מטופל ללא שם");
-  const groupName = groups.find(g => g.id === patient.hosenType)?.name || patient.hosenType || "כללי";
+  
+  const progName = programs.find(p => p.id === (patient as any).programId)?.name;
+  const grpName = groups.find(g => g.id === patient.hosenType)?.name || patient.hosenType;
+  const fullGroupName = (progName && grpName && progName !== grpName) ? `${progName} - ${grpName}` : (progName || grpName || "כללי");
 
   return (
     <RoleGuard allowedRoles={["admin", "manager", "instructor", "social_worker"]} redirectTo="/login">
@@ -196,7 +204,7 @@ export default function PatientDetailPage() {
               <div className="flex flex-col">
                 <h1 className="text-xl font-black tracking-tight leading-none mb-1">{patientName}</h1>
                 <p className="text-[10px] text-[var(--foreground)]/40 font-bold uppercase tracking-widest flex items-center gap-2">
-                  <span className="text-emerald-500">{groupName}</span>
+                  <span className="text-emerald-500">{fullGroupName}</span>
                   <span className="opacity-20">•</span>
                   <span>ת.ז: {patient.idNumber}</span>
                 </p>
@@ -268,7 +276,7 @@ export default function PatientDetailPage() {
                          </div>
                          <div>
                             <p className="text-[10px] font-black text-[var(--foreground)]/30 uppercase tracking-widest mb-1.5">קבוצת השתייכות</p>
-                            <p className="text-sm font-bold">{groupName}</p>
+                            <p className="text-sm font-bold">{fullGroupName}</p>
                          </div>
                          <div>
                             <p className="text-[10px] font-black text-[var(--foreground)]/30 uppercase tracking-widest mb-1.5">טלפון</p>
@@ -519,7 +527,7 @@ export default function PatientDetailPage() {
             <div className="space-y-8 text-lg">
               <p>לכל המעוניין,</p>
               <p className="leading-loose">
-                הרינו לאשר כי המטופל/ת <strong>{patientName}</strong>, ת.ז <strong>{patient.idNumber}</strong>, משתתף/ת באופן פעיל בתוכנית המרכז במסגרת קבוצת <strong>{groupName}</strong>.
+                הרינו לאשר כי המטופל/ת <strong>{patientName}</strong>, ת.ז <strong>{patient.idNumber}</strong>, משתתף/ת באופן פעיל בתוכנית המרכז במסגרת קבוצת <strong>{fullGroupName}</strong>.
               </p>
               <p>המטופל/ת החל/ה את פעילותו/ה בתוכנית בתאריך {patient.startDate ? format(new Date(patient.startDate), "dd/MM/yyyy") : "—"}.</p>
               

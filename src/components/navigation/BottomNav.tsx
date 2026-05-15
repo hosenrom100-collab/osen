@@ -33,7 +33,8 @@ export function BottomNav() {
           const isActive =
             item.href === "/"
               ? pathname === "/"
-              : pathname.startsWith(item.href);
+              : pathname.startsWith(item.href) || 
+                (item.href === "/attendance" && pathname.startsWith("/admin/patient-attendance"));
 
           return (
             <Link

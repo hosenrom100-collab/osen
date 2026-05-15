@@ -379,19 +379,44 @@ export default function ShoppingPage() {
         </header>
 
         {/* ── Mobile Header ── */}
-        <header className="md:hidden sticky top-0 z-30 bg-background/95 backdrop-blur-lg border-b border-border px-4 py-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <button onClick={() => router.push("/")} className="p-2 text-slate-400">
-                <ChevronRight className="w-6 h-6" />
+        <header className="md:hidden sticky top-0 z-30 bg-background/95 backdrop-blur-lg border-b border-border">
+          <div className="flex items-center justify-between px-4 h-12">
+            <div className="flex items-center gap-2">
+              <button onClick={() => router.push("/")} className="w-9 h-9 flex items-center justify-center rounded-xl bg-white/5">
+                <ChevronRight className="w-5 h-5 text-slate-400" />
               </button>
-              <h1 className="text-base font-black">קניות</h1>
+              <h1 className="text-sm font-black">רשימת קניות</h1>
             </div>
-            <div className="flex items-center bg-white/5 rounded-xl p-0.5 border border-white/5">
+            <div className="flex items-center bg-white/5 rounded-xl p-0.5 border border-white/[0.06]">
               <button onClick={() => setView("list")} className={`px-4 py-1.5 rounded-lg text-[11px] font-black transition-all ${view === "list" ? "bg-blue-600 text-white shadow-lg shadow-blue-600/20" : "text-slate-500"}`}>רשימה</button>
               <button onClick={() => setView("archive")} className={`px-4 py-1.5 rounded-lg text-[11px] font-black transition-all ${view === "archive" ? "bg-slate-700 text-white" : "text-slate-500"}`}>ארכיון</button>
             </div>
           </div>
+
+          {/* Mobile stats strip */}
+          {view === "list" && (
+            <div className="flex items-center gap-3 px-4 pb-3 pt-1">
+              {pending.length > 0 && (
+                <div className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500/10 border border-amber-500/20 rounded-xl">
+                  <div className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                  <span className="text-[11px] font-black text-amber-400">{pending.length} ממתינים לאישור</span>
+                </div>
+              )}
+              {approved.length > 0 && (
+                <div className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/20 rounded-xl">
+                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                  <span className="text-[11px] font-black text-emerald-400">{approved.length} לרכישה</span>
+                </div>
+              )}
+              {canApprove && pending.length > 0 && (
+                <button onClick={approveAll}
+                  className="mr-auto flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600/15 border border-emerald-500/25 text-emerald-400 rounded-xl text-[11px] font-black">
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  אשר הכל
+                </button>
+              )}
+            </div>
+          )}
         </header>
 
         <main className="flex-1 overflow-hidden flex flex-col md:flex-row relative">
@@ -514,9 +539,11 @@ export default function ShoppingPage() {
           </aside>
         </main>
 
-        <div className="md:hidden fixed bottom-24 left-4 right-4 z-40">
-          <button onClick={() => setOverlayOpen(true)} className="w-full flex items-center justify-center gap-3 bg-blue-600 hover:bg-blue-500 text-white py-4 rounded-2xl font-black text-sm transition-all active:scale-[0.98]">
-            <Plus className="w-5 h-5" /> הוסף מוצר חדש
+        <div className="md:hidden fixed bottom-[5.5rem] left-4 right-4 z-40">
+          <button onClick={() => setOverlayOpen(true)}
+            className="w-full flex items-center justify-center gap-3 bg-blue-600 hover:bg-blue-500 text-white py-4 rounded-2xl font-black text-sm shadow-2xl shadow-blue-600/30 transition-all active:scale-[0.97]">
+            <Plus className="w-5 h-5" />
+            הוסף מוצר לרשימה
           </button>
         </div>
 
@@ -553,27 +580,69 @@ export default function ShoppingPage() {
         </AnimatePresence>
 
         <AnimatePresence>
-          {overlayOpen && !inputRef.current?.matches(":focus") && (
-            <div className="md:hidden fixed inset-0 z-50 flex flex-col bg-slate-950">
-              <div className="flex items-center gap-3 px-4 py-4 border-b border-white/[0.07]">
-                <button onClick={() => { setOverlayOpen(false); setInputVal(""); }} className="p-2"><ArrowRight className="w-5 h-5" /></button>
+          {overlayOpen && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 20 }}
+              transition={{ type: "spring", damping: 28, stiffness: 350 }}
+              className="md:hidden fixed inset-0 z-50 flex flex-col bg-slate-950"
+            >
+              {/* Header */}
+              <div className="flex items-center gap-3 px-4 pt-4 pb-3 border-b border-white/[0.07] shrink-0">
+                <button onClick={() => { setOverlayOpen(false); setInputVal(""); }}
+                  className="w-10 h-10 flex items-center justify-center rounded-xl bg-white/5">
+                  <ArrowRight className="w-5 h-5 text-slate-300" />
+                </button>
                 <div className="flex-1 relative">
-                   <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-                   <input autoFocus type="text" value={inputVal} onChange={(e) => setInputVal(e.target.value)} placeholder="חפש או הוסף..." className="w-full bg-white/5 border-0 rounded-xl py-2.5 pr-10 pl-4 text-base focus:ring-0" />
+                  <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                  <input
+                    autoFocus
+                    type="text"
+                    value={inputVal}
+                    onChange={e => setInputVal(e.target.value)}
+                    onKeyDown={e => { if (e.key === "Enter") handleAddInput(); }}
+                    placeholder="שם מוצר..."
+                    className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl py-2.5 pr-10 pl-4 text-[15px] font-bold focus:outline-none focus:border-blue-500/50 text-white placeholder:text-slate-600"
+                  />
                 </div>
               </div>
-              <div className="flex-1 overflow-y-auto p-4 space-y-2">
+
+              {/* Suggestions list */}
+              <div className="flex-1 overflow-y-auto p-4 space-y-2 pb-8">
                 {inputVal.trim() && !exactMatch && (
-                  <button onClick={handleAddInput} className="w-full flex items-center gap-3 p-4 rounded-2xl bg-blue-600/10 border border-blue-500/20 text-blue-400 font-bold text-sm text-right"><Plus className="w-5 h-5" /> הוסף "{inputVal.trim()}"</button>
+                  <button onClick={handleAddInput}
+                    className="w-full flex items-center gap-3 p-4 rounded-2xl bg-blue-600/10 border border-blue-500/20 text-blue-400 font-bold text-base text-right active:bg-blue-600/20 transition-all">
+                    <Plus className="w-5 h-5 shrink-0" />
+                    הוסף "{inputVal.trim()}" לרשימה
+                  </button>
                 )}
-                {suggestions.map(p => (
-                   <button key={p.id} onClick={() => { addProduct(p.name, p.category); setOverlayOpen(false); setInputVal(""); }} className="w-full flex items-center justify-between p-4 rounded-2xl bg-white/5 border border-white/5 text-right active:bg-white/10 transition-all">
-                     <span className="font-bold text-slate-200">{p.name}</span>
-                     <CatBadge cat={p.category} />
-                   </button>
-                ))}
+                {!inputVal.trim() && (
+                  <p className="text-center text-slate-600 text-sm py-8">הקלד שם מוצר לחיפוש או הוספה</p>
+                )}
+                {suggestions.map(p => {
+                  const inList = alreadyInList(p.name);
+                  return (
+                    <button key={p.id}
+                      onClick={() => { if (!inList) { addProduct(p.name, p.category); setOverlayOpen(false); setInputVal(""); } }}
+                      disabled={inList}
+                      className={`w-full flex items-center justify-between p-4 rounded-2xl border text-right transition-all ${
+                        inList
+                          ? "bg-white/[0.02] border-white/[0.04] opacity-40 cursor-default"
+                          : "bg-white/[0.04] border-white/[0.06] active:bg-white/[0.08]"
+                      }`}>
+                      <div className="flex items-center gap-3">
+                        {inList
+                          ? <Check className="w-4 h-4 text-emerald-500 shrink-0" />
+                          : <Plus className="w-4 h-4 text-slate-500 shrink-0" />}
+                        <span className="font-bold text-[15px] text-slate-200">{p.name}</span>
+                      </div>
+                      <CatBadge cat={p.category} />
+                    </button>
+                  );
+                })}
               </div>
-            </div>
+            </motion.div>
           )}
         </AnimatePresence>
       </div>
@@ -609,63 +678,71 @@ function DesktopRow({ req, onStatus, canApprove, onEdit, type }: {
   );
 }
 
-function MobileCard({ req, onStatus, onEdit, canApprove }: { 
-  req: ShoppingRequest, onStatus: any, onEdit: any, canApprove: boolean 
+function MobileCard({ req, onStatus, onEdit, canApprove }: {
+  req: ShoppingRequest, onStatus: any, onEdit: any, canApprove: boolean
 }) {
   const isApproved = req.status === "approved";
-  
+  const isUrgent   = req.priority === "urgent";
+
   return (
-    <div className="bg-white/[0.02] border border-white/[0.05] rounded-2xl px-4 py-3 flex items-center gap-4 active:bg-white/[0.04] transition-all">
-      {/* Status Bar */}
-      <div className={`w-1 h-8 rounded-full shrink-0 ${
-        isApproved ? "bg-emerald-500" : "bg-amber-500"
-      }`} />
+    <div className={`rounded-2xl border overflow-hidden transition-all active:scale-[0.99] ${
+      isApproved
+        ? "bg-emerald-500/[0.04] border-emerald-500/15"
+        : "bg-white/[0.02] border-white/[0.06]"
+    }`}>
+      {/* Main content row */}
+      <div className="flex items-center gap-3 px-4 pt-3.5 pb-3">
+        {/* Status dot */}
+        <div className={`w-2 h-2 rounded-full shrink-0 mt-0.5 ${
+          isApproved ? "bg-emerald-400" : "bg-amber-400 animate-pulse"
+        }`} />
 
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 mb-0.5">
-          <h4 className="text-[13px] font-bold text-white truncate">{req.name}</h4>
-          {req.priority === "urgent" && <Flame className="w-3 h-3 text-rose-500 shrink-0" />}
+        {/* Info */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <span className="text-[14px] font-black text-white leading-tight truncate">{req.name}</span>
+            {isUrgent && (
+              <span className="flex items-center gap-0.5 px-1.5 py-0.5 bg-rose-500/15 border border-rose-500/25 rounded-md text-[9px] font-black text-rose-400 shrink-0">
+                <Flame className="w-2.5 h-2.5" />
+                דחוף
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-1.5 mt-1">
+            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${CAT_COLOR[req.category] ?? CAT_COLOR["כללי"]}`}>
+              {req.category}
+            </span>
+            <span className="text-[10px] text-slate-500 truncate">· {req.requestedByName}</span>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="text-[10px] text-slate-500 font-medium">{req.category}</span>
-          <span className="w-1 h-1 rounded-full bg-white/10" />
-          <span className="text-[10px] text-slate-500 font-medium truncate">{req.requestedByName}</span>
-        </div>
-      </div>
 
-      <div className="flex items-center gap-1.5 shrink-0">
-        {isApproved ? (
-          <button 
-            onClick={() => onStatus(req.id, "purchased")}
-            className="h-8 px-3 bg-emerald-600 text-white rounded-xl text-[11px] font-black shadow-sm"
-          >
-            רכשתי
+        {/* Secondary actions */}
+        <div className="flex items-center gap-1 shrink-0">
+          <button onClick={() => onEdit(req)}
+            className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-600 hover:text-slate-300 hover:bg-white/5 transition-all">
+            <Edit3 className="w-3.5 h-3.5" />
           </button>
-        ) : (
-          canApprove && (
-            <button 
-              onClick={() => onStatus(req.id, "approved")}
-              className="h-8 px-3 bg-blue-600 text-white rounded-xl text-[11px] font-black shadow-sm"
-            >
-              אשר
-            </button>
-          )
-        )}
-        
-        <button 
-          onClick={() => onEdit(req)}
-          className="p-2 text-slate-500 hover:text-white transition-colors"
-        >
-          <Edit3 className="w-3.5 h-3.5" />
-        </button>
-        
-        <button 
-          onClick={() => onStatus(req.id, "deleted")}
-          className="p-2 text-rose-500/30 hover:text-rose-500 transition-colors"
-        >
-          <Trash2 className="w-3.5 h-3.5" />
-        </button>
+          <button onClick={() => onStatus(req.id, "deleted")}
+            className="w-8 h-8 flex items-center justify-center rounded-lg text-rose-500/25 hover:text-rose-500 hover:bg-rose-500/10 transition-all">
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        </div>
       </div>
+
+      {/* Action button — full width bottom strip */}
+      {isApproved ? (
+        <button onClick={() => onStatus(req.id, "purchased")}
+          className="w-full flex items-center justify-center gap-2 py-3 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-black transition-colors active:bg-emerald-700">
+          <Check className="w-4 h-4" />
+          רכשתי ✓
+        </button>
+      ) : canApprove ? (
+        <button onClick={() => onStatus(req.id, "approved")}
+          className="w-full flex items-center justify-center gap-2 py-3 bg-white/[0.04] hover:bg-blue-600/80 text-slate-400 hover:text-white text-sm font-black border-t border-white/[0.05] transition-all active:bg-blue-700">
+          <CheckCircle2 className="w-4 h-4" />
+          אשר לרכישה
+        </button>
+      ) : null}
     </div>
   );
 }

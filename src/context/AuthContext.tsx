@@ -111,7 +111,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               });
             }
           } else {
-            // New user detected
+            // New user detected or document missing from current snapshot
+            // We verify with getDoc to avoid overwriting existing data due to transient snapshot states
+            const userRef = doc(db, "users", firebaseUser.uid);
+            const freshSnap = await getDoc(userRef);
+            
+            if (freshSnap.exists()) {
+              // Document actually exists, skip auto-creation and let the next snapshot handle it
+              return;
+            }
+
             setIsWhitelisted(false);
             setRole(null);
             setRoles([]);
@@ -125,13 +134,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             }
 
             // Auto-create document for staff who log in for the first time
-            // This ensures they appear in the admin panel for approval
-            const userRef = doc(db, "users", firebaseUser.uid);
             const initialName = firebaseUser.displayName || "";
             await setDoc(userRef, {
               email: firebaseUser.email || "",
               displayName: initialName,
-              name: initialName, // Sync for compatibility with other parts of the app
+              name: initialName,
               photoURL: firebaseUser.photoURL || "",
               role: "employee",
               roles: ["employee"],

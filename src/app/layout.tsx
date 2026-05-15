@@ -7,6 +7,7 @@ import { DesktopSidebar } from "@/components/navigation/DesktopSidebar";
 import { PushNotificationManager } from "@/components/notifications/PushNotificationManager";
 import { SettingsProvider } from "@/context/SettingsContext";
 import { StaffOnboardingModal } from "@/components/auth/StaffOnboardingModal";
+import { SmartAssistant } from "@/components/ai/SmartAssistant";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -46,6 +47,7 @@ export default function RootLayout({
               </div>
             </div>
             <BottomNav />
+            <SmartAssistant />
           </SettingsProvider>
         </AuthProvider>
       </body>

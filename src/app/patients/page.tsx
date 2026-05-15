@@ -42,6 +42,7 @@ interface Staff {
 export default function PatientsPage() {
   const [patients, setPatients] = useState<Patient[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
+  const [programs, setPrograms] = useState<{ id: string; name: string }[]>([]);
   const [staff, setStaff] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
@@ -52,14 +53,16 @@ export default function PatientsPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [pSnap, gSnap, uSnap] = await Promise.all([
+        const [pSnap, gSnap, prSnap, uSnap] = await Promise.all([
           getDocs(collection(db, "patients")),
           getDocs(collection(db, "groups")),
+          getDocs(collection(db, "programs")),
           getDocs(collection(db, "users"))
         ]);
         
         setPatients(pSnap.docs.map(d => ({ id: d.id, ...d.data() } as Patient)));
-        setGroups(gSnap.docs.map(d => ({ id: d.id, name: d.data().name } as Group)));
+        setGroups(gSnap.docs.map(d => ({ id: d.id, ...d.data() } as any)));
+        setPrograms(prSnap.docs.map(d => ({ id: d.id, name: d.data().name })));
         
         const staffMap: Record<string, string> = {};
         uSnap.forEach(d => {
@@ -221,7 +224,12 @@ export default function PatientsPage() {
                         </td>
                         <td className="px-6 py-5">
                           <span className="px-3 py-1 rounded-full bg-[var(--foreground)]/5 border border-[var(--border)] text-[10px] font-black">
-                            {groups.find(g => g.id === p.hosenType)?.name || p.hosenType || "כללי"}
+                            {(() => {
+                              const prog = programs.find(p_ => p_.id === (p as any).programId)?.name;
+                              const grp = groups.find(g => g.id === p.hosenType)?.name || p.hosenType;
+                              if (prog && grp && prog !== grp) return `${prog} - ${grp}`;
+                              return prog || grp || "כללי";
+                            })()}
                           </span>
                         </td>
                         <td className="px-6 py-5 text-xs font-bold opacity-60">{formatDate(p.startDate)}</td>
@@ -268,7 +276,12 @@ export default function PatientsPage() {
                     </div>
                     <div className="flex items-center gap-2 overflow-hidden">
                       <span className="text-[10px] font-bold text-[var(--muted)]/60 whitespace-nowrap">
-                        {groups.find(g => g.id === p.hosenType)?.name || p.hosenType || "כללי"}
+                        {(() => {
+                          const prog = programs.find(p_ => p_.id === (p as any).programId)?.name;
+                          const grp = groups.find(g => g.id === p.hosenType)?.name || p.hosenType;
+                          if (prog && grp && prog !== grp) return `${prog} - ${grp}`;
+                          return prog || grp || "כללי";
+                        })()}
                       </span>
                       <span className="w-1 h-1 rounded-full bg-[var(--border)] shrink-0" />
                       <span className="text-[10px] font-bold text-[var(--muted)]/60 truncate">

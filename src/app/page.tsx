@@ -8,7 +8,7 @@ import {
   LogOut, Users, Calendar, ShoppingCart, CheckCircle,
   Shield, MapPin, Edit3, ChevronLeft, Clock,
   ClipboardList, Layers, X, Check, ChevronDown, Plus,
-  AlertTriangle,
+  AlertTriangle, Sparkles,
 } from "lucide-react";
 import Link from "next/link";
 import { db } from "@/lib/firebase/config";
@@ -45,16 +45,21 @@ function Bar({ pct }: { pct: number }) {
 
 // ── Timeline row — compact ────────────────────────────────────────────────────
 function TimelineRow({
-  act, groups, now,
+  act, groups, programs, now,
 }: {
   act: ScheduleAct;
-  groups: { id: string; name: string }[];
+  groups: any[];
+  programs: { id: string; name: string }[];
   now: string;
 }) {
   const isPast    = (act.endTime ?? act.startTime) < now;
   const isCurrent = !isPast && act.startTime <= now;
-  const gName     = groups.find(g => g.id === act.groupId)?.name
-    ?? (act.groupId === "all" ? null : act.groupId === "staff_only" ? "צוות" : null);
+  
+  const group = groups.find(g => g.id === act.groupId);
+  let gName = group?.name;
+  const progName = programs.find(p => p.id === group?.programId)?.name;
+  if (progName && gName && progName !== gName) gName = `${progName} - ${gName}`;
+  else if (!gName) gName = act.groupId === "all" ? null : act.groupId === "staff_only" ? "צוות" : null;
 
   return (
     <div className={`flex items-start gap-3 py-2.5 border-b border-[var(--border)] last:border-0 transition-opacity ${isPast ? "opacity-35" : ""}`}>
@@ -108,6 +113,7 @@ export default function Home() {
   const router = useRouter();
 
   const [groups,          setGroups]          = useState<{ id: string; name: string }[]>([]);
+  const [programs,        setPrograms]        = useState<{ id: string; name: string }[]>([]);
   const [stats,           setStats]           = useState<GroupStat[]>([]);
   const [presentPatients, setPresentPatients] = useState<PresentPat[]>([]);
   const [activities,      setActivities]      = useState<ScheduleAct[]>([]);
@@ -121,6 +127,8 @@ export default function Home() {
   const [showGroupPicker, setShowGroupPicker] = useState(false);
   const [dataLoaded,      setDataLoaded]      = useState(false);
   const [expiringCount,   setExpiringCount]   = useState(0);
+  const [userAbsence,     setUserAbsence]     = useState<any[]>([]);
+  const [pendingAbsences, setPendingAbsences] = useState<number>(0);
 
   const showAll = isAdmin || isManager;
 
@@ -136,10 +144,17 @@ export default function Home() {
   const fetchAll = async () => {
     const today = format(new Date(), "yyyy-MM-dd");
     try {
-      const groupsSnap = await getDocs(query(collection(db, "groups"), orderBy("name")));
-      const groupList  = groupsSnap.docs.map(d => ({ id: d.id, name: d.data().name as string }));
+      // 1. Basic Refs
+      const [groupsSnap, progsSnap] = await Promise.all([
+        getDocs(query(collection(db, "groups"), orderBy("name"))),
+        getDocs(query(collection(db, "programs"), orderBy("name")))
+      ]);
+      const groupList  = groupsSnap.docs.map(d => ({ id: d.id, ...d.data() } as any));
+      const progList   = progsSnap.docs.map(d => ({ id: d.id, name: d.data().name as string }));
       setGroups(groupList);
+      setPrograms(progList);
 
+      // 2. Attendance & Patients
       const [pSnap, aSnap] = await Promise.all([
         getDocs(query(collection(db, "patients"), where("status", "==", "active"))),
         getDocs(query(collection(db, "attendance"), where("date", "==", today), where("status", "==", "present"))),
@@ -163,24 +178,29 @@ export default function Home() {
             present.push({ id: d.id, firstName: p.firstName, lastName: p.lastName, hosenType: gId });
           }
         }
-        // Expiring check (endDate or startDate + 3 months)
         try {
           const endStr = p.endDate || (p.startDate ? format(addMonths(parseISO(p.startDate), 3), "yyyy-MM-dd") : null);
           if (endStr && isValid(parseISO(endStr))) {
             const days = differenceInDays(parseISO(endStr), new Date());
             if (days >= 0 && days <= 30) expiring++;
           }
-        } catch { /* ignore malformed dates */ }
+        } catch { /* ignore */ }
       });
       setStats([...statMap.values()]);
       setPresentPatients(present);
       setExpiringCount(expiring);
 
-      const shopSnap = await getDocs(
-        query(collection(db, "shopping_requests"), where("status", "==", "pending"))
-      );
+      // 3. Logistics & Absences
+      const [shopSnap, myAbsSnap, allAbsSnap] = await Promise.all([
+        getDocs(query(collection(db, "shopping_requests"), where("status", "==", "pending"))),
+        getDocs(query(collection(db, "absence_requests"), where("userId", "==", user?.uid || ""), where("status", "==", "pending"))),
+        isAdmin || isManager ? getDocs(query(collection(db, "absence_requests"), where("status", "==", "pending"))) : Promise.resolve({ size: 0, docs: [] } as any)
+      ]);
       setShoppingCount(shopSnap.size);
+      setUserAbsence(myAbsSnap.docs.map((d: any) => ({ id: d.id, ...d.data() })));
+      setPendingAbsences(allAbsSnap.size);
 
+      // 4. Schedule
       const schedSnap = await getDoc(doc(db, "schedules", today));
       if (schedSnap.exists()) {
         const data = schedSnap.data();
@@ -213,23 +233,14 @@ export default function Home() {
         })).sort((a: ScheduleAct, b: ScheduleAct) => a.startTime.localeCompare(b.startTime));
         setActivities(acts);
 
-        // ── STAFF CONFLICT DETECTION ──
         if (isAdmin || isManager) {
           const staffAttSnap = await getDocs(query(collection(db, "staff_attendance"), where("date", "==", today)));
           const absentStaffIds = new Set(staffAttSnap.docs.filter(d => d.data().status === 'absent' || d.data().status === 'leave').map(d => d.data().userId));
-          
           const newConflicts: {userId: string, userName: string, type: 'duty'|'activity'}[] = [];
-          if (duty && absentStaffIds.has(duty)) {
-            newConflicts.push({ userId: duty, userName: userMap[duty], type: 'duty' });
-          }
-          
+          if (duty && absentStaffIds.has(duty)) newConflicts.push({ userId: duty, userName: userMap[duty], type: 'duty' });
           (data.activities || []).forEach((oa: any) => {
             const staffIds = oa.staffIds || (oa.instructorId ? [oa.instructorId] : []);
-            staffIds.forEach((sid: string) => {
-              if (absentStaffIds.has(sid)) {
-                newConflicts.push({ userId: sid, userName: userMap[sid], type: 'activity' });
-              }
-            });
+            staffIds.forEach((sid: string) => { if (absentStaffIds.has(sid)) newConflicts.push({ userId: sid, userName: userMap[sid], type: 'activity' }); });
           });
           setConflicts(newConflicts);
         }
@@ -364,16 +375,69 @@ export default function Home() {
         </div>
       )}
 
-      {/* ── Expiring patients reminder ── */}
-      {dataLoaded && expiringCount > 0 && (isAdmin || isManager || role === "social_worker") && (
-        <div className="border-b border-amber-500/15 bg-amber-500/5 px-4 md:px-6">
-          <Link href="/patients/tracking" className="flex items-center gap-3 h-9 text-xs hover:opacity-90 transition-opacity">
-            <Clock className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-            <span className="text-amber-300/90">
-              <span className="font-semibold">{expiringCount} מטופלים</span> מסיימים טיפול בחודש הקרוב
-            </span>
-            <span className="text-amber-400/60 text-[10px] font-medium mr-auto">בדוק הארכה →</span>
-          </Link>
+      {/* ── AI Insights ── */}
+      {dataLoaded && (
+        <div className="px-4 md:px-6 mt-4">
+          <div className="max-w-6xl mx-auto">
+            <div className="flex items-center gap-2 mb-3">
+              <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
+              <h2 className="text-[10px] font-black uppercase tracking-widest text-slate-500">תובנות חכמות וסדר יום</h2>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+              {(isAdmin || isManager) && pendingAbsences > 0 && (
+                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+                  className="bg-amber-500/5 border border-amber-500/10 rounded-2xl p-3 flex gap-3 items-center cursor-pointer hover:bg-amber-500/10 transition-all group"
+                  onClick={() => router.push("/admin/staff-attendance")}>
+                  <div className="w-9 h-9 rounded-xl bg-amber-500/10 flex items-center justify-center shrink-0 border border-amber-500/20 group-hover:bg-amber-500/20 transition-all">
+                    <Clock className="w-4 h-4 text-amber-400" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-bold text-slate-200">אישור היעדרויות</p>
+                    <p className="text-[10px] text-slate-500 truncate">{pendingAbsences} בקשות ממתינות לאישור</p>
+                  </div>
+                </motion.div>
+              )}
+              {userAbsence.length > 0 && (
+                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+                  className="bg-indigo-500/5 border border-indigo-500/10 rounded-2xl p-3 flex gap-3 items-center cursor-pointer hover:bg-indigo-500/10 transition-all group"
+                  onClick={() => router.push("/profile")}>
+                  <div className="w-9 h-9 rounded-xl bg-indigo-500/10 flex items-center justify-center shrink-0 border border-indigo-500/20 group-hover:bg-indigo-500/20 transition-all">
+                    <Calendar className="w-4 h-4 text-indigo-400" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-bold text-slate-200">ההיעדרויות שלי</p>
+                    <p className="text-[10px] text-slate-500 truncate">{userAbsence.length} בקשות בטיפול</p>
+                  </div>
+                </motion.div>
+              )}
+              {expiringCount > 0 && (
+                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
+                  className="bg-blue-500/5 border border-blue-500/10 rounded-2xl p-3 flex gap-3 items-center cursor-pointer hover:bg-blue-500/10 transition-all group"
+                  onClick={() => router.push("/patients")}>
+                  <div className="w-9 h-9 rounded-xl bg-blue-500/10 flex items-center justify-center shrink-0 border border-blue-500/20 group-hover:bg-blue-500/20 transition-all">
+                    <Shield className="w-4 h-4 text-blue-400" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-bold text-slate-200">חידוש תוכניות</p>
+                    <p className="text-[10px] text-slate-500 truncate">{expiringCount} מטופלים לקראת סיום</p>
+                  </div>
+                </motion.div>
+              )}
+              {shoppingCount > 0 && (
+                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
+                  className="bg-rose-500/5 border border-rose-500/10 rounded-2xl p-3 flex gap-3 items-center cursor-pointer hover:bg-rose-500/10 transition-all group"
+                  onClick={() => router.push("/shopping")}>
+                  <div className="w-9 h-9 rounded-xl bg-rose-500/10 flex items-center justify-center shrink-0 border border-rose-500/20 group-hover:bg-rose-500/20 transition-all">
+                    <ShoppingCart className="w-4 h-4 text-rose-400" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-bold text-slate-200">רכש ממתין</p>
+                    <p className="text-[10px] text-slate-500 truncate">{shoppingCount} בקשות ממתינות</p>
+                  </div>
+                </motion.div>
+              )}
+            </div>
+          </div>
         </div>
       )}
 
@@ -475,7 +539,7 @@ export default function Home() {
                 ) : (
                   <div>
                     {visibleActs.map(act => (
-                      <TimelineRow key={act.id} act={act} groups={groups} now={now} />
+                      <TimelineRow key={act.id} act={act} groups={groups} programs={programs} now={now} />
                     ))}
                   </div>
                 )}
@@ -524,7 +588,13 @@ export default function Home() {
                       return (
                         <div key={g.id}>
                           <div className="flex items-center justify-between mb-1">
-                            <span className="text-xs font-medium truncate">{g.name}</span>
+                            <span className="text-xs font-medium truncate">
+                              {(() => {
+                                const prog = programs.find(p => p.id === (g as any).programId)?.name;
+                                if (prog && g.name && prog !== g.name) return `${prog} - ${g.name}`;
+                                return prog || g.name;
+                              })()}
+                            </span>
                             <span className={`text-[10px] font-semibold ${pct === 100 ? "text-emerald-500" : "text-[var(--muted)]"}`}>
                               {g.present}/{g.total}
                             </span>
@@ -596,7 +666,13 @@ export default function Home() {
                         : "bg-[var(--foreground)]/2 border-[var(--border)] hover:bg-[var(--foreground)]/4"
                     }`}>
                     <Layers className="w-3.5 h-3.5 shrink-0 opacity-60" />
-                    <span className="flex-1 text-right font-medium">{g.name}</span>
+                    <span className="flex-1 text-right font-medium">
+                      {(() => {
+                        const prog = programs.find(p => p.id === (g as any).programId)?.name;
+                        if (prog && g.name && prog !== g.name) return `${prog} - ${g.name}`;
+                        return prog || g.name;
+                      })()}
+                    </span>
                     {primaryGroupId === g.id && <Check className="w-3.5 h-3.5" />}
                   </button>
                 ))}
