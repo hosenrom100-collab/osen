@@ -19,21 +19,55 @@ service cloud.firestore {
       return hasRole('admin');
     }
 
+    function isManager() {
+      return hasRole('manager') || isAdmin();
+    }
+
     // Users collection
     match /users/{userId} {
-      allow read: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
+      allow read: if isAuthenticated();
       allow write: if isAdmin();
     }
 
-    // Example for other collections
+    // Patients collection
     match /patients/{patientId} {
       allow read: if isAuthenticated();
       allow write: if isAdmin() || hasRole('professional_manager');
     }
     
+    // Attendance collection
     match /attendance/{docId} {
       allow read: if isAuthenticated();
-      allow write: if isAuthenticated(); // Employees can track attendance
+      allow write: if isAuthenticated();
+    }
+
+    // Staff Attendance
+    match /staff_attendance/{docId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated();
+    }
+
+    // Absence Requests
+    match /absence_requests/{docId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated();
+    }
+
+    // Shopping List
+    match /shopping_list/{docId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated();
+    }
+
+    // Schedules
+    match /schedules/{docId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin() || isManager();
+    }
+
+    // Global deny for everything else
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }

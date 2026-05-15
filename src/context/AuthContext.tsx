@@ -3,7 +3,7 @@
 import { auth, db } from "@/lib/firebase/config";
 import { onAuthStateChanged, signInWithPopup, GoogleAuthProvider, signOut, User } from "firebase/auth";
 import { createContext, useContext, useEffect, useState } from "react";
-import { doc, getDoc, updateDoc, onSnapshot, setDoc, serverTimestamp } from "firebase/firestore";
+import { doc, getDoc, getDocFromServer, updateDoc, onSnapshot, setDoc, serverTimestamp } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 
 export type UserRole = "admin" | "manager" | "instructor" | "social_worker" | "employee" | "logistics" | "participant";
@@ -111,29 +111,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               });
             }
           } else {
-            // New user detected or document missing from current snapshot
-            // We verify with getDoc to avoid overwriting existing data due to transient snapshot states
+            // Snapshot shows document missing — could be a cache miss before server data arrives.
+            // Always verify against the server to avoid overwriting an existing approved user's status.
             const userRef = doc(db, "users", firebaseUser.uid);
-            const freshSnap = await getDoc(userRef);
-            
-            if (freshSnap.exists()) {
-              // Document actually exists, skip auto-creation and let the next snapshot handle it
+
+            let freshSnap;
+            try {
+              freshSnap = await getDocFromServer(userRef);
+            } catch (e) {
+              // Network error — cannot confirm user state. Do nothing and wait for the next snapshot.
+              console.warn("Could not verify user document from server:", e);
+              setLoading(false);
               return;
             }
 
+            if (freshSnap.exists()) {
+              // Document exists on the server — this was a cache false-negative.
+              // The next onSnapshot call will fire with the real data; just unblock loading.
+              setLoading(false);
+              return;
+            }
+
+            // Server confirmed the document does not exist — this is a genuinely new user.
             setIsWhitelisted(false);
             setRole(null);
             setRoles([]);
             setStatus("pending");
             setAssignedGroups([]);
 
-            // If we are on the participant join page, don't auto-create here to avoid race conditions
+            // Participant join page handles its own document creation — skip here.
             if (typeof window !== "undefined" && window.location.pathname.includes("/portal/join")) {
               setLoading(false);
               return;
             }
 
-            // Auto-create document for staff who log in for the first time
+            // Create the user document for the first time (no merge — document is confirmed new).
             const initialName = firebaseUser.displayName || "";
             await setDoc(userRef, {
               email: firebaseUser.email || "",
@@ -148,9 +160,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               assignedGroups: [],
               preferredProgramIds: [],
               fcmTokens: [],
-            }, { merge: true });
+            });
 
-            // Notify admins and managers
+            // Notify admins and managers of the new sign-up.
             try {
               fetch("/api/notify", {
                 method: "POST",

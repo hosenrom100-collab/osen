@@ -8,7 +8,7 @@ import {
   MessageSquare, Loader2, Command, Zap, Shield, Mic, MicOff
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { db } from "@/lib/firebase/config";
 import { collection, query, getDocs, limit, where, getDoc, doc, addDoc, serverTimestamp, deleteDoc } from "firebase/firestore";
 
@@ -33,8 +33,9 @@ interface Command {
 /* ─── Component ─── */
 
 export function SmartAssistant() {
-  const { user, isAdmin, isManager, isLogistics } = useAuth();
+  const { user, loading: authLoading, isAdmin, isManager, isLogistics } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -45,6 +46,8 @@ export function SmartAssistant() {
   const [pendingAction, setPendingAction] = useState<{ type: string, data: any } | null>(null);
   const [isListening, setIsListening] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
+
+  if (authLoading || !user || pathname === "/login") return null;
 
   const toggleListening = () => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
