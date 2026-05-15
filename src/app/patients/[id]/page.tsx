@@ -129,13 +129,42 @@ export default function PatientDetailPage() {
     return () => unsubscribe();
   }, [participantUid, activeTab]);
 
+  // Document Requests & Documents
+  useEffect(() => {
+    if (!id) return;
+
+    const qReq = query(
+      collection(db, "document_requests"),
+      where("patientId", "==", id),
+      orderBy("createdAt", "desc")
+    );
+    const qDocs = query(
+      collection(db, "documents"),
+      where("patientId", "==", id),
+      orderBy("createdAt", "desc")
+    );
+
+    const unsubReq = onSnapshot(qReq, (snap) => {
+      setDocRequests(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    });
+    const unsubDocs = onSnapshot(qDocs, (snap) => {
+      setProcessedDocs(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    });
+
+    return () => { unsubReq(); unsubDocs(); };
+  }, [id]);
+
   async function sendMessage() {
-    if (!newMessage.trim() || !authUser || !participantUid) return;
+    if (!newMessage.trim() || !authUser || !participantUid || !patient) return;
     const content = newMessage.trim();
     setNewMessage("");
     try {
+      const participants = [authUser.uid, participantUid];
+      if (patient.assignedWorkerId && !participants.includes(patient.assignedWorkerId)) {
+        participants.push(patient.assignedWorkerId);
+      }
       await setDoc(doc(collection(db, "messages")), {
-        participants: [authUser.uid, participantUid],
+        participants,
         senderId: authUser.uid,
         receiverId: participantUid,
         content,
@@ -143,7 +172,7 @@ export default function PatientDetailPage() {
         read: false,
       });
 
-      // Create a notification for the participant
+      // Create a notification for the participant in DB
       await setDoc(doc(collection(db, "notifications")), {
         title: `הודעה חדשה מהצוות`,
         body: content.length > 50 ? content.substring(0, 50) + "..." : content,
@@ -151,8 +180,23 @@ export default function PatientDetailPage() {
         senderId: authUser.uid,
         createdAt: serverTimestamp(),
         readBy: [],
+        type: "chat",
         link: `/portal`
       });
+
+      // Send actual PUSH notification
+      try {
+        await fetch('/api/notify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title: `הודעה חדשה מהצוות`,
+            body: content.length > 50 ? content.substring(0, 50) + "..." : content,
+            userIds: [participantUid],
+            link: `/portal`
+          }),
+        });
+      } catch (err) { console.error("Push failed:", err); }
     } catch (e) { console.error(e); }
   }
 
@@ -668,37 +712,93 @@ export default function PatientDetailPage() {
             )}
 
             {activeTab === "reports" && (
-              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} key="reports" className="space-y-4">
-                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-4xl mx-auto">
-                    <div className="bg-[var(--card-bg)] border border-[var(--border)] p-6 rounded-[2rem] shadow-sm flex flex-col items-center text-center transition-all hover:border-emerald-500/30 group">
-                       <div className="w-12 h-12 rounded-xl bg-emerald-600/10 flex items-center justify-center text-emerald-600 mb-4 group-hover:scale-110 transition-transform">
-                          <FileText className="w-6 h-6" />
-                       </div>
-                       <h4 className="text-base font-black mb-1">אישור השתתפות בתוכנית</h4>
-                       <p className="text-[10px] text-[var(--foreground)]/40 font-bold uppercase tracking-widest mb-6">מסמך רשמי המעיד על פעילות המטופל</p>
-                       <button 
+              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} key="reports" className="space-y-6">
+                
+                {/* Document Requests Section */}
+                <div className="bg-white border border-slate-200 rounded-[2.5rem] p-8 shadow-sm">
+                   <div className="flex items-center gap-3 mb-8">
+                      <div className="w-10 h-10 rounded-2xl bg-amber-50 text-amber-500 flex items-center justify-center">
+                        <Bell className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-black leading-tight text-slate-900">בקשות להנפקת דוחות</h3>
+                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">בקשות הממתינות לטיפול המשתתף</p>
+                      </div>
+                   </div>
+
+                   <div className="space-y-4">
+                      {docRequests.filter(r => r.status === 'pending').length === 0 ? (
+                        <div className="py-12 text-center bg-slate-50/50 border border-dashed border-slate-200 rounded-3xl">
+                          <p className="text-xs text-slate-400 font-bold italic">אין בקשות פתוחות כרגע</p>
+                        </div>
+                      ) : (
+                        docRequests.filter(r => r.status === 'pending').map((req) => (
+                          <div key={req.id} className="flex items-center justify-between p-5 bg-amber-50/30 border border-amber-500/10 rounded-2xl">
+                             <div className="flex items-center gap-4">
+                                <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-600">
+                                  {req.type === 'stay' ? <Shield className="w-5 h-5" /> : <FileText className="w-5 h-5" />}
+                                </div>
+                                <div>
+                                  <p className="text-sm font-black text-slate-900">
+                                    {req.type === 'stay' ? 'אישור שהייה' : `דו״ח נוכחות חודשי - ${req.month}`}
+                                  </p>
+                                  <p className="text-[10px] text-slate-500 font-bold">
+                                    התבקש ב-{req.createdAt?.toDate ? format(req.createdAt.toDate(), "dd/MM/yyyy HH:mm") : "עכשיו"}
+                                  </p>
+                                </div>
+                             </div>
+                             <button 
+                               onClick={() => handleProcessRequest(req)}
+                               disabled={reportLoading}
+                               className="flex items-center gap-2 bg-slate-900 text-white px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all hover:bg-slate-800 active:scale-95 disabled:opacity-50"
+                             >
+                               {reportLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle className="w-3.5 h-3.5" />}
+                               הנפק ושלח
+                             </button>
+                          </div>
+                        ))
+                      )}
+                   </div>
+                </div>
+
+                {/* Manual Generation Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-4xl mx-auto">
+                   {/* Participation Certificate */}
+                   <div className="bg-white border border-slate-200 p-8 rounded-[2.5rem] shadow-sm hover:border-emerald-500/40 transition-all group">
+                      <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-500 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+                         <Printer className="w-6 h-6" />
+                      </div>
+                      <h4 className="text-sm font-black mb-2">הנפקת אישור השתתפות</h4>
+                      <p className="text-[10px] text-slate-400 font-bold leading-relaxed mb-8 uppercase tracking-widest">
+                        הפקת מסמך רשמי המאשר את חברות המטופל בתוכנית ונוכחותו.
+                      </p>
+                      <button 
                         onClick={() => generateReport('participation')}
                         disabled={reportLoading}
-                        className="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg shadow-emerald-600/10 flex items-center justify-center gap-2"
-                       >
-                         {reportLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
-                         הפק דוח השתתפות
-                       </button>
-                    </div>
+                        className="w-full bg-emerald-500 text-white py-3.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all hover:bg-emerald-600 shadow-lg shadow-emerald-500/10 active:scale-[0.98] flex items-center justify-center gap-2"
+                      >
+                        {reportLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                        הורד אישור רשמי
+                      </button>
+                   </div>
 
-                    <div className="bg-[var(--card-bg)] border border-[var(--border)] p-6 rounded-[2rem] shadow-sm flex flex-col items-center text-center transition-all hover:border-blue-500/30 group">
-                       <div className="w-12 h-12 rounded-xl bg-blue-600/10 flex items-center justify-center text-blue-600 mb-4 group-hover:scale-110 transition-transform">
-                          <FileText className="w-6 h-6" />
-                       </div>
-                       <h4 className="text-base font-black mb-1">דוח נוכחות חודשי</h4>
-                       <p className="text-[10px] text-[var(--foreground)]/40 font-bold uppercase tracking-widest mb-6">פירוט ימי נוכחות והיעדרות לפי חודש</p>
-                       
-                       <div className="flex gap-2 w-full mb-3">
-                         <select 
-                          value={selectedMonth} 
-                          onChange={(e) => setSelectedMonth(e.target.value)}
-                          className="flex-1 bg-[var(--foreground)]/5 border border-[var(--border)] rounded-lg px-3 py-2 text-[10px] font-bold outline-none focus:border-blue-500/50"
-                         >
+                   {/* Attendance Report */}
+                   <div className="bg-white border border-slate-200 p-8 rounded-[2.5rem] shadow-sm hover:border-slate-900/40 transition-all group">
+                      <div className="w-12 h-12 rounded-2xl bg-slate-100 text-slate-900 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+                         <FileText className="w-6 h-6" />
+                      </div>
+                      <h4 className="text-sm font-black mb-2">דוח נוכחות תקופתי</h4>
+                      <p className="text-[10px] text-slate-400 font-bold leading-relaxed mb-6 uppercase tracking-widest">
+                        בחר חודש להפקת דוח נוכחות מפורט למטופל.
+                      </p>
+                      
+                      <div className="flex flex-col gap-3">
+                         <div className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2">
+                           <select 
+                            value={selectedMonth}
+                            onChange={e => setSelectedMonth(e.target.value)}
+                            className="w-full bg-transparent border-none text-xs font-bold outline-none cursor-pointer"
+                           >
                             {Array.from({ length: 12 }).map((_, i) => {
                               const d = subMonths(new Date(), i);
                               return (
@@ -707,19 +807,45 @@ export default function PatientDetailPage() {
                                 </option>
                               );
                             })}
-                         </select>
-                       </div>
+                           </select>
+                         </div>
 
-                       <button 
-                        onClick={() => generateReport('attendance')}
-                        disabled={reportLoading}
-                        className="w-full bg-slate-900 text-white py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2"
-                       >
-                         {reportLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Printer className="w-3.5 h-3.5" />}
-                         הפק דוח נוכחות חודשי
-                       </button>
-                    </div>
-                 </div>
+                         <button 
+                          onClick={() => generateReport('attendance')}
+                          disabled={reportLoading}
+                          className="w-full bg-slate-900 text-white py-3.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all hover:bg-slate-800 active:scale-[0.98] flex items-center justify-center gap-2 shadow-lg shadow-slate-900/10"
+                         >
+                           {reportLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Printer className="w-4 h-4" />}
+                           הפק דוח נוכחות חודשי
+                         </button>
+                      </div>
+                   </div>
+                </div>
+
+                {/* History Section */}
+                <div className="bg-white border border-slate-200 rounded-[2.5rem] p-8 shadow-sm">
+                   <h3 className="text-sm font-black mb-6">מסמכים שהונפקו לאחרונה</h3>
+                   <div className="space-y-3">
+                      {processedDocs.length === 0 ? (
+                        <p className="text-[10px] text-slate-400 italic text-center py-8">טרם הונפקו מסמכים למטופל זה</p>
+                      ) : (
+                        processedDocs.map(doc => (
+                          <div key={doc.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                             <div className="flex items-center gap-3">
+                                <FileText className="w-4 h-4 text-slate-400" />
+                                <div>
+                                   <p className="text-xs font-black text-slate-800">{doc.title}</p>
+                                   <p className="text-[9px] text-slate-400 font-bold uppercase">
+                                     הונפק ב-{doc.createdAt?.toDate ? format(doc.createdAt.toDate(), "dd/MM/yyyy") : "—"}
+                                   </p>
+                                </div>
+                             </div>
+                             <span className="text-[8px] font-black uppercase tracking-widest text-emerald-500 bg-emerald-500/10 px-2 py-1 rounded-lg">נשלח למשתתף</span>
+                          </div>
+                        ))
+                      )}
+                   </div>
+                </div>
               </motion.div>
             )}
           </AnimatePresence>

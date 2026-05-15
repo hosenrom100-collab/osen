@@ -81,7 +81,7 @@ export function FloatingChat({
         read: false,
       });
 
-      // Create a notification for the recipient
+      // Create a notification for the recipient in DB
       await setDoc(doc(collection(db, "notifications")), {
         title: `הודעה חדשה מ${senderName}`,
         body: content.length > 50 ? content.substring(0, 50) + "..." : content,
@@ -89,8 +89,23 @@ export function FloatingChat({
         senderId,
         createdAt: serverTimestamp(),
         readBy: [],
+        type: "chat",
         link: senderName.includes("משתתף") || senderName === "משתתף" ? `/patients/${patientId}?tab=messages` : "/portal"
       });
+
+      // Send actual PUSH notification
+      try {
+        await fetch('/api/notify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title: `הודעה חדשה מ${senderName}`,
+            body: content.length > 50 ? content.substring(0, 50) + "..." : content,
+            userIds: [recipientId],
+            link: senderName.includes("משתתף") || senderName === "משתתף" ? `/patients/${patientId}?tab=messages` : "/portal"
+          }),
+        });
+      } catch (err) { console.error("Push failed:", err); }
     } catch (e) {
       console.error("Failed to send message:", e);
     }

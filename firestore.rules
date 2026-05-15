@@ -1,18 +1,24 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Helper functions
+    // ─── Helper Functions ────────────────────────────────────────────────────
+    
     function isAuthenticated() {
       return request.auth != null;
     }
     
+    // Safely fetch user data. Returns null if not logged in or doc missing.
     function getUserData() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+      return (request.auth != null && exists(/databases/$(database)/documents/users/$(request.auth.uid)))
+        ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data 
+        : null;
     }
     
     function hasRole(role) {
-      let data = getUserData();
-      return isAuthenticated() && (data.role == role || (data.roles != null && role in data.roles));
+      return request.auth != null && getUserData() != null && (
+        getUserData().role == role || 
+        (getUserData().roles != null && role in getUserData().roles)
+      );
     }
     
     function isAdmin() {
@@ -23,23 +29,28 @@ service cloud.firestore {
       return hasRole('manager') || isAdmin();
     }
 
-    // Global Admin override - Give Admins full access to EVERYTHING
+    // ─── Global Rules ────────────────────────────────────────────────────────
+
+    // Global Admin override - Give Admins full access to MOST things
+    // PRIVATE MESSAGES and their alerts are excluded from this override to protect participant privacy.
     match /{document=**} {
-      allow read, write: if isAdmin();
+      allow read, write: if isAdmin() && !(request.path[3] in ['messages', 'notifications']);
     }
 
     // Users collection
     match /users/{userId} {
       allow read: if isAuthenticated();
-      allow write: if (isAuthenticated() && request.auth.uid == userId);
+      allow write: if isAuthenticated() && request.auth.uid == userId;
     }
 
     // Patients collection
     match /patients/{patientId} {
       // Participants can read only their own record. Staff can read all.
       allow read: if isAuthenticated() && (
-        (getUserData().patientId == patientId) || 
-        isManager() || hasRole('social_worker') || hasRole('instructor')
+        isManager() || 
+        hasRole('social_worker') || 
+        hasRole('instructor') ||
+        (getUserData() != null && getUserData().patientId == patientId)
       );
       allow write: if isManager() || hasRole('professional_manager');
     }
@@ -48,8 +59,10 @@ service cloud.firestore {
     match /attendance/{docId} {
       // Participants can read only their own attendance.
       allow read: if isAuthenticated() && (
-        (resource.data.patientId == getUserData().patientId) || 
-        isManager() || hasRole('social_worker') || hasRole('instructor')
+        isManager() || 
+        hasRole('social_worker') || 
+        hasRole('instructor') ||
+        (resource != null && resource.data.patientId == (getUserData() != null ? getUserData().patientId : ''))
       );
       allow write: if isAuthenticated();
     }
@@ -57,8 +70,9 @@ service cloud.firestore {
     // Document Requests
     match /document_requests/{docId} {
       allow read: if isAuthenticated() && (
-        (resource.data.patientId == getUserData().patientId) || 
-        isManager() || hasRole('social_worker')
+        isManager() || 
+        hasRole('social_worker') ||
+        (resource != null && resource.data.patientId == (getUserData() != null ? getUserData().patientId : ''))
       );
       allow write: if isAuthenticated();
     }
@@ -66,8 +80,9 @@ service cloud.firestore {
     // Documents (Issued)
     match /documents/{docId} {
       allow read: if isAuthenticated() && (
-        (resource.data.patientId == getUserData().patientId) || 
-        isManager() || hasRole('social_worker')
+        isManager() || 
+        hasRole('social_worker') ||
+        (resource != null && resource.data.patientId == (getUserData() != null ? getUserData().patientId : ''))
       );
       allow write: if isManager() || hasRole('social_worker');
     }
@@ -96,13 +111,23 @@ service cloud.firestore {
 
     // Notifications
     match /notifications/{docId} {
-      allow read: if isAuthenticated();
-      allow write: if isManager() || isAuthenticated();
+      // Users can read notifications sent to them.
+      // Managers can see system notifications (type == 'system') in logs.
+      allow read: if isAuthenticated() && (
+        (request.auth.uid in resource.data.recipientIds) ||
+        (isManager() && (resource.data.type == 'system'))
+      );
+      allow write: if isAuthenticated();
     }
 
-    // Messages
     match /messages/{docId} {
-      allow read, write: if isAuthenticated() && (request.auth.uid in resource.data.participants || request.auth.uid in request.resource.data.participants);
+      // Accessible to participants, but also to Admins and Managers for supervision.
+      // They are hidden from the global log via UI filters.
+      allow read, write: if isAuthenticated() && (
+        isAdmin() || isManager() ||
+        (resource != null && request.auth.uid in resource.data.participants) || 
+        (request.resource != null && request.auth.uid in request.resource.data.participants)
+      );
     }
 
     // Shopping Requests
@@ -117,39 +142,38 @@ service cloud.firestore {
       allow write: if isManager() || hasRole('logistics');
     }
 
-    // Settings
+    // Settings & Core Metadata
     match /settings/{docId} {
       allow read: if isAuthenticated();
       allow write: if isManager();
     }
-
-    // Schedules
     match /schedules/{docId} {
       allow read: if isAuthenticated();
       allow write: if isManager();
     }
-
-    // Programs
     match /programs/{docId} {
       allow read: if isAuthenticated();
       allow write: if isManager();
     }
-
-    // Groups
     match /groups/{docId} {
       allow read: if isAuthenticated();
       allow write: if isManager();
     }
-
-    // Locations
     match /locations/{docId} {
       allow read: if isAuthenticated();
       allow write: if isManager();
     }
 
-    // Global deny for everything else
+    // Announcements (News)
+    match /announcements/{docId} {
+      allow read: if isAuthenticated();
+      allow write: if isManager();
+    }
+
+    // Global deny for everything else (fallback)
     match /{document=**} {
       allow read, write: if false;
     }
   }
 }
+

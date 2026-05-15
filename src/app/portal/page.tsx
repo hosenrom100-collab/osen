@@ -11,7 +11,7 @@ import {
 import {
   Calendar, MapPin, Users, Check, X, Clock, Loader2,
   Plus, LogOut, User, MessageCircle, BarChart3, Send,
-  Moon, Sun, FileText, Shield, Download,
+  Moon, Sun, FileText, Shield, Download, Globe
 } from "lucide-react";
 import { format, parseISO, addMonths, differenceInDays, isBefore } from "date-fns";
 import { he } from "date-fns/locale";
@@ -38,6 +38,14 @@ function overlaps(a: Activity, b: Activity): boolean {
 }
 
 /* ─── Portal page ────────────────────────────────────────────────────────── */
+
+interface Announcement {
+  id: string;
+  title: string;
+  content: string;
+  type: 'news' | 'event' | 'alert';
+  createdAt: any;
+}
 
 export default function ParticipantPortal() {
   const {
@@ -73,6 +81,16 @@ export default function ParticipantPortal() {
 
   const myGroupId   = assignedGroups[0] ?? null;
   const myProgramId = preferredProgramIds[0] ?? null;
+
+  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+
+  useEffect(() => {
+    if (!user) return;
+    const q = query(collection(db, "announcements"), where("active", "==", true), orderBy("createdAt", "desc"));
+    return onSnapshot(q, (snap) => {
+      setAnnouncements(snap.docs.map(d => ({ id: d.id, ...d.data() } as Announcement)));
+    });
+  }, [user]);
 
   // Redirect non-participants away (staff go to /)
   useEffect(() => {
@@ -285,6 +303,7 @@ export default function ParticipantPortal() {
       const reqData = {
         patientId: patientData.id,
         patientName: `${patientData.firstName} ${patientData.lastName}`,
+        assignedWorkerId: patientData.assignedWorkerId || null,
         type,
         month,
         status: "pending",
@@ -431,6 +450,41 @@ export default function ParticipantPortal() {
         {/* ══ MAIN PORTAL VIEW ══ */}
         {onboardingComplete && (
           <Fragment>
+            {/* News Ticker */}
+            {announcements.length > 0 && (
+              <motion.div 
+                initial={{ opacity: 0, y: -20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mb-6"
+              >
+                <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-1 overflow-hidden shadow-sm flex items-center h-11">
+                  <div className="bg-emerald-500 text-white px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5 shrink-0 z-10 shadow-lg shadow-emerald-500/20 mr-1">
+                    <Globe className="w-3 h-3" />
+                    עדכונים
+                  </div>
+                  <div className="flex-1 overflow-hidden relative h-full flex items-center">
+                    <div className="flex items-center gap-12 px-8 animate-scroll whitespace-nowrap">
+                      {announcements.map((a) => (
+                        <div key={a.id} className="flex items-center gap-2 shrink-0">
+                          <span className={`w-1.5 h-1.5 rounded-full ${a.type === 'alert' ? 'bg-rose-500 animate-pulse' : a.type === 'event' ? 'bg-amber-500' : 'bg-emerald-500'}`} />
+                          <span className="text-[11px] font-black text-[var(--foreground)]">{a.title}:</span>
+                          <span className="text-[11px] font-medium text-[var(--muted)]">{a.content}</span>
+                        </div>
+                      ))}
+                      {/* Duplicate for infinite effect */}
+                      {announcements.map((a) => (
+                        <div key={`${a.id}-clone`} className="flex items-center gap-2 shrink-0">
+                          <span className={`w-1.5 h-1.5 rounded-full ${a.type === 'alert' ? 'bg-rose-500 animate-pulse' : a.type === 'event' ? 'bg-amber-500' : 'bg-emerald-500'}`} />
+                          <span className="text-[11px] font-black text-[var(--foreground)]">{a.title}:</span>
+                          <span className="text-[11px] font-medium text-[var(--muted)]">{a.content}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
             {/* Renewal Prompt */}
             {showRenewalPrompt && (
               <motion.div 
