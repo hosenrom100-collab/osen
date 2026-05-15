@@ -5,7 +5,7 @@ import { RoleGuard } from "@/components/auth/RoleGuard";
 import { useState, useEffect, useRef } from "react";
 import { db } from "@/lib/firebase/config";
 import { collection, query, where, orderBy, onSnapshot, getDocs, getDoc, doc, setDoc, serverTimestamp, updateDoc, limit, writeBatch } from "firebase/firestore";
-import { MessageCircle, Send, Clock, User, Search, Loader2, Trash2 } from "lucide-react";
+import { MessageCircle, Send, Clock, User, Search, Loader2, Trash2, ChevronRight } from "lucide-react";
 import { format } from "date-fns";
 import { he } from "date-fns/locale";
 
@@ -204,16 +204,19 @@ export default function InboxPage() {
 
   return (
     <RoleGuard allowedRoles={["admin", "manager", "social_worker", "instructor"]} redirectTo="/">
-      <div className="flex h-screen bg-[var(--background)]" dir="rtl">
-        
-        {/* Sidebar Contacts */}
-        <div className="w-80 border-l border-[var(--border)] bg-[var(--surface)] flex flex-col">
+      <div className="flex h-[100dvh] bg-[var(--background)]" dir="rtl">
+
+        {/* Contacts sidebar — full screen on mobile when no contact selected, w-80 on desktop */}
+        <div className={`
+          ${selectedContact ? "hidden md:flex" : "flex"}
+          w-full md:w-80 border-l border-[var(--border)] bg-[var(--surface)] flex-col shrink-0
+        `}>
           <div className="p-4 border-b border-[var(--border)]">
-            <h1 className="text-xl font-black mb-4">תיבת הודעות</h1>
+            <h1 className="text-xl font-black mb-3">תיבת הודעות</h1>
             <div className="relative">
               <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--muted)]" />
-              <input 
-                type="text" 
+              <input
+                type="text"
                 placeholder="חיפוש שיחה..."
                 className="w-full bg-[var(--background)] border border-[var(--border)] rounded-xl py-2 pr-10 pl-4 text-xs"
               />
@@ -233,20 +236,25 @@ export default function InboxPage() {
             ) : (
               <div className="divide-y divide-[var(--border-subtle)]">
                 {contacts.map(c => (
-                  <button 
+                  <button
                     key={c.id}
                     onClick={() => setSelectedContact(c)}
-                    className={`w-full p-4 text-right transition-all hover:bg-[var(--foreground)]/5 ${selectedContact?.id === c.id ? 'bg-teal-500/10 border-r-4 border-teal-500' : ''}`}
+                    className={`w-full p-4 text-right transition-all hover:bg-[var(--foreground)]/5 ${selectedContact?.id === c.id ? "bg-teal-500/10 border-r-4 border-teal-500" : ""}`}
                   >
                     <div className="flex justify-between items-start mb-1">
-                      <h3 className="text-sm font-black text-[var(--foreground)]">{c.name}</h3>
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-full bg-teal-500/10 text-teal-500 flex items-center justify-center text-xs font-black shrink-0">
+                          {c.name.charAt(0)}
+                        </div>
+                        <h3 className="text-sm font-black text-[var(--foreground)]">{c.name}</h3>
+                      </div>
                       {c.lastMessage?.timestamp && (
-                        <span className="text-[10px] text-[var(--muted)]">
+                        <span className="text-[10px] text-[var(--muted)] shrink-0">
                           {format(c.lastMessage.timestamp.toDate(), "HH:mm")}
                         </span>
                       )}
                     </div>
-                    <p className="text-xs text-[var(--muted)] line-clamp-1">{c.lastMessage?.content}</p>
+                    <p className="text-xs text-[var(--muted)] line-clamp-1 pr-10">{c.lastMessage?.content}</p>
                   </button>
                 ))}
               </div>
@@ -254,13 +262,24 @@ export default function InboxPage() {
           </div>
         </div>
 
-        {/* Chat Area */}
-        <div className="flex-1 flex flex-col bg-[var(--background)]">
+        {/* Chat Area — full screen on mobile when contact selected */}
+        <div className={`
+          ${selectedContact ? "flex" : "hidden md:flex"}
+          flex-1 flex-col bg-[var(--background)] min-w-0
+        `}>
           {selectedContact ? (
             <>
-              <div className="h-16 border-b border-[var(--border)] bg-[var(--surface)] flex items-center justify-between px-6 shrink-0">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-teal-500/10 text-teal-500 flex items-center justify-center font-black">
+              {/* Header */}
+              <div className="h-14 md:h-16 border-b border-[var(--border)] bg-[var(--surface)] flex items-center justify-between px-3 md:px-6 shrink-0">
+                <div className="flex items-center gap-2 md:gap-3">
+                  {/* Back button — mobile only */}
+                  <button
+                    onClick={() => setSelectedContact(null)}
+                    className="md:hidden w-9 h-9 flex items-center justify-center rounded-xl hover:bg-[var(--foreground)]/5 transition-colors"
+                  >
+                    <ChevronRight className="w-5 h-5 text-[var(--muted)]" />
+                  </button>
+                  <div className="w-9 h-9 rounded-full bg-teal-500/10 text-teal-500 flex items-center justify-center font-black text-sm shrink-0">
                     {selectedContact.name.charAt(0)}
                   </div>
                   <div>
@@ -268,24 +287,28 @@ export default function InboxPage() {
                     <p className="text-[10px] font-bold text-[var(--muted)]">שיחה פעילה</p>
                   </div>
                 </div>
-                
-                <button 
+                <button
                   onClick={handleDeleteConversation}
                   className="p-2 text-rose-500 hover:bg-rose-500/10 rounded-xl transition-colors"
                   title="מחק שיחה"
                 >
-                  <Trash2 className="w-5 h-5" />
+                  <Trash2 className="w-4 h-4 md:w-5 md:h-5" />
                 </button>
               </div>
 
-              <div ref={scrollRef} className="flex-1 overflow-y-auto p-6 space-y-4">
+              {/* Messages */}
+              <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 md:p-6 space-y-3">
                 {messages.map(m => {
                   const isMe = m.senderId === user?.uid;
                   return (
-                    <div key={m.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
-                      <div className={`max-w-[70%] rounded-2xl px-5 py-3 text-sm shadow-sm ${isMe ? 'bg-teal-600 text-white rounded-bl-none' : 'bg-white border border-slate-200 text-slate-800 rounded-br-none'}`}>
+                    <div key={m.id} className={`flex ${isMe ? "justify-end" : "justify-start"}`}>
+                      <div className={`max-w-[80%] md:max-w-[70%] rounded-2xl px-4 py-2.5 text-sm shadow-sm ${
+                        isMe
+                          ? "bg-teal-600 text-white rounded-bl-none"
+                          : "bg-[var(--surface)] border border-[var(--border)] text-[var(--foreground)] rounded-br-none"
+                      }`}>
                         <p className="leading-relaxed">{m.content}</p>
-                        <p className={`text-[9px] mt-1 opacity-60 font-bold ${isMe ? 'text-left' : 'text-right'}`}>
+                        <p className={`text-[9px] mt-1 opacity-50 font-bold ${isMe ? "text-left" : "text-right"}`}>
                           {m.timestamp ? format(m.timestamp.toDate(), "HH:mm") : "עכשיו"}
                         </p>
                       </div>
@@ -294,22 +317,23 @@ export default function InboxPage() {
                 })}
               </div>
 
-              <div className="p-4 bg-[var(--surface)] border-t border-[var(--border)] shrink-0">
-                <div className="max-w-4xl mx-auto flex gap-2">
-                  <input 
-                    type="text" 
+              {/* Input */}
+              <div className="p-3 md:p-4 bg-[var(--surface)] border-t border-[var(--border)] shrink-0">
+                <div className="flex gap-2">
+                  <input
+                    type="text"
                     value={newMessage}
                     onChange={e => setNewMessage(e.target.value)}
                     onKeyDown={e => e.key === "Enter" && sendMessage()}
                     placeholder="הקלידו הודעה..."
                     className="flex-1 bg-[var(--background)] border border-[var(--border)] rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-teal-500 transition-colors"
                   />
-                  <button 
+                  <button
                     onClick={sendMessage}
                     disabled={!newMessage.trim()}
-                    className="w-12 h-12 flex items-center justify-center bg-teal-500 text-white rounded-xl disabled:opacity-50 transition-all hover:bg-teal-600 active:scale-95"
+                    className="w-11 h-11 md:w-12 md:h-12 flex items-center justify-center bg-teal-500 text-white rounded-xl disabled:opacity-50 transition-all hover:bg-teal-600 active:scale-95 shrink-0"
                   >
-                    <Send className="w-5 h-5" />
+                    <Send className="w-4 h-4 md:w-5 md:h-5" />
                   </button>
                 </div>
               </div>

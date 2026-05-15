@@ -35,16 +35,16 @@ interface ShoppingRequest {
 interface Product { id: string; name: string; category: string }
 
 const CAT_COLOR: Record<string, string> = {
-  "גבינות ומחלבה": "text-amber-400 bg-amber-500/8",
-  "בשר ודגים":      "text-amber-400 bg-amber-500/8",
-  "פירות וירקות":   "text-amber-400 bg-amber-500/8",
-  "לחם ומאפים":     "text-amber-400 bg-amber-500/8",
-  "חומרי ניקוי":    "text-blue-400 bg-blue-500/8",
-  "מוצרי נייר וחד פעמי": "text-blue-400 bg-blue-500/8",
-  "טואלטיקה והיגיינה": "text-blue-400 bg-blue-500/8",
-  "שימורים ובישול": "text-[var(--muted)] bg-[var(--foreground)]/4",
-  "קפואים":         "text-[var(--muted)] bg-[var(--foreground)]/4",
-  "כללי":           "text-[var(--muted)] bg-[var(--foreground)]/4",
+  "גבינות ומחלבה":       "text-amber-300 bg-amber-500/15",
+  "בשר ודגים":            "text-amber-300 bg-amber-500/15",
+  "פירות וירקות":         "text-amber-300 bg-amber-500/15",
+  "לחם ומאפים":           "text-amber-300 bg-amber-500/15",
+  "חומרי ניקוי":          "text-blue-300 bg-blue-500/15",
+  "מוצרי נייר וחד פעמי": "text-blue-300 bg-blue-500/15",
+  "טואלטיקה והיגיינה":   "text-blue-300 bg-blue-500/15",
+  "שימורים ובישול":       "text-slate-300 bg-slate-500/25",
+  "קפואים":               "text-slate-300 bg-slate-500/25",
+  "כללי":                 "text-slate-300 bg-slate-500/25",
 };
 
 function CatBadge({ cat }: { cat: string }) {
