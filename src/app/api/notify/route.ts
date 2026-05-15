@@ -31,7 +31,7 @@ export async function POST(req: Request) {
   try {
     const {
       userId, userIds, role, groupId, programId, everyone,
-      title, body, link = "/", senderId, senderName
+      title, body, link = "/", senderId, senderName, skipDb
     } = await req.json();
 
     if (!title) return NextResponse.json({ error: "title is required" }, { status: 400 });
@@ -164,8 +164,9 @@ export async function POST(req: Request) {
     }
 
     // Store in Firestore for dashboard & read receipts
-    try {
-      const db = admin.firestore();
+    if (!skipDb) {
+      try {
+        const db = admin.firestore();
       await db.collection("notifications").add({
         title,
         body: body || "",
@@ -186,6 +187,7 @@ export async function POST(req: Request) {
       });
     } catch (e) {
       console.error("Failed to store notification:", e);
+    }
     }
 
     return NextResponse.json({ success: true, sent: successCount, failed: failureCount });

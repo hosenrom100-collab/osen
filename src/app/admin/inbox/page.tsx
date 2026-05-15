@@ -146,6 +146,21 @@ export default function InboxPage() {
         link: `/portal`
       });
 
+      // Send actual PUSH notification
+      try {
+        await fetch('/api/notify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title: `הודעה חדשה מ${user.displayName || "הצוות"}`,
+            body: content.length > 50 ? content.substring(0, 50) + "..." : content,
+            userIds: [selectedContact.id],
+            link: `/portal`,
+            skipDb: true
+          }),
+        });
+      } catch (err) { console.error("Push failed:", err); }
+
     } catch (e) { console.error(e); }
   };
 

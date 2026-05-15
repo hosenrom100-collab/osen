@@ -102,7 +102,8 @@ export function FloatingChat({
             title: `הודעה חדשה מ${senderName}`,
             body: content.length > 50 ? content.substring(0, 50) + "..." : content,
             userIds: [recipientId],
-            link: senderName.includes("משתתף") || senderName === "משתתף" ? `/patients/${patientId}?tab=messages` : "/portal"
+            link: senderName.includes("משתתף") || senderName === "משתתף" ? `/patients/${patientId}?tab=messages` : "/portal",
+            skipDb: true
           }),
         });
       } catch (err) { console.error("Push failed:", err); }

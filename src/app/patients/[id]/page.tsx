@@ -196,7 +196,8 @@ export default function PatientDetailPage() {
             title: `הודעה חדשה מהצוות`,
             body: content.length > 50 ? content.substring(0, 50) + "..." : content,
             userIds: [participantUid],
-            link: `/portal`
+            link: `/portal`,
+            skipDb: true
           }),
         });
       } catch (err) { console.error("Push failed:", err); }
@@ -264,6 +265,7 @@ export default function PatientDetailPage() {
             body: `${docTitle} מוכן לצפייה ולהורדה באיזור האישי שלך`,
             userId: participantUid,
             link: '/portal',
+            skipDb: true
           }),
         }).catch(console.error);
       }
