@@ -83,6 +83,18 @@ service cloud.firestore {
       allow write: if isManager();
     }
 
+    // Programs
+    match /programs/{docId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin() || isManager();
+    }
+
+    // Groups
+    match /groups/{docId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin() || isManager();
+    }
+
     // Global deny for everything else
     match /{document=**} {
       allow read, write: if false;
