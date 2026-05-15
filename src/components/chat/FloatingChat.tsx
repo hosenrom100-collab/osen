@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { db } from "@/lib/firebase/config";
 import { 
   collection, query, where, orderBy, onSnapshot, 
-  doc, setDoc, serverTimestamp 
+  doc, setDoc, serverTimestamp, limit 
 } from "firebase/firestore";
 import { MessageCircle, X, Send, User, Clock, Loader2, Minus } from "lucide-react";
 import { format } from "date-fns";

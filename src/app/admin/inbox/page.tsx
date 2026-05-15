@@ -4,7 +4,7 @@ import { useAuth } from "@/context/AuthContext";
 import { RoleGuard } from "@/components/auth/RoleGuard";
 import { useState, useEffect, useRef } from "react";
 import { db } from "@/lib/firebase/config";
-import { collection, query, where, orderBy, onSnapshot, getDocs, doc, setDoc, serverTimestamp, updateDoc } from "firebase/firestore";
+import { collection, query, where, orderBy, onSnapshot, getDocs, doc, setDoc, serverTimestamp, updateDoc, limit } from "firebase/firestore";
 import { MessageCircle, Send, Clock, User, Search, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { he } from "date-fns/locale";
