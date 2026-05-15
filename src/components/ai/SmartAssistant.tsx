@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter, usePathname } from "next/navigation";
+import { format } from "date-fns";
 import { db } from "@/lib/firebase/config";
 import { collection, query, getDocs, limit, where, getDoc, doc, addDoc, serverTimestamp, deleteDoc } from "firebase/firestore";
 
@@ -47,7 +48,6 @@ export function SmartAssistant() {
   const [isListening, setIsListening] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
-  if (authLoading || !user || pathname === "/login") return null;
 
   const toggleListening = () => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
@@ -449,9 +449,10 @@ export function SmartAssistant() {
     setMessages(prev => [...prev, { role: "assistant", content: response }]);
     setLoading(false);
   };
+  if (authLoading || !user || pathname === "/login") return null;
 
   return (
-    <div className="fixed bottom-6 right-6 z-[100] font-sans pointer-events-none">
+    <div className="fixed bottom-24 md:bottom-8 right-4 md:right-8 z-[100] font-sans pointer-events-none">
       <AnimatePresence>
         {isOpen && (
           <motion.div
@@ -579,18 +580,18 @@ export function SmartAssistant() {
         whileHover={{ scale: 1.05, y: -2 }}
         whileTap={{ scale: 0.95 }}
         onClick={() => setIsOpen(!isOpen)}
-        className={`w-16 h-16 rounded-[24px] flex items-center justify-center shadow-[0_20px_40px_-12px_rgba(0,0,0,0.4)] transition-all relative overflow-hidden group pointer-events-auto ${
+        className={`w-12 h-12 md:w-14 md:h-14 rounded-2xl flex items-center justify-center shadow-[0_12px_24px_-8px_rgba(0,0,0,0.5)] transition-all relative overflow-hidden group pointer-events-auto ${
           isOpen ? "bg-[var(--surface-raised)] text-[var(--foreground)] rotate-90" : "bg-[var(--primary)] text-white"
         }`}
       >
         <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
         <div className="relative z-10">
-          {isOpen ? <X className="w-7 h-7" /> : <Bot className="w-8 h-8" />}
+          {isOpen ? <X className="w-5 h-5" /> : <Bot className="w-6 h-6" />}
         </div>
         
         {/* Unread / Attention Indicator */}
         {!isOpen && insights.length > 0 && (
-          <span className="absolute top-4 right-4 w-3.5 h-3.5 bg-rose-500 border-[3px] border-[var(--primary)] rounded-full z-20 animate-bounce" />
+          <span className="absolute top-3 right-3 w-2.5 h-2.5 bg-rose-500 border-2 border-[var(--primary)] rounded-full z-20 animate-bounce" />
         )}
       </motion.button>
     </div>
