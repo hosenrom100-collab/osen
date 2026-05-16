@@ -20,6 +20,9 @@ import { useRouter } from "next/navigation";
 import { NotificationCenter } from "@/components/notifications/NotificationCenter";
 import { FloatingChat } from "@/components/chat/FloatingChat";
 import { useSettings } from "@/context/SettingsContext";
+import html2canvas from "html2canvas";
+import jsPDF from "jspdf";
+import { useRef } from "react";
 
 /* ─── Types ──────────────────────────────────────────────────────────────── */
 
@@ -75,6 +78,8 @@ export default function ParticipantPortal() {
   const [patientData, setPatientData] = useState<any>(null);
   const [swData, setSwData] = useState<any>(null);
   const [attendanceHistory, setAttendanceHistory] = useState<any[]>([]);
+  const [reportLoading, setReportLoading] = useState(false);
+  const reportRef = useRef<HTMLDivElement>(null);
 
   const today      = useMemo(() => format(new Date(), "yyyy-MM-dd"), []);
   const todayLabel = useMemo(() => format(new Date(), "EEEE, d בMMMM", { locale: he }), []);
@@ -351,6 +356,31 @@ export default function ParticipantPortal() {
     finally { setDocBusy(false); }
   }
 
+  /* Self-generate a document */
+  async function selfGenerateReport(type: 'stay' | 'attendance') {
+    if (!patientData || !reportRef.current) return;
+    setReportLoading(true);
+    try {
+      await new Promise(r => setTimeout(r, 100));
+      const canvas = await html2canvas(reportRef.current, {
+        scale: 2, useCORS: true, logging: false, backgroundColor: "#ffffff"
+      });
+      const imgData = canvas.toDataURL("image/jpeg", 1.0);
+      const pdf = new jsPDF("p", "mm", "a4");
+      const imgWidth = 210;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      pdf.addImage(imgData, "JPEG", 0, 0, imgWidth, imgHeight);
+      
+      const fileName = `${type === 'stay' ? 'אישור_השתתפות' : 'דו"ח_נוכחות'}_${patientData.firstName}_${patientData.lastName}.pdf`;
+      pdf.save(fileName);
+    } catch (err) {
+      console.error(err);
+      alert("שגיאה בהפקת המסמך");
+    } finally {
+      setReportLoading(false);
+    }
+  }
+
   /* Derived */
   const locName = (id: string) => locations.find(l => l.id === id)?.name ?? "";
 
@@ -588,28 +618,67 @@ export default function ParticipantPortal() {
               <div className="space-y-6">
                 {/* Request section */}
                 <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-6">
-                  <h3 className="text-sm font-black mb-4">בקשת מסמכים חדשים</h3>
-                  <div className="grid grid-cols-2 gap-3">
-                    <button 
-                      onClick={() => requestDoc("stay")}
-                      disabled={docBusy}
-                      className="flex flex-col items-center gap-3 p-4 rounded-2xl bg-teal-500/5 border border-teal-500/10 hover:bg-teal-500/10 transition-all text-center"
-                    >
-                      <div className="w-10 h-10 rounded-xl bg-teal-500/10 text-teal-500 flex items-center justify-center">
-                        <Shield className="w-5 h-5" />
+                  <h3 className="text-sm font-black mb-4">הפקת מסמכים עצמאית</h3>
+                  <div className="grid grid-cols-1 gap-3">
+                    <div className="bg-[var(--background)] border border-[var(--border)] rounded-2xl p-4 flex items-center justify-between gap-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-teal-500/10 text-teal-500 flex items-center justify-center">
+                          <Shield className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <p className="text-xs font-black">אישור השתתפות</p>
+                          <p className="text-[10px] text-[var(--muted)]">אישור רשמי על סטטוס פעיל</p>
+                        </div>
                       </div>
-                      <span className="text-xs font-black">אישור שהייה</span>
-                    </button>
-                    <button 
-                      onClick={() => requestDoc("attendance")}
-                      disabled={docBusy}
-                      className="flex flex-col items-center gap-3 p-4 rounded-2xl bg-sky-500/5 border border-sky-500/10 hover:bg-sky-500/10 transition-all text-center"
-                    >
-                      <div className="w-10 h-10 rounded-xl bg-sky-500/10 text-sky-500 flex items-center justify-center">
-                        <BarChart3 className="w-5 h-5" />
+                      <button 
+                        onClick={() => selfGenerateReport("stay")}
+                        disabled={reportLoading}
+                        className="p-2.5 rounded-xl bg-teal-500 text-white hover:bg-teal-600 transition-all active:scale-95 disabled:opacity-50"
+                      >
+                        {reportLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                      </button>
+                    </div>
+
+                    <div className="bg-[var(--background)] border border-[var(--border)] rounded-2xl p-4 flex items-center justify-between gap-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-sky-500/10 text-sky-500 flex items-center justify-center">
+                          <BarChart3 className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <p className="text-xs font-black">דו״ח נוכחות חודשי</p>
+                          <p className="text-[10px] text-[var(--muted)]">פירוט נוכחות מתחילת החודש</p>
+                        </div>
                       </div>
-                      <span className="text-xs font-black">דו״ח נוכחות</span>
-                    </button>
+                      <button 
+                        onClick={() => selfGenerateReport("attendance")}
+                        disabled={reportLoading}
+                        className="p-2.5 rounded-xl bg-sky-500 text-white hover:bg-sky-600 transition-all active:scale-95 disabled:opacity-50"
+                      >
+                        {reportLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="mt-6 pt-6 border-t border-[var(--border)]">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-[var(--muted)] mb-3">בקשות מיוחדות מהצוות</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button 
+                        onClick={() => requestDoc("stay")}
+                        disabled={docBusy}
+                        className="flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-[var(--surface)] border border-[var(--border)] text-[10px] font-black hover:bg-[var(--foreground)]/5 transition-all"
+                      >
+                        <Clock className="w-3.5 h-3.5 text-amber-500" />
+                        בקש אישור חתום
+                      </button>
+                      <button 
+                        onClick={() => requestDoc("attendance")}
+                        disabled={docBusy}
+                        className="flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-[var(--surface)] border border-[var(--border)] text-[10px] font-black hover:bg-[var(--foreground)]/5 transition-all"
+                      >
+                        <Clock className="w-3.5 h-3.5 text-amber-500" />
+                        דו״ח היסטורי
+                      </button>
+                    </div>
                   </div>
                 </div>
 
@@ -853,6 +922,70 @@ export default function ParticipantPortal() {
           />
         )}
       </main>
+
+      {/* ── PDF Template — inline styles only to avoid html2canvas lab() parse error ── */}
+      {patientData && (
+        <div style={{ position: "fixed", left: -9999, top: -9999 }}>
+          <div ref={reportRef} style={{
+            width: "794px", padding: "80px", backgroundColor: "#ffffff",
+            color: "#000000", fontFamily: "Arial, sans-serif", lineHeight: 1.6, direction: "rtl"
+          }}>
+            {/* Header */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", borderBottom: "2px solid #059669", paddingBottom: "32px", marginBottom: "48px" }}>
+              <div>
+                <h1 style={{ fontSize: "32px", fontWeight: 900, color: "#059669", margin: "0 0 8px 0" }}>מרכז חוסן</h1>
+                <h2 style={{ fontSize: "18px", fontWeight: 700, color: "#64748b", margin: 0 }}>חוות רום</h2>
+              </div>
+              <div style={{ textAlign: "left", fontSize: "13px", color: "#94a3b8", fontFamily: "monospace" }}>
+                <p style={{ margin: "0 0 4px 0" }}>{format(new Date(), "dd/MM/yyyy")}</p>
+                <p style={{ margin: 0 }}>סימוכין: {patientData.id?.slice(-6).toUpperCase()}</p>
+              </div>
+            </div>
+
+            {/* Title */}
+            <div style={{ textAlign: "center", marginBottom: "64px" }}>
+              <h3 style={{ fontSize: "26px", fontWeight: 900, margin: "0 0 16px 0" }}>אישור השתתפות בתוכנית</h3>
+              <div style={{ width: "96px", height: "4px", backgroundColor: "#10b981", margin: "0 auto", borderRadius: "9999px" }} />
+            </div>
+
+            {/* Body */}
+            <div style={{ fontSize: "17px" }}>
+              <p style={{ marginBottom: "24px" }}>לכל המעוניין,</p>
+              <p style={{ marginBottom: "24px", lineHeight: 2 }}>
+                הרינו לאשר כי המטופל/ת <strong>{patientData.firstName} {patientData.lastName}</strong>, ת.ז <strong>{patientData.idNumber}</strong>, משתתף/ת באופן פעיל בתוכנית המרכז במסגרת קבוצת <strong>{groups.find(g => g.id === patientData.hosenType)?.name || "—"}</strong>.
+              </p>
+              <p style={{ marginBottom: "24px" }}>
+                המטופל/ת החל/ה את פעילותו/ה בתוכנית בתאריך {patientData.startDate ? format(new Date(patientData.startDate), "dd/MM/yyyy") : "—"}.
+              </p>
+
+              {/* Stats box */}
+              <div style={{ backgroundColor: "#f8fafc", padding: "32px", borderRadius: "24px", border: "1px solid #f1f5f9", margin: "48px 0" }}>
+                <h4 style={{ fontWeight: 900, fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.15em", color: "#94a3b8", marginBottom: "16px" }}>סיכום נוכחות תקופתי</h4>
+                <div style={{ display: "flex", justifyContent: "space-around", alignItems: "center" }}>
+                  <div style={{ textAlign: "center" }}>
+                    <p style={{ fontSize: "28px", fontWeight: 900, color: "#059669", margin: "0 0 4px 0" }}>{attendanceHistory.filter(h => h.status === 'present').length}</p>
+                    <p style={{ fontSize: "11px", fontWeight: 700, color: "#64748b", margin: 0 }}>ימי נוכחות</p>
+                  </div>
+                  <div style={{ width: "1px", height: "48px", backgroundColor: "#e2e8f0" }} />
+                  <div style={{ textAlign: "center" }}>
+                    <p style={{ fontSize: "28px", fontWeight: 900, color: "#e11d48", margin: "0 0 4px 0" }}>{attendanceHistory.filter(h => h.status === 'absent').length}</p>
+                    <p style={{ fontSize: "11px", fontWeight: 700, color: "#64748b", margin: 0 }}>ימי היעדרות</p>
+                  </div>
+                </div>
+              </div>
+
+              <p style={{ marginTop: "48px", marginBottom: "8px" }}>בברכה,</p>
+              <p style={{ fontWeight: 900, margin: "0 0 4px 0" }}>הנהלת מרכז חוסן</p>
+              <p style={{ fontSize: "13px", color: "#64748b", fontStyle: "italic", margin: 0 }}>חוות רום - שיקום חקלאי וקהילתי</p>
+            </div>
+
+            {/* Footer */}
+            <div style={{ marginTop: "96px", paddingTop: "24px", borderTop: "1px solid #f1f5f9", fontSize: "9px", color: "#94a3b8", textAlign: "center" }}>
+              מסמך זה הופק באופן ממוחשב ואינו דורש חתימה | מרכז חוסן - חוות רום
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
