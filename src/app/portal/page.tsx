@@ -618,7 +618,7 @@ export default function ParticipantPortal() {
                   <p className="text-[10px] font-black uppercase tracking-widest text-[var(--muted)] px-1">מסמכים ובקשות</p>
                   
                   {/* Pending Requests */}
-                  {docRequests.map((req, i) => (
+                  {docRequests.filter(r => r.status === 'pending').map((req, i) => (
                     <div key={i} className="flex items-center justify-between bg-[var(--surface)] border border-[var(--border)] rounded-xl px-4 py-3 opacity-70">
                       <div className="flex items-center gap-3">
                         <Clock className="w-4 h-4 text-amber-400" />
