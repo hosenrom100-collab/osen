@@ -80,6 +80,7 @@ export default function ParticipantPortal() {
   const [attendanceHistory, setAttendanceHistory] = useState<any[]>([]);
   const [reportLoading, setReportLoading] = useState(false);
   const reportRef = useRef<HTMLDivElement>(null);
+  const [selectedReportMonth, setSelectedReportMonth] = useState(format(new Date(), "yyyy-MM"));
 
   const today      = useMemo(() => format(new Date(), "yyyy-MM-dd"), []);
   const todayLabel = useMemo(() => format(new Date(), "EEEE, d בMMMM", { locale: he }), []);
@@ -357,7 +358,7 @@ export default function ParticipantPortal() {
   }
 
   /* Self-generate a document */
-  async function selfGenerateReport(type: 'stay' | 'attendance') {
+  async function selfGenerateReport(type: 'stay' | 'attendance', month?: string) {
     if (!patientData || !reportRef.current) return;
     setReportLoading(true);
     try {
@@ -371,7 +372,8 @@ export default function ParticipantPortal() {
       const imgHeight = (canvas.height * imgWidth) / canvas.width;
       pdf.addImage(imgData, "JPEG", 0, 0, imgWidth, imgHeight);
       
-      const fileName = `${type === 'stay' ? 'אישור_השתתפות' : 'דו"ח_נוכחות'}_${patientData.firstName}_${patientData.lastName}.pdf`;
+      const monthLabel = month ? format(parseISO(month + "-01"), "MM-yyyy") : "";
+      const fileName = `${type === 'stay' ? 'אישור_השתתפות' : 'דו"ח_נוכחות'}${monthLabel ? '_' + monthLabel : ''}_${patientData.firstName}_${patientData.lastName}.pdf`;
       pdf.save(fileName);
     } catch (err) {
       console.error(err);
@@ -639,23 +641,50 @@ export default function ParticipantPortal() {
                       </button>
                     </div>
 
-                    <div className="bg-[var(--background)] border border-[var(--border)] rounded-2xl p-4 flex items-center justify-between gap-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-sky-500/10 text-sky-500 flex items-center justify-center">
-                          <BarChart3 className="w-5 h-5" />
+                    <div className="bg-[var(--background)] border border-[var(--border)] rounded-2xl p-4 space-y-4">
+                      <div className="flex items-center justify-between gap-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-sky-500/10 text-sky-500 flex items-center justify-center">
+                            <BarChart3 className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <p className="text-xs font-black">דו״ח נוכחות חודשי</p>
+                            <p className="text-[10px] text-[var(--muted)]">פירוט נוכחות לפי חודש בחירה</p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="text-xs font-black">דו״ח נוכחות חודשי</p>
-                          <p className="text-[10px] text-[var(--muted)]">פירוט נוכחות מתחילת החודש</p>
-                        </div>
+                        <button 
+                          onClick={() => selfGenerateReport("attendance", selectedReportMonth)}
+                          disabled={reportLoading}
+                          className="p-2.5 rounded-xl bg-sky-500 text-white hover:bg-sky-600 transition-all active:scale-95 disabled:opacity-50"
+                        >
+                          {reportLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                        </button>
                       </div>
-                      <button 
-                        onClick={() => selfGenerateReport("attendance")}
-                        disabled={reportLoading}
-                        className="p-2.5 rounded-xl bg-sky-500 text-white hover:bg-sky-600 transition-all active:scale-95 disabled:opacity-50"
-                      >
-                        {reportLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-                      </button>
+                      
+                      <div className="flex items-center gap-2 pt-2 border-t border-[var(--border)]/50">
+                        <Calendar className="w-3.5 h-3.5 text-[var(--muted)]" />
+                        <select 
+                          value={selectedReportMonth}
+                          onChange={(e) => setSelectedReportMonth(e.target.value)}
+                          className="flex-1 bg-transparent text-[10px] font-bold focus:outline-none"
+                        >
+                          {(() => {
+                            const months = [];
+                            const start = patientData.startDate ? parseISO(patientData.startDate) : new Date();
+                            const curr = new Date();
+                            let iter = new Date(curr.getFullYear(), curr.getMonth(), 1);
+                            while (iter >= new Date(start.getFullYear(), start.getMonth(), 1)) {
+                              months.push(new Date(iter));
+                              iter = addMonths(iter, -1);
+                            }
+                            return months.map((m, i) => (
+                              <option key={i} value={format(m, "yyyy-MM")}>
+                                {format(m, "MMMM yyyy", { locale: he })}
+                              </option>
+                            ));
+                          })()}
+                        </select>
+                      </div>
                     </div>
                   </div>
 
@@ -944,7 +973,11 @@ export default function ParticipantPortal() {
 
             {/* Title */}
             <div style={{ textAlign: "center", marginBottom: "64px" }}>
-              <h3 style={{ fontSize: "26px", fontWeight: 900, margin: "0 0 16px 0" }}>אישור השתתפות בתוכנית</h3>
+              <h3 style={{ fontSize: "26px", fontWeight: 900, margin: "0 0 16px 0" }}>
+                {activeTab === 'documents' && selectedReportMonth !== format(new Date(), "yyyy-MM") 
+                  ? `דו״ח נוכחות - ${format(parseISO(selectedReportMonth + "-01"), "MMMM yyyy", { locale: he })}`
+                  : "אישור השתתפות בתוכנית"}
+              </h3>
               <div style={{ width: "96px", height: "4px", backgroundColor: "#10b981", margin: "0 auto", borderRadius: "9999px" }} />
             </div>
 
@@ -960,15 +993,29 @@ export default function ParticipantPortal() {
 
               {/* Stats box */}
               <div style={{ backgroundColor: "#f8fafc", padding: "32px", borderRadius: "24px", border: "1px solid #f1f5f9", margin: "48px 0" }}>
-                <h4 style={{ fontWeight: 900, fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.15em", color: "#94a3b8", marginBottom: "16px" }}>סיכום נוכחות תקופתי</h4>
+                <h4 style={{ fontWeight: 900, fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.15em", color: "#94a3b8", marginBottom: "16px" }}>
+                  {activeTab === 'documents' 
+                    ? `סיכום נוכחות - ${format(parseISO(selectedReportMonth + "-01"), "MMMM yyyy", { locale: he })}`
+                    : "סיכום נוכחות תקופתי"}
+                </h4>
                 <div style={{ display: "flex", justifyContent: "space-around", alignItems: "center" }}>
                   <div style={{ textAlign: "center" }}>
-                    <p style={{ fontSize: "28px", fontWeight: 900, color: "#059669", margin: "0 0 4px 0" }}>{attendanceHistory.filter(h => h.status === 'present').length}</p>
+                    <p style={{ fontSize: "28px", fontWeight: 900, color: "#059669", margin: "0 0 4px 0" }}>
+                      {attendanceHistory.filter(h => {
+                        if (activeTab !== 'documents') return h.status === 'present';
+                        return h.status === 'present' && h.date.startsWith(selectedReportMonth);
+                      }).length}
+                    </p>
                     <p style={{ fontSize: "11px", fontWeight: 700, color: "#64748b", margin: 0 }}>ימי נוכחות</p>
                   </div>
                   <div style={{ width: "1px", height: "48px", backgroundColor: "#e2e8f0" }} />
                   <div style={{ textAlign: "center" }}>
-                    <p style={{ fontSize: "28px", fontWeight: 900, color: "#e11d48", margin: "0 0 4px 0" }}>{attendanceHistory.filter(h => h.status === 'absent').length}</p>
+                    <p style={{ fontSize: "28px", fontWeight: 900, color: "#e11d48", margin: "0 0 4px 0" }}>
+                      {attendanceHistory.filter(h => {
+                        if (activeTab !== 'documents') return h.status === 'absent';
+                        return h.status === 'absent' && h.date.startsWith(selectedReportMonth);
+                      }).length}
+                    </p>
                     <p style={{ fontSize: "11px", fontWeight: 700, color: "#64748b", margin: 0 }}>ימי היעדרות</p>
                   </div>
                 </div>
