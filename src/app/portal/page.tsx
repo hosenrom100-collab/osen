@@ -101,70 +101,77 @@ export default function ParticipantPortal() {
   useEffect(() => {
     if (user && onboardingComplete) {
       loadScheduleAndRefs();
-      loadPatientAndAttendance();
-    }
-  }, [user, today, onboardingComplete]);
-
-  async function loadPatientAndAttendance() {
-    if (!user) return;
-    try {
-      const uSnap = await getDoc(doc(db, "users", user.uid));
-      if (!uSnap.exists()) return;
-      const uData = uSnap.data();
-      if (!uData.patientId) return;
-
-      const pSnap = await getDoc(doc(db, "patients", uData.patientId));
-      if (pSnap.exists()) {
-        const pData = pSnap.data();
-        setPatientData({ id: pSnap.id, ...pData });
-
-        // Check for renewal (if end date is near)
-        if (pData.startDate) {
-          const start = parseISO(pData.startDate);
-          const end = pData.endDate ? parseISO(pData.endDate) : addMonths(start, 3);
-          const daysLeft = differenceInDays(end, new Date());
-          if (daysLeft >= 0 && daysLeft <= 14) {
-            setShowRenewalPrompt(true);
-          }
-        }
-
-        if (pData.assignedWorkerId) {
-          const swSnap = await getDoc(doc(db, "users", pData.assignedWorkerId));
-          if (swSnap.exists()) setSwData({ id: swSnap.id, ...swSnap.data() });
-        }
-      }
-
-      // Load attendance history
-      const attSnap = await getDocs(query(
-        collection(db, "attendance"),
-        where("patientId", "==", uData.patientId),
-        orderBy("date", "desc")
-      ));
       
-      // Deduplicate by date (keep only one status per day, priority to 'present')
-      const dailyStatus: Record<string, string> = {};
-      attSnap.docs.forEach(d => {
-        const data = d.data();
-        if (!dailyStatus[data.date] || data.status === 'present') {
-          dailyStatus[data.date] = data.status;
+      // ── Real-time Sync ──
+      const initRealtime = async () => {
+        try {
+          const uSnap = await getDoc(doc(db, "users", user.uid));
+          if (!uSnap.exists() || !uSnap.data().patientId) return;
+          const patientId = uSnap.data().patientId;
+          
+          const unsubPatient = onSnapshot(doc(db, "patients", patientId), (snap) => {
+            if (snap.exists()) {
+              const pData = snap.data();
+              setPatientData({ id: snap.id, ...pData });
+              
+              if (pData.startDate) {
+                const start = parseISO(pData.startDate);
+                const end = pData.endDate ? parseISO(pData.endDate) : addMonths(start, 3);
+                const daysLeft = differenceInDays(end, new Date());
+                setShowRenewalPrompt(daysLeft >= 0 && daysLeft <= 14);
+              }
+              
+              if (pData.assignedWorkerId) {
+                getDoc(doc(db, "users", pData.assignedWorkerId)).then(swSnap => {
+                  if (swSnap.exists()) setSwData({ id: swSnap.id, ...swSnap.data() });
+                });
+              }
+            }
+          });
+
+          const unsubAtt = onSnapshot(
+            query(collection(db, "attendance"), where("patientId", "==", patientId), orderBy("date", "desc")),
+            (snap) => {
+              const dailyStatus: Record<string, string> = {};
+              snap.docs.forEach(d => {
+                const data = d.data();
+                if (!dailyStatus[data.date] || data.status === 'present') {
+                  dailyStatus[data.date] = data.status;
+                }
+              });
+              setAttendanceHistory(Object.entries(dailyStatus).map(([date, status]) => ({ date, status })).sort((a, b) => b.date.localeCompare(a.date)));
+            }
+          );
+
+          const unsubRequests = onSnapshot(
+            query(collection(db, "document_requests"), where("patientId", "==", patientId), orderBy("createdAt", "desc")),
+            (snap) => {
+              setDocRequests(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+            }
+          );
+
+          const unsubDocs = onSnapshot(
+            query(collection(db, "documents"), where("patientId", "==", patientId), orderBy("createdAt", "desc")),
+            (snap) => {
+              setMyDocs(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+            }
+          );
+
+          return () => {
+            unsubPatient();
+            unsubAtt();
+            unsubRequests();
+            unsubDocs();
+          };
+        } catch (err) {
+          console.error("Error loading patient data:", err);
         }
-      });
-
-      const history = Object.entries(dailyStatus)
-        .map(([date, status]) => ({ date, status }))
-        .sort((a, b) => b.date.localeCompare(a.date));
-
-      setAttendanceHistory(history);
-
-      // Load documents and requests
-      const [docsSnap, reqSnap] = await Promise.all([
-        getDocs(query(collection(db, "documents"), where("patientId", "==", uData.patientId), orderBy("createdAt", "desc"))),
-        getDocs(query(collection(db, "document_requests"), where("patientId", "==", uData.patientId), orderBy("createdAt", "desc")))
-      ]);
-      setMyDocs(docsSnap.docs.map(d => ({ id: d.id, ...d.data() })));
-      setDocRequests(reqSnap.docs.map(d => ({ id: d.id, ...d.data() })));
-    } catch (e) { console.error(e); }
-  }
+      };
+      
+      const cleanup = initRealtime();
+      return () => { cleanup.then(fn => fn && fn()); };
+    }
+  }, [user, onboardingComplete]);
 
 
   async function loadScheduleAndRefs() {
@@ -340,7 +347,6 @@ export default function ParticipantPortal() {
       }
 
       alert("בקשתך התקבלה ותטופל בקרוב.");
-      setDocRequests(prev => [{ ...reqData, createdAt: new Date() }, ...prev]);
     } catch (e) { console.error(e); }
     finally { setDocBusy(false); }
   }
@@ -636,7 +642,21 @@ export default function ParticipantPortal() {
                         </div>
                       </div>
                       <button 
-                        onClick={() => window.open(doc.url, '_blank')}
+                        onClick={async () => {
+                          const fileName = `${doc.title}.pdf`;
+                          if (navigator.share) {
+                            try {
+                              const response = await fetch(doc.url);
+                              const blob = await response.blob();
+                              const file = new File([blob], fileName, { type: 'application/pdf' });
+                              if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                                await navigator.share({ files: [file], title: doc.title });
+                                return;
+                              }
+                            } catch (err) { console.error("Share failed", err); }
+                          }
+                          window.open(doc.url, "_blank");
+                        }}
                         className="p-2 rounded-lg bg-teal-500/10 text-teal-500 hover:bg-teal-500 hover:text-white transition-all"
                       >
                         <Download className="w-4 h-4" />
