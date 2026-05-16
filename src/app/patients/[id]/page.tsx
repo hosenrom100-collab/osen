@@ -369,7 +369,6 @@ export default function PatientDetailPage() {
   );
 
   if (!patient) return null;
-
   const patientName = patient.firstName && patient.lastName ? `${patient.firstName} ${patient.lastName}` : (patient.fullName || "מטופל ללא שם");
   
   const progName = programs.find(p => p.id === (patient as any).programId)?.name;
@@ -381,41 +380,39 @@ export default function PatientDetailPage() {
       <div dir="rtl" className="min-h-screen bg-[var(--background)] text-[var(--foreground)]">
         
         <header className="sticky top-0 z-40 bg-[var(--background)]/70 backdrop-blur-2xl border-b border-[var(--border)]">
-          <div className="max-w-7xl mx-auto px-4 md:px-8 h-20 flex items-center justify-between">
-            <div className="flex items-center gap-5">
+          <div className="max-w-7xl mx-auto px-4 md:px-8 h-auto min-h-[5rem] py-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex items-center gap-3 md:gap-5">
               <button 
                 onClick={() => router.push("/patients")} 
-                className="w-11 h-11 rounded-2xl bg-[var(--foreground)]/5 border border-[var(--border)] flex items-center justify-center hover:bg-[var(--foreground)]/10 hover:scale-105 transition-all active:scale-95 group"
+                className="w-9 h-9 md:w-11 md:h-11 rounded-xl md:rounded-2xl bg-[var(--foreground)]/5 border border-[var(--border)] flex items-center justify-center hover:bg-[var(--foreground)]/10 hover:scale-105 transition-all active:scale-95 group shrink-0"
               >
-                <ChevronLeft className="w-5 h-5 rotate-180 group-hover:-translate-x-0.5 transition-transform" />
+                <ChevronLeft className="w-4 h-4 md:w-5 md:h-5 rotate-180 group-hover:-translate-x-0.5 transition-transform" />
               </button>
-              <div className="flex flex-col">
-                <div className="flex items-center gap-3 mb-1">
-                  <h1 className="text-2xl font-black tracking-tight leading-none text-slate-900">{patientName}</h1>
-                  <span className={`px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${
+              <div className="flex flex-col min-w-0">
+                <div className="flex items-center gap-2 mb-0.5">
+                  <h1 className="text-lg md:text-2xl font-black tracking-tight leading-tight text-slate-900 truncate">{patientName}</h1>
+                  <span className={`px-1.5 py-0.5 md:px-2.5 md:py-1 rounded-full text-[7px] md:text-[9px] font-black uppercase tracking-widest shrink-0 ${
                     patient.status === 'active' ? "bg-emerald-500/10 text-emerald-500" : "bg-slate-500/10 text-slate-500"
                   }`}>
                     {patient.status === 'active' ? 'פעיל' : 'בטיפול'}
                   </span>
                 </div>
-                <div className="flex items-center gap-2.5 text-[10px] text-slate-400 font-bold uppercase tracking-widest">
-                  <span className="text-emerald-600/80">{fullGroupName}</span>
-                  <span className="w-1 h-1 rounded-full bg-slate-200" />
-                  <span>עו"ס: {socialWorkers.find(w => w.id === patient.assignedWorkerId)?.name || "טרם שובץ"}</span>
-                  <span className="w-1 h-1 rounded-full bg-slate-200" />
-                  <span>ID: {patient.idNumber}</span>
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[8px] md:text-[10px] text-slate-400 font-bold uppercase tracking-widest">
+                  <span className="text-emerald-600/80 truncate max-w-[120px] md:max-w-none">{fullGroupName}</span>
+                  <span className="w-0.5 h-0.5 rounded-full bg-slate-200" />
+                  <span className="shrink-0">{patient.idNumber}</span>
                 </div>
               </div>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 w-full md:w-auto">
                {(isAdmin || isManager) && (
                  <button 
                   onClick={() => setShowEditModal(true)}
-                  className="flex items-center gap-2 bg-slate-900 text-white px-6 py-3 rounded-2xl text-xs font-black transition-all active:scale-95 hover:bg-slate-800 shadow-xl shadow-slate-900/10"
+                  className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-slate-900 text-white px-5 md:px-6 py-2.5 md:py-3 rounded-xl md:rounded-2xl text-[10px] md:text-xs font-black transition-all active:scale-95 hover:bg-slate-800 shadow-xl shadow-slate-900/10"
                  >
-                   <Edit3 className="w-4 h-4" />
-                   <span>עריכת נתונים</span>
+                   <Edit3 className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                   <span>עריכה</span>
                  </button>
                )}
             </div>
@@ -424,38 +421,39 @@ export default function PatientDetailPage() {
 
         <main className="max-w-6xl mx-auto p-4 md:p-8">
           
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-5 mb-10">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-5 mb-8">
              {[
                { label: "נוכחות החודש", value: `${attendance.filter(a => a.status === 'present').length}`, icon: CheckCircle, color: "text-emerald-500", bg: "bg-emerald-50" },
                { label: "ימי היעדרות", value: `${attendance.filter(a => a.status === 'absent').length}`, icon: AlertCircle, color: "text-rose-500", bg: "bg-rose-50" },
                { label: "תאריך הצטרפות", value: patient.startDate ? format(new Date(patient.startDate), "dd/MM/yy") : "—", icon: Calendar, color: "text-indigo-500", bg: "bg-indigo-50" },
-               { label: "סטטוס שיקומי", value: patient.rehabPlanCompleted ? "בתהליך מתקדם" : "שלב התחלתי", icon: Shield, color: "text-blue-500", bg: "bg-blue-50" },
+               { label: "סטטוס שיקומי", value: patient.rehabPlanCompleted ? "בתהליך" : "התחלתי", icon: Shield, color: "text-blue-500", bg: "bg-blue-50" },
              ].map((stat, i) => (
-               <div key={i} className="bg-white border border-slate-200/60 p-5 rounded-[2rem] hover:border-slate-300 transition-all group">
-                 <div className={`w-10 h-10 rounded-2xl ${stat.bg} ${stat.color} flex items-center justify-center mb-4 group-hover:scale-110 transition-transform`}>
-                    <stat.icon className="w-5 h-5" />
+               <div key={i} className="bg-white border border-slate-200/60 p-4 md:p-5 rounded-2xl md:rounded-[2rem] hover:border-slate-300 transition-all group">
+                 <div className={`w-8 h-8 md:w-10 md:h-10 rounded-xl md:rounded-2xl ${stat.bg} ${stat.color} flex items-center justify-center mb-3 md:mb-4 group-hover:scale-110 transition-transform`}>
+                    <stat.icon className="w-4 h-4 md:w-5 md:h-5" />
                  </div>
-                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{stat.label}</p>
-                 <p className="text-xl font-black text-slate-900">{stat.value}</p>
+                 <p className="text-[8px] md:text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5 md:mb-1">{stat.label}</p>
+                 <p className="text-base md:text-xl font-black text-slate-900">{stat.value}</p>
                </div>
              ))}
           </div>
 
           {/* ── Tabs ── */}
-          <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200 mb-8 w-fit">
+          <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200 mb-6 w-full md:w-fit overflow-x-auto no-scrollbar touch-pan-x">
              {[
                { id: "overview", label: "סקירה", icon: Info },
                { id: "attendance", label: "נוכחות", icon: History },
                { id: "messages", label: "הודעות", icon: MessageCircle },
-               { id: "reports", label: "דוחות", icon: FileText },
+               { id: "reports", label: "אישורים", icon: FileText },
              ].map((tab) => (
                <button 
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as any)}
-                className={`flex items-center gap-2 px-5 py-2 rounded-lg text-[11px] font-black transition-all ${activeTab === tab.id ? 'bg-white text-slate-900 border border-slate-200 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}
+                className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-3 md:px-5 py-2 md:py-2.5 rounded-lg text-[10px] md:text-[11px] font-black transition-all whitespace-nowrap ${activeTab === tab.id ? 'bg-white text-slate-900 border border-slate-200 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}
                >
                  <tab.icon className="w-3.5 h-3.5" />
-                 {tab.label}
+                 <span className="hidden xs:inline">{tab.label}</span>
+                 <span className="xs:hidden">{tab.label.charAt(0)}</span>
                </button>
              ))}
           </div>
@@ -468,28 +466,27 @@ export default function PatientDetailPage() {
                  <div className="lg:col-span-8 grid grid-cols-1 sm:grid-cols-2 gap-6">
                     
                     {/* Primary Info Card */}
-                    <div className="sm:col-span-2 bg-white border border-slate-200/60 rounded-[2.5rem] p-8 shadow-sm relative overflow-hidden group">
-                      <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-500/0 via-emerald-500/40 to-emerald-500/0 opacity-0 group-hover:opacity-100 transition-opacity" />
-                      <h3 className="text-lg font-black mb-8 flex items-center gap-3 text-slate-800">
-                        <div className="w-2 h-6 bg-emerald-500 rounded-full" />
+                    <div className="sm:col-span-2 bg-white border border-slate-200/60 rounded-[2rem] p-6 md:p-8 shadow-sm relative overflow-hidden group">
+                      <h3 className="text-base md:text-lg font-black mb-6 md:mb-8 flex items-center gap-3 text-slate-800">
+                        <div className="w-1.5 h-5 md:w-2 md:h-6 bg-emerald-500 rounded-full" />
                         מידע אישי וקשר
                       </h3>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-10 gap-x-12">
-                         <div className="space-y-1.5">
-                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">מספר זהות</p>
-                            <p className="text-lg font-black font-mono text-slate-700">{patient.idNumber}</p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-6 md:gap-y-10 gap-x-12">
+                         <div className="space-y-1">
+                            <p className="text-[9px] md:text-[10px] font-black text-slate-400 uppercase tracking-widest">מספר זהות</p>
+                            <p className="text-base md:text-lg font-black font-mono text-slate-700">{patient.idNumber}</p>
                          </div>
-                         <div className="space-y-1.5">
-                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">קבוצה ותוכנית</p>
-                            <p className="text-lg font-black text-emerald-600">{fullGroupName}</p>
+                         <div className="space-y-1">
+                            <p className="text-[9px] md:text-[10px] font-black text-slate-400 uppercase tracking-widest">קבוצה ותוכנית</p>
+                            <p className="text-base md:text-lg font-black text-emerald-600">{fullGroupName}</p>
                          </div>
-                         <div className="space-y-1.5">
-                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">טלפון ליצירת קשר</p>
-                            <p className="text-lg font-black text-slate-700">{patient.phone || "—"}</p>
+                         <div className="space-y-1">
+                            <p className="text-[9px] md:text-[10px] font-black text-slate-400 uppercase tracking-widest">טלפון ליצירת קשר</p>
+                            <p className="text-base md:text-lg font-black text-slate-700">{patient.phone || "—"}</p>
                          </div>
-                         <div className="space-y-1.5">
-                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">כתובת דוא״ל</p>
-                            <p className="text-lg font-black text-slate-700">{patient.email || "—"}</p>
+                         <div className="space-y-1">
+                            <p className="text-[9px] md:text-[10px] font-black text-slate-400 uppercase tracking-widest">כתובת דוא״ל</p>
+                            <p className="text-base md:text-lg font-black text-slate-700 truncate">{patient.email || "—"}</p>
                          </div>
                       </div>
                     </div>
