@@ -132,18 +132,12 @@ service cloud.firestore {
 
     // Shopping Requests
     match /shopping_requests/{docId} {
-      allow read: if isAuthenticated();
-      allow create, delete: if isAuthenticated();
-      // Only manager can set status to "approved"; all others can update other fields
-      allow update: if isAuthenticated() && (
-        request.resource.data.status != "approved" || isManager()
-      );
+      allow read, write: if isAuthenticated();
     }
 
     // Product Pool
     match /product_pool/{docId} {
-      allow read: if isAuthenticated();
-      allow write: if isManager() || hasRole('logistics');
+      allow read, write: if isAuthenticated();
     }
 
     // Settings & Core Metadata

@@ -39,7 +39,7 @@ export default function SchedulePage() {
     
     const loadData = async () => {
       const lSnap = await getDocs(collection(db, "locations"));
-      setLocations(lSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+      setLocations(lSnap.docs.map(d => ({ id: d.id, ...(d.data() as any) })));
 
       return onSnapshot(doc(db, "schedules", today), (snap) => {
         if (snap.exists()) {

@@ -9,7 +9,8 @@ import {
 } from "firebase/firestore";
 import {
   Calendar, MapPin, Users, Check, X, Clock, Loader2,
-  Plus, MessageCircle, BarChart3, Shield, Globe, ArrowLeft, ArrowRight
+  Plus, MessageCircle, BarChart3, Shield, Globe, ArrowLeft, ArrowRight,
+  ChevronLeft, FileText
 } from "lucide-react";
 import { format, parseISO, differenceInDays, addMonths } from "date-fns";
 import { he } from "date-fns/locale";
@@ -67,7 +68,7 @@ export default function PortalDashboard() {
             setShowRenewalPrompt(differenceInDays(end, new Date()) <= 14);
           }
           if (data.assignedWorkerId) {
-             getDoc(doc(db, "users", data.assignedWorkerId)).then(s => s.exists() && setSwData({id: s.id, ...s.data()}));
+             getDoc(doc(db, "users", data.assignedWorkerId)).then(s => s.exists() && setSwData({id: s.id, ...(s.data() as any)}));
           }
         }
       });

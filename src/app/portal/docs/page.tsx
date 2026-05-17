@@ -4,7 +4,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useState, useEffect, useRef } from "react";
 import { db } from "@/lib/firebase/config";
 import {
-  collection, doc, getDoc, setDoc,
+  collection, doc, getDoc, setDoc, getDocs,
   query, orderBy, where, onSnapshot, serverTimestamp
 } from "firebase/firestore";
 import {
@@ -36,7 +36,7 @@ export default function DocumentsPage() {
     if (!user) return;
     const init = async () => {
       const gSnap = await getDocs(collection(db, "groups"));
-      setGroups(gSnap.docs.map(d => ({id: d.id, ...d.data()})));
+      setGroups(gSnap.docs.map(d => ({id: d.id, ...(d.data() as any)})));
 
       const uSnap = await getDoc(doc(db, "users", user.uid));
       const pId = uSnap.data()?.patientId;
@@ -47,7 +47,7 @@ export default function DocumentsPage() {
           const data = snap.data();
           setPatientData({ id: snap.id, ...data });
           if (data.assignedWorkerId) {
-             getDoc(doc(db, "users", data.assignedWorkerId)).then(s => s.exists() && setSwData({id: s.id, ...s.data()}));
+             getDoc(doc(db, "users", data.assignedWorkerId)).then(s => s.exists() && setSwData({id: s.id, ...(s.data() as any)}));
           }
         }
       });
@@ -66,12 +66,12 @@ export default function DocumentsPage() {
 
       const unsubRequests = onSnapshot(
         query(collection(db, "document_requests"), where("patientId", "==", pId), orderBy("createdAt", "desc")),
-        (snap) => setDocRequests(snap.docs.map(d => ({ id: d.id, ...d.data() })))
+        (snap) => setDocRequests(snap.docs.map(d => ({ id: d.id, ...(d.data() as any) })))
       );
 
       const unsubDocs = onSnapshot(
         query(collection(db, "documents"), where("patientId", "==", pId), orderBy("createdAt", "desc")),
-        (snap) => setMyDocs(snap.docs.map(d => ({ id: d.id, ...d.data() })))
+        (snap) => setMyDocs(snap.docs.map(d => ({ id: d.id, ...(d.data() as any) })))
       );
 
       setLoading(false);
@@ -332,13 +332,3 @@ export default function DocumentsPage() {
   );
 }
 
-// Helper to avoid build issues with getDocs in the effects
-async function getDocsWithQuery(q: any) {
-  const snap = await getDocs(q);
-  return snap.docs.map(d => ({id: d.id, ...d.data()}));
-}
-
-async function getDocs(collectionRef: any) {
-  const { getDocs: fireGetDocs } = await import('firebase/firestore');
-  return fireGetDocs(collectionRef);
-}
