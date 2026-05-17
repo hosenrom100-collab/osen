@@ -10,7 +10,8 @@ import {
 import { 
   ShoppingCart, Plus, Minus, Check, X, Clock, User, Search, Loader2, 
   ArrowRight, Trash2, CheckCircle2, Download, Flame, ChevronRight, 
-  Edit3, RotateCcw, Package, ShoppingBag, Barcode, ScanLine, Filter 
+  Edit3, RotateCcw, Package, ShoppingBag, Barcode, ScanLine, Filter,
+  ChevronDown, ChevronUp
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { motion, AnimatePresence, LayoutGroup } from "framer-motion";
@@ -65,6 +66,7 @@ export default function ShoppingPage() {
   const [pool, setPool]             = useState<Product[]>([]);
   const [loading, setLoading]       = useState(true);
   const [view, setView]             = useState<"list" | "archive">("list");
+  const [showPurchased, setShowPurchased] = useState(false);
 
   // Add-bar state
   const [inputVal, setInputVal]     = useState("");
@@ -407,7 +409,7 @@ export default function ShoppingPage() {
                 onChange={(e) => setInputVal(e.target.value)}
                 onFocus={() => setOverlayOpen(true)}
                 placeholder="הוסף מוצר..."
-                className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-2xl py-3.5 pr-20 pl-4 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all placeholder:text-[var(--muted)]/50 shadow-sm"
+                className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-2xl py-3.5 pr-20 pl-4 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all placeholder:text-[var(--muted)]/50 shadow-sm"
               />
            </div>
         </div>
@@ -427,7 +429,7 @@ export default function ShoppingPage() {
                  onChange={(e) => setInputVal(e.target.value)}
                  onFocus={() => setOverlayOpen(true)}
                  placeholder="חיפוש או הוספת מוצר..."
-                 className="w-full bg-[var(--background)] border border-[var(--border)] rounded-2xl py-2.5 pr-11 pl-4 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all shadow-inner"
+                 className="w-full bg-[var(--background)] border border-[var(--border)] rounded-2xl py-2.5 pr-11 pl-4 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all shadow-inner"
                />
             </div>
           </div>
@@ -487,7 +489,7 @@ export default function ShoppingPage() {
             <div className="max-w-[800px] mx-auto pb-36">
               {loading ? (
                 <div className="flex flex-col items-center justify-center py-32 gap-4">
-                  <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
+                  <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
                 </div>
               ) : view === "list" ? (
                 <LayoutGroup>
@@ -558,49 +560,7 @@ export default function ShoppingPage() {
             </div>
           </div>
 
-          {/* ── Cart / Purchased Drawer (Sticky Bottom) ── */}
-          {view === "list" && purchased.length > 0 && (
-             <div className="fixed bottom-0 left-0 right-0 z-[45]">
-                <div className="max-w-[800px] mx-auto">
-                   <div className="bg-[var(--surface)]/95 backdrop-blur-xl border-t border-[var(--border)] shadow-[0_-20px_40px_-15px_rgba(0,0,0,0.2)] rounded-t-[2.5rem] overflow-hidden">
-                      <div className="px-6 py-4 flex items-center justify-between bg-[var(--foreground)]/5 border-b border-[var(--border)]">
-                         <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-lg shadow-blue-600/20 animate-pulse">
-                               <ShoppingCart className="w-4 h-4" />
-                            </div>
-                            <h3 className="text-sm font-black uppercase tracking-widest">סל קניות ({purchased.length})</h3>
-                         </div>
-                         <div className="flex items-center gap-4">
-                            <button 
-                               onClick={() => {
-                                 if (confirm("האם למחוק לחלוטין את כל סל הקניות?")) {
-                                   purchased.forEach(item => changeStatus(item.id, "deleted"));
-                                 }
-                               }}
-                               className="flex items-center gap-2 text-[10px] font-black text-rose-500 uppercase tracking-widest hover:bg-rose-500/10 px-3 py-1.5 rounded-lg transition-all"
-                            >
-                               <Trash2 className="w-3.5 h-3.5" /> רוקן סל
-                            </button>
-                            <div className="h-4 w-px bg-[var(--border)]" />
-                            <button 
-                               onClick={() => purchased.forEach(item => changeStatus(item.id, "approved"))}
-                               className="text-[10px] font-black text-[var(--muted)] uppercase tracking-widest flex items-center gap-2 hover:bg-[var(--foreground)]/5 px-3 py-1.5 rounded-lg transition-all"
-                            >
-                               <RotateCcw className="w-3.5 h-3.5" /> החזר הכל לרשימה
-                            </button>
-                         </div>
-                      </div>
-                      <div className="max-h-[25vh] overflow-y-auto no-scrollbar pb-6 divide-y divide-[var(--border)]">
-                         <LayoutGroup>
-                            {purchased.map(item => (
-                               <PurchasedRow key={item.id} item={item} onStatus={changeStatus} />
-                            ))}
-                         </LayoutGroup>
-                      </div>
-                   </div>
-                </div>
-             </div>
-          )}
+          {/* Cart / Purchased Drawer has been integrated inline into the list above */}
         </main>
 
         <AnimatePresence>
@@ -623,7 +583,7 @@ export default function ShoppingPage() {
                 </div>
 
                 <div className="relative group mb-4">
-                   <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2 text-blue-500">
+                   <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2 text-indigo-500">
                       <Plus className="w-6 h-6" />
                    </div>
                    <input
@@ -636,7 +596,7 @@ export default function ShoppingPage() {
                         if (e.key === "Escape") { setOverlayOpen(false); setAddUrgent(false); }
                      }}
                      placeholder="מה לקנות?"
-                     className="w-full bg-[var(--surface)] border-2 border-[var(--border)] rounded-[2rem] py-6 pr-14 pl-6 text-xl font-bold focus:outline-none focus:border-blue-500 transition-all shadow-xl text-right placeholder:text-[var(--muted)]/40"
+                     className="w-full bg-[var(--surface)] border-2 border-[var(--border)] rounded-[2rem] py-6 pr-14 pl-6 text-xl font-bold focus:outline-none focus:border-indigo-500 transition-all shadow-xl text-right placeholder:text-[var(--muted)]/40"
                    />
                 </div>
 
@@ -663,10 +623,10 @@ export default function ShoppingPage() {
                    {!exactMatch && inputVal.trim() && (
                       <button 
                          onClick={handleAddInput}
-                         className="flex items-center justify-between px-6 py-5 rounded-2xl bg-blue-600 text-white font-black text-lg shadow-lg shadow-blue-600/20 active:scale-[0.98] transition-all"
+                         className="flex items-center justify-between px-6 py-5 rounded-2xl bg-indigo-600 !text-white font-black text-lg shadow-lg shadow-indigo-600/20 active:scale-[0.98] transition-all"
                       >
-                         <span>הוסף "{inputVal}" חדש</span>
-                         <Plus className="w-6 h-6" />
+                         <span className="!text-white">הוסף "{inputVal}" חדש</span>
+                         <Plus className="w-6 h-6 !text-white" />
                       </button>
                    )}
 
@@ -685,7 +645,7 @@ export default function ShoppingPage() {
                            }}
                            disabled={inList}
                            className={`flex items-center justify-between px-6 py-4 rounded-2xl border border-[var(--border)] transition-all active:scale-[0.98] ${
-                             inList ? "opacity-35 bg-transparent" : "bg-[var(--surface)] hover:border-blue-500/50"
+                             inList ? "opacity-35 bg-transparent" : "bg-[var(--surface)] hover:border-indigo-500/50"
                            }`}
                          >
                             <div className="flex flex-col items-start gap-1 text-right">
@@ -715,7 +675,7 @@ export default function ShoppingPage() {
                 className="relative w-full max-w-md bg-[var(--surface)] border border-[var(--border)] rounded-[2.5rem] p-8 shadow-2xl text-right" dir="rtl">
                 
                 <h2 className="text-xl font-black mb-6 flex items-center gap-2">
-                   <Edit3 className="w-5 h-5 text-blue-500" /> עריכת פריט
+                   <Edit3 className="w-5 h-5 text-indigo-500" /> עריכת פריט
                 </h2>
                 
                 <div className="space-y-5 text-right">
@@ -725,7 +685,7 @@ export default function ShoppingPage() {
                       type="text" 
                       value={editName} 
                       onChange={(e) => setEditName(e.target.value)}
-                      className="w-full bg-[var(--background)] border border-[var(--border)] rounded-xl py-3 px-4 text-sm font-bold focus:outline-none focus:border-blue-500/50" 
+                      className="w-full bg-[var(--background)] border border-[var(--border)] rounded-xl py-3 px-4 text-sm font-bold focus:outline-none focus:border-indigo-500/50" 
                     />
                   </div>
                   
@@ -737,7 +697,7 @@ export default function ShoppingPage() {
                         value={editQty} 
                         onChange={(e) => setEditQty(e.target.value)}
                         placeholder="למשל: 1, 2.5, 3"
-                        className="w-full bg-[var(--background)] border border-[var(--border)] rounded-xl py-3 px-4 text-sm font-bold focus:outline-none focus:border-blue-500/50" 
+                        className="w-full bg-[var(--background)] border border-[var(--border)] rounded-xl py-3 px-4 text-sm font-bold focus:outline-none focus:border-indigo-500/50" 
                       />
                     </div>
                     <div>
@@ -745,7 +705,7 @@ export default function ShoppingPage() {
                       <select 
                         value={editPriority} 
                         onChange={(e) => setEditPriority(e.target.value as any)}
-                        className="w-full bg-[var(--background)] border border-[var(--border)] rounded-xl py-3 px-4 text-sm font-bold focus:outline-none focus:border-blue-500/50"
+                        className="w-full bg-[var(--background)] border border-[var(--border)] rounded-xl py-3 px-4 text-sm font-bold focus:outline-none focus:border-indigo-500/50"
                       >
                         <option value="normal">רגיל</option>
                         <option value="urgent">דחוף 🔥</option>
@@ -760,7 +720,7 @@ export default function ShoppingPage() {
                       onChange={(e) => setEditNotes(e.target.value)}
                       placeholder="סוג ספציפי, צבע, או תחליף מועדף..."
                       rows={2}
-                      className="w-full bg-[var(--background)] border border-[var(--border)] rounded-xl py-3 px-4 text-sm font-bold focus:outline-none focus:border-blue-500/50 resize-none placeholder:text-[var(--muted)]/40" 
+                      className="w-full bg-[var(--background)] border border-[var(--border)] rounded-xl py-3 px-4 text-sm font-bold focus:outline-none focus:border-indigo-500/50 resize-none placeholder:text-[var(--muted)]/40" 
                     />
                   </div>
 
@@ -774,7 +734,7 @@ export default function ShoppingPage() {
                           onClick={() => setEditCat(c)} 
                           className={`py-2 px-3 rounded-lg text-xs font-bold border transition-all ${
                             editCat === c 
-                              ? "bg-blue-600 border-blue-500 text-white shadow-md shadow-blue-500/10" 
+                              ? "bg-indigo-600 border-indigo-500 !text-white shadow-md shadow-indigo-500/10" 
                               : "bg-[var(--background)] border-[var(--border)] text-[var(--muted)] hover:text-[var(--foreground)]"
                           }`}
                         >
@@ -788,7 +748,7 @@ export default function ShoppingPage() {
                 <div className="flex gap-3 mt-8">
                   <button 
                     onClick={handleUpdateItem} 
-                    className="flex-1 py-4 bg-blue-600 hover:bg-blue-500 text-white text-sm font-black rounded-2xl shadow-lg transition-all active:scale-[0.98]"
+                    className="flex-1 py-4 bg-indigo-600 hover:bg-indigo-500 !text-white text-sm font-black rounded-2xl shadow-lg transition-all active:scale-[0.98]"
                   >
                     שמור שינויים
                   </button>
@@ -817,10 +777,10 @@ export default function ShoppingPage() {
                       value={newCatName} 
                       onChange={e => setNewCatName(e.target.value)}
                       placeholder="שם הקטגוריה..."
-                      className="w-full bg-[var(--background)] border border-[var(--border)] rounded-xl py-4 px-4 text-sm font-bold focus:border-blue-500 outline-none mb-6"
+                      className="w-full bg-[var(--background)] border border-[var(--border)] rounded-xl py-4 px-4 text-sm font-bold focus:border-indigo-500 outline-none mb-6"
                    />
                    <div className="flex gap-3">
-                      <button onClick={handleAddCategory} className="flex-1 py-4 bg-blue-600 text-white rounded-2xl font-black text-sm shadow-lg shadow-blue-600/20 active:scale-95 transition-all">הוסף קטגוריה</button>
+                      <button onClick={handleAddCategory} className="flex-1 py-4 bg-indigo-600 !text-white rounded-2xl font-black text-sm shadow-lg shadow-indigo-600/20 active:scale-95 transition-all">הוסף קטגוריה</button>
                       <button onClick={() => setIsAddingCat(false)} className="flex-1 py-4 bg-[var(--foreground)]/5 text-[var(--muted)] rounded-2xl font-black text-sm active:scale-95 transition-all">ביטול</button>
                    </div>
                 </motion.div>
@@ -839,7 +799,7 @@ function CategorySection({ title, items, onStatus, onEdit, onUpdateQuantity, can
     <div className="mb-8 last:mb-0">
       <div className="flex items-center justify-between px-4 py-3 bg-[var(--surface)]/50 backdrop-blur-sm sticky top-0 z-10 border-y border-[var(--border)]">
         <h3 className="text-xs font-black text-[var(--muted)] uppercase tracking-widest flex items-center gap-2">
-          <Filter className="w-3 h-3 text-blue-500" />
+          <Filter className="w-3 h-3 text-indigo-500" />
           {title}
         </h3>
         <span className="text-[10px] font-bold bg-[var(--foreground)]/5 px-2 py-0.5 rounded-full">{items.length} פריטים</span>
@@ -865,130 +825,204 @@ function CategorySection({ title, items, onStatus, onEdit, onUpdateQuantity, can
 function MobileItemRow({ item, onStatus, onEdit, onUpdateQuantity, canApprove, canPurchase, currentUser }: {
   item: ShoppingRequest, onStatus: any, onEdit: any, onUpdateQuantity: any, canApprove: boolean, canPurchase: boolean, currentUser: any
 }) {
+  const [isExpanded, setIsExpanded] = useState(false);
   const isApproved = item.status === "approved";
   const isPending  = item.status === "pending";
   const isUrgent   = item.priority === "urgent";
   const isOwnItem  = item.requestedBy === currentUser?.uid;
   const canDelete  = canApprove || isOwnItem;
 
-  const handleDelete = () => {
+  const handleDelete = (e: React.MouseEvent) => {
+    e.stopPropagation();
     if (confirm(`האם ברצונך למחוק את "${item.name}" מהרשימה?`)) {
       onStatus(item.id, "deleted");
+    }
+  };
+
+  const handleCheckboxClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (isPending && canApprove) {
+      onStatus(item.id, "approved");
+    } else if (isApproved && canPurchase) {
+      onStatus(item.id, "purchased");
     }
   };
 
   return (
     <motion.div
       layout
-      className="group relative flex flex-col md:flex-row md:items-center justify-between gap-3 px-4 py-4 bg-[var(--surface)] hover:bg-[var(--foreground)]/5 transition-colors border-b border-[var(--border)]/50 last:border-0"
+      onClick={() => setIsExpanded(!isExpanded)}
+      className={`group relative flex flex-col px-4 py-3.5 bg-[var(--surface)] hover:bg-[var(--foreground)]/5 transition-all border-b border-[var(--border)]/50 last:border-0 cursor-pointer ${
+        isExpanded ? "ring-1 ring-indigo-500/10 bg-[var(--foreground)]/[0.01]" : ""
+      }`}
     >
-      <div className="flex-1 min-w-0 flex items-start gap-3">
-        {/* Urgent Icon */}
-        {isUrgent && (
-          <div className="mt-1 flex-shrink-0 animate-pulse">
-            <Flame className="w-5 h-5 text-rose-500 fill-rose-500" />
-          </div>
-        )}
-        
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className={`text-[15px] font-bold tracking-tight ${isApproved ? 'text-[var(--foreground)]' : 'text-[var(--foreground)]/80'}`}>
-              {item.name}
-            </span>
-            <CatBadge cat={item.category} />
-            {isUrgent && (
-              <span className="text-[9px] font-black text-rose-500 bg-rose-500/10 px-1.5 py-0.5 rounded border border-rose-500/20">דחוף 🔥</span>
-            )}
-          </div>
-          
-          {/* Notes display */}
-          {item.notes && (
-            <p className="text-xs text-[var(--muted)] font-medium mt-1 pr-2 border-r border-[var(--border)] leading-relaxed">
-              💬 {item.notes}
-            </p>
-          )}
-
-          <div className="flex items-center gap-2 mt-1.5 text-[10px] text-[var(--muted)] font-medium">
-            <span>מאת: {item.requestedByName}</span>
-            <span>•</span>
-            {isPending ? (
-              <span className="flex items-center gap-1 text-amber-500 font-bold bg-amber-500/5 px-1.5 py-0.5 rounded border border-amber-500/10">
-                <Clock className="w-2.5 h-2.5" /> ממתין לאישור מנהלת
-              </span>
+      {/* Upper Row: Main Information & Checkbox */}
+      <div className="flex items-center justify-between gap-3 w-full">
+        <div className="flex items-center gap-3 min-w-0 flex-1">
+          {/* Custom Checkbox/Action Circle */}
+          <button
+            onClick={handleCheckboxClick}
+            disabled={isPending && !canApprove}
+            className={`w-7 h-7 rounded-full flex items-center justify-center border transition-all shrink-0 active:scale-90 ${
+              isApproved
+                ? "border-indigo-500 hover:bg-indigo-500/10 text-indigo-500"
+                : isPending
+                ? canApprove
+                  ? "border-amber-500 hover:bg-amber-500/10 border-dashed text-amber-500"
+                  : "border-[var(--border)] bg-[var(--foreground)]/[0.02] text-[var(--muted)]/40 cursor-not-allowed"
+                : "border-[var(--border)] text-[var(--muted)]"
+            }`}
+          >
+            {isApproved ? (
+              <Check className="w-3.5 h-3.5 text-indigo-500" />
+            ) : isPending ? (
+              canApprove ? (
+                <Check className="w-3.5 h-3.5 text-amber-500" />
+              ) : (
+                <Clock className="w-3.5 h-3.5 text-[var(--muted)]/60" />
+              )
             ) : (
-              <span className="flex items-center gap-1 text-emerald-500 font-bold bg-emerald-500/5 px-1.5 py-0.5 rounded border border-emerald-500/10">
-                <CheckCircle2 className="w-2.5 h-2.5" /> מאושר לרכישה
-              </span>
+              <Check className="w-3.5 h-3.5" />
             )}
+          </button>
+
+          {/* Item details */}
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className={`text-[15px] font-bold tracking-tight ${isApproved ? 'text-[var(--foreground)]' : 'text-[var(--foreground)]/80'}`}>
+                {item.name}
+              </span>
+              <span className="text-xs font-black text-indigo-500/80 bg-indigo-500/5 px-2 py-0.5 rounded-lg border border-indigo-500/10">
+                {item.quantity || "1"} יח׳
+              </span>
+              <CatBadge cat={item.category} />
+              {isUrgent && (
+                <span className="text-[9px] font-black text-rose-500 bg-rose-500/10 px-1.5 py-0.5 rounded border border-rose-500/20">דחוף 🔥</span>
+              )}
+            </div>
           </div>
+        </div>
+
+        {/* Left Side indicators (Chevron, Notes presence) */}
+        <div className="flex items-center gap-2 shrink-0">
+          {item.notes && (
+            <span className="text-xs text-[var(--muted)]" title="יש הערות לפריט זה">💬</span>
+          )}
+          <motion.div
+            animate={{ rotate: isExpanded ? 180 : 0 }}
+            transition={{ duration: 0.2 }}
+            className="text-[var(--muted)]/50"
+          >
+            <ChevronDown className="w-4 h-4" />
+          </motion.div>
         </div>
       </div>
 
-      <div className="flex items-center justify-between md:justify-end gap-3 mt-2 md:mt-0 shrink-0">
-         {/* Inline Quantity Controls */}
-         <div className="flex items-center gap-1 bg-[var(--foreground)]/5 border border-[var(--border)] rounded-xl p-1 shadow-sm shrink-0">
-            <button 
-              onClick={() => onUpdateQuantity(item.id, item.quantity || "1", -1)}
-              className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-[var(--foreground)]/10 text-[var(--muted)] hover:text-[var(--foreground)] transition-all active:scale-75"
-              title="הפחת כמות"
-            >
-              <Minus className="w-3.5 h-3.5 stroke-[2.5]" />
-            </button>
-            <div className="min-w-[32px] text-center px-1">
-              <span className="text-xs font-black text-[var(--foreground)]">{item.quantity || "1"}</span>
-              <span className="text-[9px] text-[var(--muted)] block -mt-1 font-bold">יח׳</span>
+      {/* Expanded details container */}
+      <AnimatePresence initial={false}>
+        {isExpanded && (
+          <motion.div
+            initial={{ height: 0, opacity: 0, marginTop: 0 }}
+            animate={{ height: "auto", opacity: 1, marginTop: 12 }}
+            exit={{ height: 0, opacity: 0, marginTop: 0 }}
+            transition={{ duration: 0.2, ease: "easeInOut" }}
+            className="overflow-hidden w-full border-t border-[var(--border)]/40 pt-3"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Notes display inside details */}
+            {item.notes && (
+              <div className="mb-3 p-2.5 rounded-xl bg-[var(--foreground)]/[0.02] border border-[var(--border)]/40 text-right">
+                <p className="text-xs text-[var(--muted)] font-medium leading-relaxed">
+                  <span className="font-bold text-[var(--foreground)]/70">הערות:</span> {item.notes}
+                </p>
+              </div>
+            )}
+
+            {/* Requested By and Status Info */}
+            <div className="flex items-center justify-between flex-wrap gap-2 mb-4 text-xs">
+              <span className="text-[var(--muted)] font-medium">מבקש: <span className="font-bold text-[var(--foreground)]">{item.requestedByName}</span></span>
+              <div>
+                {isPending ? (
+                  <span className="flex items-center gap-1 text-amber-500 font-bold bg-amber-500/5 px-2 py-0.5 rounded border border-amber-500/10">
+                    <Clock className="w-3 h-3" /> ממתין לאישור מנהלת
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-1 text-emerald-500 font-bold bg-emerald-500/5 px-2 py-0.5 rounded border border-emerald-500/10">
+                    <CheckCircle2 className="w-3 h-3" /> מאושר לרכישה
+                  </span>
+                )}
+              </div>
             </div>
-            <button 
-              onClick={() => onUpdateQuantity(item.id, item.quantity || "1", 1)}
-              className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-[var(--foreground)]/10 text-[var(--muted)] hover:text-[var(--foreground)] transition-all active:scale-75"
-              title="הוסף כמות"
-            >
-              <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
-            </button>
-         </div>
 
-         {/* Actions Bar */}
-         <div className="flex items-center gap-2">
-            {/* Quick Edit */}
-            <button 
-              onClick={() => onEdit(item)}
-              className="w-9 h-9 rounded-xl flex items-center justify-center bg-[var(--foreground)]/5 hover:bg-[var(--foreground)]/10 text-[var(--muted)] hover:text-[var(--foreground)] transition-all active:scale-90 border border-[var(--border)]"
-              title="ערוך מוצר"
-            >
-              <Edit3 className="w-4 h-4" />
-            </button>
+            {/* Action buttons (stepper, edit, delete) */}
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              {/* Inline Quantity Stepper */}
+              <div className="flex items-center gap-1 bg-[var(--foreground)]/5 border border-[var(--border)] rounded-xl p-1 shadow-sm shrink-0">
+                <button
+                  onClick={() => onUpdateQuantity(item.id, item.quantity || "1", -1)}
+                  className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-[var(--foreground)]/10 text-[var(--muted)] hover:text-[var(--foreground)] transition-all active:scale-75"
+                  title="הפחת כמות"
+                >
+                  <Minus className="w-4 h-4 stroke-[2.5]" />
+                </button>
+                <div className="min-w-[40px] text-center px-1">
+                  <span className="text-sm font-black text-[var(--foreground)]">{item.quantity || "1"}</span>
+                  <span className="text-[9px] text-[var(--muted)] block -mt-1 font-bold">יח׳</span>
+                </div>
+                <button
+                  onClick={() => onUpdateQuantity(item.id, item.quantity || "1", 1)}
+                  className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-[var(--foreground)]/10 text-[var(--muted)] hover:text-[var(--foreground)] transition-all active:scale-75"
+                  title="הוסף כמות"
+                >
+                  <Plus className="w-4 h-4 stroke-[2.5]" />
+                </button>
+              </div>
 
-            {/* Delete button */}
-            {canDelete && (
-              <button 
-                onClick={handleDelete}
-                className="w-9 h-9 rounded-xl flex items-center justify-center bg-rose-500/5 hover:bg-rose-500/10 text-rose-500/80 hover:text-rose-500 transition-all active:scale-90 border border-rose-500/10"
-                title="מחק מהרשימה"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
-            )}
+              {/* Action Buttons: Edit, Delete, Approve/Purchase */}
+              <div className="flex items-center gap-2">
+                {/* Quick Edit */}
+                <button
+                  onClick={() => onEdit(item)}
+                  className="px-3 h-9 rounded-xl flex items-center justify-center gap-1.5 bg-[var(--foreground)]/5 hover:bg-[var(--foreground)]/10 text-[var(--muted)] hover:text-[var(--foreground)] transition-all active:scale-95 border border-[var(--border)] text-xs font-bold"
+                  title="ערוך מוצר"
+                >
+                  <Edit3 className="w-3.5 h-3.5" /> עריכה
+                </button>
 
-            {/* Status Change Buttons */}
-            {isPending && canApprove && (
-              <button
-                onClick={() => onStatus(item.id, "approved")}
-                className="bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl px-3 h-9 text-xs font-black transition-all flex items-center gap-1 hover:scale-105 active:scale-95 shadow-md shadow-emerald-600/10 border border-emerald-500/20"
-              >
-                <Check className="w-3.5 h-3.5 stroke-[3]" /> אשר
-              </button>
-            )}
+                {/* Delete button */}
+                {canDelete && (
+                  <button
+                    onClick={handleDelete}
+                    className="px-3 h-9 rounded-xl flex items-center justify-center gap-1.5 bg-rose-500/5 hover:bg-rose-500/10 text-rose-500 hover:text-rose-500 transition-all active:scale-95 border border-rose-500/10 text-xs font-bold"
+                    title="מחק מהרשימה"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" /> מחיקה
+                  </button>
+                )}
 
-            {isApproved && canPurchase && (
-              <button
-                onClick={() => onStatus(item.id, "purchased")}
-                className="bg-blue-600 hover:bg-blue-500 text-white rounded-xl px-3 h-9 text-xs font-black transition-all flex items-center gap-1.5 hover:scale-105 active:scale-95 shadow-md shadow-blue-600/15"
-              >
-                <ShoppingCart className="w-3.5 h-3.5" /> קנה
-              </button>
-            )}
-         </div>
-      </div>
+                {/* Approve/Purchase Status Button */}
+                {isPending && canApprove && (
+                  <button
+                    onClick={() => onStatus(item.id, "approved")}
+                    className="bg-emerald-600 hover:bg-emerald-500 !text-white rounded-xl px-4 h-9 text-xs font-black transition-all flex items-center gap-1 hover:scale-105 active:scale-95 shadow-md shadow-emerald-600/10 border border-emerald-500/20"
+                  >
+                    <Check className="w-3.5 h-3.5 stroke-[3] !text-white" /> אשר
+                  </button>
+                )}
+
+                {isApproved && canPurchase && (
+                  <button
+                    onClick={() => onStatus(item.id, "purchased")}
+                    className="bg-indigo-600 hover:bg-indigo-500 !text-white rounded-xl px-4 h-9 text-xs font-black transition-all flex items-center gap-1.5 hover:scale-105 active:scale-95 shadow-md shadow-indigo-600/15"
+                  >
+                    <ShoppingCart className="w-3.5 h-3.5 !text-white" /> קנה
+                  </button>
+                )}
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }
