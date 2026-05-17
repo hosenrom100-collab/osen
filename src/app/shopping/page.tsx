@@ -58,7 +58,7 @@ function CatBadge({ cat }: { cat: string }) {
 }
 
 export default function ShoppingPage() {
-  const { user, role, isAdmin } = useAuth();
+  const { user, role, isAdmin, isManager } = useAuth();
   const router = useRouter();
 
   const [requests, setRequests]     = useState<ShoppingRequest[]>([]);
@@ -100,8 +100,8 @@ export default function ShoppingPage() {
     timeoutId: NodeJS.Timeout;
   }>>({});
 
-  const canApprove  = role === "manager";
-  const canPurchase = isAdmin || role === "manager" || role === "logistics";
+  const canApprove  = role === "manager" || role === "admin" || isAdmin || isManager;
+  const canPurchase = isAdmin || role === "manager" || role === "admin" || role === "logistics" || isManager;
 
   // ── Bootstrap ──────────────────────────────────────────────────────────────
   useEffect(() => {
