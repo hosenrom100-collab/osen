@@ -437,7 +437,10 @@ export default function ShoppingPage() {
                                <Trash2 className="w-3.5 h-3.5" /> מחק סל
                             </button>
                             <div className="h-4 w-px bg-[var(--border)]" />
-                            <button className="text-[10px] font-black text-[var(--muted)] uppercase tracking-widest flex items-center gap-2">
+                            <button 
+                               onClick={() => purchased.forEach(item => changeStatus(item.id, "approved"))}
+                               className="text-[10px] font-black text-[var(--muted)] uppercase tracking-widest flex items-center gap-2 hover:bg-[var(--foreground)]/5 px-3 py-1.5 rounded-lg transition-all"
+                            >
                                <RotateCcw className="w-3.5 h-3.5" /> החזר לרשימה
                             </button>
                          </div>
