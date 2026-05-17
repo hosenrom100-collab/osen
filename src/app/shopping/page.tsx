@@ -44,7 +44,7 @@ const CAT_COLOR: Record<string, string> = {
   "לחם ומאפים":           "text-orange-500 bg-orange-500/10 border border-orange-500/20",
   "חומרי ניקוי":          "text-cyan-500 bg-cyan-500/10 border border-cyan-500/20",
   "מוצרי נייר וחד פעמי": "text-indigo-500 bg-indigo-500/10 border border-indigo-500/20",
-  "טואלטיקה והיגיינה":   "text-violet-500 bg-violet-500/10 border border-violet-500/20", // Lighter premium pastel violet
+  "טואלטיקה והיגיינה":   "text-emerald-500 bg-emerald-500/10 border border-emerald-500/20", // Gentle pastel emerald green
   "שימורים ובישול":       "text-slate-500 bg-slate-500/10 border border-slate-500/20",
   "קפואים":               "text-sky-500 bg-sky-500/10 border border-sky-500/20",
   "כללי":                 "text-slate-400 bg-slate-400/10 border border-slate-400/20",
