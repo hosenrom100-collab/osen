@@ -29,8 +29,31 @@ export default function DocumentsPage() {
   const [reportLoading, setReportLoading] = useState(false);
   const [selectedReportMonth, setSelectedReportMonth] = useState(format(new Date(), "yyyy-MM"));
   const [groups, setGroups] = useState<any[]>([]);
-  
-  const reportRef = useRef<HTMLDivElement>(null);
+  const stayReportRef = useRef<HTMLDivElement>(null);
+  const attendanceReportRef = useRef<HTMLDivElement>(null);
+
+  const getDayName = (dateStr: string) => {
+    const days = ["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת"];
+    try {
+      const d = new Date(dateStr);
+      return `יום ${days[d.getDay()]}`;
+    } catch (e) {
+      return "";
+    }
+  };
+
+  const getHebrewMonthName = (monthStr: string) => {
+    if (!monthStr) return "";
+    const [year, month] = monthStr.split("-");
+    const months = [
+      "ינואר", "פברואר", "מרץ", "אפריל", "מאי", "יוני",
+      "יולי", "אוגוסט", "ספטמבר", "אוקטובר", "נובמבר", "דצמבר"
+    ];
+    return `${months[parseInt(month) - 1]} ${year}`;
+  };
+
+  const monthlyAttendance = attendanceHistory.filter(h => h.date.startsWith(selectedReportMonth));
+  const sortedMonthlyAttendance = [...monthlyAttendance].sort((a, b) => a.date.localeCompare(b.date));
 
   useEffect(() => {
     if (!user) return;
@@ -99,11 +122,13 @@ export default function DocumentsPage() {
   };
 
   const selfGenerateReport = async (type: 'stay' | 'attendance') => {
-    if (!patientData || !reportRef.current) return;
+    if (!patientData) return;
+    const ref = type === 'stay' ? stayReportRef.current : attendanceReportRef.current;
+    if (!ref) return;
     setReportLoading(true);
     try {
       await new Promise(r => setTimeout(r, 200));
-      const canvas = await html2canvas(reportRef.current, { scale: 2, useCORS: true });
+      const canvas = await html2canvas(ref, { scale: 2, useCORS: true });
       const imgData = canvas.toDataURL("image/jpeg", 1.0);
       const pdf = new jsPDF("p", "mm", "a4");
       pdf.addImage(imgData, "JPEG", 0, 0, 210, (canvas.height * 210) / canvas.width);
@@ -270,10 +295,11 @@ export default function DocumentsPage() {
         </section>
       </div>
 
-      {/* ── PDF Template — offscreen ── */}
+      {/* ── PDF Templates — offscreen ── */}
       {patientData && (
         <div style={{ position: "fixed", left: -9999, top: -9999 }}>
-          <div ref={reportRef} style={{
+          {/* 1. Stay (Participation) Certificate */}
+          <div ref={stayReportRef} style={{
             width: "794px", padding: "80px", backgroundColor: "#ffffff",
             color: "#000000", fontFamily: "Arial, sans-serif", lineHeight: 1.6, direction: "rtl"
           }}>
@@ -324,6 +350,115 @@ export default function DocumentsPage() {
               <p style={{ marginTop: "48px", marginBottom: "8px" }}>בברכה,</p>
               <p style={{ fontWeight: 900, margin: "0 0 4px 0" }}>הנהלת מרכז חוסן</p>
               <p style={{ fontSize: "13px", color: "#64748b", fontStyle: "italic", margin: 0 }}>חוות רום - שיקום חקלאי וקהילתי</p>
+            </div>
+          </div>
+
+          {/* 2. Monthly Attendance Report with Table */}
+          <div ref={attendanceReportRef} style={{
+            width: "794px", padding: "80px", backgroundColor: "#ffffff",
+            color: "#000000", fontFamily: "Arial, sans-serif", lineHeight: 1.6, direction: "rtl"
+          }}>
+            {/* Header */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", borderBottom: "2px solid #0284c7", paddingBottom: "32px", marginBottom: "40px" }}>
+              <div>
+                <h1 style={{ fontSize: "32px", fontWeight: 900, color: "#0284c7", margin: "0 0 8px 0" }}>מרכז חוסן</h1>
+                <h2 style={{ fontSize: "18px", fontWeight: 700, color: "#64748b", margin: 0 }}>חוות רום</h2>
+              </div>
+              <div style={{ textAlign: "left", fontSize: "13px", color: "#94a3b8", fontFamily: "monospace" }}>
+                <p style={{ margin: "0 0 4px 0" }}>{format(new Date(), "dd/MM/yyyy")}</p>
+                <p style={{ margin: 0 }}>סימוכין: {patientData.id?.slice(-6).toUpperCase()}</p>
+              </div>
+            </div>
+
+            {/* Title */}
+            <div style={{ textAlign: "center", marginBottom: "40px" }}>
+              <h3 style={{ fontSize: "26px", fontWeight: 900, margin: "0 0 12px 0" }}>דו״ח נוכחות חודשי מפורט</h3>
+              <p style={{ fontSize: "16px", color: "#64748b", fontWeight: 700, margin: 0 }}>
+                חודש: {getHebrewMonthName(selectedReportMonth)}
+              </p>
+              <div style={{ width: "96px", height: "4px", backgroundColor: "#0284c7", margin: "12px auto 0 auto", borderRadius: "9999px" }} />
+            </div>
+
+            {/* Participant Details Card */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", padding: "24px", backgroundColor: "#f8fafc", borderRadius: "20px", border: "1px solid #e2e8f0", marginBottom: "32px", fontSize: "14px" }}>
+              <div>
+                <p style={{ margin: "0 0 8px 0" }}>שם המשתתף/ת: <strong>{patientData.firstName} {patientData.lastName}</strong></p>
+                <p style={{ margin: "0 0 8px 0" }}>ת.ז: <strong>{patientData.idNumber || "—"}</strong></p>
+              </div>
+              <div>
+                <p style={{ margin: "0 0 8px 0" }}>קבוצה: <strong>{groups.find(g => g.id === patientData.hosenType)?.name || "—"}</strong></p>
+                <p style={{ margin: "0 0 8px 0" }}>עובד/ת סוציאלי/ת מלווה: <strong>{swData?.name || "צוות המרכז"}</strong></p>
+              </div>
+            </div>
+
+            {/* Stats box */}
+            <div style={{ backgroundColor: "#f0f9ff", padding: "24px", borderRadius: "20px", border: "1px solid #bae6fd", marginBottom: "32px" }}>
+              <h4 style={{ fontWeight: 900, fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.15em", color: "#0369a1", marginBottom: "12px", marginTop: 0 }}>
+                סיכום נוכחות לחודש {getHebrewMonthName(selectedReportMonth)}
+              </h4>
+              <div style={{ display: "flex", justifyContent: "space-around", alignItems: "center" }}>
+                <div style={{ textAlign: "center" }}>
+                  <p style={{ fontSize: "28px", fontWeight: 900, color: "#0369a1", margin: "0 0 4px 0" }}>{monthlyAttendance.filter(h => h.status === 'present').length}</p>
+                  <p style={{ fontSize: "11px", fontWeight: 700, color: "#0284c7", margin: 0 }}>ימי נוכחות בפועל</p>
+                </div>
+                <div style={{ width: "1px", height: "40px", backgroundColor: "#bae6fd" }} />
+                <div style={{ textAlign: "center" }}>
+                  <p style={{ fontSize: "28px", fontWeight: 900, color: "#e11d48", margin: "0 0 4px 0" }}>{monthlyAttendance.filter(h => h.status === 'absent').length}</p>
+                  <p style={{ fontSize: "11px", fontWeight: 700, color: "#be123c", margin: 0 }}>ימי היעדרות</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Table */}
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "14px", direction: "rtl", textAlign: "right" }}>
+              <thead>
+                <tr style={{ backgroundColor: "#0284c7", color: "#ffffff" }}>
+                  <th style={{ padding: "12px 16px", fontWeight: 700, borderBottom: "2px solid #0369a1", borderRadius: "0 12px 0 0" }}>תאריך</th>
+                  <th style={{ padding: "12px 16px", fontWeight: 700, borderBottom: "2px solid #0369a1" }}>יום בשבוע</th>
+                  <th style={{ padding: "12px 16px", fontWeight: 700, borderBottom: "2px solid #0369a1" }}>קבוצה</th>
+                  <th style={{ padding: "12px 16px", fontWeight: 700, borderBottom: "2px solid #0369a1", textAlign: "left", borderRadius: "12px 0 0 0" }}>סטטוס</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sortedMonthlyAttendance.map((h, i) => (
+                  <tr key={i} style={{ borderBottom: "1px solid #e2e8f0", backgroundColor: i % 2 === 0 ? "#f8fafc" : "#ffffff" }}>
+                    <td style={{ padding: "12px 16px", fontWeight: 500 }}>{format(parseISO(h.date), "dd/MM/yyyy")}</td>
+                    <td style={{ padding: "12px 16px", color: "#64748b" }}>{getDayName(h.date)}</td>
+                    <td style={{ padding: "12px 16px", color: "#64748b" }}>{groups.find(g => g.id === patientData.hosenType)?.name || "—"}</td>
+                    <td style={{ padding: "12px 16px", textAlign: "left" }}>
+                      <span style={{
+                        fontSize: "11px", fontWeight: 900,
+                        backgroundColor: h.status === 'present' ? '#d1fae5' : '#fee2e2',
+                        color: h.status === 'present' ? '#065f46' : '#991b1b',
+                        display: "inline-block", padding: "4px 10px", borderRadius: "8px"
+                      }}>
+                        {h.status === 'present' ? 'נוכח/ת' : 'נעדר/ת'}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+                {sortedMonthlyAttendance.length === 0 && (
+                  <tr>
+                    <td colSpan={4} style={{ padding: "32px", textAlign: "center", color: "#94a3b8", fontStyle: "italic" }}>
+                      אין רשומות נוכחות רשומות לחודש זה.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+
+            {/* Footer Signatures */}
+            <div style={{ display: "flex", justifyContent: "space-between", marginTop: "60px", fontSize: "14px", borderTop: "1px solid #e2e8f0", paddingTop: "32px" }}>
+              <div>
+                <p style={{ margin: "0 0 4px 0" }}>חתימת מלווה/מנחה:</p>
+                <div style={{ width: "160px", height: "48px", borderBottom: "1px dashed #cbd5e1" }} />
+                <p style={{ fontSize: "12px", color: "#64748b", margin: "8px 0 0 0" }}>{swData?.name || "צוות מרכז חוסן"}</p>
+              </div>
+              <div style={{ textAlign: "left" }}>
+                <p style={{ margin: "0 0 4px 0" }}>חותמת המרכז:</p>
+                <div style={{ width: "120px", height: "48px", borderBottom: "1px dashed #cbd5e1", marginLeft: "auto" }} />
+                <p style={{ fontSize: "12px", color: "#64748b", margin: "8px 0 0 0" }}>מרכז חוסן חוות רום</p>
+              </div>
             </div>
           </div>
         </div>
