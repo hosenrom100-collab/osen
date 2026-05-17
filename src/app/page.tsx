@@ -488,13 +488,24 @@ export default function Home() {
                 <div className="flex items-center gap-2">
                   {/* Duty instructor */}
                   {(isAdmin || isManager) && isEditingDuty ? (
-                    <select autoFocus value={dutyId}
-                      onChange={e => updateDuty(e.target.value)}
-                      onBlur={() => setIsEditingDuty(false)}
-                      className="bg-[var(--surface-raised)] border border-[var(--border)] text-[var(--foreground)] rounded-lg px-2 py-1 text-xs outline-none focus:border-[var(--primary)]">
-                      <option value="">ללא מדריך תורן</option>
-                      {allStaff.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                    </select>
+                    <div className="flex items-center gap-1.5">
+                      <select 
+                        autoFocus 
+                        value={dutyId}
+                        onChange={e => updateDuty(e.target.value)}
+                        className="bg-[var(--surface-raised)] border border-[var(--border)] text-[var(--foreground)] rounded-lg px-2 py-1 text-xs outline-none focus:border-[var(--primary)] cursor-pointer"
+                      >
+                        <option value="">ללא מדריך תורן</option>
+                        {allStaff.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                      </select>
+                      <button 
+                        onClick={() => setIsEditingDuty(false)}
+                        className="p-1 rounded-md hover:bg-[var(--foreground)]/5 text-[var(--muted)] hover:text-rose-500 transition-colors"
+                        title="ביטול"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   ) : dutyName ? (
                     <button
                       onClick={() => (isAdmin || isManager) && setIsEditingDuty(true)}
