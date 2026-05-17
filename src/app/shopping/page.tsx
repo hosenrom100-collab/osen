@@ -653,7 +653,7 @@ function MobileItemRow({ item, onStatus, onEdit, canApprove }: {
   return (
     <motion.div
       layout
-      className={`group relative flex items-center gap-4 px-4 py-4 bg-[var(--surface)] active:bg-[var(--foreground)]/5 transition-colors`}
+      className="group relative flex items-center gap-4 px-4 py-4 bg-[var(--surface)] active:bg-[var(--foreground)]/5 transition-colors"
     >
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-0.5">
@@ -672,12 +672,23 @@ function MobileItemRow({ item, onStatus, onEdit, canApprove }: {
         </div>
       </div>
 
-      <div className="flex items-center gap-4 shrink-0">
-         <div className="text-left">
+      <div className="flex items-center gap-3.5 shrink-0">
+         {/* כפתור עריכה מהירה */}
+         <button 
+           onClick={() => onEdit(item)}
+           className="w-8 h-8 rounded-xl flex items-center justify-center bg-[var(--foreground)]/5 hover:bg-[var(--foreground)]/10 text-[var(--muted)] hover:text-[var(--foreground)] active:scale-90 transition-all"
+           title="ערוך מוצר"
+         >
+           <Edit3 className="w-3.5 h-3.5" />
+         </button>
+
+         {/* כמות יחידות */}
+         <div className="text-left min-w-[24px]">
             <span className="text-sm font-black text-[var(--foreground)] opacity-40">{item.quantity || "1.0"}</span>
             <p className="text-[8px] font-black uppercase text-[var(--muted)] -mt-1">יח׳</p>
          </div>
 
+         {/* כפתור אישור / רכישה */}
          <button
             onClick={() => onStatus(item.id, isApproved ? "purchased" : "approved")}
             className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all border-2 ${
@@ -687,16 +698,8 @@ function MobileItemRow({ item, onStatus, onEdit, canApprove }: {
             }`}
           >
             {isApproved ? <Check className="w-5 h-5 stroke-[3]" /> : <div className="w-2.5 h-2.5 rounded-full bg-[var(--border)]" />}
-          </button>
+         </button>
       </div>
-
-      {/* Quick Edit Overlay or long press? Let's stick to a simple edit button for now but make it clean */}
-      <button 
-        onClick={() => onEdit(item)}
-        className="absolute top-1/2 left-4 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity p-2 rounded-lg bg-[var(--foreground)]/5"
-      >
-        <Edit3 className="w-3.5 h-3.5" />
-      </button>
     </motion.div>
   );
 }
