@@ -4,9 +4,11 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { 
   Home, ClipboardList, Users, ShoppingCart, 
-  BarChart3, Settings, Clock, MessageSquare, Calendar
+  BarChart3, Settings, Clock, MessageSquare, Calendar,
+  Sun, Moon
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
+import { useSettings } from "@/context/SettingsContext";
 import { motion } from "framer-motion";
 import { NotificationCenter } from "../notifications/NotificationCenter";
 
@@ -39,6 +41,7 @@ const ROLE_HE: Record<string, string> = {
 export function DesktopSidebar() {
   const pathname = usePathname();
   const { user, roles, role, isManager, photoURL, isParticipant } = useAuth();
+  const { theme, setTheme } = useSettings();
 
   if (pathname === "/login" || pathname.startsWith("/portal") || isParticipant) return null;
 
@@ -147,7 +150,14 @@ export function DesktopSidebar() {
           </div>
           <Settings className="w-4 h-4 text-[var(--foreground)]/20 group-hover:text-[var(--foreground)]/60 transition-colors" />
         </Link>
-        <div className="mt-2 flex items-center justify-end">
+        <div className="mt-2 flex items-center justify-between">
+          <button
+            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+            className="p-2 bg-[var(--foreground)]/5 hover:bg-[var(--foreground)]/10 text-[var(--foreground)]/60 hover:text-[var(--foreground)] rounded-xl transition-all cursor-pointer"
+            title={theme === 'dark' ? "מעבר למצב בהיר" : "מעבר למצב כהה"}
+          >
+            {theme === 'dark' ? <Sun className="w-4 h-4 text-amber-500 animate-pulse" /> : <Moon className="w-4 h-4 text-indigo-500" />}
+          </button>
           <NotificationCenter />
         </div>
       </div>
