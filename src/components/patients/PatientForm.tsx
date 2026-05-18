@@ -170,7 +170,7 @@ export function PatientForm({ patientId, initialData, onSuccess }: PatientFormPr
             <label className={LABEL}><Layers className="w-3 h-3" /> תוכנית</label>
             <select required value={selectedProgramId} onChange={e => handleProgramChange(e.target.value)} className={FIELD}>
               <option value="">בחר תוכנית...</option>
-              {programs.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+              {programs.map(p => <option key={p.id} value={p.id}>{p.name.startsWith("תוכנית") ? p.name : `תוכנית ${p.name}`}</option>)}
             </select>
           </div>
 
@@ -185,7 +185,7 @@ export function PatientForm({ patientId, initialData, onSuccess }: PatientFormPr
             >
               <option value="">{programGroups.length === 0 ? "אין קבוצות בתוכנית זו" : "בחר קבוצה..."}</option>
               {programGroups.map(g => (
-                <option key={g.id} value={g.id}>{g.name}</option>
+                <option key={g.id} value={g.id}>{g.name.startsWith("תוכנית") ? g.name : `תוכנית ${g.name}`}</option>
               ))}
             </select>
           </div>

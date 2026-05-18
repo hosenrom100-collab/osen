@@ -521,7 +521,17 @@ function SchedulePageInner() {
         getDocs(query(collection(db, "groups"), orderBy("name"))),
         getDocs(query(collection(db, "programs"), orderBy("name"))),
       ]);
-      setStaff(u.docs.map(d => ({ id: d.id, name: d.data().name || d.data().email })));
+      const staffList: Person[] = [];
+      u.docs.forEach(d => {
+        const udata = d.data();
+        const name = udata.name || udata.email || "צוות";
+        const roles = udata.roles || (udata.role ? [udata.role] : []);
+        const isStaff = !roles.includes("participant") && udata.role !== "participant";
+        if (isStaff) {
+          staffList.push({ id: d.id, name });
+        }
+      });
+      setStaff(staffList);
       setLocations(l.docs.map(d => ({ 
         id: d.id, 
         name: d.data().name,

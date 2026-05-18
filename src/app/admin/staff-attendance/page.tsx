@@ -129,7 +129,9 @@ export default function StaffAttendancePage() {
           
           usersSnap.forEach(uDoc => {
             const userData = uDoc.data();
-            if (userData.workSchedule && userData.workSchedule[dayOfWeek]) {
+            const roles = userData.roles || (userData.role ? [userData.role] : []);
+            const isStaff = !roles.includes("participant") && userData.role !== "participant";
+            if (isStaff && userData.workSchedule && userData.workSchedule[dayOfWeek]) {
               const sched = userData.workSchedule[dayOfWeek];
               batch.push(addDoc(collection(db, "staff_attendance"), {
                 userId: uDoc.id,
@@ -153,7 +155,10 @@ export default function StaffAttendancePage() {
         setAttendance(currentAtt);
       } else if (activeTab === 'schedules') {
         const snap = await getDocs(collection(db, "users"));
-        const uList = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        const uList = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter((u: any) => {
+          const roles = u.roles || (u.role ? [u.role] : []);
+          return !roles.includes("participant") && u.role !== "participant";
+        });
         uList.sort((a: any, b: any) => (a.name || a.email || "").localeCompare(b.name || b.email || ""));
         setUsersList(uList);
       }

@@ -170,7 +170,7 @@ export default function PatientsPage() {
               className="w-full bg-[var(--foreground)]/5 border border-[var(--border)] rounded-xl px-4 py-2.5 text-xs font-bold outline-none appearance-none cursor-pointer"
             >
               <option value="all">כל התוכניות</option>
-              {groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+              {groups.map(g => <option key={g.id} value={g.id}>{g.name.startsWith("תוכנית") ? g.name : `תוכנית ${g.name}`}</option>)}
             </select>
           </div>
         </div>
@@ -230,8 +230,13 @@ export default function PatientsPage() {
                             {(() => {
                               const prog = programs.find(p_ => p_.id === (p as any).programId)?.name;
                               const grp = groups.find(g => g.id === p.hosenType)?.name || p.hosenType;
-                              if (prog && grp && prog !== grp) return `${prog} - ${grp}`;
-                              return prog || grp || "כללי";
+                              let display = "";
+                              if (prog && grp && prog !== grp) display = `${prog} - ${grp}`;
+                              else display = prog || grp || "כללי";
+                              if (display && display !== "כללי" && !display.startsWith("תוכנית")) {
+                                return `תוכנית ${display}`;
+                              }
+                              return display;
                             })()}
                           </span>
                         </td>
@@ -283,8 +288,13 @@ export default function PatientsPage() {
                         {(() => {
                           const prog = programs.find(p_ => p_.id === (p as any).programId)?.name;
                           const grp = groups.find(g => g.id === p.hosenType)?.name || p.hosenType;
-                          if (prog && grp && prog !== grp) return `${prog} - ${grp}`;
-                          return prog || grp || "כללי";
+                          let display = "";
+                          if (prog && grp && prog !== grp) display = `${prog} - ${grp}`;
+                          else display = prog || grp || "כללי";
+                          if (display && display !== "כללי" && !display.startsWith("תוכנית")) {
+                            return `תוכנית ${display}`;
+                          }
+                          return display;
                         })()}
                       </span>
                       <span className="w-1 h-1 rounded-full bg-[var(--border)] shrink-0" />

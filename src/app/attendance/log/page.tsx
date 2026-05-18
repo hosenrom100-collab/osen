@@ -138,7 +138,7 @@ function AttendanceLogPageContent() {
                 className="w-full bg-white/5 border border-white/10 rounded-xl py-2 pr-9 pl-3 text-[10px] font-bold focus:outline-none focus:border-blue-500 appearance-none"
               >
                 <option value="all">כל המסגרות</option>
-                {groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+                {groups.map(g => <option key={g.id} value={g.id}>{g.name.startsWith("תוכנית") ? g.name : `תוכנית ${g.name}`}</option>)}
               </select>
             </div>
           </div>
@@ -174,7 +174,13 @@ function AttendanceLogPageContent() {
                       <span className="text-[10px] text-slate-500 font-mono">{record.date}</span>
                       <div className="w-1 h-1 rounded-full bg-slate-700" />
                       <span className="text-[10px] text-blue-400 font-bold">
-                        {groups.find(g => g.id === record.hosenType || g.name === record.hosenType)?.name || record.hosenType}
+                        {(() => {
+                          const display = groups.find(g => g.id === record.hosenType || g.name === record.hosenType)?.name || record.hosenType;
+                          if (display && display !== "כללי" && !display.startsWith("תוכנית")) {
+                            return `תוכנית ${display}`;
+                          }
+                          return display;
+                        })()}
                       </span>
                     </div>
                   </div>

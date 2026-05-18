@@ -417,7 +417,7 @@ export default function AdminNotificationsPage() {
                           <label className="text-[10px] font-black uppercase tracking-widest text-[var(--muted)] px-2">בחר קבוצה</label>
                           <select value={selectedGroupId} onChange={e => setSelectedGroupId(e.target.value)} className="w-full bg-[var(--foreground)]/[0.03] border border-[var(--border)] rounded-2xl px-4 py-3 text-sm focus:outline-none focus:border-emerald-500/50">
                             <option value="">בחר קבוצה...</option>
-                            {groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+                            {groups.map(g => <option key={g.id} value={g.id}>{g.name.startsWith("תוכנית") ? g.name : `תוכנית ${g.name}`}</option>)}
                           </select>
                         </motion.div>
                       )}
@@ -426,7 +426,7 @@ export default function AdminNotificationsPage() {
                           <label className="text-[10px] font-black uppercase tracking-widest text-[var(--muted)] px-2">בחר תוכנית</label>
                           <select value={selectedProgramId} onChange={e => setSelectedProgramId(e.target.value)} className="w-full bg-[var(--foreground)]/[0.03] border border-[var(--border)] rounded-2xl px-4 py-3 text-sm focus:outline-none focus:border-emerald-500/50">
                             <option value="">בחר תוכנית...</option>
-                            {programs.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                            {programs.map(p => <option key={p.id} value={p.id}>{p.name.startsWith("תוכנית") ? p.name : `תוכנית ${p.name}`}</option>)}
                           </select>
                         </motion.div>
                       )}

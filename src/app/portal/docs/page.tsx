@@ -350,7 +350,7 @@ export default function DocumentsPage() {
             <div style={{ fontSize: "17px" }}>
               <p style={{ marginBottom: "24px" }}>לכל המעוניין,</p>
               <p style={{ marginBottom: "24px", lineHeight: 2 }}>
-                הרינו לאשר כי המטופל/ת <strong>{patientData.firstName} {patientData.lastName}</strong>, ת.ז <strong>{patientData.idNumber}</strong>, משתתף/ת באופן פעיל בתוכנית המרכז במסגרת קבוצת <strong>{groups.find(g => g.id === patientData.hosenType)?.name || "—"}</strong>.
+                הרינו לאשר כי המטופל/ת <strong>{patientData.firstName} {patientData.lastName}</strong>, ת.ז <strong>{patientData.idNumber}</strong>, משתתף/ת באופן פעיל בתוכנית המרכז במסגרת קבוצת <strong>{(() => { const name = groups.find(g => g.id === patientData.hosenType)?.name; if (!name) return "—"; return name.startsWith("תוכנית") ? name : `תוכנית ${name}`; })()}</strong>.
               </p>
               <p style={{ marginBottom: "24px" }}>
                 המטופל/ת החל/ה את פעילותו/ה בתוכנית בתאריך {patientData.startDate ? format(new Date(patientData.startDate), "dd/MM/yyyy") : "—"}.
@@ -411,7 +411,7 @@ export default function DocumentsPage() {
                 <p style={{ margin: "0 0 8px 0" }}>ת.ז: <strong>{patientData.idNumber || "—"}</strong></p>
               </div>
               <div>
-                <p style={{ margin: "0 0 8px 0" }}>קבוצה: <strong>{groups.find(g => g.id === patientData.hosenType)?.name || "—"}</strong></p>
+                <p style={{ margin: "0 0 8px 0" }}>קבוצה: <strong>{(() => { const name = groups.find(g => g.id === patientData.hosenType)?.name; if (!name) return "—"; return name.startsWith("תוכנית") ? name : `תוכנית ${name}`; })()}</strong></p>
                 <p style={{ margin: "0 0 8px 0" }}>עובד/ת סוציאלי/ת מלווה: <strong>{swData?.name || "צוות המרכז"}</strong></p>
               </div>
             </div>
@@ -449,7 +449,7 @@ export default function DocumentsPage() {
                   <tr key={i} style={{ borderBottom: "1px solid #e2e8f0", backgroundColor: i % 2 === 0 ? "#f8fafc" : "#ffffff" }}>
                     <td style={{ padding: "12px 16px", fontWeight: 500 }}>{format(parseISO(h.date), "dd/MM/yyyy")}</td>
                     <td style={{ padding: "12px 16px", color: "#64748b" }}>{getDayName(h.date)}</td>
-                    <td style={{ padding: "12px 16px", color: "#64748b" }}>{groups.find(g => g.id === patientData.hosenType)?.name || "—"}</td>
+                    <td style={{ padding: "12px 16px", color: "#64748b" }}>{(() => { const name = groups.find(g => g.id === patientData.hosenType)?.name; if (!name) return "—"; return name.startsWith("תוכנית") ? name : `תוכנית ${name}`; })()}</td>
                     <td style={{ padding: "12px 16px", textAlign: "left" }}>
                       <span style={{
                         fontSize: "11px", fontWeight: 900,

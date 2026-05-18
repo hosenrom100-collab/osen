@@ -38,6 +38,7 @@ export default function PortalDashboard() {
   const [loading, setLoading] = useState(true);
   const [patientData, setPatientData] = useState<any>(null);
   const [swData, setSwData] = useState<any>(null);
+  const [docRequests, setDocRequests] = useState<any[]>([]);
   const [showRenewalPrompt, setShowRenewalPrompt] = useState(false);
   const [renewalBusy, setRenewalBusy] = useState(false);
 
@@ -101,7 +102,14 @@ export default function PortalDashboard() {
           setLoading(false);
         });
 
-        return () => { unsubAnn(); unsubPatient(); unsubAtt(); unsubSched(); };
+        // Document Requests
+        const unsubDocRequests = onSnapshot(
+          query(collection(db, "document_requests"), where("patientId", "==", pId), orderBy("createdAt", "desc"), limit(3)),
+          (snap) => setDocRequests(snap.docs.map(d => ({ id: d.id, ...d.data() }))),
+          (err) => console.error("Doc Requests error:", err)
+        );
+
+        return () => { unsubAnn(); unsubPatient(); unsubAtt(); unsubSched(); unsubDocRequests(); };
       } catch (err) {
         console.error("init error:", err);
         setLoading(false);
@@ -269,61 +277,99 @@ export default function PortalDashboard() {
               </div>
 
               <div className="flex gap-4 overflow-x-auto no-scrollbar pb-3 px-0.5" dir="rtl">
-                {/* Exact card from screenshot (adapted text) */}
-                <div 
-                  onClick={() => router.push("/portal/docs")}
-                  className="relative min-w-[290px] md:min-w-[345px] bg-white rounded-[1.5rem] p-5 shadow-[0_8px_30px_rgba(0,85,212,0.018)] border border-slate-100/60 flex items-center justify-between text-right cursor-pointer hover:border-slate-200 transition-all group shrink-0"
-                >
-                  {/* Pink vertical Stripe on the right side */}
-                  <div className="absolute right-0 top-5 bottom-5 w-1 bg-[#FF4A70] rounded-l-full" />
+                {/* Dynamic Document Requests */}
+                {docRequests.map((req) => {
+                  const docTypeLabel = req.type === 'stay' ? 'אישור שהייה' : req.type === 'attendance' ? 'דוח נוכחות' : (req.customType || 'מסמך מיוחד');
+                  const isReady = req.status === 'approved' || req.status === 'completed';
+                  const stripeBg = req.status === 'pending' ? 'bg-amber-400' : isReady ? 'bg-emerald-500' : 'bg-[#FF4A70]';
+                  const titleText = isReady 
+                    ? `אישור ה${docTypeLabel} שלך מוכן להורדה!` 
+                    : `בקשתך ל${docTypeLabel} בטיפול אצל עו״ס ${swData?.name || "מלווה"}`;
+                  const dateText = req.createdAt && typeof req.createdAt.toDate === 'function'
+                    ? format(req.createdAt.toDate(), "dd/MM/yyyy") 
+                    : "לאחרונה";
                   
-                  <div className="flex items-center gap-3.5 pr-2">
-                    <div className="w-11 h-11 rounded-full bg-slate-50 flex items-center justify-center text-[#0055D4] shrink-0 border border-slate-100">
-                      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
-                        <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
-                        <circle cx="12" cy="7" r="4" />
-                      </svg>
+                  return (
+                    <div 
+                      key={req.id}
+                      onClick={() => router.push("/portal/docs")}
+                      className="relative min-w-[290px] md:min-w-[345px] bg-white rounded-[1.5rem] p-5 shadow-[0_8px_30px_rgba(0,85,212,0.018)] border border-slate-100/60 flex items-center justify-between text-right cursor-pointer hover:border-slate-200 transition-all group shrink-0"
+                    >
+                      <div className={`absolute right-0 top-5 bottom-5 w-1 ${stripeBg} rounded-l-full`} />
+                      <div className="flex items-center gap-3.5 pr-2">
+                        <div className="w-11 h-11 rounded-full bg-slate-50 flex items-center justify-center text-[#0055D4] shrink-0 border border-slate-100">
+                          <FileText className="w-5 h-5 text-[#0055D4]" />
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="text-[13px] md:text-[13.5px] font-black text-[#002244] leading-snug group-hover:text-[#0055D4] transition-colors line-clamp-2 max-w-[220px]">
+                            {titleText}
+                          </span>
+                          <span className="text-[10px] font-bold text-[#8FA2B8] mt-1 font-mono">
+                            {dateText}
+                          </span>
+                        </div>
+                      </div>
+                      <ChevronLeft className="w-5 h-5 text-[#B6C5D6] group-hover:translate-x-[-3px] transition-transform shrink-0 ml-1" />
                     </div>
-                    <div className="flex flex-col">
-                      <span className="text-[13.5px] font-black text-[#002244] leading-snug group-hover:text-[#0055D4] transition-colors">
-                        הסתיים הטיפול בבקשה שלך לעו״ס {swData?.name || "מיכל לוי"}
-                      </span>
-                      <span className="text-[10.5px] font-bold text-[#8FA2B8] mt-1 font-mono">
-                        17/05/2026
-                      </span>
-                    </div>
-                  </div>
-                  <ChevronLeft className="w-5 h-5 text-[#B6C5D6] group-hover:translate-x-[-3px] transition-transform shrink-0 ml-1" />
-                </div>
+                  );
+                })}
 
                 {/* Dynamic Announcements from Firestore rendered in matching format */}
-                {announcements.slice(0, 3).map((a) => (
-                  <div 
-                    key={a.id}
-                    onClick={() => router.push("/portal/notifications")}
-                    className="relative min-w-[290px] md:min-w-[345px] bg-white rounded-[1.5rem] p-5 shadow-[0_8px_30px_rgba(0,85,212,0.018)] border border-slate-100/60 flex items-center justify-between text-right cursor-pointer hover:border-slate-200 transition-all group shrink-0"
-                  >
-                    {/* Colored Vertical Stripe depending on type */}
-                    <div className={`absolute right-0 top-5 bottom-5 w-1 rounded-l-full ${
-                      a.type === 'alert' ? 'bg-[#FF4A70]' : a.type === 'event' ? 'bg-amber-400' : 'bg-emerald-400'
-                    }`} />
-                    
+                {announcements.slice(0, 3).map((a) => {
+                  const dateText = a.createdAt && typeof a.createdAt.toDate === 'function'
+                    ? format(a.createdAt.toDate(), "dd/MM/yyyy") 
+                    : "לאחרונה";
+
+                  return (
+                    <div 
+                      key={a.id}
+                      onClick={() => router.push("/portal/notifications")}
+                      className="relative min-w-[290px] md:min-w-[345px] bg-white rounded-[1.5rem] p-5 shadow-[0_8px_30px_rgba(0,85,212,0.018)] border border-slate-100/60 flex items-center justify-between text-right cursor-pointer hover:border-slate-200 transition-all group shrink-0"
+                    >
+                      {/* Colored Vertical Stripe depending on type */}
+                      <div className={`absolute right-0 top-5 bottom-5 w-1 rounded-l-full ${
+                        a.type === 'alert' ? 'bg-[#FF4A70]' : a.type === 'event' ? 'bg-amber-400' : 'bg-emerald-400'
+                      }`} />
+                      
+                      <div className="flex items-center gap-3.5 pr-2">
+                        <div className="w-11 h-11 rounded-full bg-slate-50 flex items-center justify-center text-[#0055D4] shrink-0 border border-slate-100">
+                          <Globe className="w-4.5 h-4.5 text-[#0055D4]" />
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="text-[13px] md:text-[13.5px] font-black text-[#002244] leading-snug group-hover:text-[#0055D4] transition-colors line-clamp-1 max-w-[220px]">
+                            {a.title}
+                          </span>
+                          <span className="text-[11px] text-[#53687E] line-clamp-1 mt-0.5">
+                            {a.content}
+                          </span>
+                          <span className="text-[9px] font-bold text-[#8FA2B8] mt-1 font-mono">
+                            {dateText}
+                          </span>
+                        </div>
+                      </div>
+                      <ChevronLeft className="w-5 h-5 text-[#B6C5D6] group-hover:translate-x-[-3px] transition-transform shrink-0 ml-1" />
+                    </div>
+                  );
+                })}
+
+                {docRequests.length === 0 && announcements.length === 0 && (
+                  <div className="relative min-w-[290px] md:min-w-[345px] bg-white rounded-[1.5rem] p-5 shadow-[0_8px_30px_rgba(0,85,212,0.018)] border border-slate-100/60 flex items-center justify-between text-right shrink-0">
+                    <div className="absolute right-0 top-5 bottom-5 w-1 bg-teal-500 rounded-l-full" />
                     <div className="flex items-center gap-3.5 pr-2">
-                      <div className="w-11 h-11 rounded-full bg-slate-50 flex items-center justify-center text-[#0055D4] shrink-0 border border-slate-100">
-                        <Globe className="w-4.5 h-4.5 text-[#0055D4]" />
+                      <div className="w-11 h-11 rounded-full bg-slate-50 flex items-center justify-center text-teal-500 shrink-0 border border-slate-100">
+                        <Check className="w-5 h-5" />
                       </div>
                       <div className="flex flex-col">
-                        <span className="text-[13.5px] font-black text-[#002244] leading-snug group-hover:text-[#0055D4] transition-colors line-clamp-1">
-                          {a.title}
+                        <span className="text-[13.5px] font-black text-[#002244] leading-snug">
+                          אין עדכונים חדשים כרגע
                         </span>
-                        <span className="text-[11px] text-[#53687E] line-clamp-1 mt-0.5">
-                          {a.content}
+                        <span className="text-[10.5px] font-bold text-[#8FA2B8] mt-1">
+                          הכול מעודכן ותקין
                         </span>
                       </div>
                     </div>
-                    <ChevronLeft className="w-5 h-5 text-[#B6C5D6] group-hover:translate-x-[-3px] transition-transform shrink-0 ml-1" />
                   </div>
-                ))}
+                )}
               </div>
             </section>
 

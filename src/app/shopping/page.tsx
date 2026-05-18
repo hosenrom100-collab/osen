@@ -254,12 +254,7 @@ export default function ShoppingPage() {
         })
       )
     );
-    sendPush({
-      role: ["logistics", "manager"],
-      title: "🛒 רשימת קניות מוכנה",
-      body: `${pendingItems.length} פריטים אושרו ומחכים לרכישה`,
-      link: "/shopping",
-    });
+    // Push notifications for shopping approvals are disabled per request
   };
 
   const addProduct = async (name: string, category = "כללי", priority: "normal" | "urgent" = "normal") => {

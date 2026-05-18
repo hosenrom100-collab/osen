@@ -211,9 +211,14 @@ export default function Home() {
       const userMap: Record<string, string> = {};
       const staffList: { id: string; name: string }[] = [];
       usersSnap.forEach(d => {
-        const name = d.data().name || d.data().email;
+        const udata = d.data();
+        const name = udata.name || udata.email || "צוות";
         userMap[d.id] = name;
-        staffList.push({ id: d.id, name });
+        const roles = udata.roles || (udata.role ? [udata.role] : []);
+        const isStaff = !roles.includes("participant") && udata.role !== "participant";
+        if (isStaff) {
+          staffList.push({ id: d.id, name });
+        }
       });
       setAllStaff(staffList);
       const locMap: Record<string, string> = {};
@@ -663,8 +668,13 @@ export default function Home() {
                             <span className="text-xs font-medium truncate">
                               {(() => {
                                 const prog = programs.find(p => p.id === (g as any).programId)?.name;
-                                if (prog && g.name && prog !== g.name) return `${prog} - ${g.name}`;
-                                return prog || g.name;
+                                let display = "";
+                                if (prog && g.name && prog !== g.name) display = `${prog} - ${g.name}`;
+                                else display = prog || g.name;
+                                if (display && display !== "כללי" && !display.startsWith("תוכנית")) {
+                                  return `תוכנית ${display}`;
+                                }
+                                return display;
                               })()}
                             </span>
                             <span className={`text-[10px] font-semibold ${pct === 100 ? "text-emerald-500" : "text-[var(--muted)]"}`}>
@@ -741,8 +751,13 @@ export default function Home() {
                     <span className="flex-1 text-right font-medium">
                       {(() => {
                         const prog = programs.find(p => p.id === (g as any).programId)?.name;
-                        if (prog && g.name && prog !== g.name) return `${prog} - ${g.name}`;
-                        return prog || g.name;
+                        let display = "";
+                        if (prog && g.name && prog !== g.name) display = `${prog} - ${g.name}`;
+                        else display = prog || g.name;
+                        if (display && display !== "כללי" && !display.startsWith("תוכנית")) {
+                          return `תוכנית ${display}`;
+                        }
+                        return display;
                       })()}
                     </span>
                     {primaryGroupId === g.id && <Check className="w-3.5 h-3.5" />}
