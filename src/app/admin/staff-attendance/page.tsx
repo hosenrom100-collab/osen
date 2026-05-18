@@ -36,12 +36,71 @@ interface StaffAttendance {
   checkOut?: string;
 }
 
+const WEEKDAYS = [
+  { id: "0", name: "ראשון" },
+  { id: "1", name: "שני" },
+  { id: "2", name: "שלישי" },
+  { id: "3", name: "רביעי" },
+  { id: "4", name: "חמישי" },
+  { id: "5", name: "שישי" },
+  { id: "6", name: "שבת" }
+];
+
 export default function StaffAttendancePage() {
-  const [activeTab, setActiveTab] = useState<'requests' | 'attendance'>('requests');
+  const [activeTab, setActiveTab] = useState<'requests' | 'attendance' | 'schedules'>('requests');
   const [requests, setRequests] = useState<AbsenceRequest[]>([]);
   const [attendance, setAttendance] = useState<StaffAttendance[]>([]);
+  const [usersList, setUsersList] = useState<any[]>([]);
+  const [editingUser, setEditingUser] = useState<any | null>(null);
+  const [tempSchedule, setTempSchedule] = useState<Record<string, { start: string, end: string }>>({});
+  const [savingSchedule, setSavingSchedule] = useState(false);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+
+  const openEditSchedule = (user: any) => {
+    setEditingUser(user);
+    setTempSchedule(user.workSchedule || {});
+  };
+
+  const handleToggleDay = (dayId: string) => {
+    setTempSchedule(prev => {
+      const next = { ...prev };
+      if (next[dayId]) {
+        delete next[dayId];
+      } else {
+        next[dayId] = { start: "08:00", end: "16:00" };
+      }
+      return next;
+    });
+  };
+
+  const handleTimeChange = (dayId: string, type: 'start' | 'end', val: string) => {
+    setTempSchedule(prev => {
+      const next = { ...prev };
+      if (!next[dayId]) {
+        next[dayId] = { start: "08:00", end: "16:00" };
+      }
+      next[dayId] = { ...next[dayId], [type]: val };
+      return next;
+    });
+  };
+
+  const saveUserSchedule = async () => {
+    if (!editingUser) return;
+    setSavingSchedule(true);
+    try {
+      await updateDoc(doc(db, "users", editingUser.id), {
+        workSchedule: tempSchedule
+      });
+      setUsersList(prev => prev.map(u => u.id === editingUser.id ? { ...u, workSchedule: tempSchedule } : u));
+      setEditingUser(null);
+    } catch (err) {
+      console.error(err);
+      alert("שגיאה בעדכון סידור העבודה");
+    } finally {
+      setSavingSchedule(false);
+    }
+  };
 
   useEffect(() => {
     fetchData();
@@ -57,7 +116,7 @@ export default function StaffAttendancePage() {
         const q = query(collection(db, "absence_requests"), orderBy("createdAt", "desc"));
         const snap = await getDocs(q);
         setRequests(snap.docs.map(d => ({ id: d.id, ...d.data() } as AbsenceRequest)));
-      } else {
+      } else if (activeTab === 'attendance') {
         // Fetch current attendance
         const q = query(collection(db, "staff_attendance"), where("date", "==", today));
         let snap = await getDocs(q);
@@ -92,6 +151,11 @@ export default function StaffAttendancePage() {
           }
         }
         setAttendance(currentAtt);
+      } else if (activeTab === 'schedules') {
+        const snap = await getDocs(collection(db, "users"));
+        const uList = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        uList.sort((a: any, b: any) => (a.name || a.email || "").localeCompare(b.name || b.email || ""));
+        setUsersList(uList);
       }
     } catch (err) {
       console.error(err);
@@ -182,6 +246,12 @@ export default function StaffAttendancePage() {
               >
                 נוכחות יומית
               </button>
+              <button 
+                onClick={() => setActiveTab('schedules')}
+                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${activeTab === 'schedules' ? 'bg-rose-500 text-white shadow-lg' : 'text-[var(--foreground)]/40 hover:text-[var(--foreground)]'}`}
+              >
+                סידורי עבודה שבועיים
+              </button>
             </div>
           </div>
         </header>
@@ -253,7 +323,7 @@ export default function StaffAttendancePage() {
                 ))
               )}
             </div>
-          ) : (
+          ) : activeTab === 'attendance' ? (
             <div className="bg-[var(--card-bg)] border border-[var(--border)] rounded-[2.5rem] overflow-hidden">
                <div className="p-6 border-b border-[var(--border)] flex items-center justify-between bg-[var(--foreground)]/[0.02]">
                  <div className="flex items-center gap-3">
@@ -303,8 +373,229 @@ export default function StaffAttendancePage() {
                  )}
                </div>
             </div>
+          ) : (
+            <div className="space-y-6">
+              <div className="bg-[var(--card-bg)] border border-[var(--border)] rounded-[2.5rem] overflow-hidden shadow-sm">
+                {/* Desktop View Table */}
+                <div className="hidden lg:block overflow-x-auto">
+                  <table className="w-full border-collapse text-right" dir="rtl">
+                    <thead>
+                      <tr className="bg-[var(--foreground)]/[0.02] border-b border-[var(--border)]">
+                        <th className="p-5 font-black text-xs text-[var(--foreground)]/60">שם עובד/ת</th>
+                        {WEEKDAYS.map(day => (
+                          <th key={day.id} className="p-5 font-black text-xs text-[var(--foreground)]/60 text-center">{day.name}</th>
+                        ))}
+                        <th className="p-5 font-black text-xs text-[var(--foreground)]/60 text-center">פעולות</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[var(--border)]">
+                      {usersList.length === 0 ? (
+                        <tr>
+                          <td colSpan={9} className="p-12 text-center text-sm font-bold text-[var(--foreground)]/30 italic">
+                            לא נמצאו משתמשים במערכת
+                          </td>
+                        </tr>
+                      ) : (
+                        usersList.map(u => (
+                          <tr key={u.id} className="hover:bg-[var(--foreground)]/[0.01] transition-colors">
+                            <td className="p-5">
+                              <div className="flex items-center gap-3">
+                                <div className="w-9 h-9 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center font-bold text-sm shrink-0">
+                                  {u.name?.[0] || u.email?.[0] || 'U'}
+                                </div>
+                                <div>
+                                  <p className="text-sm font-bold">{u.name || u.email}</p>
+                                  <p className="text-[10px] text-[var(--foreground)]/40 font-semibold">
+                                    {u.role === 'admin' ? 'מנהל מערכת' : u.role === 'manager' ? 'מנהלת חוסן' : u.role === 'instructor' ? 'מדריך' : u.role === 'social_worker' ? 'עו״ס' : u.role === 'logistics' ? 'לוגיסטיקה' : 'איש צוות'}
+                                  </p>
+                                </div>
+                              </div>
+                            </td>
+                            {WEEKDAYS.map(day => {
+                              const sched = u.workSchedule?.[day.id];
+                              return (
+                                <td key={day.id} className="p-5 text-center">
+                                  {sched ? (
+                                    <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs font-black">
+                                      <Clock className="w-3.5 h-3.5" />
+                                      <span>{sched.start} - {sched.end}</span>
+                                    </div>
+                                  ) : (
+                                    <span className="text-[var(--foreground)]/30 text-xs font-medium">—</span>
+                                  )}
+                                </td>
+                              );
+                            })}
+                            <td className="p-5 text-center">
+                              <button
+                                onClick={() => openEditSchedule(u)}
+                                className="px-4 py-2 rounded-xl bg-[var(--foreground)]/5 hover:bg-[var(--foreground)]/10 border border-[var(--border)] text-xs font-bold transition-all active:scale-95 text-[var(--foreground)]"
+                              >
+                                ערוך סידור
+                              </button>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Mobile View Cards */}
+                <div className="lg:hidden divide-y divide-[var(--border)]">
+                  {usersList.length === 0 ? (
+                    <div className="p-12 text-center text-sm font-bold text-[var(--foreground)]/30 italic">
+                      לא נמצאו משתמשים במערכת
+                    </div>
+                  ) : (
+                    usersList.map(u => (
+                      <div key={u.id} className="p-5 space-y-4">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center font-bold text-sm shrink-0">
+                              {u.name?.[0] || u.email?.[0] || 'U'}
+                            </div>
+                            <div>
+                              <p className="text-sm font-bold">{u.name || u.email}</p>
+                              <p className="text-[10px] text-[var(--foreground)]/40 font-semibold">
+                                {u.role === 'admin' ? 'מנהל מערכת' : u.role === 'manager' ? 'מנהלת חוסן' : u.role === 'instructor' ? 'מדריך' : u.role === 'social_worker' ? 'עו״ס' : u.role === 'logistics' ? 'לוגיסטיקה' : 'איש צוות'}
+                              </p>
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => openEditSchedule(u)}
+                            className="px-3.5 py-1.5 rounded-lg bg-[var(--foreground)]/5 border border-[var(--border)] text-xs font-bold transition-all active:scale-95 text-[var(--foreground)]"
+                          >
+                            ערוך סידור
+                          </button>
+                        </div>
+
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                          {WEEKDAYS.map(day => {
+                            const sched = u.workSchedule?.[day.id];
+                            return (
+                              <div key={day.id} className="p-2.5 rounded-xl border border-[var(--border)] bg-[var(--foreground)]/[0.01] flex flex-col items-center justify-center text-center gap-1">
+                                <span className="text-[10px] font-black text-[var(--foreground)]/40">{day.name}</span>
+                                {sched ? (
+                                  <span className="text-xs font-black text-emerald-600 dark:text-emerald-400">{sched.start}-{sched.end}</span>
+                                ) : (
+                                  <span className="text-[var(--foreground)]/30 text-xs font-medium">—</span>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
           )}
         </main>
+
+        {/* Beautiful Weekly Schedule Edit Modal */}
+        <AnimatePresence>
+          {editingUser && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setEditingUser(null)}
+                className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+              />
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                className="relative w-full max-w-2xl bg-[var(--card-bg)] border border-[var(--border)] rounded-[2.5rem] p-6 md:p-8 shadow-2xl overflow-hidden max-h-[90vh] flex flex-col text-right"
+                dir="rtl"
+              >
+                {/* Header */}
+                <div className="flex items-center justify-between border-b border-[var(--border)] pb-4 mb-6 shrink-0">
+                  <div>
+                    <h3 className="text-xl font-black">עריכת סידור עבודה שבועי</h3>
+                    <p className="text-xs text-[var(--foreground)]/40 font-medium">עבור {editingUser.name || editingUser.email}</p>
+                  </div>
+                  <button
+                    onClick={() => setEditingUser(null)}
+                    className="w-10 h-10 rounded-xl bg-[var(--foreground)]/5 flex items-center justify-center border border-[var(--border)] hover:bg-[var(--foreground)]/10 transition-all text-[var(--foreground)]"
+                  >
+                    <XCircle className="w-5 h-5" />
+                  </button>
+                </div>
+
+                {/* Content - Scrollable Form */}
+                <div className="flex-1 overflow-y-auto pr-1 pl-1 space-y-4 no-scrollbar">
+                  {WEEKDAYS.map(day => {
+                    const sched = tempSchedule[day.id];
+                    const isWorking = !!sched;
+                    return (
+                      <div key={day.id} className="p-4 rounded-2xl border border-[var(--border)] bg-[var(--foreground)]/[0.01] hover:bg-[var(--foreground)]/[0.02] transition-all flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div className="flex items-center justify-between md:justify-start gap-4">
+                          <span className="w-20 font-black text-sm text-[var(--foreground)]">{day.name}</span>
+                          <button
+                            type="button"
+                            onClick={() => handleToggleDay(day.id)}
+                            className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all border ${
+                              isWorking 
+                                ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400' 
+                                : 'bg-[var(--foreground)]/5 border-[var(--border)] text-[var(--foreground)]/40'
+                            }`}
+                          >
+                            {isWorking ? 'יום עבודה' : 'יום מנוחה'}
+                          </button>
+                        </div>
+
+                        {isWorking && (
+                          <div className="flex items-center gap-3 justify-end">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-[var(--foreground)]/40 font-medium">התחלה:</span>
+                              <input
+                                type="time"
+                                value={sched.start || "08:00"}
+                                onChange={(e) => handleTimeChange(day.id, 'start', e.target.value)}
+                                className="bg-[var(--foreground)]/5 border border-[var(--border)] text-[var(--foreground)] rounded-lg px-2 py-1 text-xs outline-none focus:border-rose-500"
+                              />
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-[var(--foreground)]/40 font-medium">סיום:</span>
+                              <input
+                                type="time"
+                                value={sched.end || "16:00"}
+                                onChange={(e) => handleTimeChange(day.id, 'end', e.target.value)}
+                                className="bg-[var(--foreground)]/5 border border-[var(--border)] text-[var(--foreground)] rounded-lg px-2 py-1 text-xs outline-none focus:border-rose-500"
+                              />
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Actions */}
+                <div className="border-t border-[var(--border)] pt-4 mt-6 flex gap-3 shrink-0">
+                  <button
+                    onClick={saveUserSchedule}
+                    disabled={savingSchedule}
+                    className="flex-1 py-3.5 bg-rose-500 text-white rounded-2xl font-black text-sm shadow-lg shadow-rose-500/15 active:scale-95 transition-all flex items-center justify-center gap-2"
+                  >
+                    {savingSchedule ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                    שמור שינויים
+                  </button>
+                  <button
+                    onClick={() => setEditingUser(null)}
+                    className="flex-1 py-3.5 bg-[var(--foreground)]/5 text-[var(--foreground)]/60 border border-[var(--border)] rounded-2xl font-black text-sm active:scale-95 transition-all"
+                  >
+                    ביטול
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
       </div>
     </RoleGuard>
   );

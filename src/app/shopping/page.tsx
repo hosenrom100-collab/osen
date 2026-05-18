@@ -195,9 +195,7 @@ export default function ShoppingPage() {
           status: next, updatedAt: new Date(), updatedBy: user?.uid, ...extra,
         });
 
-        if (next === "approved" && req?.requestedBy && req.requestedBy !== user?.uid) {
-          queueApprovalNotification(req.requestedBy, req.name);
-        }
+
 
         if (next === "purchased") {
           const remainingApproved = requests.filter((r) => r.status === "approved" && r.id !== id);

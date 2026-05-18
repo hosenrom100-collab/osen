@@ -203,23 +203,24 @@ export default function Home() {
       setPendingAbsences(allAbsSnap.size);
 
       // 4. Schedule
-      const schedSnap = await getDoc(doc(db, "schedules", today));
+      const [schedSnap, usersSnap, locsSnap] = await Promise.all([
+        getDoc(doc(db, "schedules", today)),
+        getDocs(collection(db, "users")),
+        getDocs(collection(db, "locations")),
+      ]);
+      const userMap: Record<string, string> = {};
+      const staffList: { id: string; name: string }[] = [];
+      usersSnap.forEach(d => {
+        const name = d.data().name || d.data().email;
+        userMap[d.id] = name;
+        staffList.push({ id: d.id, name });
+      });
+      setAllStaff(staffList);
+      const locMap: Record<string, string> = {};
+      locsSnap.forEach(d => { locMap[d.id] = d.data().name; });
+
       if (schedSnap.exists()) {
         const data = schedSnap.data();
-        const [usersSnap, locsSnap] = await Promise.all([
-          getDocs(collection(db, "users")),
-          getDocs(collection(db, "locations")),
-        ]);
-        const userMap: Record<string, string> = {};
-        const staffList: { id: string; name: string }[] = [];
-        usersSnap.forEach(d => {
-          const name = d.data().name || d.data().email;
-          userMap[d.id] = name;
-          staffList.push({ id: d.id, name });
-        });
-        setAllStaff(staffList);
-        const locMap: Record<string, string> = {};
-        locsSnap.forEach(d => { locMap[d.id] = d.data().name; });
         const duty = data.dutyInstructorId || data.dutyId || "";
         setDutyId(duty);
         setDutyName(duty ? (userMap[duty] || "") : "");
@@ -239,13 +240,18 @@ export default function Home() {
           const staffAttSnap = await getDocs(query(collection(db, "staff_attendance"), where("date", "==", today)));
           const absentStaffIds = new Set(staffAttSnap.docs.filter(d => d.data().status === 'absent' || d.data().status === 'leave').map(d => d.data().userId));
           const newConflicts: {userId: string, userName: string, type: 'duty'|'activity'}[] = [];
-          if (duty && absentStaffIds.has(duty)) newConflicts.push({ userId: duty, userName: userMap[duty], type: 'duty' });
+          if (duty && absentStaffIds.has(duty)) newConflicts.push({ userId: duty, userName: userMap[duty] || duty, type: 'duty' });
           (data.activities || []).forEach((oa: any) => {
             const staffIds = oa.staffIds || (oa.instructorId ? [oa.instructorId] : []);
-            staffIds.forEach((sid: string) => { if (absentStaffIds.has(sid)) newConflicts.push({ userId: sid, userName: userMap[sid], type: 'activity' }); });
+            staffIds.forEach((sid: string) => { if (absentStaffIds.has(sid)) newConflicts.push({ userId: sid, userName: userMap[sid] || sid, type: 'activity' }); });
           });
           setConflicts(newConflicts);
         }
+      } else {
+        setDutyId("");
+        setDutyName("");
+        setActivities([]);
+        setConflicts([]);
       }
 
       // 5. Notifications
