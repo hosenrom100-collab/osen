@@ -112,7 +112,7 @@ export function BottomNav() {
         initial={{ y: 0 }}
         animate={{ y: isVisible ? 0 : "100%" }}
         transition={{ duration: 0.25, ease: "easeInOut" }}
-        className="fixed bottom-0 inset-x-0 z-50 md:hidden bg-white border-t border-slate-100 shadow-[0_-4px_24px_rgba(0,85,212,0.06)]"
+        className="fixed bottom-0 inset-x-0 z-50 md:hidden bg-[var(--surface)] border-t border-[var(--border)] shadow-[0_-4px_24px_rgba(0,85,212,0.06)]"
       >
         <nav className="flex items-center justify-around h-[70px] px-2" dir="rtl">
           {navItems.map((item) => {
@@ -131,15 +131,15 @@ export function BottomNav() {
                 <item.icon
                   className={`w-6 h-6 stroke-[2] transition-all duration-200 ${
                     isActive 
-                      ? "text-[#0055D4] fill-[#0055D4]/10 scale-110" 
-                      : "text-[#53687E] group-hover:text-[#0055D4]"
+                      ? "text-[var(--primary)] fill-[var(--primary)]/10 scale-110" 
+                      : "text-[var(--text-secondary)] group-hover:text-[var(--primary)]"
                   }`}
                 />
                 <span
                   className={`text-[11px] font-bold tracking-normal transition-colors duration-200 ${
                     isActive 
-                      ? "text-[#0055D4]" 
-                      : "text-[#53687E] group-hover:text-[#0055D4]"
+                      ? "text-[var(--primary)]" 
+                      : "text-[var(--text-secondary)] group-hover:text-[var(--primary)]"
                   }`}
                 >
                   {item.label}
@@ -149,7 +149,7 @@ export function BottomNav() {
           })}
         </nav>
         {/* Safe Area Inset for modern mobile devices */}
-        <div className="h-[env(safe-area-inset-bottom)] bg-white" />
+        <div className="h-[env(safe-area-inset-bottom)] bg-[var(--surface)]" />
       </motion.div>
 
       {/* Overlays Backdrop */}
@@ -174,15 +174,15 @@ export function BottomNav() {
             animate={{ y: 0 }}
             exit={{ y: "100%" }}
             transition={{ type: "spring", damping: 25, stiffness: 220 }}
-            className="fixed bottom-0 inset-x-0 bg-white rounded-t-[2.5rem] z-50 p-6 shadow-2xl md:hidden text-right border-t border-slate-100"
+            className="fixed bottom-0 inset-x-0 bg-[var(--surface)] rounded-t-[2.5rem] z-50 p-6 shadow-2xl md:hidden text-right border-t border-[var(--border)]"
             dir="rtl"
           >
-            <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-6" />
+            <div className="w-12 h-1.5 bg-[var(--foreground)]/10 rounded-full mx-auto mb-6" />
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-extrabold text-[#002244]">כל הפעולות</h3>
+              <h3 className="text-lg font-extrabold text-[var(--foreground)]">כל הפעולות</h3>
               <button 
                 onClick={() => setActiveOverlay(null)}
-                className="p-1.5 rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200"
+                className="p-1.5 rounded-full bg-[var(--foreground)]/5 text-[var(--foreground)]/60 hover:bg-[var(--foreground)]/10"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -209,13 +209,13 @@ export function BottomNav() {
                     setActiveOverlay(null);
                     router.push(act.href);
                   }}
-                  className="flex flex-col items-start p-4 rounded-2xl bg-[#EBF3FF] border border-[#0055D4]/5 hover:bg-[#D6E6FE] transition-colors text-right"
+                  className="flex flex-col items-start p-4 rounded-2xl bg-[var(--primary-faint)] border border-[var(--primary)]/5 hover:bg-[var(--primary-faint)]/80 transition-colors text-right"
                 >
-                  <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center text-[#0055D4] mb-3 shadow-sm">
+                  <div className="w-10 h-10 rounded-xl bg-[var(--surface)] flex items-center justify-center text-[var(--primary)] mb-3 shadow-sm">
                     <act.icon className="w-5 h-5" />
                   </div>
-                  <span className="font-extrabold text-sm text-[#002244]">{act.label}</span>
-                  <span className="text-[10px] text-[#53687E] mt-0.5">{act.desc}</span>
+                  <span className="font-extrabold text-sm text-[var(--foreground)]">{act.label}</span>
+                  <span className="text-[10px] text-[var(--text-secondary)] mt-0.5">{act.desc}</span>
                 </button>
               ))}
             </div>
@@ -230,15 +230,15 @@ export function BottomNav() {
             animate={{ y: 0 }}
             exit={{ y: "100%" }}
             transition={{ type: "spring", damping: 25, stiffness: 220 }}
-            className="fixed bottom-0 inset-x-0 bg-white rounded-t-[2.5rem] z-50 p-6 shadow-2xl md:hidden text-right border-t border-slate-100"
+            className="fixed bottom-0 inset-x-0 bg-[var(--surface)] rounded-t-[2.5rem] z-50 p-6 shadow-2xl md:hidden text-right border-t border-[var(--border)]"
             dir="rtl"
           >
-            <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-6" />
+            <div className="w-12 h-1.5 bg-[var(--foreground)]/10 rounded-full mx-auto mb-6" />
             <div className="flex items-center justify-between mb-5">
-              <h3 className="text-lg font-extrabold text-[#002244]">חיפוש מהיר</h3>
+              <h3 className="text-lg font-extrabold text-[var(--foreground)]">חיפוש מהיר</h3>
               <button 
                 onClick={() => setActiveOverlay(null)}
-                className="p-1.5 rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200"
+                className="p-1.5 rounded-full bg-[var(--foreground)]/5 text-[var(--foreground)]/60 hover:bg-[var(--foreground)]/10"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -250,15 +250,15 @@ export function BottomNav() {
                 placeholder="חפש פעילויות, מסמכים או עדכונים..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full h-12 bg-slate-50 border border-slate-100 rounded-2xl px-11 text-right text-sm font-medium focus:bg-white focus:border-[#0055D4] outline-none transition-all"
+                className="w-full h-12 bg-[var(--foreground)]/5 border border-[var(--border)] rounded-2xl px-11 text-right text-sm font-medium focus:bg-[var(--surface)] focus:border-[var(--primary)] outline-none transition-all text-[var(--foreground)]"
                 autoFocus
               />
-              <Search className="w-5 h-5 text-slate-400 absolute right-4 top-3.5" />
+              <Search className="w-5 h-5 text-[var(--text-secondary)] absolute right-4 top-3.5" />
             </div>
 
             <div className="space-y-3 mb-6 max-h-[160px] overflow-y-auto">
               {searchQuery.trim() === "" ? (
-                <div className="text-center py-6 text-xs text-[#53687E]">
+                <div className="text-center py-6 text-xs text-[var(--text-secondary)]">
                   הקלד מילת מפתח לחיפוש מהיר במערכת חוסן
                 </div>
               ) : (
@@ -285,10 +285,10 @@ export function BottomNav() {
                           setActiveOverlay(null);
                           router.push(item.href);
                         }}
-                        className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 transition-colors text-right"
+                        className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-[var(--foreground)]/5 transition-colors text-right"
                       >
-                        <span className="text-xs text-[#0055D4] bg-[#EBF3FF] px-2 py-0.5 rounded-md font-bold">{item.category}</span>
-                        <span className="text-sm font-bold text-[#002244]">{item.title}</span>
+                        <span className="text-xs text-[var(--primary)] bg-[var(--primary-faint)] px-2 py-0.5 rounded-md font-bold">{item.category}</span>
+                        <span className="text-sm font-bold text-[var(--foreground)]">{item.title}</span>
                       </button>
                     ))}
                 </div>
@@ -305,18 +305,18 @@ export function BottomNav() {
             animate={{ y: 0 }}
             exit={{ y: "100%" }}
             transition={{ type: "spring", damping: 25, stiffness: 220 }}
-            className="fixed bottom-0 inset-x-0 bg-white rounded-t-[2.5rem] z-50 p-6 shadow-2xl md:hidden text-right border-t border-slate-100"
+            className="fixed bottom-0 inset-x-0 bg-[var(--surface)] rounded-t-[2.5rem] z-50 p-6 shadow-2xl md:hidden text-right border-t border-[var(--border)]"
             dir="rtl"
           >
-            <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-6" />
+            <div className="w-12 h-1.5 bg-[var(--foreground)]/10 rounded-full mx-auto mb-6" />
             <div className="flex items-center justify-between mb-6">
               <div>
-                <h3 className="text-lg font-extrabold text-[#002244]">תפריט אפשרויות</h3>
-                {user && <p className="text-xs text-[#53687E] mt-0.5">{user.displayName || "משתמש מערכת"}</p>}
+                <h3 className="text-lg font-extrabold text-[var(--foreground)]">תפריט אפשרויות</h3>
+                {user && <p className="text-xs text-[var(--text-secondary)] mt-0.5">{user.displayName || "משתמש מערכת"}</p>}
               </div>
               <button 
                 onClick={() => setActiveOverlay(null)}
-                className="p-1.5 rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200"
+                className="p-1.5 rounded-full bg-[var(--foreground)]/5 text-[var(--foreground)]/60 hover:bg-[var(--foreground)]/10"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -325,15 +325,15 @@ export function BottomNav() {
             <div className="space-y-2 mb-6">
               <button 
                 onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-                className="w-full flex items-center justify-between p-4 rounded-2xl bg-slate-50 hover:bg-slate-100/70 border border-slate-100 transition-colors text-right"
+                className="w-full flex items-center justify-between p-4 rounded-2xl bg-[var(--foreground)]/5 hover:bg-[var(--foreground)]/10 border border-[var(--border)] transition-colors text-right"
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-white flex items-center justify-center text-[#0055D4] shadow-sm">
+                  <div className="w-9 h-9 rounded-xl bg-[var(--surface)] flex items-center justify-center text-[var(--primary)] shadow-sm">
                     {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
                   </div>
-                  <span className="font-extrabold text-sm text-[#002244]">מצב תצוגה</span>
+                  <span className="font-extrabold text-sm text-[var(--foreground)]">מצב תצוגה</span>
                 </div>
-                <span className="text-xs text-[#53687E] font-medium">{theme === 'dark' ? "בהיר" : "כהה"}</span>
+                <span className="text-xs text-[var(--text-secondary)] font-medium">{theme === 'dark' ? "בהיר" : "כהה"}</span>
               </button>
 
                <button 
@@ -341,15 +341,15 @@ export function BottomNav() {
                   setActiveOverlay(null);
                   router.push("/profile");
                 }}
-                className="w-full flex items-center justify-between p-4 rounded-2xl bg-slate-50 hover:bg-slate-100/70 border border-slate-100 transition-colors text-right"
+                className="w-full flex items-center justify-between p-4 rounded-2xl bg-[var(--foreground)]/5 hover:bg-[var(--foreground)]/10 border border-[var(--border)] transition-colors text-right"
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-white flex items-center justify-center text-[#0055D4] shadow-sm">
+                  <div className="w-9 h-9 rounded-xl bg-[var(--surface)] flex items-center justify-center text-[var(--primary)] shadow-sm">
                     <User className="w-4 h-4" />
                   </div>
-                  <span className="font-extrabold text-sm text-[#002244]">איזור אישי</span>
+                  <span className="font-extrabold text-sm text-[var(--foreground)]">איזור אישי</span>
                 </div>
-                <ChevronLeft className="w-4 h-4 text-slate-400" />
+                <ChevronLeft className="w-4 h-4 text-[var(--text-secondary)]" />
               </button>
 
               {!isParticipant && (
@@ -358,23 +358,23 @@ export function BottomNav() {
                     setActiveOverlay(null);
                     router.push("/admin");
                   }}
-                  className="w-full flex items-center justify-between p-4 rounded-2xl bg-slate-50 hover:bg-slate-100/70 border border-slate-100 transition-colors text-right"
+                  className="w-full flex items-center justify-between p-4 rounded-2xl bg-[var(--foreground)]/5 hover:bg-[var(--foreground)]/10 border border-[var(--border)] transition-colors text-right"
                 >
                   <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-xl bg-white flex items-center justify-center text-[#0055D4] shadow-sm">
+                    <div className="w-9 h-9 rounded-xl bg-[var(--surface)] flex items-center justify-center text-[var(--primary)] shadow-sm">
                       <Shield className="w-4 h-4" />
                     </div>
-                    <span className="font-extrabold text-sm text-[#002244]">ממשק ניהול ובקרה</span>
+                    <span className="font-extrabold text-sm text-[var(--foreground)]">ממשק ניהול ובקרה</span>
                   </div>
-                  <ChevronLeft className="w-4 h-4 text-slate-400" />
+                  <ChevronLeft className="w-4 h-4 text-[var(--text-secondary)]" />
                 </button>
               )}
 
               <button 
                 onClick={handleLogout}
-                className="w-full flex items-center gap-3 p-4 rounded-2xl bg-rose-50 hover:bg-rose-100/50 border border-rose-100/10 transition-colors text-rose-600 text-right font-extrabold"
+                className="w-full flex items-center gap-3 p-4 rounded-2xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 transition-colors text-rose-600 text-right font-extrabold"
               >
-                <div className="w-9 h-9 rounded-xl bg-white flex items-center justify-center text-rose-500 shadow-sm border border-rose-100">
+                <div className="w-9 h-9 rounded-xl bg-[var(--surface)] flex items-center justify-center text-rose-500 shadow-sm border border-rose-500/10">
                   <LogOut className="w-4 h-4" />
                 </div>
                 <span>התנתקות מהמערכת</span>

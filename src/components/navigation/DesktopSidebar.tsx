@@ -69,21 +69,21 @@ export function DesktopSidebar() {
         <div>
           <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--foreground)]/30 px-4 mb-4">מרחב עבודה</p>
           <div className="space-y-1">
-            {NAV.map(({ href, icon: Icon, label, color }) => {
+            {NAV.map(({ href, icon: Icon, label }) => {
               const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
               return (
                 <Link key={href} href={href}
                   className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-bold transition-all duration-200 group relative ${
                     active
-                      ? "bg-[var(--foreground)]/10 text-[var(--foreground)]"
-                      : "text-[var(--foreground)]/40 hover:text-[var(--foreground)] hover:bg-[var(--foreground)]/5"
+                      ? "bg-[var(--primary-faint)] text-[var(--primary)]"
+                      : "text-[var(--foreground)]/50 hover:text-[var(--primary)] hover:bg-[var(--foreground)]/5"
                   }`}>
-                  <Icon className={`w-4 h-4 shrink-0 transition-colors ${active ? color : "text-[var(--foreground)]/30 group-hover:text-[var(--foreground)]/60"}`} />
+                  <Icon className={`w-4 h-4 shrink-0 transition-colors ${active ? "text-[var(--primary)]" : "text-[var(--foreground)]/30 group-hover:text-[var(--primary)]/60"}`} />
                   <span>{label}</span>
                   {active && (
                     <motion.div 
                       layoutId="sidebar-active"
-                      className="absolute right-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-[var(--foreground)] rounded-full"
+                      className="absolute right-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-[var(--primary)] rounded-full"
                     />
                   )}
                 </Link>
@@ -97,21 +97,21 @@ export function DesktopSidebar() {
           <div>
             <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--foreground)]/30 px-4 mb-4">ניהול ובקרה</p>
             <div className="space-y-1">
-              {ADMIN_NAV.map(({ href, icon: Icon, label, color }) => {
+              {ADMIN_NAV.map(({ href, icon: Icon, label }) => {
                 const active = pathname.startsWith(href);
                 return (
                   <Link key={href} href={href}
                     className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-bold transition-all duration-200 group relative ${
                       active
-                        ? "bg-[var(--foreground)]/10 text-[var(--foreground)]"
-                        : "text-[var(--foreground)]/40 hover:text-[var(--foreground)] hover:bg-[var(--foreground)]/5"
+                        ? "bg-[var(--primary-faint)] text-[var(--primary)]"
+                        : "text-[var(--foreground)]/50 hover:text-[var(--primary)] hover:bg-[var(--foreground)]/5"
                     }`}>
-                    <Icon className={`w-4 h-4 shrink-0 transition-colors ${active ? color : "text-[var(--foreground)]/30 group-hover:text-[var(--foreground)]/60"}`} />
+                    <Icon className={`w-4 h-4 shrink-0 transition-colors ${active ? "text-[var(--primary)]" : "text-[var(--foreground)]/30 group-hover:text-[var(--primary)]/60"}`} />
                     <span>{label}</span>
                     {active && (
                       <motion.div 
                         layoutId="sidebar-active-admin"
-                        className="absolute right-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-[var(--foreground)] rounded-full"
+                        className="absolute right-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-[var(--primary)] rounded-full"
                       />
                     )}
                   </Link>

@@ -147,7 +147,7 @@ body {
   & .min-h-screen.bg-slate-950 { background-color: var(--background); }
 
   /* Text */
-  & .text-white    { color: var(--foreground) !important; }
+  & .text-white:not(button):not(a):not(.btn):not([class*="bg-"]) { color: var(--foreground) !important; }
   & .text-slate-300 { color: var(--foreground) !important; }
   & .text-slate-400 { color: var(--text-secondary) !important; }
   & .text-slate-500 { color: var(--text-secondary) !important; }
