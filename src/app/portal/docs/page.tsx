@@ -350,10 +350,10 @@ export default function DocumentsPage() {
             <div style={{ fontSize: "17px" }}>
               <p style={{ marginBottom: "24px" }}>לכל המעוניין,</p>
               <p style={{ marginBottom: "24px", lineHeight: 2 }}>
-                הרינו לאשר כי המטופל/ת <strong>{patientData.firstName} {patientData.lastName}</strong>, ת.ז <strong>{patientData.idNumber}</strong>, משתתף/ת באופן פעיל בתוכנית המרכז במסגרת קבוצת <strong>{(() => { const name = groups.find(g => g.id === patientData.hosenType)?.name; if (!name) return "—"; return name.startsWith("תוכנית") ? name : `תוכנית ${name}`; })()}</strong>.
+                הרינו לאשר כי המשתתף/ת <strong>{patientData.firstName} {patientData.lastName}</strong>, ת.ז <strong>{patientData.idNumber}</strong>, משתתף/ת באופן פעיל בתוכנית המרכז במסגרת קבוצת <strong>{(() => { const name = groups.find(g => g.id === patientData.hosenType)?.name; if (!name) return "—"; return name.startsWith("תוכנית") ? name : `תוכנית ${name}`; })()}</strong>.
               </p>
               <p style={{ marginBottom: "24px" }}>
-                המטופל/ת החל/ה את פעילותו/ה בתוכנית בתאריך {patientData.startDate ? format(new Date(patientData.startDate), "dd/MM/yyyy") : "—"}.
+                המשתתף/ת החל/ה את פעילותו/ה בתוכנית בתאריך {patientData.startDate ? format(new Date(patientData.startDate), "dd/MM/yyyy") : "—"}.
               </p>
 
               {/* Stats box */}

@@ -22,7 +22,7 @@ function buildSystemPrompt(userContext: UserContext, appData: AppData): string {
     : "  אין בקשות ממתינות";
 
   return `אתה Hosen AI - עוזר חכם ואישי של מערכת חוסן.
-אתה מכיר את כל הצוות, הלוז, המטופלים, הקניות והנוכחות.
+אתה מכיר את כל הצוות, הלוז, המשתתפים, הקניות והנוכחות.
 
 ━━ פרטי המשתמש ━━
 שם: ${userName} | תפקיד: ${userRole} | הרשאות: ${isAdmin ? "אדמין" : isManager ? "מנהל" : "עובד"}
@@ -38,7 +38,7 @@ ${scheduleText}
 ━━ צוות ━━
 ${staffList.slice(0, 15).map((s) => s.name).join(", ")}
 
-━━ מטופלים (חלקי) ━━
+━━ משתתפים (חלקי) ━━
 ${patientList.slice(0, 20).map((p) => p.fullName).join(", ")}
 
 ━━ קטגוריות מוצרים ━━

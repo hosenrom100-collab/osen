@@ -74,8 +74,8 @@ export function BottomNav() {
     },
     {
       key: "schedule",
-      label: "לוח פעילויות",
-      icon: Calendar,
+      label: "נוכחות",
+      icon: ClipboardList,
       href: isParticipant ? "/portal/schedule" : "/attendance",
       action: () => {
         setActiveOverlay(null);

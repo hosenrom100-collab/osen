@@ -41,7 +41,12 @@ export function PatientForm({ patientId, initialData, onSuccess }: PatientFormPr
   const [allGroups,     setAllGroups]     = useState<Group[]>([]);
   const [socialWorkers, setSocialWorkers] = useState<{ id: string; name: string }[]>([]);
 
-  const [selectedProgramId, setSelectedProgramId] = useState(initialData?.programId || "");
+  const [selectedProgramIds, setSelectedProgramIds] = useState<string[]>(
+    initialData?.programIds || (initialData?.programId ? [initialData.programId] : [])
+  );
+  const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>(
+    initialData?.groupIds || (initialData?.hosenType ? [initialData.hosenType] : [])
+  );
   const [formData, setFormData] = useState({
     firstName:          initialData?.firstName || "",
     lastName:           initialData?.lastName || "",
@@ -49,8 +54,6 @@ export function PatientForm({ patientId, initialData, onSuccess }: PatientFormPr
     phone:              initialData?.phone || "",
     startDate:          initialData?.startDate || new Date().toISOString().split("T")[0],
     endDate:            initialData?.endDate || autoEndDate(new Date().toISOString().split("T")[0]),
-    hosenType:          initialData?.hosenType || "",
-    programId:          initialData?.programId || "",
     status:             (initialData?.status || "active") as any,
     assignedWorkerId:   initialData?.assignedWorkerId || "",
     rehabPlanCompleted: initialData?.rehabPlanCompleted || false,
@@ -91,34 +94,62 @@ export function PatientForm({ patientId, initialData, onSuccess }: PatientFormPr
     load();
   }, []);
 
-  const programGroups = allGroups.filter(g => g.programId === selectedProgramId);
-  const ungroupedGroups = allGroups.filter(g => !g.programId);
+  const handleToggleProgram = (pId: string) => {
+    setSelectedProgramIds(prev => {
+      const next = prev.includes(pId) ? prev.filter(id => id !== pId) : [...prev, pId];
+      if (prev.includes(pId)) {
+        const pGroupIds = allGroups.filter(g => g.programId === pId).map(g => g.id);
+        setSelectedGroupIds(gPrev => gPrev.filter(id => !pGroupIds.includes(id)));
+      }
+      return next;
+    });
+  };
 
-  const handleProgramChange = (progId: string) => {
-    setSelectedProgramId(progId);
-    set({ programId: progId, hosenType: "" });
+  const handleToggleGroup = (gId: string) => {
+    setSelectedGroupIds(prev =>
+      prev.includes(gId) ? prev.filter(id => id !== gId) : [...prev, gId]
+    );
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const hasGroups = programGroups.length > 0;
-    if (hasGroups && !formData.hosenType) { 
-      alert("נא לבחור קבוצה");
-      return; 
+    if (selectedProgramIds.length === 0) {
+      alert("אנא בחר לפחות תוכנית אחת משויכת");
+      return;
     }
+    // Check that each selected program which has groups has at least one group selected in it
+    for (const pId of selectedProgramIds) {
+      const pGroups = allGroups.filter(g => g.programId === pId);
+      if (pGroups.length > 0) {
+        const hasSelectedGroupInProg = pGroups.some(g => selectedGroupIds.includes(g.id));
+        if (!hasSelectedGroupInProg) {
+          const progName = programs.find(p => p.id === pId)?.name || "";
+          alert(`אנא בחר לפחות קבוצה אחת עבור תוכנית ${progName}`);
+          return;
+        }
+      }
+    }
+
     setLoading(true);
     try {
+      const finalPayload = {
+        ...formData,
+        programIds: selectedProgramIds,
+        groupIds: selectedGroupIds,
+        programId: selectedProgramIds[0] || "",
+        hosenType: selectedGroupIds[0] || "",
+        fullName: `${formData.firstName} ${formData.lastName}`,
+      };
+
       if (patientId) {
         const { doc, updateDoc } = await import("firebase/firestore");
         await updateDoc(doc(db, "patients", patientId), {
-          ...formData,
-          fullName: `${formData.firstName} ${formData.lastName}`,
+          ...finalPayload,
           updatedAt: serverTimestamp(),
         });
       } else {
         await addDoc(collection(db, "patients"), {
-          ...formData,
-          fullName:  `${formData.firstName} ${formData.lastName}`,
+          ...finalPayload,
           createdAt: serverTimestamp(),
         });
       }
@@ -129,7 +160,7 @@ export function PatientForm({ patientId, initialData, onSuccess }: PatientFormPr
         router.push("/patients");
       }
     } catch {
-      alert(patientId ? "שגיאה בעדכון מטופל" : "שגיאה בהוספת מטופל");
+      alert(patientId ? "שגיאה בעדכון משתתף" : "שגיאה בהוספת משתתף");
     } finally {
       setLoading(false);
     }
@@ -165,29 +196,51 @@ export function PatientForm({ patientId, initialData, onSuccess }: PatientFormPr
       <div className="bg-[var(--foreground)]/[0.02] border border-[var(--border)] rounded-[2.5rem] p-8 space-y-6">
         <h3 className="text-xs font-black uppercase tracking-widest text-emerald-500 mb-2">שיבוץ לתוכנית וקבוצה</h3>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <label className={LABEL}><Layers className="w-3 h-3" /> תוכנית</label>
-            <select required value={selectedProgramId} onChange={e => handleProgramChange(e.target.value)} className={FIELD}>
-              <option value="">בחר תוכנית...</option>
-              {programs.map(p => <option key={p.id} value={p.id}>{p.name.startsWith("תוכנית") ? p.name : `תוכנית ${p.name}`}</option>)}
-            </select>
-          </div>
-
-          <div>
-            <label className={LABEL}><Users className="w-3 h-3" /> קבוצה</label>
-            <select 
-              required={programGroups.length > 0} 
-              value={formData.hosenType} 
-              onChange={e => set({ hosenType: e.target.value })} 
-              className={FIELD} 
-              disabled={!selectedProgramId || (selectedProgramId && programGroups.length === 0)}
-            >
-              <option value="">{programGroups.length === 0 ? "אין קבוצות בתוכנית זו" : "בחר קבוצה..."}</option>
-              {programGroups.map(g => (
-                <option key={g.id} value={g.id}>{g.name.startsWith("תוכנית") ? g.name : `תוכנית ${g.name}`}</option>
-              ))}
-            </select>
+        <div className="space-y-4">
+          <label className={LABEL}><Layers className="w-3.5 h-3.5 text-emerald-500" /> תוכניות וקבוצות משויכות</label>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {programs.map(p => {
+              const pGroups = allGroups.filter(g => g.programId === p.id);
+              const isSelected = selectedProgramIds.includes(p.id);
+              
+              return (
+                <div key={p.id} className={`border rounded-2xl p-4 transition-all ${
+                  isSelected 
+                    ? "border-emerald-500/30 bg-emerald-500/[0.02]" 
+                    : "border-[var(--border)] bg-transparent hover:bg-[var(--foreground)]/[0.01]"
+                }`}>
+                  <label className="flex items-center gap-2 cursor-pointer font-black text-sm select-none">
+                    <input 
+                      type="checkbox" 
+                      checked={isSelected}
+                      onChange={() => handleToggleProgram(p.id)}
+                      className="rounded border-[var(--border)] text-emerald-500 focus:ring-emerald-500 w-4 h-4 ml-2"
+                    />
+                    {p.name.startsWith("תוכנית") ? p.name : `תוכנית ${p.name}`}
+                  </label>
+                  
+                  {isSelected && pGroups.length > 0 && (
+                    <div className="mt-3 mr-6 space-y-2 border-r border-[var(--border)] pr-3">
+                      <p className="text-[10px] font-bold text-[var(--muted)] mb-1">בחר קבוצות משויכות:</p>
+                      {pGroups.map(g => {
+                        const isGroupSelected = selectedGroupIds.includes(g.id);
+                        return (
+                          <label key={g.id} className="flex items-center gap-2 cursor-pointer text-xs font-semibold select-none">
+                            <input 
+                              type="checkbox" 
+                              checked={isGroupSelected}
+                              onChange={() => handleToggleGroup(g.id)}
+                              className="rounded border-[var(--border)] text-emerald-500 focus:ring-emerald-500 w-3.5 h-3.5 ml-2"
+                            />
+                            {g.name}
+                          </label>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
 
@@ -203,7 +256,7 @@ export function PatientForm({ patientId, initialData, onSuccess }: PatientFormPr
       {/* ── Dates & Status ── */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>
-          <label className={LABEL}><Calendar className="w-3 h-3" /> תאריך תחילת טיפול</label>
+          <label className={LABEL}><Calendar className="w-3 h-3" /> תאריך תחילת השתתפות</label>
           <input required type="date" value={formData.startDate} onChange={e => handleStartDateChange(e.target.value)} className={FIELD} />
         </div>
         <div>
@@ -248,7 +301,7 @@ export function PatientForm({ patientId, initialData, onSuccess }: PatientFormPr
         className="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-4 rounded-2xl text-sm font-black uppercase tracking-widest transition-all shadow-xl shadow-emerald-600/20 flex items-center justify-center gap-3 active:scale-95 disabled:opacity-50"
       >
         {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <CheckCircle className="w-5 h-5" />}
-        {patientId ? "שמירת שינויים" : "פתיחת תיק מטופל"}
+        {patientId ? "שמירת שינויים" : "פתיחת תיק משתתף"}
       </button>
     </form>
   );

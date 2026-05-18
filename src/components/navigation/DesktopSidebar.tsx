@@ -16,7 +16,7 @@ const NAV = [
   { href: "/",           icon: Home,          label: "בית",           color: "text-indigo-400" },
   { href: "/admin/inbox",icon: MessageSquare, label: "תיבת הודעות",    color: "text-blue-400" },
   { href: "/attendance", icon: ClipboardList, label: "נוכחות",        color: "text-emerald-400" },
-  { href: "/patients",   icon: Users,         label: "מטופלים",       color: "text-sky-400" },
+  { href: "/patients",   icon: Users,         label: "משתתפים",       color: "text-sky-400" },
   { href: "/shopping",   icon: ShoppingCart,  label: "קניות",         color: "text-orange-400" },
   { href: "/reports",    icon: BarChart3,     label: "דוחות",         color: "text-rose-400" },
   { href: "/calendar",   icon: ClipboardList, label: "לוח שנה",       color: "text-violet-400" },

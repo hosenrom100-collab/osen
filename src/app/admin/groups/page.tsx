@@ -72,7 +72,7 @@ export default function GroupManagementPage() {
   };
 
   const removeGroup = async (id: string) => {
-    if (!confirm("האם אתה בטוח שברצונך למחוק קבוצה זו? שים לב: מטופלים המשויכים לקבוצה זו יזדקקו לשיוך מחדש.")) return;
+    if (!confirm("האם אתה בטוח שברצונך למחוק קבוצה זו? שים לב: משתתפים המשויכים לקבוצה זו יזדקקו לשיוך מחדש.")) return;
     
     try {
       await deleteDoc(doc(db, "groups", id));

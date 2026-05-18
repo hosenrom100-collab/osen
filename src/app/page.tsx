@@ -18,7 +18,7 @@ import {
 import { format, addMonths, differenceInDays, parseISO, isValid } from "date-fns";
 import { he } from "date-fns/locale";
 
-interface GroupStat   { id: string; name: string; present: number; total: number }
+interface GroupStat   { id: string; name: string; present: number; absent: number; total: number }
 interface PresentPat  { id: string; firstName: string; lastName: string; hosenType?: string }
 interface ScheduleAct {
   id: string; title: string; startTime: string; endTime?: string;
@@ -109,6 +109,7 @@ export default function Home() {
   const {
     user, loading, isWhitelisted, logout, photoURL,
     isAdmin, isManager, role, assignedGroups, primaryGroupId, setPrimaryGroupId,
+    preferredProgramIds, preferredGroupIds,
   } = useAuth();
   const router = useRouter();
 
@@ -159,27 +160,81 @@ export default function Home() {
       // 2. Attendance & Patients
       const [pSnap, aSnap] = await Promise.all([
         getDocs(query(collection(db, "patients"), where("status", "==", "active"))),
-        getDocs(query(collection(db, "attendance"), where("date", "==", today), where("status", "==", "present"))),
+        getDocs(query(collection(db, "attendance"), where("date", "==", today))),
       ]);
 
-      const presentIds = new Set(aSnap.docs.map(d => d.data().patientId as string));
+      const presentIds = new Set<string>();
+      const absentIds  = new Set<string>();
+      aSnap.forEach(d => {
+        const data = d.data();
+        if (data.status === "present") presentIds.add(data.patientId);
+        else if (data.status === "absent") absentIds.add(data.patientId);
+      });
+
       const statMap    = new Map<string, GroupStat>();
-      groupList.forEach(g => statMap.set(g.id, { ...g, present: 0, total: 0 }));
+      groupList.forEach(g => statMap.set(g.id, { ...g, present: 0, absent: 0, total: 0 }));
 
       const present: PresentPat[] = [];
       let expiring = 0;
       pSnap.forEach(d => {
         const p   = d.data();
-        const ht  = (p.hosenType || "") as string;
-        const gId = groupList.find(g => g.id === ht || g.name === ht)?.id;
-        if (gId && statMap.has(gId)) {
-          const s = statMap.get(gId)!;
-          s.total++;
-          if (presentIds.has(d.id)) {
-            s.present++;
-            present.push({ id: d.id, firstName: p.firstName, lastName: p.lastName, hosenType: gId });
-          }
+        const pId = d.id;
+        
+        // Collect all groups this patient belongs to
+        const gIds: string[] = [];
+        if (p.hosenType) {
+          const gId = groupList.find(g => g.id === p.hosenType || g.name === p.hosenType)?.id;
+          if (gId) gIds.push(gId);
         }
+        if (Array.isArray(p.groupIds)) {
+          p.groupIds.forEach((id: string) => {
+            if (groupList.some(g => g.id === id) && !gIds.includes(id)) {
+              gIds.push(id);
+            }
+          });
+        }
+
+        gIds.forEach(gId => {
+          if (statMap.has(gId)) {
+            const s = statMap.get(gId)!;
+            s.total++;
+
+            // Check attendance specifically for this group context, or fallback to general doc
+            const groupAttendance = aSnap.docs.find(doc => {
+              const data = doc.data();
+              return data.patientId === pId && (data.contextId === gId || data.groupId === gId);
+            });
+
+            if (groupAttendance) {
+              const status = groupAttendance.data().status;
+              if (status === "present") {
+                s.present++;
+                if (!present.some(x => x.id === pId && x.hosenType === gId)) {
+                  present.push({ id: pId, firstName: p.firstName, lastName: p.lastName, hosenType: gId });
+                }
+              } else if (status === "absent") {
+                s.absent++;
+              }
+            } else {
+              // Backward compatibility check: check if there's a general attendance doc (without contextId) for this patient today
+              const fallbackAttendance = aSnap.docs.find(doc => {
+                const data = doc.data();
+                return data.patientId === pId && !data.contextId;
+              });
+              if (fallbackAttendance) {
+                const status = fallbackAttendance.data().status;
+                if (status === "present") {
+                  s.present++;
+                  if (!present.some(x => x.id === pId && x.hosenType === gId)) {
+                    present.push({ id: pId, firstName: p.firstName, lastName: p.lastName, hosenType: gId });
+                  }
+                } else if (status === "absent") {
+                  s.absent++;
+                }
+              }
+            }
+          }
+        });
         try {
           const endStr = p.endDate || (p.startDate ? format(addMonths(parseISO(p.startDate), 3), "yyyy-MM-dd") : null);
           if (endStr && isValid(parseISO(endStr))) {
@@ -288,13 +343,20 @@ export default function Home() {
 
   /* ── Derived ── */
   const isGroupVisible = (gId: string) => {
+    const hasPreferences = (preferredProgramIds && preferredProgramIds.length > 0) || (preferredGroupIds && preferredGroupIds.length > 0);
+    if (hasPreferences) {
+      const gDoc = groups.find(g => g.id === gId) as any;
+      const inPrefGroup = preferredGroupIds?.includes(gId);
+      const inPrefProgram = gDoc?.programId ? preferredProgramIds?.includes(gDoc.programId) : false;
+      return inPrefGroup || inPrefProgram;
+    }
     if (showAll) return true;
     if (primaryGroupId) return gId === primaryGroupId;
     return assignedGroups.includes(gId);
   };
   const visibleStats  = stats.filter(s => isGroupVisible(s.id) && s.total > 0);
   const totalPresent  = visibleStats.reduce((n, s) => n + s.present, 0);
-  const totalMissing  = visibleStats.reduce((n, s) => n + Math.max(0, s.total - s.present), 0);
+  const totalMissing  = visibleStats.reduce((n, s) => n + Math.max(0, s.total - s.present - s.absent), 0);
   const totalActive   = visibleStats.reduce((n, s) => n + s.total, 0);
   const now           = format(new Date(), "HH:mm");
   const visibleActs   = activities.filter(a => isGroupVisible(a.groupId) || a.groupId === "all");
@@ -374,7 +436,7 @@ export default function Home() {
               <Link href="/attendance" className="flex items-center gap-1.5 hover:text-amber-500 transition-colors">
                 <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
                 <span className="font-semibold text-amber-500">{totalMissing}</span>
-                <span className="text-[var(--muted)]">מטופלים ממתינים לבדיקת נוכחות</span>
+                <span className="text-[var(--muted)]">משתתפים ממתינים לבדיקת נוכחות</span>
               </Link>
             )}
             {shoppingCount > 0 && (
@@ -443,7 +505,7 @@ export default function Home() {
                   </div>
                   <div className="min-w-0">
                     <p className="text-[11px] font-black text-[var(--foreground)]">חידוש תוכניות</p>
-                    <p className="text-[10px] text-[var(--foreground)]/40 font-bold truncate">{expiringCount} מטופלים לקראת סיום</p>
+                    <p className="text-[10px] text-[var(--foreground)]/40 font-bold truncate">{expiringCount} משתתפים לקראת סיום</p>
                   </div>
                 </motion.div>
               )}
@@ -694,7 +756,7 @@ export default function Home() {
             <nav className="grid grid-cols-2 gap-2" aria-label="פעולות מהירות">
               {[
                 { href: "/attendance", icon: ClipboardList, label: "נוכחות", color: "text-emerald-500 bg-emerald-500/10 border-emerald-500/20" },
-                { href: "/patients",   icon: Users,         label: "מטופלים", color: "text-blue-500 bg-blue-500/10 border-blue-500/20" },
+                { href: "/patients",   icon: Users,         label: "משתתפים", color: "text-blue-500 bg-blue-500/10 border-blue-500/20" },
                 { href: "/shopping",   icon: ShoppingCart,  label: "קניות",   color: "text-amber-500 bg-amber-500/10 border-amber-500/20" },
                 ...(isAdmin || isManager ? [{ href: "/admin", icon: Shield, label: "ניהול", color: "text-[var(--muted)] bg-[var(--foreground)]/5 border-[var(--border)]" }] : [
                   { href: "/calendar", icon: Calendar, label: "לוח שנה", color: "text-rose-500 bg-rose-500/10 border-rose-500/20" },

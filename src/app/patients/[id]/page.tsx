@@ -433,12 +433,12 @@ export default function PatientDetailPage() {
   if (loading) return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-[var(--background)] gap-4">
       <Loader2 className="w-10 h-10 text-emerald-500 animate-spin" />
-      <p className="text-sm font-black text-[var(--foreground)]/30 uppercase tracking-[0.2em]">טוען תיק מטופל...</p>
+      <p className="text-sm font-black text-[var(--foreground)]/30 uppercase tracking-[0.2em]">טוען תיק משתתף...</p>
     </div>
   );
 
   if (!patient) return null;
-  const patientName = patient.firstName && patient.lastName ? `${patient.firstName} ${patient.lastName}` : (patient.fullName || "מטופל ללא שם");
+  const patientName = patient.firstName && patient.lastName ? `${patient.firstName} ${patient.lastName}` : (patient.fullName || "משתתף ללא שם");
   
   const progName = programs.find(p => p.id === (patient as any).programId)?.name;
   const grpName = groups.find(g => g.id === patient.hosenType)?.name || patient.hosenType;
@@ -914,7 +914,7 @@ export default function PatientDetailPage() {
                       </div>
                       <h4 className="text-sm font-black mb-2">הנפקת אישור השתתפות</h4>
                       <p className="text-[10px] text-slate-400 font-bold leading-relaxed mb-8 uppercase tracking-widest">
-                        הפקת מסמך רשמי המאשר את חברות המטופל בתוכנית ונוכחותו.
+                        הפקת מסמך רשמי המאשר את חברות המשתתף בתוכנית ונוכחותו.
                       </p>
                       <button 
                         onClick={() => generateReport('participation')}
@@ -933,7 +933,7 @@ export default function PatientDetailPage() {
                       </div>
                       <h4 className="text-sm font-black mb-2">דוח נוכחות תקופתי</h4>
                       <p className="text-[10px] text-slate-400 font-bold leading-relaxed mb-6 uppercase tracking-widest">
-                        בחר חודש להפקת דוח נוכחות מפורט למטופל.
+                        בחר חודש להפקת דוח נוכחות מפורט למשתתף.
                       </p>
                       
                       <div className="flex flex-col gap-3">
@@ -971,7 +971,7 @@ export default function PatientDetailPage() {
                    <h3 className="text-sm font-black mb-6">מסמכים שהונפקו לאחרונה</h3>
                    <div className="space-y-3">
                       {processedDocs.length === 0 ? (
-                        <p className="text-[10px] text-slate-400 italic text-center py-8">טרם הונפקו מסמכים למטופל זה</p>
+                        <p className="text-[10px] text-slate-400 italic text-center py-8">טרם הונפקו מסמכים למשתתף זה</p>
                       ) : (
                         processedDocs.map(doc => (
                           <div key={doc.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
@@ -1023,10 +1023,10 @@ export default function PatientDetailPage() {
             <div style={{ fontSize: "17px" }}>
               <p style={{ marginBottom: "24px" }}>לכל המעוניין,</p>
               <p style={{ marginBottom: "24px", lineHeight: 2 }}>
-                הרינו לאשר כי המטופל/ת <strong>{patientName}</strong>, ת.ז <strong>{patient.idNumber}</strong>, משתתף/ת באופן פעיל בתוכנית המרכז במסגרת קבוצת <strong>{fullGroupName}</strong>.
+                הרינו לאשר כי המשתתף/ת <strong>{patientName}</strong>, ת.ז <strong>{patient.idNumber}</strong>, משתתף/ת באופן פעיל בתוכנית המרכז במסגרת קבוצת <strong>{fullGroupName}</strong>.
               </p>
               <p style={{ marginBottom: "24px" }}>
-                המטופל/ת החל/ה את פעילותו/ה בתוכנית בתאריך {patient.startDate ? format(new Date(patient.startDate), "dd/MM/yyyy") : "—"}.
+                המשתתף/ת החל/ה את פעילותו/ה בתוכנית בתאריך {patient.startDate ? format(new Date(patient.startDate), "dd/MM/yyyy") : "—"}.
               </p>
 
               {/* Stats box */}
@@ -1079,7 +1079,7 @@ export default function PatientDetailPage() {
                       <Edit3 className="w-6 h-6 text-emerald-500" />
                     </div>
                     <div>
-                      <h2 className="text-xl font-black tracking-tight">עריכת פרטי מטופל</h2>
+                      <h2 className="text-xl font-black tracking-tight">עריכת פרטי משתתף</h2>
                       <p className="text-[10px] text-[var(--foreground)]/40 font-bold uppercase tracking-widest mt-0.5">
                         {patient.firstName} {patient.lastName}
                       </p>

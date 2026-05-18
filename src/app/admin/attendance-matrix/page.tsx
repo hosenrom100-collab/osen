@@ -201,7 +201,7 @@ export default function AttendanceMatrixPage() {
                   <table className="border-collapse text-right w-full text-[var(--foreground)] text-xs">
                     <thead className="sticky top-0 z-30">
                       <tr className="bg-[var(--foreground)]/[0.03] shadow-[0_1px_0_0_var(--border)]">
-                        <th className="sticky right-0 z-40 bg-[var(--card-bg)] p-3.5 border-b border-l border-[var(--border)] font-black min-w-[180px] shadow-[1px_0_0_0_var(--border)]">מטופל</th>
+                        <th className="sticky right-0 z-40 bg-[var(--card-bg)] p-3.5 border-b border-l border-[var(--border)] font-black min-w-[180px] shadow-[1px_0_0_0_var(--border)]">משתתף</th>
                         <th className="p-3.5 border-b border-l border-[var(--border)] font-black min-w-[100px]">ת.ז</th>
                         <th className="p-3.5 border-b border-l border-[var(--border)] font-black min-w-[120px]">תוכנית</th>
                         <th className="p-3.5 border-b border-l border-[var(--border)] font-black min-w-[100px]">קבוצה</th>
@@ -297,7 +297,7 @@ export default function AttendanceMatrixPage() {
           </div>
 
           <div className="font-bold">
-            סה"כ מטופלים: {filteredPatients.length}
+            סה"כ משתתפים: {filteredPatients.length}
           </div>
         </footer>
       </div>

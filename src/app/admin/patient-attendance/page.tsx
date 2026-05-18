@@ -7,10 +7,11 @@ import { collection, getDocs, query, where, doc, setDoc, deleteDoc } from "fireb
 import {
   Search, Loader2, ChevronLeft, ChevronRight,
   Calendar as CalendarIcon, Users, CheckCircle,
-  ClipboardList
+  ClipboardList, Filter, Check, X
 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AttendanceItem } from "@/components/admin/attendance/AttendanceItem";
+import { useAuth } from "@/context/AuthContext";
 import {
   format, startOfMonth, endOfMonth, startOfWeek, endOfWeek,
   eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths,
@@ -80,6 +81,7 @@ function MiniCalendar({ value, onChange }: { value: string; onChange: (d: string
 function AttendancePageContent() {
   const searchParams = useSearchParams();
   const router       = useRouter();
+  const { preferredProgramIds, preferredGroupIds } = useAuth();
 
   const [selectionItems, setSelectionItems] = useState<SelectionItem[]>([]);
   const [selectedId,     setSelectedId]     = useState<string>(searchParams.get("group") || "");
@@ -89,6 +91,79 @@ function AttendancePageContent() {
   const [searchTerm,     setSearchTerm]     = useState("");
   const [selectedDate,   setSelectedDate]   = useState(format(new Date(), "yyyy-MM-dd"));
   const [showCalendar,   setShowCalendar]   = useState(false);
+
+  // Local persistent display filters
+  const [reloadTrigger, setReloadTrigger] = useState(0);
+  const [showFilterModal, setShowFilterModal] = useState(false);
+  const [tempPrefPrograms, setTempPrefPrograms] = useState<string[]>([]);
+  const [tempPrefGroups, setTempPrefGroups] = useState<string[]>([]);
+  const [allProgramsForModal, setAllProgramsForModal] = useState<{ id: string, name: string }[]>([]);
+  const [allGroupsForModal, setAllGroupsForModal] = useState<{ id: string, name: string, programId: string }[]>([]);
+
+  const openFilterModal = async () => {
+    let savedProgs: string[] = [];
+    let savedGroups: string[] = [];
+    let hasLocal = false;
+    if (typeof window !== "undefined") {
+      const sp = localStorage.getItem("hosen_attendance_pref_programs");
+      const sg = localStorage.getItem("hosen_attendance_pref_groups");
+      if (sp) {
+        savedProgs = JSON.parse(sp);
+        hasLocal = true;
+      }
+      if (sg) {
+        savedGroups = JSON.parse(sg);
+        hasLocal = true;
+      }
+    }
+
+    let progsList: any[] = [];
+    let groupsList: any[] = [];
+    try {
+      const [progSnap, groupSnap] = await Promise.all([
+        getDocs(collection(db, "programs")),
+        getDocs(collection(db, "groups"))
+      ]);
+      progsList = progSnap.docs.map(d => ({ id: d.id, name: d.data().name }));
+      groupsList = groupSnap.docs.map(d => ({ id: d.id, name: d.data().name, programId: d.data().programId }));
+      
+      setAllProgramsForModal(progsList);
+      setAllGroupsForModal(groupsList);
+    } catch (err) {
+      console.error("Error loading programs/groups for modal filter:", err);
+    }
+
+    if (hasLocal) {
+      setTempPrefPrograms(savedProgs);
+      setTempPrefGroups(savedGroups);
+    } else {
+      // Pre-check all programs and groups by default on first load
+      setTempPrefPrograms(progsList.map(p => p.id));
+      setTempPrefGroups(groupsList.map(g => g.id));
+    }
+    setShowFilterModal(true);
+  };
+
+  const saveFilters = () => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("hosen_attendance_pref_programs", JSON.stringify(tempPrefPrograms));
+      localStorage.setItem("hosen_attendance_pref_groups", JSON.stringify(tempPrefGroups));
+    }
+    setShowFilterModal(false);
+    setReloadTrigger(prev => prev + 1);
+  };
+
+  const toggleModalProgram = (progId: string) => {
+    setTempPrefPrograms(prev => 
+      prev.includes(progId) ? prev.filter(id => id !== progId) : [...prev, progId]
+    );
+  };
+
+  const toggleModalGroup = (groupId: string) => {
+    setTempPrefGroups(prev => 
+      prev.includes(groupId) ? prev.filter(id => id !== groupId) : [...prev, groupId]
+    );
+  };
 
   useEffect(() => {
     const loadSelections = async () => {
@@ -112,11 +187,48 @@ function AttendancePageContent() {
         }
       });
       
-      setSelectionItems(items);
-      if (!selectedId && items.length > 0) setSelectedId(items[0].id);
+      // Filter selections based on user preferences in localStorage (or show all by default)
+      let savedProgs: string[] = [];
+      let savedGroups: string[] = [];
+      let hasLocalPrefs = false;
+      if (typeof window !== "undefined") {
+        const sp = localStorage.getItem("hosen_attendance_pref_programs");
+        const sg = localStorage.getItem("hosen_attendance_pref_groups");
+        if (sp) {
+          savedProgs = JSON.parse(sp);
+          hasLocalPrefs = true;
+        }
+        if (sg) {
+          savedGroups = JSON.parse(sg);
+          hasLocalPrefs = true;
+        }
+      }
+
+      let filteredItems = items;
+      if (hasLocalPrefs) {
+        filteredItems = items.filter(item => {
+          if (item.type === 'program') {
+            return savedProgs.includes(item.id);
+          } else {
+            const groupDoc = groups.find(g => g.id === item.id);
+            const inPrefGroup = savedGroups.includes(item.id);
+            const inPrefProgram = groupDoc?.programId ? savedProgs.includes(groupDoc.programId) : false;
+            return inPrefGroup || inPrefProgram;
+          }
+        });
+      }
+      
+      setSelectionItems(filteredItems);
+      
+      const urlGroup = searchParams.get("group");
+      if (urlGroup) {
+        setSelectedId(urlGroup);
+      } else if (!selectedId && filteredItems.length > 0) {
+        setSelectedId(filteredItems[0].id);
+      }
     };
     loadSelections();
-  }, []);
+  }, [preferredProgramIds, preferredGroupIds, reloadTrigger]);
 
   useEffect(() => {
     if (selectedId && selectionItems.length > 0) {
@@ -136,13 +248,20 @@ function AttendancePageContent() {
         const data = d.data();
         if (data.status === "active") {
           const isMatch = selection.type === 'group'
-            ? (data.hosenType === selection.id)
-            : (data.programId === selection.id);
+            ? (data.hosenType === selection.id || (Array.isArray(data.groupIds) && data.groupIds.includes(selection.id)))
+            : (data.programId === selection.id || (Array.isArray(data.programIds) && data.programIds.includes(selection.id)));
             
           if (isMatch) {
             list.push({ id: d.id, ...data } as Patient);
           }
         }
+      });
+      list.sort((a, b) => {
+        const lnA = a.lastName || "";
+        const lnB = b.lastName || "";
+        const cmp = lnA.localeCompare(lnB, 'he');
+        if (cmp !== 0) return cmp;
+        return (a.firstName || "").localeCompare(b.firstName || "", 'he');
       });
       setPatients(list);
 
@@ -151,7 +270,11 @@ function AttendancePageContent() {
       list.forEach(p => record[p.id] = "unset");
       attSnap.forEach(d => {
         const data = d.data();
-        if (record[data.patientId] !== undefined) record[data.patientId] = data.status;
+        if (data.patientId && record[data.patientId] !== undefined) {
+          if (!data.contextId || data.contextId === selectedId || data.programId === selectedId || data.groupId === selectedId) {
+            record[data.patientId] = data.status;
+          }
+        }
       });
       setAttendance(record);
     } catch (err) { console.error(err); }
@@ -162,20 +285,19 @@ function AttendancePageContent() {
     const newStatus = attendance[pId] === status ? "unset" : status;
     setAttendance(prev => ({ ...prev, [pId]: newStatus }));
     try {
-      const attId = `${pId}_${selectedDate}`;
+      const attId = `${pId}_${selectedId}_${selectedDate}`;
       if (newStatus === "unset") {
         await deleteDoc(doc(db, "attendance", attId));
       } else {
         await setDoc(doc(db, "attendance", attId), {
-          patientId: pId, date: selectedDate, status: newStatus, updatedAt: new Date().toISOString(),
+          patientId: pId,
+          date: selectedDate,
+          status: newStatus,
+          contextId: selectedId,
+          updatedAt: new Date().toISOString(),
         });
       }
     } catch (err) { console.error(err); }
-  };
-
-  const changeDate = (days: number) => {
-    const next = addDays(parseISO(selectedDate), days);
-    setSelectedDate(format(next, "yyyy-MM-dd"));
   };
 
   const markAllPresent = async () => {
@@ -184,12 +306,21 @@ function AttendancePageContent() {
       .filter(p => attendance[p.id] === "unset")
       .map(p => {
         newAtt[p.id] = "present";
-        return setDoc(doc(db, "attendance", `${p.id}_${selectedDate}`), {
-          patientId: p.id, date: selectedDate, status: "present", updatedAt: new Date().toISOString(),
+        return setDoc(doc(db, "attendance", `${p.id}_${selectedId}_${selectedDate}`), {
+          patientId: p.id,
+          date: selectedDate,
+          status: "present",
+          contextId: selectedId,
+          updatedAt: new Date().toISOString(),
         });
       });
     setAttendance(newAtt);
     await Promise.all(updates);
+  };
+
+  const changeDate = (days: number) => {
+    const next = addDays(parseISO(selectedDate), days);
+    setSelectedDate(format(next, "yyyy-MM-dd"));
   };
 
   const handleDateChange = (d: string) => {
@@ -228,6 +359,14 @@ function AttendancePageContent() {
               <ChevronRight className="w-4 h-4" />
             </button>
             <span className="text-sm font-black">נוכחות</span>
+            
+            <button 
+              onClick={openFilterModal}
+              title="סינון תוכניות וקבוצות"
+              className="w-9 h-9 flex items-center justify-center rounded-xl bg-rose-500/10 text-rose-500 hover:bg-rose-500/20 transition-all active:scale-90"
+            >
+              <Filter className="w-4 h-4" />
+            </button>
           </div>
 
           {/* Desktop: calendar toggle button */}
@@ -361,7 +500,7 @@ function AttendancePageContent() {
           <Search className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--muted)]/40" />
           <input
             type="text"
-            placeholder="חיפוש מטופל..."
+            placeholder="חיפוש משתתף..."
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
             className="w-full bg-[var(--surface)] border border-[var(--border)] text-[var(--foreground)] rounded-xl pr-11 pl-4 h-11 text-sm font-bold outline-none focus:border-[var(--muted)]/40 transition-all"
@@ -380,7 +519,7 @@ function AttendancePageContent() {
               <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }}
                 className="flex flex-col items-center justify-center py-20 opacity-30 gap-3">
                 <Users className="w-10 h-10" />
-                <p className="text-sm font-bold italic">אין מטופלים להצגה</p>
+                <p className="text-sm font-bold italic">אין משתתפים להצגה</p>
               </motion.div>
             ) : (
               <motion.div key="list" initial={{ opacity: 0 }} animate={{ opacity: 1 }}
@@ -398,6 +537,131 @@ function AttendancePageContent() {
           </AnimatePresence>
         </div>
       </main>
+
+      {/* ── Filter Modal ── */}
+      <AnimatePresence>
+        {showFilterModal && (
+          <>
+            <motion.div 
+              initial={{ opacity: 0 }} 
+              animate={{ opacity: 1 }} 
+              exit={{ opacity: 0 }}
+              onClick={() => setShowFilterModal(false)}
+              className="fixed inset-0 z-50 bg-black/60 backdrop-blur-md"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="fixed inset-x-4 bottom-4 md:bottom-auto md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:max-w-md z-50 bg-[var(--surface)] border border-[var(--border)] rounded-3xl shadow-2xl p-6 overflow-hidden flex flex-col max-h-[85vh]"
+            >
+              <div className="flex items-center justify-between pb-4 border-b border-[var(--border)]">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-lg bg-rose-500/10 flex items-center justify-center text-rose-500">
+                    <Filter className="w-4 h-4" />
+                  </div>
+                  <h3 className="text-sm font-black">הגדרת תוכניות וקבוצות לתצוגה</h3>
+                </div>
+                <button 
+                  onClick={() => setShowFilterModal(false)}
+                  className="w-8 h-8 flex items-center justify-center rounded-lg bg-[var(--foreground)]/5 text-[var(--muted)] hover:bg-[var(--foreground)]/10"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto py-4 space-y-5 pr-1 text-right">
+                <p className="text-xs text-[var(--muted)] leading-relaxed">
+                  סמן את התוכניות והקבוצות שברצונך לראות בסרגל הנוכחות העליון. הגדרה זו תישמר בדפדפן ותשמש אותך בכל כניסה.
+                </p>
+
+                {allProgramsForModal.length === 0 ? (
+                  <div className="flex items-center justify-center py-8 opacity-40 gap-2">
+                    <Loader2 className="w-4 h-4 animate-spin text-rose-500" />
+                    <span className="text-xs font-bold">טוען רשימה...</span>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {allProgramsForModal.map(prog => {
+                      const progGroups = allGroupsForModal.filter(g => g.programId === prog.id);
+                      const isProgChecked = tempPrefPrograms.includes(prog.id);
+
+                      return (
+                        <div key={prog.id} className="bg-[var(--foreground)]/5 border border-[var(--border)] rounded-2xl p-4 space-y-3">
+                          <label className="flex items-center gap-3 cursor-pointer select-none">
+                            <input
+                              type="checkbox"
+                              checked={isProgChecked}
+                              onChange={() => toggleModalProgram(prog.id)}
+                              className="sr-only"
+                            />
+                            <div className={`w-5 h-5 rounded-md border flex items-center justify-center transition-all ${
+                              isProgChecked 
+                                ? "bg-rose-500 border-rose-500 text-white" 
+                                : "border-[var(--border)] bg-[var(--surface)]"
+                            }`}>
+                              {isProgChecked && <Check className="w-3.5 h-3.5" />}
+                            </div>
+                            <span className="text-xs font-black">{prog.name}</span>
+                          </label>
+
+                          {progGroups.length > 0 && (
+                            <div className="grid grid-cols-1 gap-2 pr-6 border-r border-[var(--border)] mr-2.5">
+                              {progGroups.map(group => {
+                                const isGroupChecked = tempPrefGroups.includes(group.id);
+                                return (
+                                  <label key={group.id} className="flex items-center gap-3 cursor-pointer select-none py-1">
+                                    <input
+                                      type="checkbox"
+                                      checked={isGroupChecked}
+                                      onChange={() => toggleModalGroup(group.id)}
+                                      className="sr-only"
+                                    />
+                                    <div className={`w-4 h-4 rounded border flex items-center justify-center transition-all ${
+                                      isGroupChecked 
+                                        ? "bg-rose-500 border-rose-500 text-white" 
+                                        : "border-[var(--border)] bg-[var(--surface)]"
+                                    }`}>
+                                      {isGroupChecked && <Check className="w-3 h-3" />}
+                                    </div>
+                                    <span className="text-[11px] font-bold text-[var(--muted)]">{group.name}</span>
+                                  </label>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              <div className="pt-4 border-t border-[var(--border)] flex items-center gap-3">
+                <button
+                  onClick={saveFilters}
+                  className="flex-1 py-3 bg-rose-500 hover:bg-rose-600 text-white rounded-2xl text-xs font-black shadow-lg shadow-rose-500/20 active:scale-95 transition-all"
+                >
+                  שמור סינון
+                </button>
+                <button
+                  onClick={() => {
+                    if (typeof window !== "undefined") {
+                      localStorage.removeItem("hosen_attendance_pref_programs");
+                      localStorage.removeItem("hosen_attendance_pref_groups");
+                    }
+                    setShowFilterModal(false);
+                    setReloadTrigger(prev => prev + 1);
+                  }}
+                  className="px-4 py-3 bg-[var(--foreground)]/5 hover:bg-[var(--foreground)]/10 border border-[var(--border)] rounded-2xl text-xs font-black active:scale-95 transition-all"
+                >
+                  איפוס
+                </button>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
 
     </div>
   );

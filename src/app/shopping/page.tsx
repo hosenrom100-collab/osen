@@ -24,7 +24,7 @@ interface ShoppingRequest {
   name: string;
   category: string;
   quantity: string;
-  status: "pending" | "approved" | "purchased";
+  status: "pending" | "approved" | "purchased" | "archived";
   requestedBy: string;
   requestedByName: string;
   createdAt: any;
@@ -67,6 +67,7 @@ export default function ShoppingPage() {
   const [loading, setLoading]       = useState(true);
   const [view, setView]             = useState<"list" | "archive">("list");
   const [showPurchased, setShowPurchased] = useState(false);
+  const [showArchivePrompt, setShowArchivePrompt] = useState(false);
 
   // Add-bar state
   const [inputVal, setInputVal]     = useState("");
@@ -183,7 +184,7 @@ export default function ShoppingPage() {
 
   const changeStatus = useCallback(async (
     id: string,
-    next: "pending" | "approved" | "purchased" | "deleted",
+    next: "pending" | "approved" | "purchased" | "archived" | "deleted",
     extra: Record<string, any> = {}
   ) => {
     const req = requests.find((r) => r.id === id);
@@ -207,6 +208,9 @@ export default function ShoppingPage() {
               body: "כל הפריטים המאושרים נרכשו בהצלחה",
               link: "/shopping",
             });
+
+            // Show confirmation prompt to archive current session purchases
+            setShowArchivePrompt(true);
 
             // Target notifications ONLY to the users whose items were in this batch of purchased items!
             const purchasedItems = requests.filter((r) => r.status === "purchased" || r.id === id);
@@ -257,8 +261,30 @@ export default function ShoppingPage() {
     // Push notifications for shopping approvals are disabled per request
   };
 
+  const archiveCurrentSession = async () => {
+    const sessionPurchased = requests.filter((r) => r.status === "purchased");
+    if (sessionPurchased.length === 0) return;
+    try {
+      setLoading(true);
+      await Promise.all(
+        sessionPurchased.map((r) =>
+          updateDoc(doc(db, "shopping_requests", r.id), {
+            status: "archived",
+            archivedAt: new Date(),
+            archivedBy: user?.uid,
+          })
+        )
+      );
+      setShowArchivePrompt(false);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const addProduct = async (name: string, category = "כללי", priority: "normal" | "urgent" = "normal") => {
-    const dup = requests.some((r) => r.name === name && r.status !== "purchased");
+    const dup = requests.some((r) => r.name === name && r.status !== "archived");
     if (dup) { flash(pool.find((p) => p.name === name)?.id ?? "dup"); return; }
     const docId = name.replace(/\//g, "-");
     try { await setDoc(doc(db, "product_pool", docId), { name, category }, { merge: true }); } catch { /* ignore pool write fail for non-managers */ }
@@ -328,7 +354,7 @@ export default function ShoppingPage() {
   };
 
   const exportXlsx = () => {
-    const data = requests.filter((r) => r.status === "purchased").map((r) => {
+    const data = requests.filter((r) => r.status === "archived").map((r) => {
       const d = r.createdAt?.toDate ? r.createdAt.toDate() : new Date(r.createdAt);
       return { תאריך: d.toLocaleDateString("he-IL"), מוצר: r.name, קטגוריה: r.category, כמות: r.quantity || "1", מבקש: r.requestedByName };
     });
@@ -340,7 +366,8 @@ export default function ShoppingPage() {
 
   const pending  = requests.filter((r) => r.status === "pending");
   const approved = requests.filter((r) => r.status === "approved");
-  const purchased = requests.filter((r) => r.status === "purchased");
+  const sessionPurchased = requests.filter((r) => r.status === "purchased");
+  const archived = requests.filter((r) => r.status === "archived");
 
   const suggestions = pool.filter((p) =>
     inputVal.trim() &&
@@ -348,9 +375,9 @@ export default function ShoppingPage() {
   ).slice(0, 20);
 
   const exactMatch = pool.some((p) => p.name === inputVal.trim());
-  const alreadyInList = (name: string) => requests.some((r) => r.name === name && r.status !== "purchased");
+  const alreadyInList = (name: string) => requests.some((r) => r.name === name && r.status !== "archived");
 
-  const archiveByDate = purchased.reduce((acc, item) => {
+  const archiveByDate = archived.reduce((acc, item) => {
     const d = item.createdAt?.toDate ? item.createdAt.toDate() : new Date(item.createdAt);
     const key = d.toLocaleDateString("he-IL", { day: "2-digit", month: "2-digit", year: "numeric" });
     (acc[key] = acc[key] || []).push(item);
@@ -485,16 +512,33 @@ export default function ShoppingPage() {
                   <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
                 </div>
               ) : view === "list" ? (
-                <LayoutGroup>
-                   {categories.map(cat => {
-                     if (activeCategory !== null && activeCategory !== cat) return null;
-                     const catItems = [...pending, ...approved].filter(r => r.category === cat);
-                     if (catItems.length === 0) return null;
-                     return (
+                <>
+                  <LayoutGroup>
+                     {categories.map(cat => {
+                       if (activeCategory !== null && activeCategory !== cat) return null;
+                       const catItems = [...pending, ...approved].filter(r => r.category === cat);
+                       if (catItems.length === 0) return null;
+                       return (
+                          <CategorySection 
+                             key={cat}
+                             title={cat}
+                             items={catItems}
+                             onStatus={changeStatus}
+                             onEdit={setEditItem}
+                             onUpdateQuantity={updateQuantity}
+                             canApprove={canApprove}
+                             canPurchase={canPurchase}
+                             currentUser={user}
+                          />
+                       );
+                     })}
+                     
+                     {/* Fallback for items with unknown categories */}
+                     {(activeCategory === null || activeCategory === "אחר") && 
+                      [...pending, ...approved].some(r => !categories.includes(r.category)) && (
                         <CategorySection 
-                           key={cat}
-                           title={cat}
-                           items={catItems}
+                           title="אחר"
+                           items={[...pending, ...approved].filter(r => !categories.includes(r.category))}
                            onStatus={changeStatus}
                            onEdit={setEditItem}
                            onUpdateQuantity={updateQuantity}
@@ -502,33 +546,45 @@ export default function ShoppingPage() {
                            canPurchase={canPurchase}
                            currentUser={user}
                         />
-                     );
-                   })}
-                   
-                   {/* Fallback for items with unknown categories */}
-                   {(activeCategory === null || activeCategory === "אחר") && 
-                    [...pending, ...approved].some(r => !categories.includes(r.category)) && (
-                      <CategorySection 
-                         title="אחר"
-                         items={[...pending, ...approved].filter(r => !categories.includes(r.category))}
-                         onStatus={changeStatus}
-                         onEdit={setEditItem}
-                         onUpdateQuantity={updateQuantity}
-                         canApprove={canApprove}
-                         canPurchase={canPurchase}
-                         currentUser={user}
-                      />
-                   )}
+                     )}
 
-                   {pending.length === 0 && approved.length === 0 && (
-                      <div className="py-32 px-12 text-center opacity-30 flex flex-col items-center gap-4">
-                         <div className="w-20 h-20 rounded-[2.5rem] bg-[var(--foreground)]/5 flex items-center justify-center">
-                            <ShoppingBag className="w-10 h-10" />
-                         </div>
-                         <p className="text-sm font-black uppercase tracking-[0.2em]">הרשימה ריקה</p>
-                      </div>
+                     {pending.length === 0 && approved.length === 0 && sessionPurchased.length === 0 && (
+                        <div className="py-32 px-12 text-center opacity-30 flex flex-col items-center gap-4">
+                           <div className="w-20 h-20 rounded-[2.5rem] bg-[var(--foreground)]/5 flex items-center justify-center">
+                              <ShoppingBag className="w-10 h-10" />
+                           </div>
+                           <p className="text-sm font-black uppercase tracking-[0.2em]">הרשימה ריקה</p>
+                        </div>
+                     )}
+                   </LayoutGroup>
+
+                   {sessionPurchased.length > 0 && (
+                     <div className="mt-8 space-y-4 px-4 pb-12">
+                       <div className="flex items-center justify-between border-b border-[var(--border)] pb-2 mb-2">
+                         <h3 className="text-sm font-black text-emerald-500 flex items-center gap-2">
+                           <ShoppingBag className="w-4.5 h-4.5" />
+                           מצרכים שנקנו בקנייה זו ({sessionPurchased.length})
+                         </h3>
+                         <button
+                           onClick={() => setShowArchivePrompt(true)}
+                           className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-black transition-all active:scale-95 shadow-lg shadow-emerald-600/10 flex items-center gap-1.5"
+                         >
+                           <Check className="w-3.5 h-3.5 stroke-[3] text-white" />
+                           סיום קנייה וארכוב
+                         </button>
+                       </div>
+                       <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl overflow-hidden divide-y divide-[var(--border)]/50">
+                         {sessionPurchased.map(item => (
+                           <PurchasedRow 
+                             key={item.id} 
+                             item={item} 
+                             onStatus={changeStatus} 
+                           />
+                         ))}
+                       </div>
+                     </div>
                    )}
-                </LayoutGroup>
+                </>
               ) : (
                 <div className="p-4 space-y-6">
                    <h2 className="text-2xl font-black px-2">ארכיון רכישות</h2>
@@ -779,7 +835,61 @@ export default function ShoppingPage() {
                 </motion.div>
              </div>
           )}
-        </AnimatePresence>
+         </AnimatePresence>
+
+         {/* Archive Current Session Prompt Dialog */}
+         <AnimatePresence>
+           {showArchivePrompt && (
+              <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+                 <motion.div 
+                   initial={{ opacity: 0 }} 
+                   animate={{ opacity: 1 }} 
+                   exit={{ opacity: 0 }} 
+                   onClick={() => setShowArchivePrompt(false)} 
+                   className="absolute inset-0 bg-black/65 backdrop-blur-md" 
+                 />
+                 <motion.div 
+                   initial={{ opacity: 0, scale: 0.95 }} 
+                   animate={{ opacity: 1, scale: 1 }} 
+                   exit={{ opacity: 0, scale: 0.95 }} 
+                   className="relative bg-[var(--surface)] border border-[var(--border)] rounded-[2.5rem] w-full max-w-md p-8 shadow-2xl text-right overflow-hidden" 
+                   dir="rtl"
+                 >
+                    {/* Decorative gradient overlay */}
+                    <div className="absolute top-0 right-0 left-0 h-2 bg-gradient-to-l from-emerald-500 via-teal-500 to-indigo-500" />
+                    
+                    <div className="flex items-center gap-3 mb-4 mt-2">
+                      <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-emerald-500 shrink-0">
+                        <CheckCircle2 className="w-6 h-6" />
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-black text-[var(--foreground)]">סיום הרכישה הנוכחית</h3>
+                        <p className="text-xs text-[var(--muted)] font-bold">כל המוצרים סומנו כנקנו!</p>
+                      </div>
+                    </div>
+
+                    <p className="text-sm font-bold text-[var(--foreground)]/80 mb-6 leading-relaxed">
+                      האם ברצונך להעביר את {sessionPurchased.length} המוצרים שנקנו לארכיון הרכישות הכללי ולנקות את הרשימה הפעילה?
+                    </p>
+
+                    <div className="flex gap-3">
+                       <button 
+                         onClick={archiveCurrentSession} 
+                         className="flex-1 py-4 bg-emerald-600 hover:bg-emerald-500 !text-white text-sm font-black rounded-2xl shadow-lg transition-all active:scale-[0.98] flex items-center justify-center gap-1.5"
+                       >
+                         כן, ארכב ונקה
+                       </button>
+                       <button 
+                         onClick={() => setShowArchivePrompt(false)} 
+                         className="flex-1 py-4 bg-[var(--foreground)]/5 text-[var(--muted)] hover:bg-[var(--foreground)]/10 rounded-2xl font-black text-sm active:scale-95 transition-all"
+                       >
+                         לא כרגע
+                       </button>
+                    </div>
+                 </motion.div>
+              </div>
+           )}
+         </AnimatePresence>
       </div>
     </RoleGuard>
   );

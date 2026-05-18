@@ -20,7 +20,10 @@ import { format } from "date-fns";
 import { he } from "date-fns/locale";
 
 export default function ProfilePage() {
-  const { user, logout, role, workSchedule, photoURL } = useAuth();
+  const { 
+    user, logout, role, workSchedule, photoURL,
+    preferredProgramIds, preferredGroupIds, setPreferredPrograms, setPreferredGroups 
+  } = useAuth();
   const { theme, setTheme, fontSize, setFontSize } = useSettings();
   const router = useRouter();
 
@@ -28,6 +31,10 @@ export default function ProfilePage() {
   const [displayName, setDisplayName] = useState(user?.displayName || "");
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+
+  // Preferred display items on homepage
+  const [allPrograms, setAllPrograms] = useState<{ id: string; name: string }[]>([]);
+  const [allGroups, setAllGroups] = useState<{ id: string; name: string; programId: string }[]>([]);
 
   // Work Schedule
   const [isEditingSchedule, setIsEditingSchedule] = useState(false);
@@ -48,8 +55,40 @@ export default function ProfilePage() {
   useEffect(() => {
     if (user?.displayName) setDisplayName(user.displayName);
     if (workSchedule) setTempSchedule(workSchedule);
-    if (user) fetchMyAbsences();
+    if (user) {
+      fetchMyAbsences();
+      fetchPreferencesData();
+    }
   }, [user, workSchedule]);
+
+  const fetchPreferencesData = async () => {
+    try {
+      const [progSnap, groupSnap] = await Promise.all([
+        getDocs(collection(db, "programs")),
+        getDocs(collection(db, "groups"))
+      ]);
+      setAllPrograms(progSnap.docs.map(d => ({ id: d.id, name: d.data().name || "" })));
+      setAllGroups(groupSnap.docs.map(d => ({ id: d.id, name: d.data().name || "", programId: d.data().programId || "" })));
+    } catch (e) {
+      console.error("Error fetching programs/groups for preferences:", e);
+    }
+  };
+
+  const toggleProgram = async (progId: string) => {
+    const current = preferredProgramIds || [];
+    const next = current.includes(progId) 
+      ? current.filter(id => id !== progId) 
+      : [...current, progId];
+    await setPreferredPrograms(next);
+  };
+
+  const toggleGroup = async (groupId: string) => {
+    const current = preferredGroupIds || [];
+    const next = current.includes(groupId) 
+      ? current.filter(id => id !== groupId) 
+      : [...current, groupId];
+    await setPreferredGroups(next);
+  };
 
   const fetchMyAbsences = async () => {
     if (!user) return;
@@ -377,6 +416,79 @@ export default function ProfilePage() {
                         </button>
                       ))}
                     </div>
+                  </div>
+                </div>
+              </section>
+
+              {/* Homepage display settings (preferred programs & groups) */}
+              <section className="space-y-6">
+                <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-[var(--foreground)]/20 mr-2">הגדרות תצוגה בעמוד הבית</h3>
+                <div className="bg-[var(--card-bg)] border border-[var(--border)] p-6 md:p-8 rounded-3xl md:rounded-[2.5rem] shadow-sm space-y-6">
+                  <div>
+                    <p className="text-base font-black tracking-tight">סינון תוכניות וקבוצות כברירת מחדל</p>
+                    <p className="text-xs text-[var(--foreground)]/40 font-bold mt-1">בחר אילו תוכניות וקבוצות יוצגו כברירת מחדל בעמוד הבית. השאר ריק כדי להציג את הכל/לפי ההרשאות הרגילות.</p>
+                  </div>
+
+                  <div className="space-y-4">
+                    {allPrograms.map(prog => {
+                      const isProgSelected = preferredProgramIds?.includes(prog.id);
+                      const progGroups = allGroups.filter(g => g.programId === prog.id);
+
+                      return (
+                        <div key={prog.id} className="border border-[var(--border)] rounded-2xl p-4 md:p-5 space-y-4 bg-[var(--foreground)]/[0.01]">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <button
+                                onClick={() => toggleProgram(prog.id)}
+                                className={`w-6 h-6 rounded-lg border flex items-center justify-center transition-all ${
+                                  isProgSelected 
+                                    ? 'bg-rose-500 border-rose-500 text-white' 
+                                    : 'border-[var(--border)] bg-[var(--background)]'
+                                }`}
+                              >
+                                {isProgSelected && <Check className="w-4 h-4" />}
+                              </button>
+                              <span className="text-sm font-black text-[var(--foreground)]">תוכנית: {prog.name}</span>
+                            </div>
+                            <span className="text-[10px] text-[var(--foreground)]/30 font-bold">
+                              {progGroups.length} קבוצות
+                            </span>
+                          </div>
+
+                          {progGroups.length > 0 && (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pr-9">
+                              {progGroups.map(group => {
+                                const isGroupSelected = preferredGroupIds?.includes(group.id);
+                                return (
+                                  <div 
+                                    key={group.id} 
+                                    onClick={() => toggleGroup(group.id)}
+                                    className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${
+                                      isGroupSelected || isProgSelected
+                                        ? 'bg-rose-500/5 border-rose-500/30 text-rose-500' 
+                                        : 'border-[var(--border)] bg-[var(--background)]/50 hover:bg-[var(--foreground)]/[0.02]'
+                                    }`}
+                                  >
+                                    <div
+                                      className={`w-4 h-4 rounded border flex items-center justify-center transition-all shrink-0 ${
+                                        isGroupSelected || isProgSelected
+                                          ? 'bg-rose-500 border-rose-500 text-white' 
+                                          : 'border-[var(--border)] bg-[var(--background)]'
+                                      }`}
+                                    >
+                                      {(isGroupSelected || isProgSelected) && <Check className="w-3 h-3" />}
+                                    </div>
+                                    <span className={`text-xs font-semibold ${isProgSelected ? 'opacity-60' : ''}`}>
+                                      {group.name}
+                                    </span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               </section>

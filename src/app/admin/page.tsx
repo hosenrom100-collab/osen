@@ -18,13 +18,13 @@ const ROLE_HE: Record<string, string> = {
 // Modules organized by category with role access
 const CATEGORIES = [
   {
-    title: "ניהול מטופלים",
+    title: "ניהול משתתפים",
     color: "text-teal-500",
     modules: [
-      { title: "מטופלים",         desc: "מאגר מטופלים ותיקי חוסן",    icon: Users,         path: "/patients",                color: "text-teal-500 bg-teal-500/10",      roles: ["admin","manager","instructor","social_worker"] },
-      { title: "נוכחות מטופלים",  desc: "סימון נוכחות יומית",         icon: ClipboardList, path: "/admin/patient-attendance",  color: "text-emerald-500 bg-emerald-500/10",roles: ["admin","manager","instructor","employee","social_worker"] },
+      { title: "משתתפים",         desc: "מאגר משתתפים ותיקי חוסן",    icon: Users,         path: "/patients",                color: "text-teal-500 bg-teal-500/10",      roles: ["admin","manager","instructor","social_worker"] },
+      { title: "נוכחות משתתפים",  desc: "סימון נוכחות יומית",         icon: ClipboardList, path: "/admin/patient-attendance",  color: "text-emerald-500 bg-emerald-500/10",roles: ["admin","manager","instructor","employee","social_worker"] },
       { title: "מעקב תקופות שהות", desc: "הארכות ותוכניות שיקום",      icon: Calendar,      path: "/patients/tracking",        color: "text-teal-500 bg-teal-500/10",      roles: ["admin","manager","social_worker"] },
-      { title: "תזכורות והארכות",  desc: "מטופלים הדורשים טיפול דחוף", icon: Bell,          path: "/admin/reminders",          color: "text-rose-500 bg-rose-500/10",      roles: ["admin","manager","social_worker"] },
+      { title: "תזכורות והארכות",  desc: "משתתפים הדורשים טיפול דחוף", icon: Bell,          path: "/admin/reminders",          color: "text-rose-500 bg-rose-500/10",      roles: ["admin","manager","social_worker"] },
     ],
   },
   {
@@ -50,7 +50,7 @@ const CATEGORIES = [
     color: "text-cyan-500",
     modules: [
       { title: "דוחות",           desc: "ייצוא נתונים וסיכומים",      icon: BarChart3,     path: "/reports",                  color: "text-cyan-500 bg-cyan-500/10",      roles: ["admin","manager"] },
-      { title: "תיבת הודעות",     desc: "צ'אט עם מטופלים",           icon: MessageCircle, path: "/admin/inbox",                color: "text-indigo-500 bg-indigo-500/10",  roles: ["admin","manager","social_worker","instructor"] },
+      { title: "תיבת הודעות",     desc: "צ'אט עם משתתפים",           icon: MessageCircle, path: "/admin/inbox",                color: "text-indigo-500 bg-indigo-500/10",  roles: ["admin","manager","social_worker","instructor"] },
       { title: "הודעות לצוות",    desc: "שליחת התראות push",          icon: Bell,          path: "/admin/notifications",      color: "text-pink-500 bg-pink-500/10",      roles: ["admin","manager"] },
       { title: "לוגיסטיקה ורכש", desc: "ניהול מלאי וציוד",           icon: Package,       path: "/admin/resources",          color: "text-amber-500 bg-amber-500/10",    roles: ["admin","manager","logistics"] },
     ],

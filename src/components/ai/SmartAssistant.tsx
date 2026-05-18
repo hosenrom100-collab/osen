@@ -107,7 +107,7 @@ export function SmartAssistant() {
       ] = await Promise.all([
         getDoc(doc(db, "schedules", today)),
         getDocs(query(collection(db, "patients"), where("status", "==", "active"))),
-        getDocs(query(collection(db, "attendance"), where("date", "==", today), where("status", "==", "present"))),
+        getDocs(query(collection(db, "attendance"), where("date", "==", today))),
         getDocs(query(collection(db, "shopping_requests"), where("status", "==", "pending"))),
         getDocs(query(collection(db, "shopping_requests"), where("status", "==", "purchased"), limit(20))),
         getDocs(query(collection(db, "absence_requests"), where("status", "==", "pending"))),
@@ -126,7 +126,52 @@ export function SmartAssistant() {
       }
 
       const totalActive = patientsSnap.size;
-      const totalPresent = attendanceSnap.size;
+      const attendanceMap = new Map<string, Set<string>>();
+      const presentPatientsToday = new Set<string>();
+      
+      attendanceSnap.forEach(d => {
+        const data = d.data();
+        if (!data.patientId || data.status === "unset" || !data.status) return;
+        
+        if (!attendanceMap.has(data.patientId)) {
+          attendanceMap.set(data.patientId, new Set());
+        }
+        if (data.contextId) {
+          attendanceMap.get(data.patientId)!.add(data.contextId);
+        } else {
+          attendanceMap.get(data.patientId)!.add("general");
+        }
+        
+        if (data.status === "present") {
+          presentPatientsToday.add(data.patientId);
+        }
+      });
+
+      let unmarkedCount = 0;
+      patientsSnap.forEach(d => {
+        const p = d.data();
+        const pId = d.id;
+
+        const gIds: string[] = [];
+        if (p.hosenType) gIds.push(p.hosenType);
+        if (Array.isArray(p.groupIds)) {
+          p.groupIds.forEach((id: string) => {
+            if (!gIds.includes(id)) gIds.push(id);
+          });
+        }
+
+        if (gIds.length === 0) return;
+
+        const checkedContexts = attendanceMap.get(pId);
+        if (checkedContexts?.has("general")) return;
+
+        const hasUncheckedGroup = gIds.some(gId => !checkedContexts?.has(gId));
+        if (hasUncheckedGroup) {
+          unmarkedCount++;
+        }
+      });
+
+      const presentCount = presentPatientsToday.size;
 
       const data: AppData = {
         today,
@@ -141,8 +186,8 @@ export function SmartAssistant() {
         },
         attendance: {
           totalActive,
-          totalPresent,
-          missingCount: Math.max(0, totalActive - totalPresent),
+          totalPresent: presentCount,
+          missingCount: unmarkedCount,
         },
         shopping: {
           pendingCount: shopSnap.size,
@@ -185,8 +230,8 @@ export function SmartAssistant() {
     if (!data.schedule.hasDutyInstructor && (isAdmin || isManager)) {
       newInsights.push({ id: "duty", type: "warning", text: "לא הוגדר מדריך תורן להיום", icon: Shield, actionPath: "/" });
     }
-    if (data.attendance.missingCount > 0 && data.attendance.totalPresent > 0) {
-      newInsights.push({ id: "attendance", type: "warning", text: `${data.attendance.missingCount} מטופלים נעדרים היום`, icon: Users, actionPath: "/admin/patient-attendance" });
+    if (data.attendance.missingCount > 0) {
+      newInsights.push({ id: "attendance", type: "warning", text: `${data.attendance.missingCount} משתתפים ממתינים לבדיקת נוכחות`, icon: Users, actionPath: "/admin/patient-attendance" });
     }
     if (data.shopping.pendingCount > 0) {
       newInsights.push({ id: "shopping", type: "warning", text: `${data.shopping.pendingCount} פריטי קניות ממתינים`, icon: ShoppingCart, actionPath: "/shopping" });

@@ -31,9 +31,9 @@ export default function NewPatientPage() {
             <div>
               <h1 className="text-3xl font-black tracking-tight flex items-center gap-4">
                 <Users className="w-8 h-8 text-emerald-500" />
-                יצירת מטופל חדש
+                יצירת משתתף חדש
               </h1>
-              <p className="text-sm font-bold text-[var(--foreground)]/40 uppercase tracking-widest mt-1">פתיחת תיק קליני במערכת חוסן</p>
+              <p className="text-sm font-bold text-[var(--foreground)]/40 uppercase tracking-widest mt-1">פתיחת תיק משתתף במערכת חוסן</p>
             </div>
           </header>
 

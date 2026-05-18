@@ -227,19 +227,19 @@ export default function RemindersPage() {
           ) : upcoming.length === 0 ? (
             <div className="text-center py-20 opacity-20">
               <Users className="w-8 h-8 mx-auto mb-3" />
-              <p className="text-sm font-bold">אין מטופלים המסיימים שהות ב-30 הימים הקרובים</p>
+              <p className="text-sm font-bold">אין משתתפים המסיימים שהות ב-30 הימים הקרובים</p>
             </div>
           ) : (
             <section>
               <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--muted)] mb-3">
-                כל המטופלים המסיימים בחודש הקרוב ({upcoming.length})
+                כל המשתתפים המסיימים בחודש הקרוב ({upcoming.length})
               </h2>
               <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl overflow-hidden">
                 <div className="overflow-x-auto">
                   <table className="w-full text-right border-collapse text-sm">
                     <thead>
                       <tr className="border-b border-[var(--border)] bg-[var(--foreground)]/[0.02]">
-                        {["מטופל", "סיום", "ימים נותרים", 'עו"ס', "הארכה נשלחה", "הארכה התקבלה", "פעולה"].map(h => (
+                        {["משתתף", "סיום", "ימים נותרים", 'עו"ס', "הארכה נשלחה", "הארכה התקבלה", "פעולה"].map(h => (
                           <th key={h} className="px-4 py-3 text-[10px] font-black uppercase tracking-wider text-[var(--muted)] whitespace-nowrap">{h}</th>
                         ))}
                       </tr>

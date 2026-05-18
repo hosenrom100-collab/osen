@@ -233,7 +233,7 @@ export default function PatientTrackingPage() {
         <header className="sticky top-0 z-40 bg-[var(--background)]/95 backdrop-blur-xl border-b border-[var(--border)] px-4 md:px-6">
           <div className="flex items-center gap-3 h-12">
             <div className="hidden md:flex items-center gap-1.5 text-[11px] text-[var(--muted)]">
-              <Link href="/patients" className="hover:text-[var(--foreground)] transition-colors">מטופלים</Link>
+              <Link href="/patients" className="hover:text-[var(--foreground)] transition-colors">משתתפים</Link>
               <ChevronLeft className="w-3 h-3 opacity-30 rotate-180" />
               <span className="text-[var(--foreground)]/70">מעקב ותכנון</span>
             </div>
@@ -270,7 +270,7 @@ export default function PatientTrackingPage() {
                 <div className="flex items-center gap-3 px-4 py-3 border-b border-rose-500/15">
                   <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 animate-pulse" />
                   <p className="text-sm font-black text-rose-300">
-                    נדרשת פעולה — {urgentPatients.length} מטופלים מסיימים שהות בתוך 14 יום ועדיין לא נשלחה הארכה
+                    נדרשת פעולה — {urgentPatients.length} משתתפים מסיימים שהות בתוך 14 יום ועדיין לא נשלחה הארכה
                   </p>
                 </div>
                 <div className="divide-y divide-rose-500/10">
@@ -356,7 +356,7 @@ export default function PatientTrackingPage() {
           ) : filtered.length === 0 ? (
             <div className="text-center py-20 text-[var(--muted)] text-sm">
               <Users className="w-8 h-8 mx-auto mb-2 opacity-20" />
-              אין מטופלים העונים לסינון
+              אין משתתפים העונים לסינון
             </div>
           ) : (
             <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl overflow-hidden">
@@ -365,7 +365,7 @@ export default function PatientTrackingPage() {
                   <thead>
                     <tr className="border-b border-[var(--border)] bg-[var(--foreground)]/[0.02]">
                       {[
-                        "מטופל",
+                        "משתתף",
                         "תחילה → סיום",
                         "ימים נותרים",
                         "הארכה נשלחה",

@@ -66,7 +66,7 @@ function AttendanceLogPageContent() {
         const data = doc.data();
         if (data.status === "unset") return;
         
-        const patientInfo = patientsMap[data.patientId] || { name: "מטופל לא ידוע", hosenType: "unknown" };
+        const patientInfo = patientsMap[data.patientId] || { name: "משתתף לא ידוע", hosenType: "unknown" };
         allRecords.push({
           id: doc.id,
           patientId: data.patientId,
@@ -104,7 +104,7 @@ function AttendanceLogPageContent() {
           </button>
           <div>
             <h1 className="text-xl font-bold">היסטוריית נוכחות</h1>
-            <p className="text-[10px] text-slate-500 font-medium">מעקב אחר הגעת מטופלים למרכז</p>
+            <p className="text-[10px] text-slate-500 font-medium">מעקב אחר הגעת משתתפים למרכז</p>
           </div>
         </div>
 
@@ -113,7 +113,7 @@ function AttendanceLogPageContent() {
             <Search className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
             <input
               type="text"
-              placeholder="חיפוש מטופל..."
+              placeholder="חיפוש משתתף..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full bg-white/5 border border-white/10 rounded-[1.25rem] py-3 pr-11 pl-4 text-sm focus:outline-none focus:border-blue-500 transition-all shadow-lg shadow-black/20"
