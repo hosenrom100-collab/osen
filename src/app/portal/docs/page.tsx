@@ -9,7 +9,7 @@ import {
 } from "firebase/firestore";
 import {
   FileText, Shield, BarChart3, Clock, Loader2, Download,
-  Calendar, Check, AlertCircle, Send, Info
+  Calendar, Check, AlertCircle, Send, Info, X
 } from "lucide-react";
 import { format, parseISO, addMonths } from "date-fns";
 import { he } from "date-fns/locale";
@@ -29,6 +29,11 @@ export default function DocumentsPage() {
   const [reportLoading, setReportLoading] = useState(false);
   const [selectedReportMonth, setSelectedReportMonth] = useState(format(new Date(), "yyyy-MM"));
   const [groups, setGroups] = useState<any[]>([]);
+  const [showRequestModal, setShowRequestModal] = useState(false);
+  const [reqType, setReqType] = useState<"stay" | "attendance" | "custom">("stay");
+  const [customType, setCustomType] = useState("");
+  const [requestNotes, setRequestNotes] = useState("");
+  const [requestMonth, setRequestMonth] = useState(format(new Date(), "yyyy-MM"));
   const stayReportRef = useRef<HTMLDivElement>(null);
   const attendanceReportRef = useRef<HTMLDivElement>(null);
 
@@ -103,7 +108,7 @@ export default function DocumentsPage() {
     init();
   }, [user]);
 
-  const requestDoc = async (type: "stay" | "attendance") => {
+  const requestDoc = async (type: "stay" | "attendance" | "custom", customTitle?: string, notes?: string, month?: string) => {
     if (!user || !patientData || docBusy) return;
     setDocBusy(true);
     try {
@@ -112,13 +117,22 @@ export default function DocumentsPage() {
         patientName: `${patientData.firstName} ${patientData.lastName}`,
         assignedWorkerId: patientData.assignedWorkerId || null,
         type,
-        month: type === 'attendance' ? selectedReportMonth : null,
+        customType: type === 'custom' ? (customTitle || "בקשה מיוחדת") : null,
+        notes: notes || null,
+        month: type === 'attendance' ? (month || selectedReportMonth) : null,
         status: "pending",
         createdAt: serverTimestamp(),
       });
-      alert("בקשתך נשלחה לצוות.");
-    } catch (e) { console.error(e); }
-    finally { setDocBusy(false); }
+      alert("בקשתך נשלחה לצוות בהצלחה.");
+      setShowRequestModal(false);
+      setCustomType("");
+      setRequestNotes("");
+    } catch (e) {
+      console.error(e);
+      alert("שגיאה בשליחת הבקשה.");
+    } finally {
+      setDocBusy(false);
+    }
   };
 
   const selfGenerateReport = async (type: 'stay' | 'attendance') => {
@@ -230,14 +244,18 @@ export default function DocumentsPage() {
               <h3 className="text-xl font-black mb-6 flex items-center gap-2 text-amber-500">
                 <Send className="w-6 h-6" /> בקשה מיוחדת מהצוות
               </h3>
-              <div className="grid grid-cols-2 gap-4">
-                 <button onClick={() => requestDoc("stay")} disabled={docBusy} className="flex flex-col items-center justify-center gap-3 p-6 rounded-3xl border-2 border-[var(--border)] hover:border-amber-500/30 hover:bg-amber-500/[0.02] transition-all">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                 <button onClick={() => { setReqType("stay"); setShowRequestModal(true); }} disabled={docBusy} className="flex flex-col items-center justify-center gap-3 p-6 rounded-3xl border-2 border-[var(--border)] hover:border-amber-500/30 hover:bg-amber-500/[0.02] transition-all text-center">
                     <Shield className="w-8 h-8 text-amber-500" />
-                    <span className="text-[11px] font-black">אישור חתום ידנית</span>
+                    <span className="text-[11px] font-black">אישור שהייה חתום</span>
                  </button>
-                 <button onClick={() => requestDoc("attendance")} disabled={docBusy} className="flex flex-col items-center justify-center gap-3 p-6 rounded-3xl border-2 border-[var(--border)] hover:border-amber-500/30 hover:bg-amber-500/[0.02] transition-all">
+                 <button onClick={() => { setReqType("attendance"); setShowRequestModal(true); }} disabled={docBusy} className="flex flex-col items-center justify-center gap-3 p-6 rounded-3xl border-2 border-[var(--border)] hover:border-amber-500/30 hover:bg-amber-500/[0.02] transition-all text-center">
                     <BarChart3 className="w-8 h-8 text-amber-500" />
-                    <span className="text-[11px] font-black">דו״ח היסטורי מורכב</span>
+                    <span className="text-[11px] font-black">דו״ח נוכחות מורכב</span>
+                 </button>
+                 <button onClick={() => { setReqType("custom"); setShowRequestModal(true); }} disabled={docBusy} className="flex flex-col items-center justify-center gap-3 p-6 rounded-3xl border-2 border-[var(--border)] hover:border-amber-500/30 hover:bg-amber-500/[0.02] transition-all text-center">
+                    <FileText className="w-8 h-8 text-amber-500" />
+                    <span className="text-[11px] font-black">בקשה מותאמת אישית</span>
                  </button>
               </div>
            </div>
@@ -253,15 +271,22 @@ export default function DocumentsPage() {
               <div className="space-y-4">
                  {/* Pending */}
                  {docRequests.filter(r => r.status === 'pending').map((r, i) => (
-                    <div key={i} className="bg-[var(--background)] border border-amber-500/20 rounded-2xl p-5 flex items-center justify-between animate-pulse">
-                       <div className="flex items-center gap-4">
-                          <Clock className="w-5 h-5 text-amber-500" />
+                    <div key={i} className="bg-[var(--background)] border border-amber-500/20 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-pulse">
+                       <div className="flex items-start gap-4">
+                          <Clock className="w-5 h-5 text-amber-500 mt-1 shrink-0" />
                           <div>
-                             <p className="text-sm font-black">{r.type === 'stay' ? 'אישור שהייה' : 'דו״ח נוכחות'}</p>
+                             <p className="text-sm font-black">
+                                {r.type === 'stay' ? 'אישור שהייה חתום ידנית' : r.type === 'attendance' ? `דו״ח נוכחות חודשי - ${r.month}` : (r.customType || 'בקשה מיוחדת')}
+                             </p>
                              <p className="text-[10px] text-[var(--muted)]">נשלח ב-{format(r.createdAt?.toDate() || new Date(), "dd/MM/yyyy")}</p>
+                             {r.notes && (
+                                <p className="text-xs text-amber-700/80 bg-amber-500/5 border border-amber-500/10 rounded-lg p-2.5 mt-2 font-medium">
+                                   הערה: {r.notes}
+                                </p>
+                             )}
                           </div>
                        </div>
-                       <span className="text-[10px] font-black bg-amber-500/10 text-amber-500 px-3 py-1.5 rounded-full">בטיפול צוות</span>
+                       <span className="text-[10px] font-black bg-amber-500/10 text-amber-500 px-3 py-1.5 rounded-full self-start sm:self-center shrink-0">בטיפול צוות</span>
                     </div>
                  ))}
 
@@ -463,6 +488,114 @@ export default function DocumentsPage() {
           </div>
         </div>
       )}
+
+      <AnimatePresence>
+        {showRequestModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowRequestModal(false)}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-lg bg-[var(--surface)] border border-[var(--border)] rounded-[2.5rem] shadow-2xl overflow-hidden p-8 z-10"
+            >
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-500">
+                    {reqType === 'stay' ? <Shield className="w-5 h-5" /> : reqType === 'attendance' ? <BarChart3 className="w-5 h-5" /> : <FileText className="w-5 h-5" />}
+                  </div>
+                  <div>
+                    <h3 className="text-base font-black">בקשת מסמך חדשה</h3>
+                    <p className="text-[10px] text-[var(--muted)] font-bold uppercase tracking-wider">
+                      {reqType === 'stay' ? 'אישור שהייה חתום ידנית' : reqType === 'attendance' ? 'דו״ח נוכחות חודשי מורכב' : 'בקשה מותאמת אישית'}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowRequestModal(false)}
+                  className="p-2 hover:bg-[var(--foreground)]/5 rounded-xl transition-all"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                {reqType === 'custom' && (
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black uppercase tracking-wider text-[var(--muted)]">סוג המסמך המבוקש</label>
+                    <input
+                      type="text"
+                      value={customType}
+                      onChange={(e) => setCustomType(e.target.value)}
+                      placeholder="לדוגמה: מכתב סיכום טיפול, אישור מיוחד לביטוח לאומי"
+                      className="w-full bg-[var(--background)] border border-[var(--border)] rounded-2xl px-4 py-3 text-xs outline-none focus:border-amber-500 transition-all font-bold"
+                    />
+                  </div>
+                )}
+
+                {reqType === 'attendance' && (
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black uppercase tracking-wider text-[var(--muted)]">בחר חודש עבור הדו״ח</label>
+                    <select
+                      value={requestMonth}
+                      onChange={(e) => setRequestMonth(e.target.value)}
+                      className="w-full bg-[var(--background)] border border-[var(--border)] rounded-2xl px-4 py-3 text-xs outline-none focus:border-amber-500 transition-all font-bold cursor-pointer"
+                    >
+                      {(() => {
+                        const options = [];
+                        for (let i = 0; i < 12; i++) {
+                          const date = addMonths(new Date(), -i);
+                          const val = format(date, "yyyy-MM");
+                          options.push(
+                            <option key={val} value={val}>
+                              {format(date, "MMMM yyyy", { locale: he })}
+                            </option>
+                          );
+                        }
+                        return options;
+                      })()}
+                    </select>
+                  </div>
+                )}
+
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black uppercase tracking-wider text-[var(--muted)]">הערות או פרטים מיוחדים (אופציונלי)</label>
+                  <textarea
+                    value={requestNotes}
+                    onChange={(e) => setRequestNotes(e.target.value)}
+                    placeholder="פרט כאן כל מידע או הנחיה מיוחדת עבור הצוות לגבי הפקת המסמך..."
+                    rows={4}
+                    className="w-full bg-[var(--background)] border border-[var(--border)] rounded-2xl px-4 py-3 text-xs outline-none focus:border-amber-500 transition-all font-medium leading-relaxed resize-none"
+                  />
+                </div>
+
+                <div className="pt-2 flex gap-3">
+                  <button
+                    onClick={() => requestDoc(reqType, customType, requestNotes, requestMonth)}
+                    disabled={docBusy || (reqType === 'custom' && !customType.trim())}
+                    className="flex-1 bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white py-3.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+                  >
+                    {docBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                    שלח בקשה לצוות
+                  </button>
+                  <button
+                    onClick={() => setShowRequestModal(false)}
+                    className="flex-1 bg-[var(--background)] hover:bg-[var(--foreground)]/5 border border-[var(--border)] py-3.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all"
+                  >
+                    ביטול
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

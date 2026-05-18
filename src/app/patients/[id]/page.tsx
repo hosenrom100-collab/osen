@@ -13,7 +13,7 @@ import {
   Calendar, Loader2, Shield,
   Edit3, CheckCircle, CheckCircle2,
   AlertCircle, ChevronLeft, Printer, Download, FileText,
-  X, Check, Info, History, Send, Bell, MessageCircle,
+  X, Check, Info, History, Send, Bell, MessageCircle, Upload
 } from "lucide-react";
 import { useRouter, useParams, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
@@ -209,7 +209,11 @@ export default function PatientDetailPage() {
     if (!patient || !reportRef.current) return;
     setReportLoading(true);
     try {
-      const docTitle = request.type === 'stay' ? 'אישור שהייה' : `דו״ח נוכחות - ${request.month || format(new Date(), "MM/yyyy")}`;
+      const docTitle = request.type === 'stay' 
+        ? 'אישור שהייה' 
+        : request.type === 'attendance' 
+          ? `דו״ח נוכחות - ${request.month || format(new Date(), "MM/yyyy")}` 
+          : (request.customType || 'בקשה מיוחדת');
 
       // Generate PDF from the hidden template
       await new Promise(r => setTimeout(r, 100));
@@ -277,6 +281,71 @@ export default function PatientDetailPage() {
       console.error(e);
       alert("שגיאה בהפקת המסמך");
     } finally { setReportLoading(false); }
+  };
+
+  const handleUploadCustomDoc = async (request: any, file: File) => {
+    if (!patient) return;
+    setReportLoading(true);
+    try {
+      const docTitle = request.type === 'stay' 
+        ? 'אישור שהייה' 
+        : request.type === 'attendance' 
+          ? `דו״ח נוכחות - ${request.month || format(new Date(), "MM/yyyy")}` 
+          : (request.customType || 'בקשה מיוחדת');
+
+      const storageRef = ref(storage, `documents/${patient.id}/${Date.now()}_${file.name}`);
+      await uploadBytes(storageRef, file, { contentType: file.type });
+      const downloadUrl = await getDownloadURL(storageRef);
+
+      const newDocRef = doc(collection(db, "documents"));
+      await setDoc(newDocRef, {
+        patientId: patient.id,
+        title: docTitle,
+        type: request.type,
+        url: downloadUrl,
+        createdAt: serverTimestamp(),
+        processedBy: authUser?.uid,
+      });
+
+      await updateDoc(doc(db, "document_requests", request.id), {
+        status: "completed",
+        processedAt: serverTimestamp(),
+        documentId: newDocRef.id,
+      });
+
+      if (participantUid) {
+        await setDoc(doc(collection(db, "notifications")), {
+          title: 'מסמך מוכן להורדה',
+          body: `${docTitle} הועלה עבורך ומוכן לצפייה באיזור האישי שלך`,
+          recipientIds: [participantUid],
+          senderId: authUser?.uid,
+          createdAt: serverTimestamp(),
+          readBy: [],
+          type: 'chat',
+          link: '/portal',
+        });
+
+        fetch('/api/notify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title: 'מסמך מוכן להורדה',
+            body: `${docTitle} הועלה עבורך ומוכן לצפייה באיזור האישי שלך`,
+            userId: participantUid,
+            link: '/portal',
+            skipDb: true
+          }),
+        }).catch(console.error);
+      }
+
+      alert("הקובץ הועלה ונשלח למשתתף בהצלחה!");
+      fetchPatientData();
+    } catch (e) {
+      console.error(e);
+      alert("שגיאה בהעלאת הקובץ");
+    } finally {
+      setReportLoading(false);
+    }
   };
 
   function effectiveEndDate(p: Patient): Date | null {
@@ -778,31 +847,55 @@ export default function PatientDetailPage() {
                           <p className="text-xs text-slate-400 font-bold italic">אין בקשות פתוחות כרגע</p>
                         </div>
                       ) : (
-                        docRequests.filter(r => r.status === 'pending').map((req) => (
-                          <div key={req.id} className="flex items-center justify-between p-5 bg-amber-50/30 border border-amber-500/10 rounded-2xl">
-                             <div className="flex items-center gap-4">
-                                <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-600">
-                                  {req.type === 'stay' ? <Shield className="w-5 h-5" /> : <FileText className="w-5 h-5" />}
-                                </div>
-                                <div>
-                                  <p className="text-sm font-black text-slate-900">
-                                    {req.type === 'stay' ? 'אישור שהייה' : `דו״ח נוכחות חודשי - ${req.month}`}
-                                  </p>
-                                  <p className="text-[10px] text-slate-500 font-bold">
-                                    התבקש ב-{req.createdAt?.toDate ? format(req.createdAt.toDate(), "dd/MM/yyyy HH:mm") : "עכשיו"}
-                                  </p>
-                                </div>
-                             </div>
-                             <button 
-                               onClick={() => handleProcessRequest(req)}
-                               disabled={reportLoading}
-                               className="flex items-center gap-2 bg-slate-900 text-white px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all hover:bg-slate-800 active:scale-95 disabled:opacity-50"
-                             >
-                               {reportLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle className="w-3.5 h-3.5" />}
-                               הנפק ושלח
-                             </button>
-                          </div>
-                        ))
+                                                 docRequests.filter(r => r.status === 'pending').map((req) => (
+                           <div key={req.id} className="flex flex-col md:flex-row md:items-center justify-between p-6 bg-amber-50/20 border border-amber-500/10 rounded-3xl gap-4">
+                              <div className="flex items-start gap-4">
+                                 <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-600 shrink-0 mt-0.5">
+                                   {req.type === 'stay' ? <Shield className="w-5 h-5" /> : req.type === 'attendance' ? <Printer className="w-5 h-5" /> : <FileText className="w-5 h-5" />}
+                                 </div>
+                                 <div>
+                                   <p className="text-sm font-black text-slate-900">
+                                     {req.type === 'stay' ? 'אישור שהייה' : req.type === 'attendance' ? `דו״ח נוכחות חודשי - ${req.month}` : (req.customType || 'בקשה מיוחדת')}
+                                   </p>
+                                   <p className="text-[10px] text-slate-400 font-bold uppercase mt-0.5">
+                                     התבקש ב-{req.createdAt?.toDate ? format(req.createdAt.toDate(), "dd/MM/yyyy HH:mm") : "עכשיו"}
+                                   </p>
+                                   {req.notes && (
+                                     <p className="text-xs text-amber-800 bg-amber-500/5 border border-amber-500/10 rounded-xl p-3 mt-3 font-medium leading-relaxed">
+                                        הערת משתתף: {req.notes}
+                                     </p>
+                                   )}
+                                 </div>
+                              </div>
+
+                              <div className="flex flex-wrap items-center gap-2 shrink-0 self-end md:self-center">
+                                 {req.type !== 'custom' && (
+                                    <button 
+                                      onClick={() => handleProcessRequest(req)}
+                                      disabled={reportLoading}
+                                      className="flex items-center gap-2 bg-slate-900 text-white px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all hover:bg-slate-800 active:scale-95 disabled:opacity-50"
+                                    >
+                                      {reportLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle className="w-3.5 h-3.5" />}
+                                      הפק אוטומטית
+                                    </button>
+                                 )}
+                                 
+                                 <label className="flex items-center gap-2 bg-emerald-500 text-white px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all hover:bg-emerald-600 active:scale-95 cursor-pointer shadow-lg shadow-emerald-500/10">
+                                    <Upload className="w-3.5 h-3.5" />
+                                    העלה קובץ ידנית
+                                    <input 
+                                      type="file"
+                                      accept="application/pdf,image/*"
+                                      className="hidden"
+                                      onChange={(e) => {
+                                        const file = e.target.files?.[0];
+                                        if (file) handleUploadCustomDoc(req, file);
+                                      }}
+                                    />
+                                 </label>
+                              </div>
+                           </div>
+                         ))
                       )}
                    </div>
                 </div>

@@ -15,6 +15,9 @@
   --color-border-hi:    rgba(255, 255, 255, 0.15);
   --color-sidebar:      #020617;
 
+  /* Font family tokens */
+  --font-sans:          var(--font-assistant), var(--font-inter), sans-serif;
+
   /* Text tokens */
   --color-foreground:   #f8fafc;
   --color-muted:        #94a3b8;
@@ -62,41 +65,41 @@
 .light {
   color-scheme: light;
 
-  /* Curated Professional Light Palette */
-  --color-background:  #fcfdfd;
+  /* Curated Professional Light Palette matching the screenshot */
+  --color-background:  #F4F6F9;
   --color-surface:     #ffffff;
-  --color-surface-hi:  #f8fafc;
-  --color-card:        rgba(255, 255, 255, 0.8);
-  --color-border:      rgba(15, 23, 42, 0.08);
-  --color-border-hi:   rgba(15, 23, 42, 0.12);
+  --color-surface-hi:  #F4F6F9;
+  --color-card:        #ffffff;
+  --color-border:      rgba(0, 85, 212, 0.06);
+  --color-border-hi:   rgba(0, 85, 212, 0.12);
   --color-sidebar:     #ffffff;
-  --color-foreground:  #0f172a;
-  --color-muted:       #475569;
-  --color-subtle:      #94a3b8;
-  --color-primary:     #0284c7;
-  --color-primary-faint: #f0f9ff;
+  --color-foreground:  #002244;
+  --color-muted:       #53687E;
+  --color-subtle:      #8FA0B3;
+  --color-primary:     #0055D4;
+  --color-primary-faint: #EBF3FF;
 
   /* CSS Variable Fallbacks */
-  --background:      #fcfdfd;
+  --background:      #F4F6F9;
   --surface:         #ffffff;
-  --surface-raised:  #f8fafc;
-  --card-bg:         rgba(255, 255, 255, 0.9);
-  --card-pattern:    repeating-linear-gradient(45deg, transparent, transparent 20px, rgba(15, 23, 42, 0.01) 20px, rgba(15, 23, 42, 0.01) 40px);
+  --surface-raised:  #F4F6F9;
+  --card-bg:         #ffffff;
+  --card-pattern:    none;
   --sidebar-bg:      #ffffff;
 
-  --border:          rgba(15, 23, 42, 0.08);
-  --border-strong:   rgba(15, 23, 42, 0.15);
-  --border-subtle:   rgba(15, 23, 42, 0.04);
+  --border:          rgba(0, 85, 212, 0.06);
+  --border-strong:   rgba(0, 85, 212, 0.12);
+  --border-subtle:   rgba(0, 85, 212, 0.03);
 
-  --foreground:      #0f172a;
-  --text-secondary:  #475569;
-  --text-muted:      #94a3b8;
+  --foreground:      #002244;
+  --text-secondary:  #53687E;
+  --text-muted:      #8FA0B3;
 
-  --primary:         #0284c7;
-  --primary-rgb:     2, 132, 199;
-  --primary-faint:   rgba(2, 132, 199, 0.05);
+  --primary:         #0055D4;
+  --primary-rgb:     0, 85, 212;
+  --primary-faint:   #EBF3FF;
 
-  --scrollbar-track: #f8fafc;
+  --scrollbar-track: #F4F6F9;
   --scrollbar-thumb: #cbd5e1;
 }
 

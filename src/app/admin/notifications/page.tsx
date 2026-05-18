@@ -49,10 +49,13 @@ interface DocRequest {
   id: string;
   patientId: string;
   patientName?: string;
-  type: 'stay' | 'attendance';
+  type: 'stay' | 'attendance' | 'custom';
   status: 'pending' | 'completed';
   createdAt: any;
   assignedWorkerId?: string;
+  month?: string;
+  customType?: string;
+  notes?: string;
 }
 
 interface UserSummary {
@@ -582,17 +585,27 @@ export default function AdminNotificationsPage() {
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {docRequests.map(req => (
-                      <div key={req.id} className="bg-[var(--surface)] border border-[var(--border)] rounded-[2.5rem] p-6 hover:border-teal-500/30 transition-all group">
-                        <div className="flex items-start justify-between mb-4">
-                          <div className="w-12 h-12 rounded-2xl bg-teal-500/10 text-teal-500 flex items-center justify-center">
-                            {req.type === 'stay' ? <Shield className="w-6 h-6" /> : <BarChart3 className="w-6 h-6" />}
+                      <div key={req.id} className="bg-[var(--surface)] border border-[var(--border)] rounded-[2.5rem] p-6 hover:border-teal-500/30 transition-all group flex flex-col justify-between min-h-[220px]">
+                        <div>
+                          <div className="flex items-start justify-between mb-4">
+                            <div className="w-12 h-12 rounded-2xl bg-teal-500/10 text-teal-500 flex items-center justify-center">
+                              {req.type === 'stay' ? <Shield className="w-6 h-6" /> : req.type === 'attendance' ? <BarChart3 className="w-6 h-6" /> : <FileText className="w-6 h-6" />}
+                            </div>
+                            <span className="text-[8px] font-black uppercase tracking-widest text-teal-500 bg-teal-500/10 px-3 py-1 rounded-full border border-teal-500/10">
+                              {req.type === 'stay' ? 'אישור שהייה' : req.type === 'attendance' ? 'דו״ח נוכחות' : 'בקשה מיוחדת'}
+                            </span>
                           </div>
-                          <span className="text-[8px] font-black uppercase tracking-widest text-teal-500 bg-teal-500/10 px-3 py-1 rounded-full border border-teal-500/10">
-                            {req.type === 'stay' ? 'אישור שהייה' : 'דו״ח נוכחות'}
-                          </span>
+                          <h3 className="text-sm font-black mb-1">{req.patientName || "משתתף"}</h3>
+                          <p className="text-xs font-bold text-teal-600 mb-1">
+                            {req.type === 'stay' ? 'אישור שהייה חתום ידנית' : req.type === 'attendance' ? `דו״ח נוכחות - ${req.month}` : (req.customType || 'בקשה מיוחדת')}
+                          </p>
+                          <p className="text-[10px] text-[var(--muted)] mb-3 flex items-center gap-1"><Clock className="w-3 h-3" /> {req.createdAt?.toDate ? format(req.createdAt.toDate(), "dd/MM HH:mm") : "—"}</p>
+                          {req.notes && (
+                            <p className="text-xs text-amber-700 bg-amber-500/5 border border-amber-500/10 rounded-xl p-3 mb-4 leading-relaxed font-medium">
+                              הערת משתתף: {req.notes}
+                            </p>
+                          )}
                         </div>
-                        <h3 className="text-sm font-black mb-1">{req.patientName || "משתתף"}</h3>
-                        <p className="text-[10px] text-[var(--muted)] mb-4 flex items-center gap-1"><Clock className="w-3 h-3" /> {req.createdAt?.toDate ? format(req.createdAt.toDate(), "dd/MM HH:mm") : "—"}</p>
                         <button 
                           onClick={() => router.push(`/patients/${req.patientId}?tab=reports`)}
                           className="w-full py-3 bg-[var(--foreground)]/5 hover:bg-teal-500 hover:text-white rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all"

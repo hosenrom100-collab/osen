@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Inter, Assistant } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/context/AuthContext";
 import { BottomNav } from "@/components/navigation/BottomNav";
@@ -12,6 +12,12 @@ import { SmartAssistant } from "@/components/ai/SmartAssistant";
 const inter = Inter({
   subsets: ["latin"],
   variable: "--font-inter",
+});
+
+const assistant = Assistant({
+  subsets: ["hebrew", "latin"],
+  variable: "--font-assistant",
+  weight: ["300", "400", "500", "600", "700", "800"],
 });
 
 export const metadata: Metadata = {
@@ -34,8 +40,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="he" dir="rtl">
-      <body className={`${inter.variable} font-sans antialiased`}>
+    <html lang="he" dir="rtl" suppressHydrationWarning>
+      <body className={`${assistant.variable} ${inter.variable} font-sans antialiased`}>
         <AuthProvider>
           <SettingsProvider>
             <PushNotificationManager />
