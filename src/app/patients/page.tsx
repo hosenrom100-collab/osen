@@ -405,21 +405,21 @@ export default function PatientsPage() {
               <p className="text-lg font-bold italic">לא נמצאו משתתפים העונים לחיפוש</p>
             </div>
           ) : viewMode === "table" ? (
-            <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl overflow-hidden">
-              <div className="overflow-x-auto no-scrollbar">
+            <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl overflow-hidden shadow-sm">
+              <div className="overflow-x-auto overflow-y-auto max-h-[calc(100vh-240px)] no-scrollbar">
                 <table className="w-full text-right border-collapse">
                   <thead>
-                    <tr className="bg-[var(--foreground)]/5 border-b border-[var(--border)]">
-                      <th className="px-6 py-4 text-[9px] font-black uppercase tracking-widest text-[var(--muted)]">משתתף</th>
-                      <th className="px-6 py-4 text-[9px] font-black uppercase tracking-widest text-[var(--muted)]">תעודת זהות</th>
-                      <th className="px-6 py-4 text-[9px] font-black uppercase tracking-widest text-[var(--muted)]">עו"ס מלווה</th>
-                      <th className="px-6 py-4 text-[9px] font-black uppercase tracking-widest text-[var(--muted)]">תוכנית</th>
-                      <th className="px-6 py-4 text-[9px] font-black uppercase tracking-widest text-[var(--muted)]">תאריך התחלה</th>
-                      <th className="px-6 py-4 text-[9px] font-black uppercase tracking-widest text-[var(--muted)]">תאריך סיום</th>
-                      <th className="px-6 py-4 text-[9px] font-black uppercase tracking-widest text-[var(--muted)] text-center">הוגשה הארכה</th>
-                      <th className="px-6 py-4 text-[9px] font-black uppercase tracking-widest text-[var(--muted)] text-center">התקבלה הארכה</th>
-                      <th className="px-6 py-4 text-[9px] font-black uppercase tracking-widest text-[var(--muted)]">סטטוס</th>
-                      <th className="px-6 py-4 text-[9px] font-black uppercase tracking-widest text-[var(--muted)] w-16"></th>
+                    <tr className="border-b border-[var(--border)]">
+                      <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-6 py-4 text-[9px] font-black uppercase tracking-widest text-[var(--muted)] z-10 shadow-[inset_0_-1px_0_var(--border)]">משתתף</th>
+                      <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-6 py-4 text-[9px] font-black uppercase tracking-widest text-[var(--muted)] z-10 shadow-[inset_0_-1px_0_var(--border)]">תעודת זהות</th>
+                      <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-6 py-4 text-[9px] font-black uppercase tracking-widest text-[var(--muted)] z-10 shadow-[inset_0_-1px_0_var(--border)]">עו"ס מלווה</th>
+                      <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-6 py-4 text-[9px] font-black uppercase tracking-widest text-[var(--muted)] z-10 shadow-[inset_0_-1px_0_var(--border)]">תוכנית</th>
+                      <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-6 py-4 text-[9px] font-black uppercase tracking-widest text-[var(--muted)] z-10 shadow-[inset_0_-1px_0_var(--border)]">תאריך התחלה</th>
+                      <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-6 py-4 text-[9px] font-black uppercase tracking-widest text-[var(--muted)] z-10 shadow-[inset_0_-1px_0_var(--border)]">תאריך סיום</th>
+                      <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-6 py-4 text-[9px] font-black uppercase tracking-widest text-[var(--muted)] text-center z-10 shadow-[inset_0_-1px_0_var(--border)]">הוגשה הארכה</th>
+                      <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-6 py-4 text-[9px] font-black uppercase tracking-widest text-[var(--muted)] text-center z-10 shadow-[inset_0_-1px_0_var(--border)]">התקבלה הארכה</th>
+                      <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-6 py-4 text-[9px] font-black uppercase tracking-widest text-[var(--muted)] z-10 shadow-[inset_0_-1px_0_var(--border)]">סטטוס</th>
+                      <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-6 py-4 text-[9px] font-black uppercase tracking-widest text-[var(--muted)] w-16 z-10 shadow-[inset_0_-1px_0_var(--border)]"></th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[var(--border)]">
