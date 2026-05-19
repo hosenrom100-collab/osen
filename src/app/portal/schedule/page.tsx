@@ -29,6 +29,7 @@ export default function SchedulePage() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
   const [locations, setLocations] = useState<any[]>([]);
+  const [dutyName, setDutyName] = useState<string>("");
 
   const today = format(new Date(), "yyyy-MM-dd");
   const todayLabel = format(new Date(), "EEEE, d בMMMM", { locale: he });
@@ -41,11 +42,25 @@ export default function SchedulePage() {
       const lSnap = await getDocs(collection(db, "locations"));
       setLocations(lSnap.docs.map(d => ({ id: d.id, ...(d.data() as any) })));
 
-      return onSnapshot(doc(db, "schedules", today), (snap) => {
+      return onSnapshot(doc(db, "schedules", today), async (snap) => {
         if (snap.exists()) {
           const data = snap.data();
           setActivities((data.activities || []) as Activity[]);
           setSignups((data.signups || {}) as Record<string, string[]>);
+          
+          const dId = data.dutyInstructorId || data.dutyId;
+          if (dId) {
+            const uDoc = await getDoc(doc(db, "users", dId));
+            if (uDoc.exists()) {
+              setDutyName(uDoc.data()?.name || "מדריך");
+            } else {
+              setDutyName("");
+            }
+          } else {
+            setDutyName("");
+          }
+        } else {
+          setDutyName("");
         }
         setLoading(false);
       });
@@ -89,9 +104,17 @@ export default function SchedulePage() {
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
           <h2 className="text-3xl font-black mb-2">לוח פעילויות</h2>
-          <p className="text-[var(--muted)] flex items-center gap-2">
-            <Calendar className="w-4 h-4 text-teal-500" /> {todayLabel}
-          </p>
+          <div className="flex flex-wrap items-center gap-3">
+            <p className="text-[var(--muted)] flex items-center gap-2 text-sm">
+              <Calendar className="w-4 h-4 text-teal-500" /> {todayLabel}
+            </p>
+            {dutyName && (
+              <span className="flex items-center gap-1.5 text-[10px] font-black text-rose-500 bg-rose-500/10 rounded-lg border border-rose-500/20 px-2.5 py-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0" />
+                מדריך תורן: {dutyName}
+              </span>
+            )}
+          </div>
         </div>
         {myActivities.length > 0 && (
            <div className="bg-teal-500/10 border border-teal-500/20 px-4 py-2 rounded-2xl">

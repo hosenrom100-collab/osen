@@ -127,7 +127,8 @@ export default function Home() {
   const [expandedGroups,  setExpandedGroups]  = useState<Set<string>>(new Set());
   const [showGroupPicker, setShowGroupPicker] = useState(false);
   const [dataLoaded,      setDataLoaded]      = useState(false);
-  const [expiringCount,   setExpiringCount]   = useState(0);
+  const [expiring3mCount, setExpiring3mCount] = useState(0);
+  const [expiring6mCount, setExpiring6mCount] = useState(0);
   const [userAbsence,     setUserAbsence]     = useState<any[]>([]);
   const [pendingAbsences, setPendingAbsences] = useState<number>(0);
   const [recentNotifications, setRecentNotifications] = useState<any[]>([]);
@@ -175,7 +176,8 @@ export default function Home() {
       groupList.forEach(g => statMap.set(g.id, { ...g, present: 0, absent: 0, total: 0 }));
 
       const present: PresentPat[] = [];
-      let expiring = 0;
+      let expiring3m = 0;
+      let expiring6m = 0;
       pSnap.forEach(d => {
         const p   = d.data();
         const pId = d.id;
@@ -236,16 +238,33 @@ export default function Home() {
           }
         });
         try {
-          const endStr = p.endDate || (p.startDate ? format(addMonths(parseISO(p.startDate), 3), "yyyy-MM-dd") : null);
-          if (endStr && isValid(parseISO(endStr))) {
-            const days = differenceInDays(parseISO(endStr), new Date());
-            if (days >= 0 && days <= 30) expiring++;
+          if (p.startDate) {
+            const start = parseISO(p.startDate);
+            const end3m = addMonths(start, 3);
+            let end6m = p.endDate ? parseISO(p.endDate) : addMonths(start, 6);
+
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            const diffDays3m = differenceInDays(end3m, today);
+            const diffDays6m = differenceInDays(end6m, today);
+
+            if (p.extensionReceived) {
+              if (diffDays6m <= 14) {
+                expiring6m++;
+              }
+            } else {
+              if (diffDays3m <= 14) {
+                expiring3m++;
+              }
+            }
           }
         } catch { /* ignore */ }
       });
       setStats([...statMap.values()]);
       setPresentPatients(present);
-      setExpiringCount(expiring);
+      setExpiring3mCount(expiring3m);
+      setExpiring6mCount(expiring6m);
 
       // 3. Logistics & Absences
       const [shopSnap, myAbsSnap, allAbsSnap] = await Promise.all([
@@ -496,16 +515,29 @@ export default function Home() {
                   </div>
                 </motion.div>
               )}
-              {expiringCount > 0 && (
+              {(expiring3mCount > 0 || expiring6mCount > 0) && (
                 <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
                   className="bg-blue-500/5 border border-blue-500/10 rounded-2xl p-3 flex gap-3 items-center cursor-pointer hover:bg-blue-500/10 transition-all group"
                   onClick={() => router.push("/patients")}>
                   <div className="w-9 h-9 rounded-xl bg-blue-500/10 flex items-center justify-center shrink-0 border border-blue-500/20 group-hover:bg-blue-500/20 transition-all">
                     <Shield className="w-4 h-4 text-blue-400" />
                   </div>
-                  <div className="min-w-0">
-                    <p className="text-[11px] font-black text-[var(--foreground)]">חידוש תוכניות</p>
-                    <p className="text-[10px] text-[var(--foreground)]/40 font-bold truncate">{expiringCount} משתתפים לקראת סיום</p>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[11px] font-black text-[var(--foreground)]">הארכת תוכניות</p>
+                    <div className="flex flex-col gap-0.5 mt-0.5 text-[9px] font-bold text-[var(--foreground)]/50">
+                      {expiring3mCount > 0 && (
+                        <span className="flex items-center gap-1 text-amber-500">
+                          <span className="w-1 h-1 rounded-full bg-amber-500 shrink-0" />
+                          מסיים 3 חודשים: {expiring3mCount} משתתפים
+                        </span>
+                      )}
+                      {expiring6mCount > 0 && (
+                        <span className="flex items-center gap-1 text-rose-500">
+                          <span className="w-1 h-1 rounded-full bg-rose-500 shrink-0" />
+                          מסיים חצי שנה (פרידה): {expiring6mCount} משתתפים
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </motion.div>
               )}
@@ -579,18 +611,18 @@ export default function Home() {
                         <X className="w-3.5 h-3.5" />
                       </button>
                     </div>
-                  ) : dutyName ? (
+                  ) : (
                     <button
+                      disabled={!(isAdmin || isManager)}
                       onClick={() => (isAdmin || isManager) && setIsEditingDuty(true)}
-                      className="flex items-center gap-1.5 text-[10px] font-black text-rose-500 bg-rose-500/10 rounded-lg border border-rose-500/20 px-2.5 py-1 transition-all active:scale-[0.98]"
+                      className={`flex items-center gap-1.5 text-[10px] font-black rounded-lg border px-2.5 py-1 transition-all ${
+                        dutyName 
+                          ? 'text-rose-500 bg-rose-500/10 border-rose-500/20 active:scale-[0.98]'
+                          : 'text-[var(--muted)] bg-[var(--foreground)]/[0.03] border-[var(--border)] hover:text-rose-500 hover:border-rose-500/20 transition-colors'
+                      } ${!(isAdmin || isManager) ? 'cursor-default' : 'active:scale-[0.98]'}`}
                     >
-                      <span className="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0" />
-                      תורן: {dutyName}
-                    </button>
-                  ) : (isAdmin || isManager) && (
-                    <button onClick={() => setIsEditingDuty(true)}
-                      className="text-[10px] text-[var(--muted)] font-bold hover:text-rose-500 flex items-center gap-1 transition-colors">
-                      <Plus className="w-3 h-3" />הגדר מדריך תורן
+                      <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${dutyName ? 'bg-rose-500' : 'bg-[var(--muted)]/40'}`} />
+                      תורן: {dutyName || "טרם נקבע"}
                     </button>
                   )}
 

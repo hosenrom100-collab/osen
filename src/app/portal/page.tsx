@@ -41,6 +41,7 @@ export default function PortalDashboard() {
   const [docRequests, setDocRequests] = useState<any[]>([]);
   const [showRenewalPrompt, setShowRenewalPrompt] = useState(false);
   const [renewalBusy, setRenewalBusy] = useState(false);
+  const [dutyName, setDutyName] = useState<string>("");
 
   const today = format(new Date(), "yyyy-MM-dd");
   const myGroupId = assignedGroups[0] ?? null;
@@ -91,10 +92,25 @@ export default function PortalDashboard() {
         );
 
         // Today's schedule
-        const unsubSched = onSnapshot(doc(db, "schedules", today), (snap) => {
+        const unsubSched = onSnapshot(doc(db, "schedules", today), async (snap) => {
           if (snap.exists()) {
-            const acts = (snap.data().activities || []) as Activity[];
+            const data = snap.data();
+            const acts = (data.activities || []) as Activity[];
             setActivities(acts.filter(a => a.groupId === myGroupId || a.groupId === "all").slice(0, 3));
+            
+            const dId = data.dutyInstructorId || data.dutyId;
+            if (dId) {
+              const uDoc = await getDoc(doc(db, "users", dId));
+              if (uDoc.exists()) {
+                setDutyName(uDoc.data()?.name || "מדריך");
+              } else {
+                setDutyName("");
+              }
+            } else {
+              setDutyName("");
+            }
+          } else {
+            setDutyName("");
           }
           setLoading(false);
         }, (err) => {
@@ -428,7 +444,15 @@ export default function PortalDashboard() {
 
             {/* C: Ongoing Treatment ("להמשך טיפול") */}
             <div className="space-y-2.5">
-              <h3 className="text-[14.5px] font-black text-[#002244] px-1">סדר היום והמשך טיפול</h3>
+              <div className="flex items-center justify-between px-1">
+                <h3 className="text-[14.5px] font-black text-[#002244]">סדר היום והמשך טיפול</h3>
+                {dutyName && (
+                  <span className="flex items-center gap-1.5 text-[10px] font-black text-rose-500 bg-rose-500/10 rounded-lg border border-rose-500/20 px-2.5 py-1 animate-pulse">
+                    <span className="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0" />
+                    תורן היום: {dutyName}
+                  </span>
+                )}
+              </div>
               <div className="space-y-3">
                 {activities.length > 0 ? (
                   activities.map((a) => (

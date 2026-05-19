@@ -425,14 +425,17 @@ export default function PatientsPage() {
                   <tbody className="divide-y divide-[var(--border)]">
                     {filtered.map((p) => {
                       const daysLeft = getDaysRemaining(p);
-                      const needsExtension = p.status === 'active' && daysLeft !== null && daysLeft <= 14 && !p.extensionReceived;
+                      const isExpiring3m = p.status === 'active' && daysLeft !== null && daysLeft <= 14 && !p.extensionReceived;
+                      const isExpiring6m = p.status === 'active' && daysLeft !== null && daysLeft <= 14 && p.extensionReceived;
 
                       return (
                         <tr 
                           key={p.id} 
                           onClick={() => router.push(`/patients/${p.id}`)}
                           className={`transition-colors cursor-pointer group ${
-                            needsExtension 
+                            isExpiring6m 
+                              ? 'bg-rose-500/5 hover:bg-rose-500/10 border-r-4 border-r-rose-500'
+                              : isExpiring3m
                               ? 'bg-amber-500/5 hover:bg-amber-500/10 border-r-4 border-r-amber-500' 
                               : 'hover:bg-[var(--foreground)]/[0.02]'
                           }`}
@@ -440,20 +443,26 @@ export default function PatientsPage() {
                           <td className="px-6 py-5">
                             <div className="flex items-center gap-3">
                               <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-xs shrink-0 ${
-                                needsExtension ? 'bg-amber-500/20 text-amber-600' : 'bg-emerald-500/10 text-emerald-600'
+                                isExpiring6m ? 'bg-rose-500/20 text-rose-600' : isExpiring3m ? 'bg-amber-500/20 text-amber-600' : 'bg-emerald-500/10 text-emerald-600'
                               }`}>
                                 {p.firstName?.[0]}{p.lastName?.[0]}
                               </div>
                               <div className="flex flex-col gap-0.5">
                                 <span className={`font-black text-sm transition-colors ${
-                                  needsExtension ? 'text-amber-700 group-hover:text-amber-800' : 'group-hover:text-emerald-500'
+                                  isExpiring6m ? 'text-rose-700 group-hover:text-rose-800' : isExpiring3m ? 'text-amber-700 group-hover:text-amber-800' : 'group-hover:text-emerald-500'
                                 }`}>
                                   {p.firstName} {p.lastName}
                                 </span>
-                                {needsExtension && (
+                                {isExpiring3m && (
                                   <span className="flex items-center gap-1 text-[9px] font-black text-amber-600 bg-amber-500/10 px-1.5 py-0.5 rounded-md whitespace-nowrap w-fit">
                                     <AlertCircle className="w-2.5 h-2.5" />
-                                    {daysLeft < 0 ? 'עבר זמנה!' : `נדרשת הארכה (נותרו ${daysLeft} ימים)`}
+                                    {daysLeft < 0 ? 'עבר 3 חודשים!' : `מסיים 3 חודשים (נותרו ${daysLeft} ימים)`}
+                                  </span>
+                                )}
+                                {isExpiring6m && (
+                                  <span className="flex items-center gap-1 text-[9px] font-black text-rose-600 bg-rose-500/10 px-1.5 py-0.5 rounded-md whitespace-nowrap w-fit">
+                                    <AlertCircle className="w-2.5 h-2.5" />
+                                    {daysLeft < 0 ? 'עבר חצי שנה (פרידה)!' : `מסיים חצי שנה (נותרו ${daysLeft} ימים)`}
                                   </span>
                                 )}
                               </div>
@@ -554,7 +563,8 @@ export default function PatientsPage() {
             <div className="space-y-2">
               {filtered.map((p) => {
                 const daysLeft = getDaysRemaining(p);
-                const needsExtension = p.status === 'active' && daysLeft !== null && daysLeft <= 14 && !p.extensionReceived;
+                const isExpiring3m = p.status === 'active' && daysLeft !== null && daysLeft <= 14 && !p.extensionReceived;
+                const isExpiring6m = p.status === 'active' && daysLeft !== null && daysLeft <= 14 && p.extensionReceived;
 
                 return (
                   <motion.div 
@@ -562,14 +572,16 @@ export default function PatientsPage() {
                     layout
                     onClick={() => router.push(`/patients/${p.id}`)}
                     className={`border rounded-2xl p-4 flex flex-col gap-3 active:bg-[var(--foreground)]/5 transition-all group ${
-                      needsExtension 
+                      isExpiring6m
+                        ? 'bg-rose-500/5 border-rose-500/30 shadow-lg shadow-rose-500/5'
+                        : isExpiring3m 
                         ? 'bg-amber-500/5 border-amber-500/30 shadow-lg shadow-amber-500/5' 
                         : 'bg-[var(--surface)] border-[var(--border)]'
                     }`}
                   >
                     <div className="flex items-center gap-4">
                       <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-black text-sm shrink-0 ${
-                        needsExtension ? 'bg-amber-500/20 text-amber-600' : 'bg-[var(--foreground)]/5 text-[var(--muted)]/50'
+                        isExpiring6m ? 'bg-rose-500/20 text-rose-600' : isExpiring3m ? 'bg-amber-500/20 text-amber-600' : 'bg-[var(--foreground)]/5 text-[var(--muted)]/50'
                       }`}>
                         {p.firstName?.[0]}{p.lastName?.[0]}
                       </div>
@@ -577,7 +589,7 @@ export default function PatientsPage() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-0.5">
                           <h3 className={`text-sm font-black transition-colors truncate ${
-                            needsExtension ? 'text-amber-700' : 'text-[var(--foreground)] group-hover:text-emerald-500'
+                            isExpiring6m ? 'text-rose-700' : isExpiring3m ? 'text-amber-700' : 'text-[var(--foreground)] group-hover:text-emerald-500'
                           }`}>
                             {p.firstName} {p.lastName}
                           </h3>
@@ -637,10 +649,17 @@ export default function PatientsPage() {
                       </div>
                     </div>
 
-                    {needsExtension && (
+                    {isExpiring3m && (
                       <div className="flex items-center gap-1.5 text-[10px] font-black text-amber-600 bg-amber-500/10 px-3 py-1.5 rounded-xl w-full">
                         <AlertCircle className="w-3.5 h-3.5 animate-pulse" />
-                        {daysLeft < 0 ? 'תקופת התוכנית הסתיימה!' : `נדרשת הארכה בהקדם (נותרו ${daysLeft} ימים)`}
+                        {daysLeft < 0 ? 'תקופת ה-3 חודשים הסתיימה! נדרשת הארכה.' : `מסיים 3 חודשים (נותרו ${daysLeft} ימים)`}
+                      </div>
+                    )}
+
+                    {isExpiring6m && (
+                      <div className="flex items-center gap-1.5 text-[10px] font-black text-rose-600 bg-rose-500/10 px-3 py-1.5 rounded-xl w-full">
+                        <AlertCircle className="w-3.5 h-3.5 animate-pulse" />
+                        {daysLeft < 0 ? 'תקופת החצי שנה הסתיימה! נדרשת פרידה מהתוכנית.' : `מסיים חצי שנה (פרידה) - נותרו ${daysLeft} ימים`}
                       </div>
                     )}
 
