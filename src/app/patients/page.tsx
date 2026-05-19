@@ -74,7 +74,12 @@ export default function PatientsPage() {
       const saved = localStorage.getItem("hosen_patients_selected_filters");
       if (saved) {
         try {
-          setSelectedFilters(JSON.parse(saved));
+          const parsed = JSON.parse(saved);
+          if (parsed && Array.isArray(parsed.programs) && Array.isArray(parsed.groups)) {
+            setSelectedFilters(parsed);
+          } else {
+            localStorage.removeItem("hosen_patients_selected_filters");
+          }
         } catch (e) {
           console.error(e);
         }
@@ -202,15 +207,40 @@ export default function PatientsPage() {
       const noFilters = selectedFilters.programs.length === 0 && selectedFilters.groups.length === 0;
       if (noFilters) return nameMatch;
 
-      const patientPrograms = p.programIds || (p.programId ? [p.programId] : []);
+      // Resolve groups
       const patientGroups = p.groupIds || (p.hosenType ? [p.hosenType] : []);
 
-      const matchesProgram = patientPrograms.some((id: string) => selectedFilters.programs.includes(id));
-      const matchesGroup = patientGroups.some((id: string) => selectedFilters.groups.includes(id));
+      // Resolve both explicit programIds and implicit ones (via patient's groups)
+      const explicitPrograms = p.programIds || (p.programId ? [p.programId] : []);
+      const implicitPrograms = patientGroups.map(gId => {
+        const g = groups.find(x => x.id === gId);
+        return g?.programId;
+      }).filter(Boolean) as string[];
+      const patientPrograms = Array.from(new Set([...explicitPrograms, ...implicitPrograms]));
 
-      return nameMatch && (matchesProgram || matchesGroup);
+      const hasProgramFilter = selectedFilters.programs.length > 0;
+      const matchesProgram = hasProgramFilter 
+        ? patientPrograms.some((id: string) => selectedFilters.programs.includes(id))
+        : false;
+
+      const hasGroupFilter = selectedFilters.groups.length > 0;
+      const matchesGroup = hasGroupFilter
+        ? patientGroups.some((id: string) => selectedFilters.groups.includes(id))
+        : false;
+
+      if (hasProgramFilter && hasGroupFilter) {
+        return nameMatch && matchesProgram && matchesGroup;
+      }
+      if (hasProgramFilter) {
+        return nameMatch && matchesProgram;
+      }
+      if (hasGroupFilter) {
+        return nameMatch && matchesGroup;
+      }
+
+      return nameMatch;
     });
-  }, [patients, searchTerm, selectedFilters]);
+  }, [patients, searchTerm, selectedFilters, groups]);
 
   const handleDelete = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();

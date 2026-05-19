@@ -26,6 +26,26 @@ export interface UserProfile {
 export interface Program { id: string; name: string }
 export interface Group { id: string; name: string; programId?: string }
 
+const ROLE_LABELS: Record<UserRole, string> = {
+  admin: "אדמין",
+  manager: "מנהל/ת",
+  social_worker: "עו״ס",
+  instructor: "מדריך/ה",
+  logistics: "לוגיסטיקה",
+  employee: "עובד/ת",
+  participant: "משתתף/ת"
+};
+
+const ROLE_COLORS: Record<UserRole, string> = {
+  admin: "bg-purple-500/10 text-purple-600 border border-purple-500/20",
+  manager: "bg-blue-500/10 text-blue-600 border border-blue-500/20",
+  social_worker: "bg-emerald-500/10 text-emerald-600 border border-emerald-500/20",
+  instructor: "bg-amber-500/10 text-amber-600 border border-amber-500/20",
+  logistics: "bg-indigo-500/10 text-indigo-600 border border-indigo-500/20",
+  employee: "bg-zinc-500/10 text-zinc-600 border border-zinc-500/20",
+  participant: "bg-teal-500/10 text-teal-600 border border-teal-500/20"
+};
+
 export default function UserManagementPage() {
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [programs, setPrograms] = useState<Program[]>([]);
@@ -41,6 +61,7 @@ export default function UserManagementPage() {
   }>({ open: false, type: "block", user: null });
 
   const router = useRouter();
+  const [activeRoleDropdownId, setActiveRoleDropdownId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchData();
@@ -197,20 +218,79 @@ export default function UserManagementPage() {
                               {user.email}
                             </td>
 
-                            {/* Role Select Dropdown */}
+                            {/* Role Multi-Select Dropdown */}
                             <td className="py-3.5 px-4">
-                              <select
-                                value={user.roles[0] || "social_worker"}
-                                disabled={isUpdating}
-                                onChange={(e) => updateUser(user.id, { roles: [e.target.value as UserRole] })}
-                                className="bg-[var(--surface)] border border-[var(--border)] rounded-lg py-1 px-2.5 text-xs font-bold focus:outline-none focus:border-emerald-500/40 text-[var(--foreground)]"
-                              >
-                                <option value="social_worker">עובד סוציאלי</option>
-                                <option value="instructor">מדריך</option>
-                                <option value="logistics">לוגיסטיקה</option>
-                                <option value="manager">מנהלת חוסן</option>
-                                <option value="admin">אדמין (ניהול על)</option>
-                              </select>
+                              <div className="relative">
+                                <button
+                                  type="button"
+                                  disabled={isUpdating}
+                                  onClick={() => setActiveRoleDropdownId(activeRoleDropdownId === user.id ? null : user.id)}
+                                  className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-xl py-2 px-3 text-xs font-bold focus:outline-none focus:border-emerald-500/40 text-[var(--foreground)] flex items-center justify-between gap-2 shadow-sm cursor-pointer select-none min-w-[140px]"
+                                >
+                                  <div className="flex flex-wrap gap-1 max-w-[150px]">
+                                    {user.roles && user.roles.length > 0 ? (
+                                      user.roles.map(r => (
+                                        <span key={r} className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${ROLE_COLORS[r]}`}>
+                                          {ROLE_LABELS[r] || r}
+                                        </span>
+                                      ))
+                                    ) : (
+                                      <span className="text-[var(--muted)]">ללא תפקיד</span>
+                                    )}
+                                  </div>
+                                  <ChevronDown className="w-3.5 h-3.5 text-[var(--muted)] shrink-0" />
+                                </button>
+
+                                {activeRoleDropdownId === user.id && (
+                                  <>
+                                    <div 
+                                      className="fixed inset-0 z-40" 
+                                      onClick={() => setActiveRoleDropdownId(null)}
+                                    />
+                                    <div className="absolute right-0 mt-2 w-48 bg-[var(--card-bg)] border border-[var(--border)] rounded-2xl shadow-2xl p-2 z-50 space-y-1 animation-fade-in">
+                                      <div className="px-3 py-1.5 text-[9px] font-black uppercase text-[var(--muted)] tracking-wider">
+                                        בחר תפקידים:
+                                      </div>
+                                      {(["social_worker", "instructor", "logistics", "manager", "admin", "employee"] as UserRole[]).map(roleVal => {
+                                        const isSelected = user.roles?.includes(roleVal);
+                                        return (
+                                          <div
+                                            key={roleVal}
+                                            onClick={async (e) => {
+                                              e.preventDefault();
+                                              const currentRoles = user.roles || [];
+                                              const nextRoles = currentRoles.includes(roleVal)
+                                                ? currentRoles.filter(r => r !== roleVal)
+                                                : [...currentRoles, roleVal];
+                                              if (nextRoles.length === 0) {
+                                                alert("איש צוות חייב להחזיק לפחות בתפקיד אחד");
+                                                return;
+                                              }
+                                              await updateUser(user.id, { roles: nextRoles });
+                                            }}
+                                            className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs font-black cursor-pointer select-none transition-all ${
+                                              isSelected 
+                                                ? "bg-emerald-500/10 text-emerald-600" 
+                                                : "hover:bg-[var(--foreground)]/5 text-[var(--foreground)]"
+                                            }`}
+                                          >
+                                            <div className="flex items-center gap-2">
+                                              <input
+                                                type="checkbox"
+                                                checked={isSelected}
+                                                readOnly
+                                                className="rounded border-[var(--border)] text-emerald-500 focus:ring-emerald-500 w-3.5 h-3.5 ml-2 cursor-pointer"
+                                              />
+                                              {ROLE_LABELS[roleVal]}
+                                            </div>
+                                            {isSelected && <Check className="w-3.5 h-3.5 text-emerald-500 shrink-0" />}
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  </>
+                                )}
+                              </div>
                             </td>
 
                             {/* Status */}

@@ -41,7 +41,7 @@ export function NotificationCenter() {
       collection(db, "notifications"),
       where("recipientIds", "array-contains", user.uid),
       orderBy("createdAt", "desc"),
-      limit(5)
+      limit(50)
     );
 
     const unsubscribe = onSnapshot(q, (snap) => {
@@ -208,7 +208,7 @@ export function NotificationCenter() {
                         <motion.div 
                           layout
                           key={n.id}
-                          className={`p-5 transition-all relative group ${isRead ? "opacity-90" : "bg-emerald-500/[0.03] hover:bg-emerald-500/[0.06]"}`}
+                          className={`p-5 transition-all relative group border-r-4 ${isRead ? "opacity-95 border-r-transparent" : "bg-[var(--foreground)]/[0.02] border-r-emerald-500 hover:bg-[var(--foreground)]/[0.04]"}`}
                         >
                           <div className="flex items-start justify-between gap-4">
                             <div className="flex-1 min-w-0">

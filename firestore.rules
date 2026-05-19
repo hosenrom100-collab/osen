@@ -29,6 +29,17 @@ service cloud.firestore {
       return hasRole('manager') || isAdmin();
     }
 
+    function isStaff() {
+      return isAuthenticated() && (
+        isManager() ||
+        hasRole('social_worker') ||
+        hasRole('instructor') ||
+        hasRole('employee') ||
+        hasRole('logistics') ||
+        hasRole('professional_manager')
+      );
+    }
+
     // ─── Global Rules ────────────────────────────────────────────────────────
 
     // Global Admin override - Give Admins full access to MOST things
@@ -47,21 +58,17 @@ service cloud.firestore {
     match /patients/{patientId} {
       // Participants can read only their own record. Staff can read all.
       allow read: if isAuthenticated() && (
-        isManager() || 
-        hasRole('social_worker') || 
-        hasRole('instructor') ||
+        isStaff() || 
         (getUserData() != null && getUserData().patientId == patientId)
       );
-      allow write: if isManager() || hasRole('professional_manager') || hasRole('social_worker') || hasRole('instructor');
+      allow write: if isStaff();
     }
     
     // Attendance collection
     match /attendance/{docId} {
       // Participants can read only their own attendance.
       allow read: if isAuthenticated() && (
-        isManager() || 
-        hasRole('social_worker') || 
-        hasRole('instructor') ||
+        isStaff() || 
         (resource != null && resource.data.patientId == (getUserData() != null ? getUserData().patientId : ''))
       );
       allow write: if isAuthenticated();
@@ -70,8 +77,7 @@ service cloud.firestore {
     // Document Requests
     match /document_requests/{docId} {
       allow read: if isAuthenticated() && (
-        isManager() || 
-        hasRole('social_worker') ||
+        isStaff() || 
         (resource != null && resource.data.patientId == (getUserData() != null ? getUserData().patientId : ''))
       );
       allow write: if isAuthenticated();
@@ -80,11 +86,10 @@ service cloud.firestore {
     // Documents (Issued)
     match /documents/{docId} {
       allow read: if isAuthenticated() && (
-        isManager() || 
-        hasRole('social_worker') ||
+        isStaff() || 
         (resource != null && resource.data.patientId == (getUserData() != null ? getUserData().patientId : ''))
       );
-      allow write: if isManager() || hasRole('social_worker');
+      allow write: if isStaff();
     }
 
     // Staff Attendance

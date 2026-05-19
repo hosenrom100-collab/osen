@@ -121,6 +121,23 @@ export async function POST(req: Request) {
     const allTokens = [...tokensByUser.values()].flat();
     console.log(`[Notify] Total FCM tokens to send: ${allTokens.length}`);
     
+    // Calculate unread count for badge if single userId is targeted
+    let badgeCount = 1;
+    if (userId) {
+      try {
+        const unreadSnap = await admin.firestore().collection("notifications")
+          .where("recipientIds", "array-contains", userId)
+          .get();
+        const unreadDocs = unreadSnap.docs.filter(doc => {
+          const d = doc.data();
+          return !d.readBy?.includes(userId);
+        });
+        badgeCount = unreadDocs.length + (skipDb ? 0 : 1);
+      } catch (e) {
+        console.error("Error calculating badge count:", e);
+      }
+    }
+
     // Send push only if we have tokens
     let successCount = 0;
     let failureCount = 0;
@@ -131,9 +148,24 @@ export async function POST(req: Request) {
         notification: { title, body: body || "" },
         data: { 
           link: String(link || "/"),
-          senderName: String(senderName || "מערכת")
+          senderName: String(senderName || "מערכת"),
+          badge: String(badgeCount)
+        },
+        android: {
+          priority: "high"
+        },
+        apns: {
+          payload: {
+            aps: {
+              badge: badgeCount,
+              sound: "default"
+            }
+          }
         },
         webpush: {
+          headers: {
+            Urgency: "high"
+          },
           notification: { icon: "/icon-192.png", badge: "/icon-192.png" },
           fcmOptions: { link: String(link || "/") },
         },

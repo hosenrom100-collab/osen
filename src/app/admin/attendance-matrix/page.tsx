@@ -3,20 +3,20 @@
 import { RoleGuard } from "@/components/auth/RoleGuard";
 import { useState, useEffect, useMemo } from "react";
 import { db } from "@/lib/firebase/config";
-import { collection, getDocs, query, where, orderBy } from "firebase/firestore";
+import { collection, getDocs, query, where } from "firebase/firestore";
 import { 
-  Loader2, ChevronRight, ChevronLeft, Download, 
-  Search, Filter, Calendar as CalendarIcon,
-  Check, X as XIcon, Minus, Info
+  Loader2, ChevronRight, Download, 
+  Search, Calendar as CalendarIcon,
+  Check, X as XIcon, Minus, Info, FileSpreadsheet, AlertCircle
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { 
   format, startOfMonth, endOfMonth, eachDayOfInterval, 
-  isSameDay, parseISO, getDay, getYear, getMonth,
-  addMonths, subMonths, isWithinInterval
+  getDay, getYear, getMonth
 } from "date-fns";
 import { he } from "date-fns/locale";
 import { motion, AnimatePresence } from "framer-motion";
+import * as XLSX from "xlsx";
 
 interface Patient {
   id: string;
@@ -53,6 +53,12 @@ export default function AttendanceMatrixPage() {
   
   const [currentDate, setCurrentDate] = useState(new Date());
   const [searchTerm, setSearchTerm] = useState("");
+  const [selectedProgramId, setSelectedProgramId] = useState<string>("all");
+  
+  // Excel export menu & loader states
+  const [showExportMenu, setShowExportMenu] = useState(false);
+  const [exportLoading, setExportLoading] = useState(false);
+  const [exportProgress, setExportProgress] = useState("");
 
   const daysInMonth = useMemo(() => {
     return eachDayOfInterval({
@@ -102,27 +108,294 @@ export default function AttendanceMatrixPage() {
     }
   };
 
-  const getProgramForPatient = (p: Patient) => {
-    return programs.find(pr => pr.id === p.programId);
-  };
-
   const getGroupName = (groupId?: string) => {
     return groups.find(g => g.id === groupId)?.name || "-";
   };
 
-  const filteredPatients = patients.filter(p => 
-    `${p.firstName} ${p.lastName} ${p.idNumber}`.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Filter patients by search term AND selected program tab
+  const filteredPatients = useMemo(() => {
+    return patients.filter(p => {
+      const matchesSearch = `${p.firstName} ${p.lastName} ${p.idNumber}`.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesProgram = selectedProgramId === "all" || p.programId === selectedProgramId;
+      return matchesSearch && matchesProgram;
+    });
+  }, [patients, searchTerm, selectedProgramId]);
+
+  // Compute active dates columns dynamically based on selected program tab
+  const activeDates = useMemo(() => {
+    if (selectedProgramId === "all") {
+      // Union of active days across all programs
+      const unionActiveDays = new Set<number>();
+      programs.forEach(p => p.activeDays.forEach(d => unionActiveDays.add(d)));
+      return daysInMonth.filter(day => unionActiveDays.has(getDay(day)));
+    } else {
+      // Only active days for the selected program
+      const prog = programs.find(p => p.id === selectedProgramId);
+      const pActiveDays = prog?.activeDays || [];
+      return daysInMonth.filter(day => pActiveDays.includes(getDay(day)));
+    }
+  }, [daysInMonth, programs, selectedProgramId]);
+
+  // --- Excel Export Handlers ---
+
+  // 1. Export Monthly Report for All Programs (each program is a separate tab)
+  const exportMonthlyReport = () => {
+    try {
+      const wb = XLSX.utils.book_new();
+      const year = getYear(currentDate);
+      const monthLabel = format(currentDate, "MMMM", { locale: he });
+
+      programs.forEach(prog => {
+        const progPatients = patients.filter(p => p.programId === prog.id);
+        if (progPatients.length === 0) return; // skip program with no active patients
+
+        const progActiveDates = daysInMonth.filter(day => prog.activeDays.includes(getDay(day)));
+        if (progActiveDates.length === 0) return; // skip if no active days in this month
+
+        // Set up headers
+        const headers = ["שם מלא", "תעודת זהות", "קבוצה"];
+        progActiveDates.forEach(day => {
+          headers.push(format(day, "dd/MM/yyyy"));
+        });
+
+        const rows: string[][] = [headers];
+
+        progPatients.forEach(p => {
+          const row = [
+            `${p.firstName} ${p.lastName}`,
+            p.idNumber,
+            getGroupName(p.hosenType)
+          ];
+
+          progActiveDates.forEach(day => {
+            const dateStr = format(day, "yyyy-MM-dd");
+            const status = attendance[`${p.id}_${dateStr}`];
+            row.push(status === "present" ? "+" : "");
+          });
+
+          rows.push(row);
+        });
+
+        const ws = XLSX.utils.aoa_to_sheet(rows);
+        ws['!dir'] = 'rtl'; // Hebrew Right to Left
+
+        const cleanSheetName = prog.name.substring(0, 30).replace(/[\\/?*\[\]]/g, "_");
+        XLSX.utils.book_append_sheet(wb, ws, cleanSheetName || "תוכנית");
+      });
+
+      if (wb.SheetNames.length === 0) {
+        alert("אין נתוני נוכחות לייצוא עבור החודש הנוכחי");
+        return;
+      }
+
+      XLSX.writeFile(wb, `נוכחות_חודשית_${monthLabel}_${year}.xlsx`);
+    } catch (err) {
+      console.error("Error exporting monthly Excel:", err);
+      alert("שגיאה במהלך הפקת דוח נוכחות חודשי");
+    }
+  };
+
+  // 2. Export Annual Report for Single Selected Program (12 tabs, one for each month)
+  const exportAnnualReport = async (progId: string) => {
+    const prog = programs.find(p => p.id === progId);
+    if (!prog) return;
+
+    setExportLoading(true);
+    setExportProgress(`טוען נתוני נוכחות שנתיים משרת Firebase עבור תוכנית ${prog.name}...`);
+
+    try {
+      const selectedYear = getYear(currentDate);
+      const yearStart = `${selectedYear}-01-01`;
+      const yearEnd = `${selectedYear}-12-31`;
+
+      const attSnap = await getDocs(query(
+        collection(db, "attendance"),
+        where("date", ">=", yearStart),
+        where("date", "<=", yearEnd)
+      ));
+
+      setExportProgress("מעבד נתונים ומייצר גיליונות חודשיים...");
+
+      const annualAttendance: AttendanceMap = {};
+      attSnap.forEach(d => {
+        const data = d.data();
+        annualAttendance[`${data.patientId}_${data.date}`] = data.status;
+      });
+
+      const wb = XLSX.utils.book_new();
+
+      // Loop through all 12 months
+      for (let m = 0; m < 12; m++) {
+        const monthDate = new Date(selectedYear, m, 1);
+        const monthName = format(monthDate, "MMMM", { locale: he });
+        
+        const monthDays = eachDayOfInterval({
+          start: startOfMonth(monthDate),
+          end: endOfMonth(monthDate)
+        });
+
+        const progActiveDates = monthDays.filter(day => prog.activeDays.includes(getDay(day)));
+        const progPatients = patients.filter(p => p.programId === progId);
+
+        if (progActiveDates.length === 0 || progPatients.length === 0) continue;
+
+        const headers = ["שם מלא", "תעודת זהות", "קבוצה"];
+        progActiveDates.forEach(day => {
+          headers.push(format(day, "dd/MM/yyyy"));
+        });
+
+        const rows: string[][] = [headers];
+
+        progPatients.forEach(p => {
+          const row = [
+            `${p.firstName} ${p.lastName}`,
+            p.idNumber,
+            getGroupName(p.hosenType)
+          ];
+
+          progActiveDates.forEach(day => {
+            const dateStr = format(day, "yyyy-MM-dd");
+            const status = annualAttendance[`${p.id}_${dateStr}`];
+            row.push(status === "present" ? "+" : "");
+          });
+
+          rows.push(row);
+        });
+
+        const ws = XLSX.utils.aoa_to_sheet(rows);
+        ws['!dir'] = 'rtl';
+
+        XLSX.utils.book_append_sheet(wb, ws, monthName);
+      }
+
+      if (wb.SheetNames.length === 0) {
+        alert("לא נמצאו ימי פעילות או משתתפים לייצוא בשנה זו");
+        return;
+      }
+
+      XLSX.writeFile(wb, `נוכחות_שנתית_${prog.name}_${selectedYear}.xlsx`);
+    } catch (err) {
+      console.error("Error exporting annual Excel:", err);
+      alert("שגיאה במהלך הפקת דוח נוכחות שנתי");
+    } finally {
+      setExportLoading(false);
+      setExportProgress("");
+    }
+  };
+
+  // 3. Export Complete Full Annual Report (all programs + all months)
+  const exportFullAnnualReport = async () => {
+    setExportLoading(true);
+    setExportProgress("טוען נתוני נוכחות שנתיים משרת Firebase עבור כל התוכניות...");
+
+    try {
+      const selectedYear = getYear(currentDate);
+      const yearStart = `${selectedYear}-01-01`;
+      const yearEnd = `${selectedYear}-12-31`;
+
+      const attSnap = await getDocs(query(
+        collection(db, "attendance"),
+        where("date", ">=", yearStart),
+        where("date", "<=", yearEnd)
+      ));
+
+      setExportProgress("מעבד נתונים ומייצר גיליונות Excel שנתיים...");
+
+      const annualAttendance: AttendanceMap = {};
+      attSnap.forEach(d => {
+        const data = d.data();
+        annualAttendance[`${data.patientId}_${data.date}`] = data.status;
+      });
+
+      const wb = XLSX.utils.book_new();
+
+      // Loop through all 12 months
+      for (let m = 0; m < 12; m++) {
+        const monthDate = new Date(selectedYear, m, 1);
+        const monthLabel = format(monthDate, "MM", { locale: he }); // "01", "02"...
+        const monthDays = eachDayOfInterval({
+          start: startOfMonth(monthDate),
+          end: endOfMonth(monthDate)
+        });
+
+        programs.forEach(prog => {
+          const progActiveDates = monthDays.filter(day => prog.activeDays.includes(getDay(day)));
+          const progPatients = patients.filter(p => p.programId === prog.id);
+
+          if (progActiveDates.length === 0 || progPatients.length === 0) return;
+
+          const headers = ["שם מלא", "תעודת זהות", "קבוצה"];
+          progActiveDates.forEach(day => {
+            headers.push(format(day, "dd/MM"));
+          });
+
+          const rows: string[][] = [headers];
+
+          progPatients.forEach(p => {
+            const row = [
+              `${p.firstName} ${p.lastName}`,
+              p.idNumber,
+              getGroupName(p.hosenType)
+            ];
+
+            progActiveDates.forEach(day => {
+              const dateStr = format(day, "yyyy-MM-dd");
+              const status = annualAttendance[`${p.id}_${dateStr}`];
+              row.push(status === "present" ? "+" : "");
+            });
+
+            rows.push(row);
+          });
+
+          const ws = XLSX.utils.aoa_to_sheet(rows);
+          ws['!dir'] = 'rtl';
+
+          // Sheet name: e.g. "05 - חרבות ברזל בוקר" (SheetJS limit is 31 chars)
+          const sheetName = `${monthLabel} - ${prog.name}`.substring(0, 30).replace(/[\\/?*\[\]]/g, "_");
+          XLSX.utils.book_append_sheet(wb, ws, sheetName);
+        });
+      }
+
+      if (wb.SheetNames.length === 0) {
+        alert("לא נמצאו נתוני נוכחות מוגדרים לשנה זו");
+        return;
+      }
+
+      XLSX.writeFile(wb, `נוכחות_שנתית_מלאה_${selectedYear}.xlsx`);
+    } catch (err) {
+      console.error("Error exporting full annual Excel:", err);
+      alert("שגיאה במהלך הפקת דוח נוכחות שנתי מלא");
+    } finally {
+      setExportLoading(false);
+      setExportProgress("");
+    }
+  };
 
   const years = [2026, 2027, 2028, 2029, 2030];
   const months = Array.from({ length: 12 }, (_, i) => i);
 
   return (
-    <RoleGuard allowedRoles={["admin", "manager"]}>
+    <RoleGuard allowedRoles={["admin", "manager", "social_worker", "instructor", "employee"]}>
       <div dir="rtl" className="min-h-screen bg-[var(--background)] text-[var(--foreground)] overflow-hidden flex flex-col">
         
+        {/* Full-Screen Export Loader Backdrop */}
+        <AnimatePresence>
+          {exportLoading && (
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-[100] flex flex-col items-center justify-center gap-4 text-white"
+            >
+              <Loader2 className="w-10 h-10 text-[var(--primary)] animate-spin" />
+              <h3 className="text-lg font-black text-center px-6 animate-pulse">{exportProgress}</h3>
+              <p className="text-xs text-white/50">תהליך זה עשוי לקחת מספר שניות, נא לא לסגור את החלון...</p>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* Top Header */}
-        <header className="h-20 border-b border-[var(--border-subtle)] bg-[var(--background)]/80 backdrop-blur-md flex items-center justify-between px-6 shrink-0">
+        <header className="h-20 border-b border-[var(--border-subtle)] bg-[var(--background)]/80 backdrop-blur-md flex items-center justify-between px-6 shrink-0 z-30">
           <div className="flex items-center gap-4">
             <button onClick={() => router.back()} className="w-10 h-10 bg-[var(--foreground)]/5 border border-[var(--border)] rounded-xl flex items-center justify-center hover:bg-[var(--foreground)]/10 transition-all text-[var(--foreground)]">
               <ChevronRight className="w-5 h-5" />
@@ -144,14 +417,85 @@ export default function AttendanceMatrixPage() {
                 className="bg-[var(--surface)] border border-[var(--border)] rounded-xl pr-10 pl-4 py-2.5 text-xs font-bold outline-none focus:border-[var(--primary)] transition-all w-64 text-[var(--foreground)] placeholder:text-[var(--foreground)]/30"
               />
             </div>
-            <button className="flex items-center gap-2 bg-[var(--primary)] hover:opacity-90 text-white px-5 py-2.5 rounded-xl text-xs font-black transition-all shadow-md shadow-[var(--primary)]/10 active:scale-95">
-              <Download className="w-4 h-4" />
-              ייצא לאקסל
-            </button>
+
+            {/* Premium Excel Export Dropdown */}
+            <div className="relative">
+              <button 
+                onClick={() => setShowExportMenu(!showExportMenu)}
+                className="flex items-center gap-2 bg-[var(--primary)] hover:opacity-90 text-white px-5 py-2.5 rounded-xl text-xs font-black transition-all shadow-md shadow-[var(--primary)]/10 active:scale-95 border border-[var(--primary)]"
+              >
+                <Download className="w-4 h-4" />
+                ייצא לאקסל
+              </button>
+
+              {showExportMenu && (
+                <>
+                  <div 
+                    className="fixed inset-0 z-40" 
+                    onClick={() => setShowExportMenu(false)}
+                  />
+                  <div className="absolute left-0 mt-2 w-72 bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-2 shadow-2xl z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+                    <p className="text-[10px] font-black text-[var(--foreground)]/40 p-2 border-b border-[var(--border-subtle)] uppercase">אפשרויות ייצוא לאקסל</p>
+                    <div className="flex flex-col gap-1 mt-1">
+                      
+                      {/* Option 1: Monthly (Tabs for Programs) */}
+                      <button
+                        onClick={() => {
+                          exportMonthlyReport();
+                          setShowExportMenu(false);
+                        }}
+                        className="flex items-center gap-3 w-full p-2.5 rounded-xl hover:bg-[var(--foreground)]/5 text-right transition-all text-xs font-bold"
+                      >
+                        <FileSpreadsheet className="w-4 h-4 text-emerald-500 shrink-0" />
+                        <div className="flex flex-col">
+                          <span className="font-black text-[var(--foreground)]">קובץ חודשי לכל התוכניות</span>
+                          <span className="text-[9px] text-[var(--foreground)]/40 mt-0.5 leading-tight">גיליון נפרד לכל תוכנית בחודש הנבחר</span>
+                        </div>
+                      </button>
+
+                      {/* Option 2: Annual (Tabs for 12 Months) */}
+                      <button
+                        onClick={() => {
+                          if (selectedProgramId === "all") {
+                            alert("על מנת לייצא קובץ שנתי לתוכנית, אנא בחר תוכנית ספציפית בלשוניות למעלה תחילה.");
+                          } else {
+                            exportAnnualReport(selectedProgramId);
+                          }
+                          setShowExportMenu(false);
+                        }}
+                        className={`flex items-center gap-3 w-full p-2.5 rounded-xl text-right transition-all text-xs font-bold ${selectedProgramId === "all" ? "opacity-40 cursor-not-allowed hover:bg-transparent" : "hover:bg-[var(--foreground)]/5"}`}
+                      >
+                        <FileSpreadsheet className="w-4 h-4 text-amber-500 shrink-0" />
+                        <div className="flex flex-col">
+                          <span className="font-black text-[var(--foreground)]">קובץ שנתי לתוכנית הנוכחית</span>
+                          <span className="text-[9px] text-[var(--foreground)]/40 mt-0.5 leading-tight">12 גיליונות (אחד לכל חודש) עבור התוכנית הנבחרת</span>
+                        </div>
+                      </button>
+
+                      {/* Option 3: Full Annual for All Programs */}
+                      <button
+                        onClick={() => {
+                          exportFullAnnualReport();
+                          setShowExportMenu(false);
+                        }}
+                        className="flex items-center gap-3 w-full p-2.5 rounded-xl hover:bg-[var(--foreground)]/5 text-right transition-all text-xs font-bold"
+                      >
+                        <FileSpreadsheet className="w-4 h-4 text-indigo-500 shrink-0" />
+                        <div className="flex flex-col">
+                          <span className="font-black text-[var(--foreground)]">קובץ שנתי מלא (כל התוכניות)</span>
+                          <span className="text-[9px] text-[var(--foreground)]/40 mt-0.5 leading-tight">קובץ המאגד את כל התוכניות לכל חודשי השנה</span>
+                        </div>
+                      </button>
+
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </header>
 
-        {/* Excel Tabs (Years/Months) */}
+        {/* Date Filter Tabs (Years & Months) */}
         <div className="bg-[var(--surface)] border-b border-[var(--border-subtle)] px-6 py-3 flex items-center gap-6 shrink-0 overflow-x-auto no-scrollbar">
           <div className="flex items-center gap-1 bg-[var(--foreground)]/5 p-1 rounded-xl border border-[var(--border-subtle)]">
             {years.map(y => (
@@ -180,6 +524,40 @@ export default function AttendanceMatrixPage() {
           </div>
         </div>
 
+        {/* Program Filter Tabs with Active Days Indicators */}
+        <div className="bg-[var(--surface)] border-b border-[var(--border-subtle)] px-6 py-2.5 flex items-center gap-2 overflow-x-auto no-scrollbar shrink-0">
+          <span className="text-[10px] font-black text-[var(--foreground)]/40 ml-2 whitespace-nowrap uppercase tracking-wider">סנן לפי תוכנית:</span>
+          <button
+            onClick={() => setSelectedProgramId("all")}
+            className={`px-4 py-1.5 rounded-full text-xs font-black transition-all whitespace-nowrap ${selectedProgramId === "all" ? 'bg-[var(--primary)] text-white shadow-sm' : 'bg-[var(--foreground)]/5 text-[var(--foreground)]/60 hover:bg-[var(--foreground)]/10'}`}
+          >
+            כל התוכניות ({patients.length})
+          </button>
+          {programs.map(prog => {
+            const count = patients.filter(p => p.programId === prog.id).length;
+            const daysLabel = prog.activeDays.map(d => {
+              const days = ["א׳", "ב׳", "ג׳", "ד׳", "ה׳", "ו׳", "ש׳"];
+              return days[d];
+            }).join(", ");
+
+            return (
+              <button
+                key={prog.id}
+                onClick={() => setSelectedProgramId(prog.id)}
+                className={`px-4 py-1.5 rounded-full text-xs font-black transition-all whitespace-nowrap flex items-center gap-2 ${selectedProgramId === prog.id ? 'bg-[var(--primary)] text-white shadow-sm' : 'bg-[var(--foreground)]/5 text-[var(--foreground)]/60 hover:bg-[var(--foreground)]/10'}`}
+              >
+                <span>{prog.name}</span>
+                <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${selectedProgramId === prog.id ? 'bg-white/20 text-white' : 'bg-[var(--foreground)]/10 text-[var(--foreground)]/50'}`}>
+                  {count}
+                </span>
+                <span className={`text-[9px] font-medium ${selectedProgramId === prog.id ? 'text-white/60' : 'text-[var(--foreground)]/40'}`}>
+                  ({daysLabel})
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
         {/* Matrix Container */}
         <div className="flex-1 overflow-auto relative p-6 bg-[var(--background)]">
           {loading ? (
@@ -187,88 +565,86 @@ export default function AttendanceMatrixPage() {
               <Loader2 className="w-8 h-8 text-[var(--primary)] animate-spin" />
               <p className="text-xs font-bold text-[var(--foreground)]/40">טוען נתונים...</p>
             </div>
+          ) : filteredPatients.length === 0 ? (
+            <div className="h-64 border border-[var(--border)] border-dashed rounded-[2.5rem] flex flex-col items-center justify-center gap-3 bg-[var(--card-bg)] shadow-inner">
+              <AlertCircle className="w-8 h-8 text-[var(--foreground)]/20 animate-bounce" />
+              <p className="text-xs font-black text-[var(--foreground)]/40">לא נמצאו משתתפים בחתך שנבחר</p>
+            </div>
           ) : (
             <div className="inline-block min-w-full align-middle border border-[var(--border)] rounded-[2rem] overflow-hidden bg-[var(--card-bg)] shadow-sm">
-              {(() => {
-                // Determine the union of all active days
-                const unionActiveDays = new Set<number>();
-                programs.forEach(p => p.activeDays.forEach(d => unionActiveDays.add(d)));
-                
-                // Only show days that are active in AT LEAST one program
-                const activeDates = daysInMonth.filter(day => unionActiveDays.has(getDay(day)));
+              <table className="border-collapse text-right w-full text-[var(--foreground)] text-xs">
+                <thead className="sticky top-0 z-20">
+                  <tr className="bg-[var(--foreground)]/[0.03] shadow-[0_1px_0_0_var(--border)]">
+                    <th className="sticky right-0 z-30 bg-[var(--card-bg)] p-3.5 border-b border-l border-[var(--border)] font-black min-w-[180px] shadow-[1px_0_0_0_var(--border)]">משתתף</th>
+                    <th className="p-3.5 border-b border-l border-[var(--border)] font-black min-w-[100px]">ת.ז</th>
+                    <th className="p-3.5 border-b border-l border-[var(--border)] font-black min-w-[120px]">תוכנית</th>
+                    <th className="p-3.5 border-b border-l border-[var(--border)] font-black min-w-[100px]">קבוצה</th>
+                    
+                    {activeDates.map(day => (
+                      <th key={day.toISOString()} className="p-2 border-b border-l border-[var(--border)] text-center min-w-[38px] bg-[var(--foreground)]/[0.01]">
+                        <p className="text-[9px] font-bold text-[var(--foreground)]/40 leading-none">{format(day, "EE", { locale: he })}</p>
+                        <p className="text-xs font-black mt-1 text-[var(--foreground)]">{format(day, "d")}</p>
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[var(--border)]">
+                  {filteredPatients.map((p) => {
+                    const prog = programs.find(pr => pr.id === p.programId);
+                    const pActiveDays = prog?.activeDays || [];
 
-                return (
-                  <table className="border-collapse text-right w-full text-[var(--foreground)] text-xs">
-                    <thead className="sticky top-0 z-30">
-                      <tr className="bg-[var(--foreground)]/[0.03] shadow-[0_1px_0_0_var(--border)]">
-                        <th className="sticky right-0 z-40 bg-[var(--card-bg)] p-3.5 border-b border-l border-[var(--border)] font-black min-w-[180px] shadow-[1px_0_0_0_var(--border)]">משתתף</th>
-                        <th className="p-3.5 border-b border-l border-[var(--border)] font-black min-w-[100px]">ת.ז</th>
-                        <th className="p-3.5 border-b border-l border-[var(--border)] font-black min-w-[120px]">תוכנית</th>
-                        <th className="p-3.5 border-b border-l border-[var(--border)] font-black min-w-[100px]">קבוצה</th>
-                        
-                        {activeDates.map(day => (
-                          <th key={day.toISOString()} className="p-2 border-b border-l border-[var(--border)] text-center min-w-[38px] bg-[var(--foreground)]/[0.01]">
-                            <p className="text-[9px] font-bold text-[var(--foreground)]/40 leading-none">{format(day, "EE", { locale: he })}</p>
-                            <p className="text-xs font-black mt-1 text-[var(--foreground)]">{format(day, "d")}</p>
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-[var(--border)]">
-                      {filteredPatients.map((p, idx) => {
-                        const prog = getProgramForPatient(p);
-                        const pActiveDays = prog?.activeDays || [];
+                    return (
+                      <tr key={p.id} className="hover:bg-[var(--foreground)]/[0.01] transition-colors">
+                        <td className="sticky right-0 z-10 bg-[var(--card-bg)] p-3 border-l border-[var(--border)] font-black shadow-[1px_0_0_0_var(--border)]">
+                          {p.firstName} {p.lastName}
+                        </td>
+                        <td className="p-3 border-l border-[var(--border)] text-[var(--foreground)]/60 font-medium">
+                          {p.idNumber}
+                        </td>
+                        <td className="p-3 border-l border-[var(--border)] text-[var(--foreground)]/70 font-semibold">
+                          {prog?.name || "-"}
+                        </td>
+                        <td className="p-3 border-l border-[var(--border)] text-[var(--foreground)]/60 font-medium">
+                          {getGroupName(p.hosenType)}
+                        </td>
 
-                        return (
-                          <tr key={p.id} className="hover:bg-[var(--foreground)]/[0.01] transition-colors">
-                            <td className="sticky right-0 z-20 bg-[var(--card-bg)] p-3 border-l border-[var(--border)] font-black shadow-[1px_0_0_0_var(--border)]">
-                              {p.firstName} {p.lastName}
-                            </td>
-                            <td className="p-3 border-l border-[var(--border)] text-[var(--foreground)]/60 font-medium">
-                              {p.idNumber}
-                            </td>
-                            <td className="p-3 border-l border-[var(--border)] text-[var(--foreground)]/70 font-semibold">
-                              {prog?.name || "-"}
-                            </td>
-                            <td className="p-3 border-l border-[var(--border)] text-[var(--foreground)]/60 font-medium">
-                              {getGroupName(p.hosenType)}
-                            </td>
-
-                            {activeDates.map(day => {
-                              const dateStr = format(day, "yyyy-MM-dd");
-                              const status = attendance[`${p.id}_${dateStr}`];
-                              const isActiveForThisPatient = pActiveDays.includes(getDay(day));
-                              
-                              return (
-                                <td 
-                                  key={dateStr}
-                                  className={`p-0 border-l border-[var(--border)] text-center ${!isActiveForThisPatient ? 'bg-[var(--foreground)]/[0.03]' : ''}`}
-                                >
-                                  {!isActiveForThisPatient ? (
-                                    <div className="w-full h-full flex items-center justify-center py-2.5 opacity-20">
-                                      <Minus className="w-2.5 h-2.5" />
+                        {activeDates.map(day => {
+                          const dateStr = format(day, "yyyy-MM-dd");
+                          const status = attendance[`${p.id}_${dateStr}`];
+                          const isActiveForThisPatient = pActiveDays.includes(getDay(day));
+                          
+                          return (
+                            <td 
+                              key={dateStr}
+                              className={`p-0 border-l border-[var(--border)] text-center ${!isActiveForThisPatient ? 'bg-[var(--foreground)]/[0.03]' : ''}`}
+                            >
+                              {!isActiveForThisPatient ? (
+                                <div className="w-full h-full flex items-center justify-center py-2.5 opacity-20" title="יום לא פעיל בתוכנית של משתתף זה">
+                                  <Minus className="w-2.5 h-2.5 text-[var(--foreground)]/30" />
+                                </div>
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center py-2.5">
+                                  {status === 'present' ? (
+                                    <div className="bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 px-2 py-0.5 rounded-md font-black text-[10px]">
+                                      +
+                                    </div>
+                                  ) : status === 'absent' ? (
+                                    <div className="bg-rose-500/10 text-rose-500 border border-rose-500/20 px-2 py-0.5 rounded-md font-black text-[10px]">
+                                      -
                                     </div>
                                   ) : (
-                                    <div className="w-full h-full flex items-center justify-center py-2.5">
-                                      {status === 'present' ? (
-                                        <Check className="w-4 h-4 text-emerald-500 font-black" />
-                                      ) : status === 'absent' ? (
-                                        <XIcon className="w-4 h-4 text-rose-500" />
-                                      ) : (
-                                        <div className="w-1.5 h-1.5 rounded-full bg-[var(--foreground)]/20" />
-                                      )}
-                                    </div>
+                                    <div className="w-1.5 h-1.5 rounded-full bg-[var(--foreground)]/20" />
                                   )}
-                                </td>
-                              );
-                            })}
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                );
-              })()}
+                                </div>
+                              )}
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
           )}
         </div>
@@ -277,27 +653,29 @@ export default function AttendanceMatrixPage() {
         <footer className="h-12 border-t border-[var(--border-subtle)] bg-[var(--foreground)]/[0.02] flex items-center justify-between px-6 shrink-0 text-[var(--foreground)]/60 font-semibold text-[10px]">
           <div className="flex items-center gap-6">
             <div className="flex items-center gap-2">
-              <Check className="w-4 h-4 text-emerald-500 font-bold" />
+              <div className="bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 px-1.5 py-0.5 rounded text-[8px] font-black leading-none">+</div>
               <span>נוכח</span>
             </div>
             <div className="flex items-center gap-2">
-              <XIcon className="w-4 h-4 text-rose-500" />
+              <div className="bg-rose-500/10 text-rose-500 border border-rose-500/20 px-1.5 py-0.5 rounded text-[8px] font-black leading-none">-</div>
               <span>נעדר</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-1.5 h-1.5 rounded-full bg-[var(--foreground)]/30" />
+              <div className="w-1.5 h-1.5 rounded-full bg-[var(--foreground)]/30 animate-pulse" />
               <span>טרם סומן</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="px-2 py-0.5 bg-[var(--foreground)]/[0.03] border border-[var(--border)] text-[8px] flex items-center justify-center rounded">
-                <Minus className="w-2 h-2 opacity-30" />
+                <Minus className="w-2.5 h-2.5 opacity-30" />
               </div>
               <span>יום לא פעיל בתוכנית</span>
             </div>
           </div>
 
-          <div className="font-bold">
-            סה"כ משתתפים: {filteredPatients.length}
+          <div className="font-bold flex items-center gap-3">
+            <span>סה"כ תוכניות: {programs.length}</span>
+            <div className="h-3 w-px bg-[var(--border)]" />
+            <span>סה"כ מוצגים: {filteredPatients.length} מתוך {patients.length}</span>
           </div>
         </footer>
       </div>

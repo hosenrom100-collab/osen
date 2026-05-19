@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { messaging } from "@/lib/firebase/config";
 import { getToken, onMessage } from "firebase/messaging";
 import { useAuth } from "@/context/AuthContext";
-import { doc, updateDoc, arrayUnion } from "firebase/firestore";
+import { doc, updateDoc, arrayUnion, collection, query, where, orderBy, limit, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase/config";
 import { Bell, X, Info, CheckCircle2, ChevronLeft } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -24,6 +24,56 @@ export function PushNotificationManager() {
   const [permission, setPermission] = useState<NotificationPermission>("default");
   const [showPrompt, setShowPrompt] = useState(false);
   const [toast, setToast] = useState<ToastMessage | null>(null);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  // Sync badge count from unread notifications in real-time
+  useEffect(() => {
+    if (!user) {
+      if (typeof window !== "undefined" && 'clearAppBadge' in navigator) {
+        navigator.clearAppBadge().catch(() => {});
+      }
+      return;
+    }
+
+    const q = query(
+      collection(db, "notifications"),
+      where("recipientIds", "array-contains", user.uid),
+      orderBy("createdAt", "desc"),
+      limit(50)
+    );
+
+    const unsubscribe = onSnapshot(q, (snap) => {
+      const count = snap.docs.filter(d => {
+        const data = d.data();
+        return !data.readBy?.includes(user.uid);
+      }).length;
+      
+      setUnreadCount(count);
+
+      if ('setAppBadge' in navigator) {
+        if (count > 0) {
+          navigator.setAppBadge(count).catch(err => console.error("Error setting badge:", err));
+        } else {
+          navigator.clearAppBadge().catch(err => console.error("Error clearing badge:", err));
+        }
+      }
+    }, (err) => {
+      console.error("Error listening to notifications for badging:", err);
+    });
+
+    return () => unsubscribe();
+  }, [user]);
+
+  // Handle focus sync
+  useEffect(() => {
+    const handleFocus = () => {
+      if ('clearAppBadge' in navigator && unreadCount === 0) {
+        navigator.clearAppBadge().catch(() => {});
+      }
+    };
+    window.addEventListener("focus", handleFocus);
+    return () => window.removeEventListener("focus", handleFocus);
+  }, [unreadCount]);
 
   // Show permission prompt once per session (not on every page load)
   useEffect(() => {
@@ -143,7 +193,7 @@ export function PushNotificationManager() {
             dir="rtl"
           >
             <div
-              className="bg-emerald-500/10 backdrop-blur-3xl border border-emerald-500/40 rounded-[2rem] p-5 shadow-2xl shadow-emerald-950/10 flex items-start gap-4 cursor-pointer active:scale-[0.98] transition-all group"
+              className="bg-slate-900 border border-slate-800 rounded-[2.5rem] p-5 shadow-2xl flex items-start gap-4 cursor-pointer border-r-4 border-r-emerald-500 active:scale-[0.98] transition-all group"
               onClick={() => { setToast(null); if (toast.link) window.location.href = toast.link; }}
             >
               <div className="w-12 h-12 bg-emerald-500 text-white rounded-2xl flex items-center justify-center flex-shrink-0 shadow-lg shadow-emerald-500/20 group-hover:scale-110 transition-transform">
@@ -151,25 +201,25 @@ export function PushNotificationManager() {
               </div>
               <div className="flex-1 min-w-0 pt-0.5">
                 <div className="flex items-center justify-between gap-2 mb-1">
-                  <p className="font-black text-sm text-emerald-900 leading-tight truncate">{toast.title}</p>
+                  <p className="font-black text-sm text-white leading-tight truncate">{toast.title}</p>
                   {toast.senderName && (
-                    <span className="text-[9px] font-bold text-emerald-600 bg-emerald-500/10 px-2 py-0.5 rounded-lg border border-emerald-500/10 shrink-0">
+                    <span className="text-[9px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-lg border border-emerald-500/15 shrink-0">
                       מאת: {toast.senderName}
                     </span>
                   )}
                 </div>
                 {toast.body && (
-                  <p className="text-emerald-800/70 text-[11px] leading-relaxed line-clamp-2 font-bold">{toast.body}</p>
+                  <p className="text-slate-300 text-[11px] leading-relaxed line-clamp-2 font-bold">{toast.body}</p>
                 )}
                 {toast.link && (
-                  <div className="flex items-center gap-1 text-emerald-600 text-[10px] font-black mt-2 uppercase tracking-widest">
+                  <div className="flex items-center gap-1 text-emerald-400 text-[10px] font-black mt-2 uppercase tracking-widest">
                     לחץ למעבר <ChevronLeft className="w-3 h-3" />
                   </div>
                 )}
               </div>
               <button
                 onClick={(e) => { e.stopPropagation(); setToast(null); }}
-                className="text-emerald-500/30 hover:text-emerald-500 transition-colors flex-shrink-0 mt-0.5 p-1"
+                className="text-slate-500 hover:text-white transition-colors flex-shrink-0 mt-0.5 p-1"
               >
                 <X className="w-4 h-4" />
               </button>
