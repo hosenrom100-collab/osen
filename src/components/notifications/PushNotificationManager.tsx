@@ -59,8 +59,15 @@ export function PushNotificationManager() {
       const instance = await messaging();
       if (!instance) return;
 
+      let registration;
+      if (typeof window !== "undefined" && "serviceWorker" in navigator) {
+        registration = await navigator.serviceWorker.register("/firebase-messaging-sw.js");
+        console.log("[FCM] Service Worker registered:", registration.scope);
+      }
+
       const token = await getToken(instance, {
         vapidKey: process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY,
+        serviceWorkerRegistration: registration,
       });
 
       if (token) {

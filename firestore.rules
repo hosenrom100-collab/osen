@@ -52,7 +52,7 @@ service cloud.firestore {
         hasRole('instructor') ||
         (getUserData() != null && getUserData().patientId == patientId)
       );
-      allow write: if isManager() || hasRole('professional_manager');
+      allow write: if isManager() || hasRole('professional_manager') || hasRole('social_worker') || hasRole('instructor');
     }
     
     // Attendance collection

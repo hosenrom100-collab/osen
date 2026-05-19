@@ -3,12 +3,13 @@
 import { RoleGuard } from "@/components/auth/RoleGuard";
 import { useState, useMemo, useEffect } from "react";
 import { db } from "@/lib/firebase/config";
-import { collection, getDocs, doc, deleteDoc } from "firebase/firestore";
+import { collection, getDocs, doc, deleteDoc, updateDoc } from "firebase/firestore";
 import { 
   Users, Search, Plus, Filter, MoreHorizontal, 
   Trash2, User, ChevronLeft, LayoutGrid, List,
   Loader2, ExternalLink, Calendar, Shield, Phone,
-  Briefcase, CalendarDays, Check, ChevronDown, X
+  Briefcase, CalendarDays, Check, ChevronDown, X,
+  AlertCircle
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
@@ -30,6 +31,10 @@ interface Patient {
   programId?: string;
   programIds?: string[];
   groupIds?: string[];
+  extensionSent?: boolean;
+  extensionSentAt?: string;
+  extensionReceived?: boolean;
+  extensionReceivedAt?: string;
 }
 
 interface Group {
@@ -113,6 +118,54 @@ export default function PatientsPage() {
     };
     fetchData();
   }, []);
+
+  const getDaysRemaining = (p: Patient) => {
+    let end: Date | null = null;
+    if (p.endDate) {
+      try {
+        end = new Date(p.endDate);
+      } catch {}
+    } else if (p.startDate) {
+      try {
+        const start = new Date(p.startDate);
+        end = new Date(start.setMonth(start.getMonth() + 3));
+      } catch {}
+    }
+    if (!end || isNaN(end.getTime())) return null;
+    const diffTime = end.getTime() - Date.now();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays;
+  };
+
+  const handleToggleExtensionSent = async (pId: string, currentVal: boolean, e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      const nextVal = !currentVal;
+      await updateDoc(doc(db, "patients", pId), {
+        extensionSent: nextVal,
+        extensionSentAt: nextVal ? new Date().toISOString() : null
+      });
+      setPatients(prev => prev.map(p => p.id === pId ? { ...p, extensionSent: nextVal } : p));
+    } catch (err) {
+      console.error("Error toggling extensionSent:", err);
+      alert("שגיאה בעדכון הסטטוס");
+    }
+  };
+
+  const handleToggleExtensionReceived = async (pId: string, currentVal: boolean, e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      const nextVal = !currentVal;
+      await updateDoc(doc(db, "patients", pId), {
+        extensionReceived: nextVal,
+        extensionReceivedAt: nextVal ? new Date().toISOString() : null
+      });
+      setPatients(prev => prev.map(p => p.id === pId ? { ...p, extensionReceived: nextVal } : p));
+    } catch (err) {
+      console.error("Error toggling extensionReceived:", err);
+      alert("שגיאה בעדכון הסטטוס");
+    }
+  };
 
   const handleToggleProgramFilter = (id: string) => {
     setSelectedFilters(prev => {
@@ -363,36 +416,175 @@ export default function PatientsPage() {
                       <th className="px-6 py-4 text-[9px] font-black uppercase tracking-widest text-[var(--muted)]">תוכנית</th>
                       <th className="px-6 py-4 text-[9px] font-black uppercase tracking-widest text-[var(--muted)]">תאריך התחלה</th>
                       <th className="px-6 py-4 text-[9px] font-black uppercase tracking-widest text-[var(--muted)]">תאריך סיום</th>
+                      <th className="px-6 py-4 text-[9px] font-black uppercase tracking-widest text-[var(--muted)] text-center">הוגשה הארכה</th>
+                      <th className="px-6 py-4 text-[9px] font-black uppercase tracking-widest text-[var(--muted)] text-center">התקבלה הארכה</th>
                       <th className="px-6 py-4 text-[9px] font-black uppercase tracking-widest text-[var(--muted)]">סטטוס</th>
                       <th className="px-6 py-4 text-[9px] font-black uppercase tracking-widest text-[var(--muted)] w-16"></th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[var(--border)]">
-                    {filtered.map((p) => (
-                      <tr 
-                        key={p.id} 
-                        onClick={() => router.push(`/patients/${p.id}`)}
-                        className="hover:bg-[var(--foreground)]/[0.02] transition-colors cursor-pointer group"
-                      >
-                        <td className="px-6 py-5">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-600 font-black text-xs">
-                              {p.firstName?.[0]}{p.lastName?.[0]}
+                    {filtered.map((p) => {
+                      const daysLeft = getDaysRemaining(p);
+                      const needsExtension = p.status === 'active' && daysLeft !== null && daysLeft <= 14 && !p.extensionReceived;
+
+                      return (
+                        <tr 
+                          key={p.id} 
+                          onClick={() => router.push(`/patients/${p.id}`)}
+                          className={`transition-colors cursor-pointer group ${
+                            needsExtension 
+                              ? 'bg-amber-500/5 hover:bg-amber-500/10 border-r-4 border-r-amber-500' 
+                              : 'hover:bg-[var(--foreground)]/[0.02]'
+                          }`}
+                        >
+                          <td className="px-6 py-5">
+                            <div className="flex items-center gap-3">
+                              <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-xs shrink-0 ${
+                                needsExtension ? 'bg-amber-500/20 text-amber-600' : 'bg-emerald-500/10 text-emerald-600'
+                              }`}>
+                                {p.firstName?.[0]}{p.lastName?.[0]}
+                              </div>
+                              <div className="flex flex-col gap-0.5">
+                                <span className={`font-black text-sm transition-colors ${
+                                  needsExtension ? 'text-amber-700 group-hover:text-amber-800' : 'group-hover:text-emerald-500'
+                                }`}>
+                                  {p.firstName} {p.lastName}
+                                </span>
+                                {needsExtension && (
+                                  <span className="flex items-center gap-1 text-[9px] font-black text-amber-600 bg-amber-500/10 px-1.5 py-0.5 rounded-md whitespace-nowrap w-fit">
+                                    <AlertCircle className="w-2.5 h-2.5" />
+                                    {daysLeft < 0 ? 'עבר זמנה!' : `נדרשת הארכה (נותרו ${daysLeft} ימים)`}
+                                  </span>
+                                )}
+                              </div>
                             </div>
-                            <span className="font-black text-sm group-hover:text-emerald-500 transition-colors">
-                              {p.firstName} {p.lastName}
+                          </td>
+                          <td className="px-6 py-5 text-xs font-bold font-mono opacity-60">{p.idNumber}</td>
+                          <td className="px-6 py-5">
+                            <div className="flex items-center gap-2">
+                               <Briefcase className="w-3.5 h-3.5 text-emerald-500/40" />
+                               <span className="text-xs font-bold">{staff[p.assignedWorkerId || ""] || "לא שובץ"}</span>
+                            </div>
+                          </td>
+                          <td className="px-6 py-5">
+                            <span className="px-3 py-1 rounded-full bg-[var(--foreground)]/5 border border-[var(--border)] text-[10px] font-black">
+                              {(() => {
+                                const patientProgs = p.programIds || (p.programId ? [p.programId] : []);
+                                const patientGrps = p.groupIds || (p.hosenType ? [p.hosenType] : []);
+                                
+                                if (patientProgs.length === 0 && patientGrps.length === 0) return "כללי";
+                                
+                                const grpNames = patientGrps.map((gId: string) => {
+                                  const g = groups.find(x => x.id === gId);
+                                  if (!g) return gId;
+                                  const prog = programs.find(x => x.id === g.programId);
+                                  return prog ? `${prog.name} - ${g.name}` : g.name;
+                                });
+
+                                const progNames = patientProgs.filter((pId: string) => {
+                                  const hasGroupShown = groups.some(g => g.programId === pId && patientGrps.includes(g.id));
+                                  return !hasGroupShown;
+                                }).map((pId: string) => {
+                                  const prog = programs.find(x => x.id === pId);
+                                  return prog ? prog.name : pId;
+                                });
+
+                                const allNames = [...progNames, ...grpNames];
+                                const display = allNames.join(", ");
+                                if (display && display !== "כללי" && !display.startsWith("תוכנית")) {
+                                  return `תוכנית ${display}`;
+                                }
+                                return display || "כללי";
+                              })()}
                             </span>
-                          </div>
-                        </td>
-                        <td className="px-6 py-5 text-xs font-bold font-mono opacity-60">{p.idNumber}</td>
-                        <td className="px-6 py-5">
-                          <div className="flex items-center gap-2">
-                             <Briefcase className="w-3.5 h-3.5 text-emerald-500/40" />
-                             <span className="text-xs font-bold">{staff[p.assignedWorkerId || ""] || "לא שובץ"}</span>
-                          </div>
-                        </td>
-                        <td className="px-6 py-5">
-                          <span className="px-3 py-1 rounded-full bg-[var(--foreground)]/5 border border-[var(--border)] text-[10px] font-black">
+                          </td>
+                          <td className="px-6 py-5 text-xs font-bold opacity-60">{formatDate(p.startDate)}</td>
+                          <td className="px-6 py-5 text-xs font-bold opacity-60">{formatDate(p.endDate)}</td>
+                          <td className="px-6 py-5 text-center">
+                            <div className="flex justify-center">
+                              <button
+                                onClick={(e) => handleToggleExtensionSent(p.id, !!p.extensionSent, e)}
+                                className={`w-5 h-5 rounded border flex items-center justify-center transition-all ${
+                                  p.extensionSent 
+                                    ? 'bg-amber-500 border-amber-600 text-white' 
+                                    : 'border-[var(--border)] hover:border-amber-500 bg-[var(--surface)] hover:scale-105'
+                                }`}
+                              >
+                                {p.extensionSent && <Check className="w-3.5 h-3.5 stroke-[4]" />}
+                              </button>
+                            </div>
+                          </td>
+                          <td className="px-6 py-5 text-center">
+                            <div className="flex justify-center">
+                              <button
+                                onClick={(e) => handleToggleExtensionReceived(p.id, !!p.extensionReceived, e)}
+                                className={`w-5 h-5 rounded border flex items-center justify-center transition-all ${
+                                  p.extensionReceived 
+                                    ? 'bg-emerald-500 border-emerald-600 text-white' 
+                                    : 'border-[var(--border)] hover:border-emerald-500 bg-[var(--surface)] hover:scale-105'
+                                }`}
+                              >
+                                {p.extensionReceived && <Check className="w-3.5 h-3.5 stroke-[4]" />}
+                              </button>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-2">
+                              <div className={`w-1.5 h-1.5 rounded-full ${p.status === 'active' ? 'bg-emerald-500' : 'bg-[var(--muted)]/30'}`} />
+                              <span className="text-xs font-bold">{p.status === 'active' ? 'פעיל' : 'לא פעיל'}</span>
+                            </div>
+                          </td>
+                          <td className="px-6 py-5 text-left">
+                            <button 
+                              onClick={(e) => handleDelete(p.id, e)}
+                              title="מחיקת משתתף"
+                              className="p-2 hover:bg-rose-500/10 text-[var(--foreground)]/20 hover:text-rose-500 rounded-lg transition-all"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {filtered.map((p) => {
+                const daysLeft = getDaysRemaining(p);
+                const needsExtension = p.status === 'active' && daysLeft !== null && daysLeft <= 14 && !p.extensionReceived;
+
+                return (
+                  <motion.div 
+                    key={p.id}
+                    layout
+                    onClick={() => router.push(`/patients/${p.id}`)}
+                    className={`border rounded-2xl p-4 flex flex-col gap-3 active:bg-[var(--foreground)]/5 transition-all group ${
+                      needsExtension 
+                        ? 'bg-amber-500/5 border-amber-500/30 shadow-lg shadow-amber-500/5' 
+                        : 'bg-[var(--surface)] border-[var(--border)]'
+                    }`}
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-black text-sm shrink-0 ${
+                        needsExtension ? 'bg-amber-500/20 text-amber-600' : 'bg-[var(--foreground)]/5 text-[var(--muted)]/50'
+                      }`}>
+                        {p.firstName?.[0]}{p.lastName?.[0]}
+                      </div>
+                      
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-0.5">
+                          <h3 className={`text-sm font-black transition-colors truncate ${
+                            needsExtension ? 'text-amber-700' : 'text-[var(--foreground)] group-hover:text-emerald-500'
+                          }`}>
+                            {p.firstName} {p.lastName}
+                          </h3>
+                          <div className={`w-1.5 h-1.5 rounded-full ${p.status === 'active' ? 'bg-emerald-500' : 'bg-[var(--muted)]/30'}`} />
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-[10px] font-bold text-[var(--muted)]/60 whitespace-nowrap">
                             {(() => {
                               const patientProgs = p.programIds || (p.programId ? [p.programId] : []);
                               const patientGrps = p.groupIds || (p.hosenType ? [p.hosenType] : []);
@@ -422,104 +614,71 @@ export default function PatientsPage() {
                               return display || "כללי";
                             })()}
                           </span>
-                        </td>
-                        <td className="px-6 py-5 text-xs font-bold opacity-60">{formatDate(p.startDate)}</td>
-                        <td className="px-6 py-5 text-xs font-bold opacity-60">{formatDate(p.endDate)}</td>
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-2">
-                            <div className={`w-1.5 h-1.5 rounded-full ${p.status === 'active' ? 'bg-emerald-500' : 'bg-[var(--muted)]/30'}`} />
-                            <span className="text-xs font-bold">{p.status === 'active' ? 'פעיל' : 'לא פעיל'}</span>
-                          </div>
-                        </td>
-                        <td className="px-6 py-5 text-left">
-                          <button 
-                            onClick={(e) => handleDelete(p.id, e)}
-                            title="מחיקת משתתף"
-                            className="p-2 hover:bg-rose-500/10 text-[var(--foreground)]/20 hover:text-rose-500 rounded-lg transition-all"
+                          <span className="w-1 h-1 rounded-full bg-[var(--border)] shrink-0" />
+                          <span className="text-[10px] font-bold text-[var(--muted)]/60 truncate">
+                            {staff[p.assignedWorkerId || ""] || "לא שובץ"}
+                          </span>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center gap-1 shrink-0">
+                        {p.phone && (
+                          <a 
+                            href={`tel:${p.phone}`}
+                            onClick={(e) => e.stopPropagation()}
+                            className="p-2.5 text-[var(--muted)]/40 hover:text-emerald-500 transition-colors"
                           >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {filtered.map((p) => (
-                <motion.div 
-                  key={p.id}
-                  layout
-                  onClick={() => router.push(`/patients/${p.id}`)}
-                  className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-4 flex items-center gap-4 active:bg-[var(--foreground)]/5 transition-all group"
-                >
-                  <div className="w-12 h-12 rounded-xl bg-[var(--foreground)]/5 flex items-center justify-center text-[var(--muted)]/50 text-sm font-black shrink-0">
-                    {p.firstName?.[0]}{p.lastName?.[0]}
-                  </div>
-                  
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-0.5">
-                      <h3 className="text-sm font-black text-[var(--foreground)] group-hover:text-emerald-500 transition-colors truncate">
-                        {p.firstName} {p.lastName}
-                      </h3>
-                      <div className={`w-1.5 h-1.5 rounded-full ${p.status === 'active' ? 'bg-emerald-500' : 'bg-[var(--muted)]/30'}`} />
+                            <Phone className="w-4 h-4" />
+                          </a>
+                        )}
+                        <div className="p-2.5 text-[var(--muted)]/20">
+                          <ChevronLeft className="w-4 h-4" />
+                        </div>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2 overflow-hidden">
-                      <span className="text-[10px] font-bold text-[var(--muted)]/60 whitespace-nowrap">
-                        {(() => {
-                          const patientProgs = p.programIds || (p.programId ? [p.programId] : []);
-                          const patientGrps = p.groupIds || (p.hosenType ? [p.hosenType] : []);
-                          
-                          if (patientProgs.length === 0 && patientGrps.length === 0) return "כללי";
-                          
-                          const grpNames = patientGrps.map((gId: string) => {
-                            const g = groups.find(x => x.id === gId);
-                            if (!g) return gId;
-                            const prog = programs.find(x => x.id === g.programId);
-                            return prog ? `${prog.name} - ${g.name}` : g.name;
-                          });
 
-                          const progNames = patientProgs.filter((pId: string) => {
-                            const hasGroupShown = groups.some(g => g.programId === pId && patientGrps.includes(g.id));
-                            return !hasGroupShown;
-                          }).map((pId: string) => {
-                            const prog = programs.find(x => x.id === pId);
-                            return prog ? prog.name : pId;
-                          });
-
-                          const allNames = [...progNames, ...grpNames];
-                          const display = allNames.join(", ");
-                          if (display && display !== "כללי" && !display.startsWith("תוכנית")) {
-                            return `תוכנית ${display}`;
-                          }
-                          return display || "כללי";
-                        })()}
-                      </span>
-                      <span className="w-1 h-1 rounded-full bg-[var(--border)] shrink-0" />
-                      <span className="text-[10px] font-bold text-[var(--muted)]/60 truncate">
-                        {staff[p.assignedWorkerId || ""] || "לא שובץ"}
-                      </span>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center gap-1 shrink-0">
-                    {p.phone && (
-                      <a 
-                        href={`tel:${p.phone}`}
-                        onClick={(e) => e.stopPropagation()}
-                        className="p-2.5 text-[var(--muted)]/40 hover:text-emerald-500 transition-colors"
-                      >
-                        <Phone className="w-4 h-4" />
-                      </a>
+                    {needsExtension && (
+                      <div className="flex items-center gap-1.5 text-[10px] font-black text-amber-600 bg-amber-500/10 px-3 py-1.5 rounded-xl w-full">
+                        <AlertCircle className="w-3.5 h-3.5 animate-pulse" />
+                        {daysLeft < 0 ? 'תקופת התוכנית הסתיימה!' : `נדרשת הארכה בהקדם (נותרו ${daysLeft} ימים)`}
+                      </div>
                     )}
-                    <div className="p-2.5 text-[var(--muted)]/20">
-                      <ChevronLeft className="w-4 h-4" />
+
+                    {/* Quick Action Toggle Checkboxes for Mobile */}
+                    <div className="flex items-center justify-between border-t border-[var(--border)] pt-3 mt-1">
+                      <div className="flex items-center gap-4">
+                        <button
+                          onClick={(e) => handleToggleExtensionSent(p.id, !!p.extensionSent, e)}
+                          className="flex items-center gap-2 text-[10px] font-bold text-[var(--muted)] hover:text-amber-500 transition-colors"
+                        >
+                          <div className={`w-4 h-4 rounded border flex items-center justify-center transition-all ${
+                            p.extensionSent 
+                              ? 'bg-amber-500 border-amber-600 text-white' 
+                              : 'border-[var(--border)] hover:border-amber-500 bg-[var(--surface)]'
+                          }`}>
+                            {p.extensionSent && <Check className="w-3 h-3 stroke-[4]" />}
+                          </div>
+                          הוגשה הארכה
+                        </button>
+
+                        <button
+                          onClick={(e) => handleToggleExtensionReceived(p.id, !!p.extensionReceived, e)}
+                          className="flex items-center gap-2 text-[10px] font-bold text-[var(--muted)] hover:text-emerald-500 transition-colors"
+                        >
+                          <div className={`w-4 h-4 rounded border flex items-center justify-center transition-all ${
+                            p.extensionReceived 
+                              ? 'bg-emerald-500 border-emerald-600 text-white' 
+                              : 'border-[var(--border)] hover:border-emerald-500 bg-[var(--surface)]'
+                          }`}>
+                            {p.extensionReceived && <Check className="w-3 h-3 stroke-[4]" />}
+                          </div>
+                          התקבלה הארכה
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                </motion.div>
-              ))}
+                  </motion.div>
+                );
+              })}
             </div>
           )}
         </div>

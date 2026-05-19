@@ -47,7 +47,7 @@ export default function ParticipantJoinPage() {
 
         // Notify admins and managers
         try {
-          fetch("/api/notify", {
+          await fetch("/api/notify", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
