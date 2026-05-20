@@ -57,11 +57,14 @@ export default function PatientsPage() {
   const [staff, setStaff] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedFilters, setSelectedFilters] = useState<{ programs: string[]; groups: string[] }>({
+  const [selectedFilters, setSelectedFilters] = useState<{ programs: string[]; groups: string[]; workers: string[] }>({
     programs: [],
-    groups: []
+    groups: [],
+    workers: []
   });
   const [filterDropdownOpen, setFilterDropdownOpen] = useState(false);
+  const [sortBy, setSortBy] = useState<string>("lastNameAsc");
+  const [sortDropdownOpen, setSortDropdownOpen] = useState(false);
   const [viewMode, setViewMode] = useState<"table" | "cards">("table");
   const router = useRouter();
 
@@ -353,7 +356,11 @@ export default function PatientsPage() {
         try {
           const parsed = JSON.parse(saved);
           if (parsed && Array.isArray(parsed.programs) && Array.isArray(parsed.groups)) {
-            setSelectedFilters(parsed);
+            setSelectedFilters({
+              programs: parsed.programs || [],
+              groups: parsed.groups || [],
+              workers: parsed.workers || []
+            });
           } else {
             localStorage.removeItem("hosen_patients_selected_filters");
           }
@@ -471,53 +478,93 @@ export default function PatientsPage() {
     });
   };
 
+  const handleToggleWorkerFilter = (id: string) => {
+    setSelectedFilters(prev => {
+      const nextWorkers = prev.workers ? (prev.workers.includes(id)
+        ? prev.workers.filter(x => x !== id)
+        : [...prev.workers, id]) : [id];
+      const next = { ...prev, workers: nextWorkers };
+      localStorage.setItem("hosen_patients_selected_filters", JSON.stringify(next));
+      return next;
+    });
+  };
+
   const handleClearFilters = () => {
-    const next = { programs: [], groups: [] };
+    const next = { programs: [], groups: [], workers: [] };
     setSelectedFilters(next);
     localStorage.setItem("hosen_patients_selected_filters", JSON.stringify(next));
   };
 
   const filtered = useMemo(() => {
-    return patients.filter(p => {
+    const result = patients.filter(p => {
       const nameMatch = `${p.firstName} ${p.lastName} ${p.idNumber} ${p.fullName || ""}`.toLowerCase().includes(searchTerm.toLowerCase());
-      
-      const noFilters = selectedFilters.programs.length === 0 && selectedFilters.groups.length === 0;
-      if (noFilters) return nameMatch;
+      if (!nameMatch) return false;
 
-      // Resolve groups
-      const patientGroups = p.groupIds || (p.hosenType ? [p.hosenType] : []);
-
-      // Resolve both explicit programIds and implicit ones (via patient's groups)
-      const explicitPrograms = p.programIds || (p.programId ? [p.programId] : []);
-      const implicitPrograms = patientGroups.map(gId => {
-        const g = groups.find(x => x.id === gId);
-        return g?.programId;
-      }).filter(Boolean) as string[];
-      const patientPrograms = Array.from(new Set([...explicitPrograms, ...implicitPrograms]));
-
-      const hasProgramFilter = selectedFilters.programs.length > 0;
-      const matchesProgram = hasProgramFilter 
-        ? patientPrograms.some((id: string) => selectedFilters.programs.includes(id))
-        : false;
-
-      const hasGroupFilter = selectedFilters.groups.length > 0;
-      const matchesGroup = hasGroupFilter
-        ? patientGroups.some((id: string) => selectedFilters.groups.includes(id))
-        : false;
-
-      if (hasProgramFilter && hasGroupFilter) {
-        return nameMatch && matchesProgram && matchesGroup;
-      }
-      if (hasProgramFilter) {
-        return nameMatch && matchesProgram;
-      }
-      if (hasGroupFilter) {
-        return nameMatch && matchesGroup;
+      // Program filter
+      if (selectedFilters.programs.length > 0) {
+        const patientGroups = p.groupIds || (p.hosenType ? [p.hosenType] : []);
+        const explicitPrograms = p.programIds || (p.programId ? [p.programId] : []);
+        const implicitPrograms = patientGroups.map(gId => groups.find(x => x.id === gId)?.programId).filter(Boolean) as string[];
+        const patientPrograms = Array.from(new Set([...explicitPrograms, ...implicitPrograms]));
+        const matchesProgram = patientPrograms.some(id => selectedFilters.programs.includes(id));
+        if (!matchesProgram) return false;
       }
 
-      return nameMatch;
+      // Group filter
+      if (selectedFilters.groups.length > 0) {
+        const patientGroups = p.groupIds || (p.hosenType ? [p.hosenType] : []);
+        const matchesGroup = patientGroups.some(id => selectedFilters.groups.includes(id));
+        if (!matchesGroup) return false;
+      }
+
+      // Caregiver filter
+      if (selectedFilters.workers && selectedFilters.workers.length > 0) {
+        const matchesWorker = selectedFilters.workers.includes(p.assignedWorkerId || "");
+        if (!matchesWorker) return false;
+      }
+
+      return true;
     });
-  }, [patients, searchTerm, selectedFilters, groups]);
+
+    // Apply sorting
+    return [...result].sort((a, b) => {
+      switch (sortBy) {
+        case "lastNameDesc": {
+          const lnA = a.lastName || "";
+          const lnB = b.lastName || "";
+          return lnB.localeCompare(lnA, 'he');
+        }
+        case "firstNameAsc": {
+          const fnA = a.firstName || "";
+          const fnB = b.firstName || "";
+          return fnA.localeCompare(fnB, 'he');
+        }
+        case "startDateDesc": {
+          const sdA = a.startDate || "0000-00-00";
+          const sdB = b.startDate || "0000-00-00";
+          return sdB.localeCompare(sdA);
+        }
+        case "startDateAsc": {
+          const sdA = a.startDate || "9999-99-99";
+          const sdB = b.startDate || "9999-99-99";
+          return sdA.localeCompare(sdB);
+        }
+        case "workerAsc": {
+          const wA = staff[a.assignedWorkerId || ""] || "לא שובץ";
+          const wB = staff[b.assignedWorkerId || ""] || "לא שובץ";
+          return wA.localeCompare(wB, 'he');
+        }
+        case "lastNameAsc":
+        default: {
+          const lnA = a.lastName || "";
+          const lnB = b.lastName || "";
+          const cmp = lnA.localeCompare(lnB, 'he');
+          if (cmp !== 0) return cmp;
+          return (a.firstName || "").localeCompare(b.firstName || "", 'he');
+        }
+      }
+    });
+  }, [patients, searchTerm, selectedFilters, groups, sortBy, staff]);
 
   const handleDelete = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -595,7 +642,7 @@ export default function PatientsPage() {
         </div>
 
         <div className="mt-8 grid grid-cols-1 md:grid-cols-12 gap-2 relative z-50">
-          <div className="md:col-span-7 relative group">
+          <div className="md:col-span-6 relative group">
             <Search className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--muted)]/40" />
             <input 
               type="text" 
@@ -606,15 +653,18 @@ export default function PatientsPage() {
             />
           </div>
           
-          <div className="md:col-span-5 relative">
+          <div className="md:col-span-3 relative">
             <button
-              onClick={() => setFilterDropdownOpen(!filterDropdownOpen)}
+              onClick={() => {
+                setFilterDropdownOpen(!filterDropdownOpen);
+                setSortDropdownOpen(false);
+              }}
               className="w-full bg-[var(--foreground)]/5 border border-[var(--border)] rounded-xl px-4 py-2.5 text-xs font-black flex items-center justify-between transition-all hover:bg-[var(--foreground)]/[0.08] active:scale-[0.99]"
             >
               <div className="flex items-center gap-2">
                 <Filter className="w-3.5 h-3.5 text-emerald-500" />
-                <span>{selectedFilters.programs.length + selectedFilters.groups.length > 0 
-                  ? `סינון פעיל (${selectedFilters.programs.length + selectedFilters.groups.length})` 
+                <span>{selectedFilters.programs.length + selectedFilters.groups.length + (selectedFilters.workers?.length || 0) > 0 
+                  ? `סינון פעיל (${selectedFilters.programs.length + selectedFilters.groups.length + (selectedFilters.workers?.length || 0)})` 
                   : "כל התוכניות והקבוצות"}</span>
               </div>
               <ChevronDown className={`w-4 h-4 transition-transform duration-300 ${filterDropdownOpen ? 'rotate-180' : ''}`} />
@@ -641,7 +691,7 @@ export default function PatientsPage() {
                 >
                   <div className="flex items-center justify-between border-b border-[var(--border)] pb-2 mb-3">
                     <span className="text-xs font-black text-[var(--foreground)]">סינון לפי תוכניות וקבוצות</span>
-                    {(selectedFilters.programs.length > 0 || selectedFilters.groups.length > 0) && (
+                    {(selectedFilters.programs.length > 0 || selectedFilters.groups.length > 0 || (selectedFilters.workers?.length || 0) > 0) && (
                       <button 
                         onClick={handleClearFilters}
                         className="text-[10px] font-black text-rose-500 hover:text-rose-600 transition-colors flex items-center gap-1"
@@ -706,7 +756,106 @@ export default function PatientsPage() {
                         </div>
                       </div>
                     )}
+
+                    {/* Caregivers Section */}
+                    {Object.keys(staff).length > 0 && (
+                      <div className="space-y-1.5">
+                        <h4 className="text-[10px] font-black uppercase text-[var(--muted)] tracking-wider mb-2 pr-1 border-r-2 border-amber-500">עו"ס מלווה / מטפל</h4>
+                        <div className="grid grid-cols-1 gap-1">
+                          {Object.entries(staff).map(([id, name]) => {
+                            const isSelected = selectedFilters.workers?.includes(id);
+                            return (
+                              <button
+                                key={id}
+                                onClick={() => handleToggleWorkerFilter(id)}
+                                className={`w-full text-right px-3 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-between active:scale-[0.98] ${
+                                  isSelected 
+                                    ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20' 
+                                    : 'hover:bg-[var(--foreground)]/5 border border-transparent'
+                                }`}
+                              >
+                                <span>{name}</span>
+                                {isSelected && <Check className="w-3.5 h-3.5 text-amber-500 stroke-[3]" />}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
                   </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
+          <div className="md:col-span-3 relative">
+            <button
+              onClick={() => {
+                setSortDropdownOpen(!sortDropdownOpen);
+                setFilterDropdownOpen(false);
+              }}
+              className="w-full bg-[var(--foreground)]/5 border border-[var(--border)] rounded-xl px-4 py-2.5 text-xs font-black flex items-center justify-between transition-all hover:bg-[var(--foreground)]/[0.08] active:scale-[0.99]"
+            >
+              <div className="flex items-center gap-2">
+                <Users className="w-3.5 h-3.5 text-emerald-500" />
+                <span>מיון: {
+                  sortBy === "lastNameAsc" ? "שם משפחה א-ת" :
+                  sortBy === "lastNameDesc" ? "שם משפחה ת-א" :
+                  sortBy === "firstNameAsc" ? "שם פרטי א-ת" :
+                  sortBy === "startDateDesc" ? "תאריך התחלה (חדש לישן)" :
+                  sortBy === "startDateAsc" ? "תאריך התחלה (ישן לחדש)" :
+                  sortBy === "workerAsc" ? "שם המטפל א-ת" : "ברירת מחדל"
+                }</span>
+              </div>
+              <ChevronDown className={`w-4 h-4 transition-transform duration-300 ${sortDropdownOpen ? 'rotate-180' : ''}`} />
+            </button>
+
+            {/* Click backdrop to close */}
+            {sortDropdownOpen && (
+              <div 
+                className="fixed inset-0 z-40 bg-transparent" 
+                onClick={() => setSortDropdownOpen(false)} 
+              />
+            )}
+
+            {/* Dropdown Popover */}
+            <AnimatePresence>
+              {sortDropdownOpen && (
+                <motion.div
+                  initial={{ opacity: 0, y: 8, scale: 0.96 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 8, scale: 0.96 }}
+                  transition={{ duration: 0.15 }}
+                  className="absolute left-0 right-0 top-full mt-2 bg-[var(--surface)] border border-[var(--border)] rounded-2xl shadow-2xl p-2 z-50 text-right overflow-hidden flex flex-col gap-0.5"
+                  dir="rtl"
+                >
+                  {[
+                    { val: "lastNameAsc", label: "שם משפחה א-ת" },
+                    { val: "lastNameDesc", label: "שם משפחה ת-א" },
+                    { val: "firstNameAsc", label: "שם פרטי א-ת" },
+                    { val: "startDateDesc", label: "תאריך התחלה (חדש לישן)" },
+                    { val: "startDateAsc", label: "תאריך התחלה (ישן לחדש)" },
+                    { val: "workerAsc", label: "שם המטפל א-ת" }
+                  ].map(opt => {
+                    const isSelected = sortBy === opt.val;
+                    return (
+                      <button
+                        key={opt.val}
+                        onClick={() => {
+                          setSortBy(opt.val);
+                          setSortDropdownOpen(false);
+                        }}
+                        className={`w-full text-right px-3 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-between active:scale-[0.98] ${
+                          isSelected 
+                            ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' 
+                            : 'hover:bg-[var(--foreground)]/5 border border-transparent'
+                        }`}
+                      >
+                        <span>{opt.label}</span>
+                        {isSelected && <Check className="w-3.5 h-3.5 text-emerald-500 stroke-[3]" />}
+                      </button>
+                    );
+                  })}
                 </motion.div>
               )}
             </AnimatePresence>
