@@ -190,7 +190,7 @@ export default function UserManagementPage() {
             </div>
           ) : (
             <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl overflow-hidden shadow-sm">
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto min-h-[320px]">
                 <table className="w-full text-right border-collapse text-xs">
                   <thead>
                     <tr className="border-b border-[var(--border)] bg-[var(--foreground)]/[0.02] text-[var(--muted)]/70 font-black">
@@ -203,7 +203,7 @@ export default function UserManagementPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[var(--border)]">
-                    {filteredUsers.map((user) => {
+                    {filteredUsers.map((user, index) => {
                       const isUpdating = updatingId === user.id;
                       return (
                         <React.Fragment key={user.id}>
@@ -247,7 +247,11 @@ export default function UserManagementPage() {
                                       className="fixed inset-0 z-40" 
                                       onClick={() => setActiveRoleDropdownId(null)}
                                     />
-                                    <div className="absolute right-0 mt-2 w-48 bg-[var(--card-bg)] border border-[var(--border)] rounded-2xl shadow-2xl p-2 z-50 space-y-1 animation-fade-in">
+                                    <div className={`absolute right-0 w-48 bg-[var(--card-bg)] border border-[var(--border)] rounded-2xl shadow-2xl p-2 z-50 space-y-1 animation-fade-in ${
+                                      index >= filteredUsers.length - 2 && filteredUsers.length > 2
+                                        ? "bottom-full mb-2"
+                                        : "top-full mt-2"
+                                    }`}>
                                       <div className="px-3 py-1.5 text-[9px] font-black uppercase text-[var(--muted)] tracking-wider">
                                         בחר תפקידים:
                                       </div>
