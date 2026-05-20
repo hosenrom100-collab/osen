@@ -9,8 +9,10 @@ import {
   Trash2, User, ChevronLeft, LayoutGrid, List,
   Loader2, ExternalLink, Calendar, Shield, Phone,
   Briefcase, CalendarDays, Check, ChevronDown, X,
-  AlertCircle
+  AlertCircle, Upload, Download, FileSpreadsheet,
+  CheckCircle2, AlertTriangle, RefreshCw
 } from "lucide-react";
+import * as XLSX from "xlsx";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { format } from "date-fns";
@@ -62,6 +64,281 @@ export default function PatientsPage() {
   const [filterDropdownOpen, setFilterDropdownOpen] = useState(false);
   const [viewMode, setViewMode] = useState<"table" | "cards">("table");
   const router = useRouter();
+
+  // Excel Import States & Functions
+  const [importModalOpen, setImportModalOpen] = useState(false);
+  const [importStep, setImportStep] = useState<"upload" | "preview" | "importing" | "success">("upload");
+  const [importRows, setImportRows] = useState<any[]>([]);
+  const [importProgress, setImportProgress] = useState(0);
+  const [overwriteDuplicates, setOverwriteDuplicates] = useState(true);
+
+  function autoEndDate(startDate: string): string {
+    if (!startDate) return "";
+    try {
+      const d = new Date(startDate);
+      d.setMonth(d.getMonth() + 3);
+      return d.toISOString().split("T")[0];
+    } catch { return ""; }
+  }
+
+  const normalizeKey = (key: string) => key.replace(/[\s_.-]/g, "").toLowerCase();
+
+  const getRowValue = (row: any, searchTerms: string[]) => {
+    const normalizedSearch = searchTerms.map(t => t.replace(/[\s_.-]/g, "").toLowerCase());
+    for (const key of Object.keys(row)) {
+      const normKey = normalizeKey(key);
+      if (normalizedSearch.some(term => normKey.includes(term) || term.includes(normKey))) {
+        return row[key];
+      }
+    }
+    return undefined;
+  };
+
+  const parseExcelDate = (val: any): string => {
+    if (!val) return new Date().toISOString().split("T")[0];
+    if (typeof val === "number") {
+      try {
+        const date = XLSX.SSF.parse_date_code(val);
+        const d = new Date(date.y, date.m - 1, date.d);
+        if (!isNaN(d.getTime())) {
+          return d.toISOString().split("T")[0];
+        }
+      } catch {}
+    }
+    const str = String(val).trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
+    const parts = str.split(/[./-]/);
+    if (parts.length === 3) {
+      if (parts[0].length === 4) {
+        const d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+        if (!isNaN(d.getTime())) return d.toISOString().split("T")[0];
+      } else {
+        const day = Number(parts[0]);
+        const month = Number(parts[1]);
+        let year = Number(parts[2]);
+        if (year < 100) year += 2000;
+        const d = new Date(year, month - 1, day);
+        if (!isNaN(d.getTime())) return d.toISOString().split("T")[0];
+      }
+    }
+    return new Date().toISOString().split("T")[0];
+  };
+
+  const downloadImportTemplate = () => {
+    const data = [
+      {
+        "שם פרטי": "ישראל",
+        "שם משפחה": "ישראלי",
+        "תעודת זהות": "123456789",
+        "טלפון": "0501234567",
+        "תאריך התחלה": "2026-05-20",
+        "עו\"ס מלווה": "שם העו\"ס מהמערכת",
+        "תוכנית": "חרבות ברזל בוקר",
+        "קבוצה": "קבוצה א"
+      },
+      {
+        "שם פרטי": "שרה",
+        "שם משפחה": "כהן",
+        "תעודת זהות": "987654321",
+        "טלפון": "0547654321",
+        "תאריך התחלה": "20/05/2026",
+        "עו\"ס מלווה": "",
+        "תוכנית": "חרבות ברזל ערב",
+        "קבוצה": "קבוצה ב"
+      }
+    ];
+    
+    const ws = XLSX.utils.json_to_sheet(data);
+    ws['!dir'] = 'rtl';
+    const cols = [
+      { wch: 15 },
+      { wch: 15 },
+      { wch: 15 },
+      { wch: 15 },
+      { wch: 15 },
+      { wch: 20 },
+      { wch: 20 },
+      { wch: 15 }
+    ];
+    ws['!cols'] = cols;
+    
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "תבנית ייבוא משתתפים");
+    XLSX.writeFile(wb, "hosen_patients_import_template.xlsx");
+  };
+
+  const handleExcelImport = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = e.target?.result;
+        const workbook = XLSX.read(data, { type: "binary" });
+        const sheetName = workbook.SheetNames[0];
+        const sheet = workbook.Sheets[sheetName];
+        const json = XLSX.utils.sheet_to_json(sheet);
+        
+        const parsedRows = json.map((row: any) => {
+          const firstName = String(getRowValue(row, ["שם פרטי", "פרטי", "firstName", "first"]) || "").trim();
+          const lastName = String(getRowValue(row, ["שם משפחה", "משפחה", "lastName", "last"]) || "").trim();
+          const idNumber = String(getRowValue(row, ["תעודת זהות", "ת.ז", "מספר זהות", "idNumber", "id"]) || "").trim().replace(/\D/g, "");
+          const phone = String(getRowValue(row, ["טלפון", "נייד", "phone", "mobile"]) || "").trim();
+          const rawDate = getRowValue(row, ["תאריך התחלה", "תאריך", "תחילת השתתפות", "startDate", "start"]);
+          const startDate = parseExcelDate(rawDate);
+          
+          const workerName = String(getRowValue(row, ["עו\"ס מלווה", "עוס מלווה", "עו\"ס", "עוס", "socialWorker", "worker"]) || "").trim();
+          const programName = String(getRowValue(row, ["תוכנית", "תכנית", "program"]) || "").trim();
+          const groupName = String(getRowValue(row, ["קבוצה", "group"]) || "").trim();
+          
+          let assignedWorkerId = "";
+          if (workerName) {
+            const staffList = Object.entries(staff).map(([id, name]) => ({ id, name }));
+            const match = staffList.find(s => 
+              s.name.toLowerCase().includes(workerName.toLowerCase()) || 
+              workerName.toLowerCase().includes(s.name.toLowerCase())
+            );
+            if (match) assignedWorkerId = match.id;
+          }
+          
+          let programId = "";
+          if (programName) {
+            const match = programs.find(p => 
+              p.name.toLowerCase().includes(programName.toLowerCase()) ||
+              programName.toLowerCase().includes(p.name.toLowerCase())
+            );
+            if (match) programId = match.id;
+          }
+          
+          let groupIds: string[] = [];
+          if (groupName) {
+            const searchGroups = programId ? groups.filter(g => g.programId === programId) : groups;
+            const match = searchGroups.find(g => 
+              g.name.toLowerCase().includes(groupName.toLowerCase()) ||
+              groupName.toLowerCase().includes(g.name.toLowerCase())
+            );
+            if (match) groupIds = [match.id];
+          }
+          
+          let status: "valid" | "warning" | "duplicate" = "valid";
+          let message = "תקין";
+          
+          if (!firstName || !lastName) {
+            status = "warning";
+            message = "שם פרטי ומשפחה הם חובה";
+          } else if (!idNumber) {
+            status = "warning";
+            message = "תעודת זהות היא חובה";
+          } else if (idNumber.length < 8 || idNumber.length > 9) {
+            status = "warning";
+            message = "תעודת זהות לא תקינה (צריכה להיות 8-9 ספרות)";
+          }
+          
+          const existing = patients.find(p => p.idNumber === idNumber);
+          if (existing && status === "valid") {
+            status = "duplicate";
+            message = `משתתף קיים במערכת (${existing.firstName} ${existing.lastName})`;
+          }
+          
+          return {
+            firstName,
+            lastName,
+            idNumber,
+            phone,
+            startDate,
+            workerName,
+            programName,
+            groupName,
+            assignedWorkerId,
+            programId,
+            groupIds,
+            status,
+            message,
+            existingPatientId: existing?.id
+          };
+        });
+        
+        setImportRows(parsedRows);
+        setImportStep("preview");
+      } catch (err) {
+        console.error("Error reading excel file:", err);
+        alert("שגיאה בקריאת קובץ האקסל. וודא שהקובץ תקין ולא פגום.");
+      }
+    };
+    reader.readAsBinaryString(file);
+  };
+
+  const handleCommitImport = async () => {
+    setImportStep("importing");
+    setImportProgress(0);
+    
+    let importedCount = 0;
+    let updatedCount = 0;
+    
+    const rowsToProcess = importRows.filter(r => r.status === "valid" || (r.status === "duplicate" && overwriteDuplicates));
+    const total = rowsToProcess.length;
+    
+    if (total === 0) {
+      alert("אין רשומות תקינות לייבוא");
+      setImportStep("preview");
+      return;
+    }
+    
+    const { addDoc, doc, updateDoc, serverTimestamp, collection } = await import("firebase/firestore");
+    
+    for (let i = 0; i < total; i++) {
+      const row = rowsToProcess[i];
+      setImportProgress(Math.round(((i + 1) / total) * 100));
+      
+      try {
+        const finalPayload = {
+          firstName: row.firstName,
+          lastName: row.lastName,
+          idNumber: row.idNumber,
+          phone: row.phone || "",
+          startDate: row.startDate,
+          endDate: autoEndDate(row.startDate),
+          status: "active",
+          assignedWorkerId: row.assignedWorkerId || "",
+          programId: row.programId || "",
+          programIds: row.programId ? [row.programId] : [],
+          groupIds: row.groupIds || [],
+          hosenType: row.groupIds?.[0] || "",
+          fullName: `${row.firstName} ${row.lastName}`,
+          rehabPlanCompleted: false,
+          updatedAt: serverTimestamp(),
+        };
+        
+        if (row.status === "duplicate" && row.existingPatientId) {
+          await updateDoc(doc(db, "patients", row.existingPatientId), finalPayload);
+          updatedCount++;
+        } else {
+          await addDoc(collection(db, "patients"), {
+            ...finalPayload,
+            createdAt: serverTimestamp(),
+          });
+          importedCount++;
+        }
+      } catch (err) {
+        console.error("Error importing patient:", row, err);
+      }
+    }
+    
+    try {
+      const pSnap = await getDocs(collection(db, "patients"));
+      const pts = pSnap.docs.map(d => ({ id: d.id, ...d.data() } as Patient));
+      pts.sort((a, b) => {
+        const lnA = a.lastName || "";
+        const lnB = b.lastName || "";
+        const cmp = lnA.localeCompare(lnB, 'he');
+        if (cmp !== 0) return cmp;
+        return (a.firstName || "").localeCompare(b.firstName || "", 'he');
+      });
+      setPatients(pts);
+    } catch (err) {
+      console.error("Error reloading patients:", err);
+    }
+    
+    setImportStep("success");
+  };
 
   useEffect(() => {
     if (typeof window !== "undefined" && window.innerWidth < 768) {
@@ -293,6 +570,18 @@ export default function PatientsPage() {
                 <LayoutGrid className="w-3.5 h-3.5" />
               </button>
             </div>
+
+            <button 
+              onClick={() => {
+                setImportStep("upload");
+                setImportModalOpen(true);
+              }}
+              title="ייבוא משתתפים מרוכז מקובץ אקסל"
+              className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 px-5 py-2.5 rounded-xl text-xs font-black transition-all hover:bg-emerald-500/20 active:scale-95 ml-2"
+            >
+              <Upload className="w-4 h-4" />
+              ייבוא מאקסל
+            </button>
 
             <button 
               onClick={() => router.push("/patients/new")}
@@ -731,6 +1020,302 @@ export default function PatientsPage() {
             </div>
           )}
         </div>
+
+        {/* Import Modal */}
+        <AnimatePresence>
+          {importModalOpen && (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+              {/* Backdrop */}
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => importStep !== "importing" && setImportModalOpen(false)}
+                className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm"
+              />
+              
+              {/* Modal Box */}
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 15 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 15 }}
+                className="relative w-full max-w-4xl bg-[var(--surface)] border border-[var(--border)] rounded-[2.5rem] shadow-2xl p-6 md:p-8 flex flex-col max-h-[85vh] overflow-hidden text-right animate-in fade-in zoom-in duration-200"
+                dir="rtl"
+              >
+                {/* Close Button */}
+                {importStep !== "importing" && (
+                  <button
+                    onClick={() => setImportModalOpen(false)}
+                    className="absolute left-6 top-6 w-9 h-9 flex items-center justify-center rounded-xl bg-[var(--foreground)]/5 border border-[var(--border)] text-[var(--muted)] hover:bg-[var(--foreground)]/10 transition-colors"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+                
+                {/* Header */}
+                <div className="mb-6">
+                  <h2 className="text-xl font-black flex items-center gap-2">
+                    <FileSpreadsheet className="w-6 h-6 text-emerald-500" />
+                    ייבוא משתתפים מקובץ אקסל
+                  </h2>
+                  <p className="text-xs text-[var(--muted)] mt-1">
+                    ייבוא רשימת מטופלים מרוכזת מתוך קובץ גיליון אקסל (XLSX, XLS, CSV)
+                  </p>
+                </div>
+                
+                {/* Content by step */}
+                {importStep === "upload" && (
+                  <div className="flex-1 overflow-y-auto min-h-[300px] flex flex-col gap-6 pr-1 no-scrollbar">
+                    {/* File Upload Area */}
+                    <label className="border-2 border-dashed border-[var(--border)] hover:border-emerald-500/50 bg-[var(--foreground)]/[0.01] hover:bg-[var(--foreground)]/[0.02] rounded-3xl p-8 flex flex-col items-center justify-center gap-4 cursor-pointer transition-all group min-h-[220px]">
+                      <input
+                        type="file"
+                        accept=".xlsx, .xls, .csv"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) handleExcelImport(file);
+                        }}
+                        className="hidden"
+                      />
+                      <div className="w-14 h-14 rounded-2xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center group-hover:scale-110 transition-transform">
+                        <Upload className="w-6 h-6" />
+                      </div>
+                      <div className="text-center space-y-1">
+                        <p className="text-sm font-black">לחץ להעלאת קובץ אקסל או גרור לכאן</p>
+                        <p className="text-[10px] text-[var(--muted)] font-bold">XLSX, XLS, CSV עד נפח 5MB</p>
+                      </div>
+                    </label>
+                    
+                    {/* Instructions */}
+                    <div className="bg-[var(--foreground)]/[0.02] border border-[var(--border)] rounded-2xl p-5 space-y-3">
+                      <h4 className="text-xs font-black text-emerald-500">הנחיות ומבנה העמודות המומלץ:</h4>
+                      <p className="text-xs text-[var(--muted)] leading-relaxed">
+                        כדי שהמערכת תזהה את הנתונים ותבצע שיוך נכון לעו"ס מלווה וקבוצות, מומלץ להשתמש בכותרות הבאות בעברית (השיוך אינו רגיש לאותיות גדולות/קטנות או רווחים):
+                      </p>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-2">
+                        <div className="bg-[var(--surface)] border border-[var(--border)] p-2.5 rounded-xl text-center">
+                          <p className="text-xs font-black">שם פרטי</p>
+                          <p className="text-[9px] text-rose-500 font-bold mt-0.5">עמודת חובה</p>
+                        </div>
+                        <div className="bg-[var(--surface)] border border-[var(--border)] p-2.5 rounded-xl text-center">
+                          <p className="text-xs font-black">שם משפחה</p>
+                          <p className="text-[9px] text-rose-500 font-bold mt-0.5">עמודת חובה</p>
+                        </div>
+                        <div className="bg-[var(--surface)] border border-[var(--border)] p-2.5 rounded-xl text-center">
+                          <p className="text-xs font-black">תעודת זהות</p>
+                          <p className="text-[9px] text-rose-500 font-bold mt-0.5">עמודת חובה</p>
+                        </div>
+                        <div className="bg-[var(--surface)] border border-[var(--border)] p-2.5 rounded-xl text-center">
+                          <p className="text-xs font-black">טלפון</p>
+                          <p className="text-[9px] text-[var(--muted)] font-bold mt-0.5">אופציונלי</p>
+                        </div>
+                        <div className="bg-[var(--surface)] border border-[var(--border)] p-2.5 rounded-xl text-center">
+                          <p className="text-xs font-black">תאריך התחלה</p>
+                          <p className="text-[9px] text-[var(--muted)] font-bold mt-0.5">אופציונלי</p>
+                        </div>
+                        <div className="bg-[var(--surface)] border border-[var(--border)] p-2.5 rounded-xl text-center">
+                          <p className="text-xs font-black">עו"ס מלווה</p>
+                          <p className="text-[9px] text-[var(--muted)] font-bold mt-0.5">אופציונלי</p>
+                        </div>
+                        <div className="bg-[var(--surface)] border border-[var(--border)] p-2.5 rounded-xl text-center">
+                          <p className="text-xs font-black">תוכנית</p>
+                          <p className="text-[9px] text-[var(--muted)] font-bold mt-0.5">אופציונלי</p>
+                        </div>
+                        <div className="bg-[var(--surface)] border border-[var(--border)] p-2.5 rounded-xl text-center">
+                          <p className="text-xs font-black">קבוצה</p>
+                          <p className="text-[9px] text-[var(--muted)] font-bold mt-0.5">אופציונלי</p>
+                        </div>
+                      </div>
+                      
+                      <div className="flex flex-col sm:flex-row justify-between items-center border-t border-[var(--border)] pt-4 mt-2 gap-4">
+                        <p className="text-[10px] text-[var(--muted)] font-bold text-center sm:text-right">הורד תבנית אקסל מוכנה ומעוצבת לצורך מילוי מהיר:</p>
+                        <button
+                          onClick={downloadImportTemplate}
+                          type="button"
+                          className="flex items-center gap-2 bg-[var(--foreground)] text-[var(--background)] hover:opacity-90 px-4 py-2 rounded-xl text-xs font-black transition-all shadow-md active:scale-95"
+                        >
+                          <Download className="w-3.5 h-3.5" />
+                          הורד תבנית לדוגמה
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
+                {importStep === "preview" && (
+                  <div className="flex-1 flex flex-col overflow-hidden">
+                    {/* Duplicates Toggle & Info Summary */}
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-[var(--foreground)]/[0.02] border border-[var(--border)] p-4 rounded-2xl mb-4 text-xs font-bold">
+                      <div className="flex flex-wrap gap-4 items-center">
+                        <span className="bg-emerald-500/10 text-emerald-600 px-3 py-1.5 rounded-lg">
+                          {importRows.filter(r => r.status === "valid").length} רשומות חדשות
+                        </span>
+                        <span className="bg-indigo-500/10 text-indigo-600 px-3 py-1.5 rounded-lg">
+                          {importRows.filter(r => r.status === "duplicate").length} רשומות קיימות
+                        </span>
+                        {importRows.filter(r => r.status === "warning").length > 0 && (
+                          <span className="bg-rose-500/10 text-rose-600 px-3 py-1.5 rounded-lg flex items-center gap-1">
+                            <AlertTriangle className="w-3.5 h-3.5" />
+                            {importRows.filter(r => r.status === "warning").length} רשומות עם שגיאות (ידולגו)
+                          </span>
+                        )}
+                      </div>
+                      
+                      {importRows.some(r => r.status === "duplicate") && (
+                        <label className="flex items-center gap-2 cursor-pointer select-none">
+                          <input
+                            type="checkbox"
+                            checked={overwriteDuplicates}
+                            onChange={(e) => setOverwriteDuplicates(e.target.checked)}
+                            className="rounded border-[var(--border)] text-emerald-500 focus:ring-emerald-500 w-4 h-4 ml-2"
+                          />
+                          <span>עדכן פרטים עבור משתתפים קיימים (מומלץ)</span>
+                        </label>
+                      )}
+                    </div>
+                    
+                    {/* Preview Table */}
+                    <div className="flex-1 overflow-auto border border-[var(--border)] rounded-2xl mb-6">
+                      <table className="w-full text-right border-collapse">
+                        <thead>
+                          <tr className="bg-[var(--foreground)]/[0.02] border-b border-[var(--border)] sticky top-0 z-10">
+                            <th className="px-4 py-3 text-[10px] font-black uppercase text-[var(--muted)]">שם פרטי</th>
+                            <th className="px-4 py-3 text-[10px] font-black uppercase text-[var(--muted)]">שם משפחה</th>
+                            <th className="px-4 py-3 text-[10px] font-black uppercase text-[var(--muted)]">תעודת זהות</th>
+                            <th className="px-4 py-3 text-[10px] font-black uppercase text-[var(--muted)]">טלפון</th>
+                            <th className="px-4 py-3 text-[10px] font-black uppercase text-[var(--muted)]">עו"ס מלווה</th>
+                            <th className="px-4 py-3 text-[10px] font-black uppercase text-[var(--muted)]">תוכנית</th>
+                            <th className="px-4 py-3 text-[10px] font-black uppercase text-[var(--muted)]">קבוצה</th>
+                            <th className="px-4 py-3 text-[10px] font-black uppercase text-[var(--muted)]">סטטוס</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-[var(--border)]">
+                          {importRows.map((row, idx) => (
+                            <tr key={idx} className="hover:bg-[var(--foreground)]/[0.01] transition-colors text-xs font-bold">
+                              <td className="px-4 py-3.5">{row.firstName || <span className="text-rose-500 italic">חסר</span>}</td>
+                              <td className="px-4 py-3.5">{row.lastName || <span className="text-rose-500 italic">חסר</span>}</td>
+                              <td className="px-4 py-3.5 font-mono">{row.idNumber || <span className="text-rose-500 italic">חסר</span>}</td>
+                              <td className="px-4 py-3.5">{row.phone || "—"}</td>
+                              <td className="px-4 py-3.5">
+                                {row.assignedWorkerId ? (
+                                  <span className="text-emerald-600">{row.workerName}</span>
+                                ) : row.workerName ? (
+                                  <span className="text-amber-600 flex items-center gap-1" title="לא נמצא עו'ס תואם במערכת">
+                                    {row.workerName} (?)
+                                  </span>
+                                ) : "—"}
+                              </td>
+                              <td className="px-4 py-3.5">
+                                {row.programId ? (
+                                  <span className="text-emerald-600">{row.programName}</span>
+                                ) : row.programName ? (
+                                  <span className="text-amber-500 flex items-center gap-1" title="לא נמצאה תוכנית תואמת">
+                                    {row.programName} (?)
+                                  </span>
+                                ) : "—"}
+                              </td>
+                              <td className="px-4 py-3.5">
+                                {row.groupIds?.length ? (
+                                  <span className="text-emerald-600">{row.groupName}</span>
+                                ) : row.groupName ? (
+                                  <span className="text-amber-500 flex items-center gap-1" title="לא נמצאה קבוצה תואמת">
+                                    {row.groupName} (?)
+                                  </span>
+                                ) : "—"}
+                              </td>
+                              <td className="px-4 py-3.5">
+                                {row.status === "valid" && (
+                                  <span className="inline-flex items-center gap-1 px-2 py-1 rounded bg-emerald-500/10 text-emerald-600 text-[10px]">
+                                    <Check className="w-3 h-3 stroke-[3]" />
+                                    חדש
+                                  </span>
+                                )}
+                                {row.status === "duplicate" && (
+                                  <span className={`inline-flex items-center gap-1 px-2 py-1 rounded text-[10px] ${
+                                    overwriteDuplicates 
+                                      ? 'bg-indigo-500/10 text-indigo-600' 
+                                      : 'bg-slate-500/10 text-slate-500 line-through'
+                                  }`}>
+                                    <RefreshCw className="w-3 h-3 stroke-[3]" />
+                                    {overwriteDuplicates ? "עדכון" : "דילוג"}
+                                  </span>
+                                )}
+                                {row.status === "warning" && (
+                                  <span className="inline-flex items-center gap-1 px-2 py-1 rounded bg-rose-500/10 text-rose-600 text-[10px]" title={row.message}>
+                                    <AlertTriangle className="w-3 h-3" />
+                                    שגיאה
+                                  </span>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    
+                    {/* Actions */}
+                    <div className="flex items-center justify-between mt-auto">
+                      <button
+                        onClick={() => setImportStep("upload")}
+                        className="bg-[var(--foreground)]/5 border border-[var(--border)] hover:bg-[var(--foreground)]/10 text-[var(--foreground)] px-6 py-3 rounded-2xl text-xs font-black transition-all"
+                      >
+                        חזור להעלאה
+                      </button>
+                      
+                      <button
+                        onClick={handleCommitImport}
+                        className="bg-emerald-600 hover:bg-emerald-500 text-white px-8 py-3 rounded-2xl text-xs font-black transition-all flex items-center gap-2 active:scale-95 shadow-xl shadow-emerald-600/10"
+                      >
+                        <CheckCircle2 className="w-4 h-4" />
+                        אשר ובצע ייבוא ({importRows.filter(r => r.status === "valid" || (r.status === "duplicate" && overwriteDuplicates)).length} רשומות)
+                      </button>
+                    </div>
+                  </div>
+                )}
+                
+                {importStep === "importing" && (
+                  <div className="flex-1 min-h-[300px] flex flex-col items-center justify-center gap-6">
+                    <div className="relative w-24 h-24 flex items-center justify-center">
+                      <svg className="w-full h-full transform -rotate-90">
+                        <circle cx="48" cy="48" r="40" stroke="var(--border)" strokeWidth="8" fill="transparent" />
+                        <circle cx="48" cy="48" r="40" stroke="var(--primary)" strokeWidth="8" fill="transparent"
+                          strokeDasharray={2 * Math.PI * 40}
+                          strokeDashoffset={2 * Math.PI * 40 * (1 - importProgress / 100)}
+                          className="transition-all duration-300"
+                        />
+                      </svg>
+                      <span className="absolute text-sm font-black font-mono">{importProgress}%</span>
+                    </div>
+                    <div className="text-center space-y-1">
+                      <h3 className="text-sm font-black">מייבא משתתפים למסד הנתונים...</h3>
+                      <p className="text-[10px] text-[var(--muted)] font-bold">אנא המתן, לא לסגור את החלון</p>
+                    </div>
+                  </div>
+                )}
+                
+                {importStep === "success" && (
+                  <div className="flex-1 min-h-[300px] flex flex-col items-center justify-center gap-6">
+                    <div className="w-16 h-16 rounded-3xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center animate-bounce">
+                      <CheckCircle2 className="w-8 h-8 stroke-[3]" />
+                    </div>
+                    <div className="text-center space-y-1">
+                      <h3 className="text-lg font-black">הייבוא הושלם בהצלחה!</h3>
+                      <p className="text-xs text-[var(--muted)] font-bold">
+                        כל הרשומות התקינות נוספו או עודכנו בהצלחה במערכת.
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setImportModalOpen(false)}
+                      className="bg-[var(--foreground)] text-[var(--background)] hover:opacity-90 px-8 py-3 rounded-2xl text-xs font-black transition-all active:scale-95 mt-4 animate-pulse"
+                    >
+                      סגור חלון
+                    </button>
+                  </div>
+                )}
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
       </main>
     </RoleGuard>
   );
