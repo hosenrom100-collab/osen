@@ -476,20 +476,11 @@ export default function PatientDetailPage() {
             </div>
 
             <div className="flex items-center gap-3 w-full md:w-auto">
-               {(isAdmin || isManager) && (
-                 <button 
-                  onClick={() => setShowEditModal(true)}
-                  className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-5 md:px-6 py-2.5 md:py-3 rounded-xl md:rounded-2xl text-[10px] md:text-xs font-black transition-all active:scale-95 shadow-xl shadow-emerald-600/10"
-                 >
-                   <Edit3 className="w-3.5 h-3.5 md:w-4 md:h-4" />
-                   <span>עריכה</span>
-                 </button>
-               )}
             </div>
           </div>
         </header>
 
-        <main className="max-w-6xl mx-auto p-4 md:p-8">
+        <main className="max-w-7xl mx-auto p-4 md:p-8">
           
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-5 mb-8">
              {[
@@ -519,15 +510,14 @@ export default function PatientDetailPage() {
                <button 
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as any)}
-                className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-[10px] md:text-xs font-black transition-all whitespace-nowrap border ${
+                className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-3 py-2.5 md:px-5 md:py-2.5 rounded-xl md:rounded-2xl text-xs font-black transition-all whitespace-nowrap border cursor-pointer select-none ${
                   activeTab === tab.id 
-                    ? "bg-[var(--card-bg)] text-[var(--foreground)] border-[var(--border)] shadow-sm" 
+                    ? "bg-[var(--card-bg)] text-emerald-600 border-[var(--border)] shadow-sm" 
                     : "bg-transparent text-[var(--foreground)]/50 hover:text-[var(--foreground)] border-transparent"
                 }`}
                >
-                 <tab.icon className="w-3.5 h-3.5 text-[var(--primary)]" />
-                 <span className="hidden xs:inline">{tab.label}</span>
-                 <span className="xs:hidden">{tab.label.charAt(0)}</span>
+                 <tab.icon className="w-4 h-4 md:w-3.5 md:h-3.5 shrink-0" />
+                 <span className="hidden sm:inline">{tab.label}</span>
                </button>
              ))}
           </div>
@@ -536,35 +526,17 @@ export default function PatientDetailPage() {
             {activeTab === "overview" && (
               <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} key="overview" className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
                  
-                 {/* Left Column: Personal & Contact (Bento style) */}
-                 <div className="lg:col-span-8 grid grid-cols-1 sm:grid-cols-2 gap-6">
-                    
-                    {/* Primary Info Card */}
-                    <div className="sm:col-span-2 bg-[var(--card-bg)] border border-[var(--border)] rounded-[2rem] p-6 md:p-8 shadow-sm relative overflow-hidden group">
-                      <h3 className="text-base md:text-lg font-black mb-6 md:mb-8 flex items-center gap-3 text-slate-800">
-                        <div className="w-1.5 h-5 md:w-2 md:h-6 bg-emerald-500 rounded-full" />
-                        מידע אישי וקשר
-                      </h3>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-6 md:gap-y-10 gap-x-12">
-                         <div className="space-y-1">
-                            <p className="text-[9px] md:text-[10px] font-black text-slate-400 uppercase tracking-widest">מספר זהות</p>
-                            <p className="text-base md:text-lg font-black font-mono text-slate-700">{patient.idNumber}</p>
-                         </div>
-                         <div className="space-y-1">
-                            <p className="text-[9px] md:text-[10px] font-black text-slate-400 uppercase tracking-widest">קבוצה ותוכנית</p>
-                            <p className="text-base md:text-lg font-black text-emerald-600">{fullGroupName}</p>
-                         </div>
-                         <div className="space-y-1">
-                            <p className="text-[9px] md:text-[10px] font-black text-slate-400 uppercase tracking-widest">טלפון ליצירת קשר</p>
-                            <p className="text-base md:text-lg font-black text-slate-700">{patient.phone || "—"}</p>
-                         </div>
-                         <div className="space-y-1">
-                            <p className="text-[9px] md:text-[10px] font-black text-slate-400 uppercase tracking-widest">כתובת דוא״ל</p>
-                            <p className="text-base md:text-lg font-black text-slate-700 truncate">{patient.email || "—"}</p>
-                         </div>
-                      </div>
+                 {/* Left Column: Personal & Contact (Upgraded Inline Form with Silent Auto-save) */}
+                 <div className="lg:col-span-8 bg-[var(--card-bg)] border border-[var(--border)] rounded-[2.5rem] p-6 md:p-8 shadow-sm">
+                    <div className="flex items-center gap-3 mb-8">
+                      <div className="w-1.5 h-5 md:w-2 md:h-6 bg-emerald-500 rounded-full" />
+                      <h3 className="text-base md:text-lg font-black text-slate-800">פרטי משתתף ועריכה</h3>
                     </div>
-
+                    <PatientForm
+                      patientId={patient.id}
+                      initialData={patient}
+                      onSuccess={fetchPatientData}
+                    />
                  </div>
 
                  {/* Right Column: Administrative (Stay Period & Actions) */}
@@ -1057,56 +1029,7 @@ export default function PatientDetailPage() {
           </div>
         </div>
 
-        <AnimatePresence>
-          {showEditModal && patient && (
-            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                onClick={() => setShowEditModal(false)}
-                className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-              />
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95, y: 20 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                className="relative w-full max-w-2xl bg-[var(--card-bg)] border border-[var(--border)] rounded-[3rem] shadow-2xl overflow-hidden"
-              >
-                <div className="flex items-center justify-between p-8 pb-0">
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center">
-                      <Edit3 className="w-6 h-6 text-emerald-500" />
-                    </div>
-                    <div>
-                      <h2 className="text-xl font-black tracking-tight">עריכת פרטי משתתף</h2>
-                      <p className="text-[10px] text-[var(--foreground)]/40 font-bold uppercase tracking-widest mt-0.5">
-                        {patient.firstName} {patient.lastName}
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => setShowEditModal(false)}
-                    className="p-3 hover:bg-[var(--foreground)]/5 rounded-2xl transition-all"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
-                </div>
 
-                <div className="p-8 max-h-[80vh] overflow-y-auto no-scrollbar">
-                  <PatientForm
-                    patientId={patient.id}
-                    initialData={patient}
-                    onSuccess={() => {
-                      setShowEditModal(false);
-                      fetchPatientData();
-                    }}
-                  />
-                </div>
-              </motion.div>
-            </div>
-          )}
-        </AnimatePresence>
       </div>
     </RoleGuard>
   );

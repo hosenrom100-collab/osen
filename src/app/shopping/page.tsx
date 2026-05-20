@@ -459,7 +459,7 @@ export default function ShoppingPage() {
                    onClick={approveAll} 
                    className="px-6 py-2.5 rounded-2xl bg-emerald-600 text-white text-xs font-black hover:bg-emerald-500 transition-all shadow-lg shadow-emerald-600/10 flex items-center gap-1.5"
                 >
-                   <Check className="w-4 h-4 stroke-[3]" /> אשר את כל הממתינים ({pending.length})
+                   <Check className="w-4 h-4 stroke-[3]" /> אשר את כל הממתינים לאישור ({pending.length})
                 </button>
              )}
              <button onClick={() => setView(view === "list" ? "archive" : "list")} className="px-6 py-2.5 rounded-2xl bg-[var(--foreground)]/5 border border-[var(--border)] text-xs font-black hover:bg-[var(--foreground)]/10 transition-all">

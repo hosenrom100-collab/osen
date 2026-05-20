@@ -234,7 +234,7 @@ export function SmartAssistant() {
       newInsights.push({ id: "attendance", type: "warning", text: `${data.attendance.missingCount} משתתפים ממתינים לבדיקת נוכחות`, icon: Users, actionPath: "/admin/patient-attendance" });
     }
     if (data.shopping.pendingCount > 0) {
-      newInsights.push({ id: "shopping", type: "warning", text: `${data.shopping.pendingCount} פריטי קניות ממתינים`, icon: ShoppingCart, actionPath: "/shopping" });
+      newInsights.push({ id: "shopping", type: "warning", text: `${data.shopping.pendingCount} מוצרים ממתינים לאישור`, icon: ShoppingCart, actionPath: "/shopping" });
     }
     if ((isAdmin || isManager) && data.absences.pendingCount > 0) {
       newInsights.push({ id: "absences", type: "warning", text: `${data.absences.pendingCount} בקשות היעדרות ממתינות`, icon: Calendar, actionPath: "/admin/staff-attendance" });

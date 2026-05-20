@@ -563,7 +563,7 @@ export default function Home() {
                   </div>
                   <div className="min-w-0">
                     <p className="text-[11px] font-black text-[var(--foreground)]">רכש ממתין</p>
-                    <p className="text-[10px] text-[var(--foreground)]/40 font-bold truncate">{shoppingCount} בקשות ממתינות</p>
+                    <p className="text-[10px] text-[var(--foreground)]/40 font-bold truncate">{shoppingCount} מוצרים ממתינים לאישור</p>
                   </div>
                 </motion.div>
               )}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { db } from "@/lib/firebase/config";
 import {
   collection, addDoc, serverTimestamp, getDocs,
@@ -9,7 +9,7 @@ import {
 import { useRouter } from "next/navigation";
 import {
   Calendar, Loader2, CheckCircle, Briefcase, Layers, Users,
-  ShieldCheck, Phone
+  ShieldCheck, Phone, CheckCircle2
 } from "lucide-react";
 
 interface Program { id: string; name: string }
@@ -36,6 +36,7 @@ interface PatientFormProps {
 export function PatientForm({ patientId, initialData, onSuccess }: PatientFormProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
 
   const [programs,      setPrograms]      = useState<Program[]>([]);
   const [allGroups,     setAllGroups]     = useState<Group[]>([]);
@@ -62,12 +63,79 @@ export function PatientForm({ patientId, initialData, onSuccess }: PatientFormPr
   const set = (patch: Partial<typeof formData>) =>
     setFormData(f => ({ ...f, ...patch }));
 
+  // Keep latest state in a ref to avoid stale closures in debounced auto-saves
+  const latestStateRef = useRef({ formData, selectedProgramIds, selectedGroupIds });
+  useEffect(() => {
+    latestStateRef.current = { formData, selectedProgramIds, selectedGroupIds };
+  }, [formData, selectedProgramIds, selectedGroupIds]);
+
+  const debouncedSaveRef = useRef<any>(null);
+
+  const triggerSilentSave = async (
+    updatedData: typeof formData,
+    updatedPrograms: string[],
+    updatedGroups: string[]
+  ) => {
+    if (!patientId) return;
+    setSaveStatus("saving");
+    try {
+      const finalPayload = {
+        ...updatedData,
+        programIds: updatedPrograms,
+        groupIds: updatedGroups,
+        programId: updatedPrograms[0] || "",
+        hosenType: updatedGroups[0] || "",
+        fullName: `${updatedData.firstName} ${updatedData.lastName}`,
+      };
+
+      const { doc, updateDoc, serverTimestamp } = await import("firebase/firestore");
+      await updateDoc(doc(db, "patients", patientId), {
+        ...finalPayload,
+        updatedAt: serverTimestamp(),
+      });
+      setSaveStatus("saved");
+      if (onSuccess) onSuccess();
+    } catch (error) {
+      console.error("Auto-save failed:", error);
+      setSaveStatus("error");
+    }
+  };
+
+  const saveDebounced = () => {
+    if (!patientId) return;
+    setSaveStatus("saving");
+    if (debouncedSaveRef.current) {
+      clearTimeout(debouncedSaveRef.current);
+    }
+    debouncedSaveRef.current = setTimeout(() => {
+      const { formData: currentData, selectedProgramIds: currentProgs, selectedGroupIds: currentGroups } = latestStateRef.current;
+      triggerSilentSave(currentData, currentProgs, currentGroups);
+    }, 1000);
+  };
+
+  const saveImmediately = (
+    newData?: Partial<typeof formData>,
+    newProgs?: string[],
+    newGroups?: string[]
+  ) => {
+    if (!patientId) return;
+    if (debouncedSaveRef.current) {
+      clearTimeout(debouncedSaveRef.current);
+    }
+    setSaveStatus("saving");
+    const currentData = { ...latestStateRef.current.formData, ...newData };
+    const currentProgs = newProgs || latestStateRef.current.selectedProgramIds;
+    const currentGroups = newGroups || latestStateRef.current.selectedGroupIds;
+    triggerSilentSave(currentData, currentProgs, currentGroups);
+  };
+
   const handleStartDateChange = (val: string) => {
     const patch: Partial<typeof formData> = { startDate: val };
     if (!formData.endDate || formData.endDate === autoEndDate(formData.startDate)) {
       patch.endDate = autoEndDate(val);
     }
     set(patch);
+    saveImmediately(patch);
   };
 
   useEffect(() => {
@@ -84,7 +152,6 @@ export function PatientForm({ patientId, initialData, onSuccess }: PatientFormPr
         const data = d.data();
         const userRoles = (data.roles as string[]) || (data.role ? [data.role] : []);
         const isWorker = userRoles.some(r => ["social_worker", "admin", "manager"].includes(r));
-        
         if (isWorker) {
           workers.push({ id: d.id, name: data.displayName || data.name || data.email });
         }
@@ -97,27 +164,34 @@ export function PatientForm({ patientId, initialData, onSuccess }: PatientFormPr
   const handleToggleProgram = (pId: string) => {
     setSelectedProgramIds(prev => {
       const next = prev.includes(pId) ? prev.filter(id => id !== pId) : [...prev, pId];
+      let nextGroups = selectedGroupIds;
       if (prev.includes(pId)) {
         const pGroupIds = allGroups.filter(g => g.programId === pId).map(g => g.id);
-        setSelectedGroupIds(gPrev => gPrev.filter(id => !pGroupIds.includes(id)));
+        nextGroups = selectedGroupIds.filter(id => !pGroupIds.includes(id));
+        setSelectedGroupIds(nextGroups);
       }
+      saveImmediately(undefined, next, nextGroups);
       return next;
     });
   };
 
   const handleToggleGroup = (gId: string) => {
-    setSelectedGroupIds(prev =>
-      prev.includes(gId) ? prev.filter(id => id !== gId) : [...prev, gId]
-    );
+    setSelectedGroupIds(prev => {
+      const next = prev.includes(gId) ? prev.filter(id => id !== gId) : [...prev, gId];
+      saveImmediately(undefined, undefined, next);
+      return next;
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (patientId) {
+      return;
+    }
     if (selectedProgramIds.length === 0) {
       alert("אנא בחר לפחות תוכנית אחת משויכת");
       return;
     }
-    // Check that each selected program which has groups has at least one group selected in it
     for (const pId of selectedProgramIds) {
       const pGroups = allGroups.filter(g => g.programId === pId);
       if (pGroups.length > 0) {
@@ -141,18 +215,10 @@ export function PatientForm({ patientId, initialData, onSuccess }: PatientFormPr
         fullName: `${formData.firstName} ${formData.lastName}`,
       };
 
-      if (patientId) {
-        const { doc, updateDoc } = await import("firebase/firestore");
-        await updateDoc(doc(db, "patients", patientId), {
-          ...finalPayload,
-          updatedAt: serverTimestamp(),
-        });
-      } else {
-        await addDoc(collection(db, "patients"), {
-          ...finalPayload,
-          createdAt: serverTimestamp(),
-        });
-      }
+      await addDoc(collection(db, "patients"), {
+        ...finalPayload,
+        createdAt: serverTimestamp(),
+      });
       
       if (onSuccess) {
         onSuccess();
@@ -160,7 +226,7 @@ export function PatientForm({ patientId, initialData, onSuccess }: PatientFormPr
         router.push("/patients");
       }
     } catch {
-      alert(patientId ? "שגיאה בעדכון משתתף" : "שגיאה בהוספת משתתף");
+      alert("שגיאה בהוספת משתתף");
     } finally {
       setLoading(false);
     }
@@ -173,22 +239,61 @@ export function PatientForm({ patientId, initialData, onSuccess }: PatientFormPr
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>
           <label className={LABEL}>שם פרטי</label>
-          <input required type="text" value={formData.firstName} onChange={e => set({ firstName: e.target.value })} className={FIELD} placeholder="ישראל" />
+          <input 
+            required 
+            type="text" 
+            value={formData.firstName} 
+            onChange={e => {
+              set({ firstName: e.target.value });
+              saveDebounced();
+            }} 
+            className={FIELD} 
+            placeholder="ישראל" 
+          />
         </div>
         <div>
           <label className={LABEL}>שם משפחה</label>
-          <input required type="text" value={formData.lastName} onChange={e => set({ lastName: e.target.value })} className={FIELD} placeholder="ישראלי" />
+          <input 
+            required 
+            type="text" 
+            value={formData.lastName} 
+            onChange={e => {
+              set({ lastName: e.target.value });
+              saveDebounced();
+            }} 
+            className={FIELD} 
+            placeholder="ישראלי" 
+          />
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>
           <label className={LABEL}>מספר תעודת זהות</label>
-          <input required type="text" value={formData.idNumber} onChange={e => set({ idNumber: e.target.value })} className={FIELD} placeholder="000000000" />
+          <input 
+            required 
+            type="text" 
+            value={formData.idNumber} 
+            onChange={e => {
+              set({ idNumber: e.target.value });
+              saveDebounced();
+            }} 
+            className={FIELD} 
+            placeholder="000000000" 
+          />
         </div>
         <div>
           <label className={LABEL}><Phone className="w-3 h-3" /> מספר טלפון</label>
-          <input type="text" value={formData.phone} onChange={e => set({ phone: e.target.value })} className={FIELD} placeholder="050-0000000" />
+          <input 
+            type="text" 
+            value={formData.phone} 
+            onChange={e => {
+              set({ phone: e.target.value });
+              saveDebounced();
+            }} 
+            className={FIELD} 
+            placeholder="050-0000000" 
+          />
         </div>
       </div>
 
@@ -246,7 +351,16 @@ export function PatientForm({ patientId, initialData, onSuccess }: PatientFormPr
 
         <div>
           <label className={LABEL}><Briefcase className="w-3 h-3" /> עו"ס מלווה</label>
-          <select required value={formData.assignedWorkerId} onChange={e => set({ assignedWorkerId: e.target.value })} className={FIELD}>
+          <select 
+            required 
+            value={formData.assignedWorkerId} 
+            onChange={e => {
+              const val = e.target.value;
+              set({ assignedWorkerId: val });
+              saveImmediately({ assignedWorkerId: val });
+            }} 
+            className={FIELD}
+          >
             <option value="">בחר עובד...</option>
             {socialWorkers.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
           </select>
@@ -257,18 +371,41 @@ export function PatientForm({ patientId, initialData, onSuccess }: PatientFormPr
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>
           <label className={LABEL}><Calendar className="w-3 h-3" /> תאריך תחילת השתתפות</label>
-          <input required type="date" value={formData.startDate} onChange={e => handleStartDateChange(e.target.value)} className={FIELD} />
+          <input 
+            required 
+            type="date" 
+            value={formData.startDate} 
+            onChange={e => handleStartDateChange(e.target.value)} 
+            className={FIELD} 
+          />
         </div>
         <div>
           <label className={LABEL}><Calendar className="w-3 h-3" /> תאריך סיום (אוטומטי: 3 חודשים)</label>
-          <input type="date" value={formData.endDate} onChange={e => set({ endDate: e.target.value })} className={FIELD} />
+          <input 
+            type="date" 
+            value={formData.endDate} 
+            onChange={e => {
+              const val = e.target.value;
+              set({ endDate: val });
+              saveImmediately({ endDate: val });
+            }} 
+            className={FIELD} 
+          />
           <p className="text-[10px] text-[var(--foreground)]/30 mt-1 mr-1">מחושב אוטומטית — ניתן לשינוי ידני</p>
         </div>
       </div>
 
       <div>
         <label className={LABEL}><ShieldCheck className="w-3 h-3" /> סטטוס נוכחי</label>
-        <select value={formData.status} onChange={e => set({ status: e.target.value as any })} className={FIELD}>
+        <select 
+          value={formData.status} 
+          onChange={e => {
+            const val = e.target.value as any;
+            set({ status: val });
+            saveImmediately({ status: val });
+          }} 
+          className={FIELD}
+        >
           <option value="active">פעיל</option>
           <option value="pending">ממתין</option>
           <option value="inactive">לא פעיל</option>
@@ -278,7 +415,11 @@ export function PatientForm({ patientId, initialData, onSuccess }: PatientFormPr
       {/* ── Rehab Plan ── */}
       <div
         className="flex items-center gap-4 bg-[var(--foreground)]/[0.02] border border-[var(--border)] rounded-2xl p-5 cursor-pointer group select-none"
-        onClick={() => set({ rehabPlanCompleted: !formData.rehabPlanCompleted })}
+        onClick={() => {
+          const next = !formData.rehabPlanCompleted;
+          set({ rehabPlanCompleted: next });
+          saveImmediately({ rehabPlanCompleted: next });
+        }}
       >
         <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all shrink-0 ${
           formData.rehabPlanCompleted
@@ -295,14 +436,45 @@ export function PatientForm({ patientId, initialData, onSuccess }: PatientFormPr
         </div>
       </div>
 
-      <button 
-        type="submit" 
-        disabled={loading}
-        className="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-4 rounded-2xl text-sm font-black uppercase tracking-widest transition-all shadow-xl shadow-emerald-600/20 flex items-center justify-center gap-3 active:scale-95 disabled:opacity-50"
-      >
-        {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <CheckCircle className="w-5 h-5" />}
-        {patientId ? "שמירת שינויים" : "פתיחת תיק משתתף"}
-      </button>
+      {patientId ? (
+        <div className="flex items-center gap-3 bg-[var(--foreground)]/[0.02] border border-[var(--border)] rounded-2xl px-5 py-4 select-none">
+          <div className="flex items-center gap-2">
+            {saveStatus === "saving" && (
+              <>
+                <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse shrink-0" />
+                <span className="text-[11px] font-bold text-slate-500">שומר שינויים אוטומטית...</span>
+              </>
+            )}
+            {saveStatus === "saved" && (
+              <>
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                <span className="text-[11px] font-bold text-emerald-600">כל השינויים נשמרו בתיק</span>
+              </>
+            )}
+            {saveStatus === "error" && (
+              <>
+                <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping shrink-0" />
+                <span className="text-[11px] font-bold text-rose-500">שגיאה בשמירה. השינויים לא נשמרו</span>
+              </>
+            )}
+            {saveStatus === "idle" && (
+              <>
+                <span className="w-2 h-2 rounded-full bg-slate-300 shrink-0" />
+                <span className="text-[11px] font-bold text-slate-400">השינויים בתיק נשמרים אוטומטית</span>
+              </>
+            )}
+          </div>
+        </div>
+      ) : (
+        <button 
+          type="submit" 
+          disabled={loading}
+          className="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-4 rounded-2xl text-sm font-black uppercase tracking-widest transition-all shadow-xl shadow-emerald-600/20 flex items-center justify-center gap-3 active:scale-95 disabled:opacity-50"
+        >
+          {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <CheckCircle className="w-5 h-5" />}
+          פתיחת תיק משתתף
+        </button>
+      )}
     </form>
   );
 }

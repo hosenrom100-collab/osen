@@ -7,7 +7,7 @@ import { db } from "@/lib/firebase/config";
 import { collection, getDocs, doc, updateDoc, query, orderBy } from "firebase/firestore";
 import { 
   Shield, UserPlus, ArrowRight, Search, Loader2, 
-  ChevronDown, ChevronUp, Check, X, ShieldAlert, Users, Layers
+  ChevronDown, ChevronUp, Check, X, ShieldAlert, Users, Layers, Edit3
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { StatusBadge } from "@/components/admin/users/StatusBadge";
@@ -62,6 +62,15 @@ export default function UserManagementPage() {
 
   const router = useRouter();
   const [activeRoleDropdownId, setActiveRoleDropdownId] = useState<string | null>(null);
+  const [editingNameId, setEditingNameId] = useState<string | null>(null);
+  const [tempName, setTempName] = useState("");
+
+  const handleSaveName = async (userId: string) => {
+    if (!tempName.trim()) return;
+    const finalName = tempName.trim();
+    setEditingNameId(null);
+    await updateUser(userId, { displayName: finalName, name: finalName });
+  };
 
   useEffect(() => {
     fetchData();
@@ -210,7 +219,57 @@ export default function UserManagementPage() {
                           <tr className="hover:bg-[var(--foreground)]/[0.01] transition-colors">
                             {/* Name */}
                             <td className="py-3.5 px-4 font-black text-[var(--foreground)]">
-                              {user.name}
+                              <div className="flex items-center gap-2 group max-w-[200px]">
+                                {editingNameId === user.id ? (
+                                  <div className="flex items-center gap-1">
+                                    <input
+                                      type="text"
+                                      value={tempName}
+                                      onChange={(e) => setTempName(e.target.value)}
+                                      className="bg-[var(--surface)] border border-[var(--border)] rounded-lg px-2 py-1 text-xs font-black focus:outline-none focus:border-emerald-500/40 text-[var(--foreground)] max-w-[130px]"
+                                      autoFocus
+                                      onKeyDown={async (e) => {
+                                        if (e.key === "Enter") {
+                                          await handleSaveName(user.id);
+                                        } else if (e.key === "Escape") {
+                                          setEditingNameId(null);
+                                        }
+                                      }}
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() => handleSaveName(user.id)}
+                                      className="p-1 text-emerald-500 hover:bg-emerald-500/10 rounded-md transition-colors cursor-pointer shrink-0"
+                                      title="שמור"
+                                    >
+                                      <Check className="w-3.5 h-3.5" />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => setEditingNameId(null)}
+                                      className="p-1 text-rose-500 hover:bg-rose-500/10 rounded-md transition-colors cursor-pointer shrink-0"
+                                      title="ביטול"
+                                    >
+                                      <X className="w-3.5 h-3.5" />
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <>
+                                    <span className="truncate">{user.name}</span>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setEditingNameId(user.id);
+                                        setTempName(user.name);
+                                      }}
+                                      className="opacity-0 group-hover:opacity-100 p-1 text-[var(--muted)] hover:text-emerald-500 hover:bg-[var(--foreground)]/5 rounded-md transition-all shrink-0 cursor-pointer"
+                                      title="ערוך שם"
+                                    >
+                                      <Edit3 className="w-3 h-3" />
+                                    </button>
+                                  </>
+                                )}
+                              </div>
                             </td>
 
                             {/* Email */}
@@ -248,7 +307,8 @@ export default function UserManagementPage() {
                                       onClick={() => setActiveRoleDropdownId(null)}
                                     />
                                     <div className={`absolute right-0 w-48 bg-[var(--card-bg)] border border-[var(--border)] rounded-2xl shadow-2xl p-2 z-50 space-y-1 animation-fade-in ${
-                                      index >= filteredUsers.length - 2 && filteredUsers.length > 2
+                                      (index === filteredUsers.length - 1 && filteredUsers.length > 1) ||
+                                      (index === filteredUsers.length - 2 && filteredUsers.length > 2)
                                         ? "bottom-full mb-2"
                                         : "top-full mt-2"
                                     }`}>
