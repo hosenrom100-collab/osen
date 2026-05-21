@@ -67,7 +67,9 @@ export async function POST(req: Request) {
       snap.forEach((d) => {
         const data = d.data();
         const status = data.status ?? "approved";
-        if (status === "approved" && roles.includes(data.role)) {
+        const userRoles = Array.isArray(data.roles) ? data.roles : (data.role ? [data.role] : []);
+        const hasMatchingRole = roles.some(r => userRoles.includes(r));
+        if (status === "approved" && hasMatchingRole) {
           targetUserIds.add(d.id);
           if (data.fcmTokens?.length) tokensByUser.set(d.id, data.fcmTokens);
         }

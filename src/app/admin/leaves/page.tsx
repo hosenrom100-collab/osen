@@ -7,7 +7,7 @@ import { format } from "date-fns";
 import { he } from "date-fns/locale";
 import { db } from "@/lib/firebase/config";
 import { 
-  collection, getDocs, query, orderBy, doc, updateDoc, where, getDoc, setDoc 
+  collection, getDocs, query, orderBy, doc, updateDoc, where, getDoc, setDoc, addDoc, serverTimestamp 
 } from "firebase/firestore";
 import { AlertCircle, CheckCircle, XCircle, ArrowRight, Loader2, MessageSquare, User, Calendar } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -28,7 +28,7 @@ export default function LeaveManagementPage() {
     setLoading(true);
     try {
       const q = query(
-        collection(db, "absences"),
+        collection(db, "absence_requests"),
         where("status", "==", "pending"),
         orderBy("createdAt", "desc")
       );
@@ -48,7 +48,7 @@ export default function LeaveManagementPage() {
   const updateRequestStatus = async (requestId: string, status: "approved" | "rejected") => {
     setUpdatingId(requestId);
     try {
-      const requestDoc = doc(db, "absences", requestId);
+      const requestDoc = doc(db, "absence_requests", requestId);
       const reqSnap = await getDoc(requestDoc);
       const reqData = reqSnap.data();
 
@@ -58,8 +58,31 @@ export default function LeaveManagementPage() {
       });
       
       if (status === "approved" && reqData) {
-        // Automatically add to schedule
+        const userId = reqData.userId;
         const date = reqData.date; // yyyy-MM-dd
+
+        // 1. Update daily staff attendance status to 'leave'
+        const attQuery = query(
+          collection(db, "staff_attendance"), 
+          where("userId", "==", userId), 
+          where("date", "==", date)
+        );
+        const attSnap = await getDocs(attQuery);
+        if (attSnap.empty) {
+          await addDoc(collection(db, "staff_attendance"), {
+            userId,
+            date,
+            status: 'leave',
+            approvedBy: 'admin',
+            createdAt: serverTimestamp()
+          });
+        } else {
+          await updateDoc(doc(db, "staff_attendance", attSnap.docs[0].id), {
+            status: 'leave'
+          });
+        }
+
+        // 2. Automatically add to schedule
         const schedRef = doc(db, "schedules", date);
         const schedSnap = await getDoc(schedRef);
         
@@ -86,11 +109,38 @@ export default function LeaveManagementPage() {
           });
         }
 
-        // Notify user
+        // 3. Check for conflicts (duty instructor / assigned activities) and log in schedule_conflicts
+        if (schedSnap.exists()) {
+          const schedData = schedSnap.data();
+          const isDuty = (schedData.dutyInstructorId === userId || schedData.dutyId === userId);
+          const hasActivities = (schedData.activities || []).some((a: any) => 
+            (a.staffIds || []).includes(userId) || a.instructorId === userId
+          );
+
+          if (isDuty || hasActivities) {
+            await addDoc(collection(db, "schedule_conflicts"), {
+              date,
+              userId,
+              type: isDuty ? 'duty' : 'activity',
+              resolved: false,
+              createdAt: serverTimestamp()
+            });
+          }
+        }
+
+        // 4. Notify user
         await sendPush({
-          userId: reqData.userId,
+          userId: userId,
           title: "✅ בקשת ההיעדרות אושרה",
           body: `בקשתך ליום ${date} אושרה ונוספה ללו"ז.`,
+          link: "/profile"
+        });
+      } else if (status === "rejected" && reqData) {
+        // Notify user about rejection
+        await sendPush({
+          userId: reqData.userId,
+          title: "❌ בקשת ההיעדרות נדחתה",
+          body: `בקשתך ליום ${reqData.date} נדחתה.`,
           link: "/profile"
         });
       }

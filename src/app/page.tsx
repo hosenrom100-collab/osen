@@ -652,7 +652,7 @@ export default function Home() {
                           <p className="text-xs font-bold text-rose-500/80">{c.userName} משובץ ל{c.type === 'duty' ? 'מדריך תורן' : 'פעילות'} אך רשום כנעדר</p>
                         </div>
                       </div>
-                      <Link href="/admin/staff" className="px-3 py-1.5 rounded-lg bg-rose-500 text-white text-[9px] font-black uppercase tracking-widest">נהל</Link>
+                      <Link href="/admin/staff-attendance" className="px-3 py-1.5 rounded-lg bg-rose-500 text-white text-[9px] font-black uppercase tracking-widest">נהל</Link>
                     </motion.div>
                   ))}
                 </div>

@@ -5,7 +5,7 @@ import { useState, useEffect } from "react";
 import { db } from "@/lib/firebase/config";
 import { 
   collection, query, getDocs, where, doc, 
-  updateDoc, orderBy, addDoc, serverTimestamp, getDoc
+  updateDoc, orderBy, addDoc, serverTimestamp, getDoc, setDoc
 } from "firebase/firestore";
 import { 
   Users, Calendar, Clock, CheckCircle2, XCircle, 
@@ -15,6 +15,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay } from "date-fns";
 import { he } from "date-fns/locale";
+import { sendPush } from "@/lib/notify";
 
 interface AbsenceRequest {
   id: string;
@@ -22,7 +23,7 @@ interface AbsenceRequest {
   userName: string;
   date: string;
   reason: string;
-  status: 'pending' | 'approved' | 'denied';
+  status: 'pending' | 'approved' | 'denied' | 'rejected';
   createdAt: any;
 }
 
@@ -172,10 +173,12 @@ export default function StaffAttendancePage() {
   const handleRequestAction = async (requestId: string, userId: string, date: string, action: 'approved' | 'denied') => {
     setActionLoading(requestId);
     try {
-      // 1. Update Request
-      await updateDoc(doc(db, "absence_requests", requestId), { status: action });
+      const dbStatus = action === 'approved' ? 'approved' : 'rejected';
       
-      // 2. If approved, update attendance and check for conflicts
+      // 1. Update Request
+      await updateDoc(doc(db, "absence_requests", requestId), { status: dbStatus });
+      
+      // 2. If approved, update attendance, check for conflicts, and add schedule activity
       if (action === 'approved') {
         const attQuery = query(
           collection(db, "staff_attendance"), 
@@ -197,8 +200,40 @@ export default function StaffAttendancePage() {
           });
         }
 
-        // 3. Check Conflicts (Duty or Activities)
-        const schedSnap = await getDoc(doc(db, "schedules", date));
+        // Get request details for schedule activity title and notification
+        const reqDoc = await getDoc(doc(db, "absence_requests", requestId));
+        const reqData = reqDoc.data();
+        const userName = reqData?.userName || "איש צוות";
+        const reason = reqData?.reason || "היעדרות מאושרת";
+
+        // Add to schedule
+        const schedRef = doc(db, "schedules", date);
+        const schedSnap = await getDoc(schedRef);
+        
+        const newActivity = {
+          id: Math.random().toString(36).slice(2, 9),
+          title: `היעדרות: ${userName}`,
+          startTime: "08:00",
+          endTime: "16:00",
+          locationId: "office",
+          staffIds: [],
+          groupId: "staff_only",
+          notes: reason
+        };
+
+        if (schedSnap.exists()) {
+          const current = schedSnap.data().activities || [];
+          await updateDoc(schedRef, {
+            activities: [...current, newActivity]
+          });
+        } else {
+          await setDoc(schedRef, {
+            activities: [newActivity],
+            dutyInstructorId: ""
+          });
+        }
+
+        // Check Conflicts (Duty or Activities)
         if (schedSnap.exists()) {
           const schedData = schedSnap.data();
           const isDuty = (schedData.dutyInstructorId === userId || schedData.dutyId === userId);
@@ -217,6 +252,22 @@ export default function StaffAttendancePage() {
             });
           }
         }
+
+        // Send Push Notification
+        await sendPush({
+          userId: userId,
+          title: "✅ בקשת ההיעדרות אושרה",
+          body: `בקשתך ליום ${date} אושרה ונוספה ללו"ז.`,
+          link: "/profile"
+        });
+      } else {
+        // Send Push Notification on rejection
+        await sendPush({
+          userId: userId,
+          title: "❌ בקשת ההיעדרות נדחתה",
+          body: `בקשתך ליום ${date} נדחתה.`,
+          link: "/profile"
+        });
       }
       
       await fetchData();

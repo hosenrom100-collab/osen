@@ -57,7 +57,7 @@ export default function StaffHubPage() {
     if (!user) return;
     try {
       const q = query(
-        collection(db, "absences"),
+        collection(db, "absence_requests"),
         where("userId", "==", user.uid),
         orderBy("date", "desc")
       );
@@ -101,7 +101,7 @@ export default function StaffHubPage() {
     
     setSubmittingAbsence(true);
     try {
-      await addDoc(collection(db, "absences"), {
+      await addDoc(collection(db, "absence_requests"), {
         userId: user.uid,
         userName: user.displayName || user.email,
         date: absenceDate,

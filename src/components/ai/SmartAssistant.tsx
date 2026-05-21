@@ -14,6 +14,7 @@ import {
   collection, query, getDocs, limit, where, getDoc, doc,
   addDoc, serverTimestamp, deleteDoc, updateDoc, writeBatch, arrayUnion, setDoc
 } from "firebase/firestore";
+import { sendPush } from "@/lib/notify";
 
 /* ─── Types ─── */
 
@@ -45,7 +46,7 @@ interface AppData {
   };
   absences: {
     pendingCount: number;
-    pendingRequests: Array<{ id: string; userName: string; date: string }>;
+    pendingRequests: Array<{ id: string; userName: string; date: string; userId?: string; reason?: string }>;
   };
   staffList: Array<{ id: string; name: string; role: string }>;
   patientList: Array<{ id: string; fullName: string }>;
@@ -203,6 +204,8 @@ export function SmartAssistant() {
             id: d.id,
             userName: d.data().userName || "",
             date: d.data().date || "",
+            userId: d.data().userId || "",
+            reason: d.data().reason || "",
           })),
         },
         staffList: usersSnap.docs
@@ -377,9 +380,102 @@ export function SmartAssistant() {
         const pending = appData?.absences.pendingRequests || [];
         const match = pending.find((r) => r.userName.toLowerCase().includes(targetName) || targetName.includes(r.userName.toLowerCase()));
         if (match) {
+          const dbStatus = action === "approve_absence" ? "approved" : "rejected";
+          
+          // 1. Update Request status
           await updateDoc(doc(db, "absence_requests", match.id), {
-            status: action === "approve_absence" ? "approved" : "rejected",
+            status: dbStatus,
+            handledAt: new Date().toISOString()
           });
+
+          const userId = match.userId || "";
+          const date = match.date; // yyyy-MM-dd
+
+          if (action === "approve_absence") {
+            // 2. Update daily staff attendance status to 'leave'
+            const attQuery = query(
+              collection(db, "staff_attendance"), 
+              where("userId", "==", userId), 
+              where("date", "==", date)
+            );
+            const attSnap = await getDocs(attQuery);
+            if (attSnap.empty) {
+              await addDoc(collection(db, "staff_attendance"), {
+                userId,
+                date,
+                status: 'leave',
+                approvedBy: 'admin_assistant',
+                createdAt: serverTimestamp()
+              });
+            } else {
+              await updateDoc(doc(db, "staff_attendance", attSnap.docs[0].id), {
+                status: 'leave'
+              });
+            }
+
+            // 3. Create schedule activity
+            const schedRef = doc(db, "schedules", date);
+            const schedSnap = await getDoc(schedRef);
+            
+            const newActivity = {
+              id: Math.random().toString(36).slice(2, 9),
+              title: `היעדרות: ${match.userName}`,
+              startTime: "08:00",
+              endTime: "16:00",
+              locationId: "office",
+              staffIds: [],
+              groupId: "staff_only",
+              notes: match.reason || "היעדרות מאושרת"
+            };
+
+            if (schedSnap.exists()) {
+              const current = schedSnap.data().activities || [];
+              await updateDoc(schedRef, {
+                activities: [...current, newActivity]
+              });
+            } else {
+              await setDoc(schedRef, {
+                activities: [newActivity],
+                dutyInstructorId: ""
+              });
+            }
+
+            // 4. Check for conflicts and log in schedule_conflicts
+            if (schedSnap.exists()) {
+              const schedData = schedSnap.data();
+              const isDuty = (schedData.dutyInstructorId === userId || schedData.dutyId === userId);
+              const hasActivities = (schedData.activities || []).some((a: any) => 
+                (a.staffIds || []).includes(userId) || a.instructorId === userId
+              );
+
+              if (isDuty || hasActivities) {
+                await addDoc(collection(db, "schedule_conflicts"), {
+                  date,
+                  userId,
+                  type: isDuty ? 'duty' : 'activity',
+                  resolved: false,
+                  createdAt: serverTimestamp()
+                });
+              }
+            }
+
+            // 5. Send Push Notification
+            await sendPush({
+              userId: userId,
+              title: "✅ בקשת ההיעדרות אושרה",
+              body: `בקשתך ליום ${date} אושרה ונוספה ללו"ז.`,
+              link: "/profile"
+            });
+          } else {
+            // Send Push Notification on rejection
+            await sendPush({
+              userId: userId,
+              title: "❌ בקשת ההיעדרות נדחתה",
+              body: `בקשתך ליום ${date} נדחתה.`,
+              link: "/profile"
+            });
+          }
+
           await loadAppData();
         }
         return null;
