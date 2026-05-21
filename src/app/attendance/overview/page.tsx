@@ -297,36 +297,40 @@ export default function AttendanceOverviewPage() {
                             {progData.groups.map((gd, gi) => (
                               <div key={gd.group.id} className={`${gi > 0 ? "border-t border-white/[0.04]" : ""}`}>
                                 {/* Group row */}
-                                <div className="flex items-center gap-3 px-4 py-3 bg-white/[0.02]">
-                                  <div className="w-1 h-8 rounded-full bg-blue-500/50 flex-shrink-0" />
-                                  <div className="flex-1">
-                                    <div className="flex items-center gap-2">
-                                      <span className="font-bold text-[13px]">{gd.group.name}</span>
-                                      <span className="text-[11px] text-emerald-400 font-bold">{gd.present}/{gd.total}</span>
-                                      {gd.absent > 0 && (
-                                        <span className="text-[10px] text-rose-400 font-bold">· {gd.absent} נעדרים</span>
-                                      )}
-                                      {gd.missing > 0 && (
-                                        <span className="text-[10px] text-blue-400 font-bold">· {gd.missing} לא סומנו</span>
-                                      )}
+                                <div className="flex items-center justify-between gap-2 px-3 py-2.5 bg-white/[0.02] min-w-0">
+                                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                                    <div className="w-1 h-7 rounded-full bg-blue-500/50 flex-shrink-0" />
+                                    <div className="flex-1 min-w-0">
+                                      <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5">
+                                        <span className="font-bold text-[13px] text-white truncate max-w-[90px] sm:max-w-none">{gd.group.name}</span>
+                                        <span className="text-[11px] text-emerald-400 font-bold flex-shrink-0">{gd.present}/{gd.total}</span>
+                                        {gd.absent > 0 && (
+                                          <span className="text-[10px] text-rose-400 font-bold flex-shrink-0">· {gd.absent} נעדרים</span>
+                                        )}
+                                        {gd.missing > 0 && (
+                                          <span className="text-[10px] text-blue-400 font-bold flex-shrink-0">· {gd.missing} לא סומנו</span>
+                                        )}
+                                      </div>
                                     </div>
                                   </div>
-                                  <button
-                                    onClick={() => router.push(`/admin/patient-attendance?group=${gd.group.id}`)}
-                                    className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded-lg hover:bg-emerald-500/20 transition-colors flex-shrink-0">
-                                    סמן
-                                  </button>
-                                  <button
-                                    onClick={() => handleCopyGroup(gd.group.name, progData.program.name, gd.presentNames, gd.group.id)}
-                                    className="p-1.5 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 text-slate-400 hover:text-slate-200 active:scale-95 transition-all flex-shrink-0 flex items-center justify-center"
-                                    title="העתק נוכחות לוואטסאפ"
-                                  >
-                                    {copiedId === gd.group.id ? (
-                                      <Check className="w-3.5 h-3.5 text-emerald-400" />
-                                    ) : (
-                                      <Share2 className="w-3.5 h-3.5" />
-                                    )}
-                                  </button>
+                                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                                    <button
+                                      onClick={() => router.push(`/admin/patient-attendance?group=${gd.group.id}`)}
+                                      className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded-lg hover:bg-emerald-500/20 transition-colors flex-shrink-0">
+                                      סמן
+                                    </button>
+                                    <button
+                                      onClick={() => handleCopyGroup(gd.group.name, progData.program.name, gd.presentNames, gd.group.id)}
+                                      className="p-1.5 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 text-slate-400 hover:text-slate-200 active:scale-95 transition-all flex-shrink-0 flex items-center justify-center"
+                                      title="העתק נוכחות לוואטסאפ"
+                                    >
+                                      {copiedId === gd.group.id ? (
+                                        <Check className="w-3.5 h-3.5 text-emerald-400" />
+                                      ) : (
+                                        <Share2 className="w-3.5 h-3.5" />
+                                      )}
+                                    </button>
+                                  </div>
                                 </div>
 
                                 {/* Present names */}
