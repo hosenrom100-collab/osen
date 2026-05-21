@@ -8,7 +8,7 @@ import {
   LogOut, Users, Calendar, ShoppingCart, CheckCircle,
   Shield, MapPin, Edit3, ChevronLeft, Clock,
   ClipboardList, Layers, X, Check, ChevronDown, Plus,
-  AlertTriangle, Sparkles, Bell
+  AlertTriangle, Sparkles, Bell, Coffee, Utensils, ArrowLeftRight
 } from "lucide-react";
 import Link from "next/link";
 import { db } from "@/lib/firebase/config";
@@ -23,6 +23,7 @@ interface PresentPat  { id: string; firstName: string; lastName: string; hosenTy
 interface ScheduleAct {
   id: string; title: string; startTime: string; endTime?: string;
   locationName: string; staffNames: string[]; groupId: string;
+  type?: 'activity' | 'break' | 'meal' | 'swap' | 'custom';
 }
 
 const greeting = () => {
@@ -61,8 +62,25 @@ function TimelineRow({
   if (progName && gName && progName !== gName) gName = `${progName} - ${gName}`;
   else if (!gName) gName = act.groupId === "all" ? null : act.groupId === "staff_only" ? "צוות" : null;
 
+  let Icon = null;
+  let customClass = "";
+  let tagClass = "";
+  if (act.type === "break") {
+    Icon = Coffee;
+    customClass = "bg-slate-500/5 hover:bg-slate-500/8 border border-slate-500/15 rounded-xl px-3 py-2.5 my-1.5";
+    tagClass = "bg-slate-500/15 text-slate-400 border border-slate-500/10";
+  } else if (act.type === "meal") {
+    Icon = Utensils;
+    customClass = "bg-amber-500/5 hover:bg-amber-500/8 border border-amber-500/20 rounded-xl px-3 py-2.5 my-1.5";
+    tagClass = "bg-amber-500/15 text-amber-400 border border-amber-500/10";
+  } else if (act.type === "swap") {
+    Icon = ArrowLeftRight;
+    customClass = "bg-indigo-500/5 hover:bg-indigo-500/8 border border-indigo-500/20 rounded-xl px-3 py-2.5 my-1.5";
+    tagClass = "bg-indigo-500/15 text-indigo-400 border border-indigo-500/10";
+  }
+
   return (
-    <div className={`flex items-start gap-3 py-2.5 border-b border-[var(--border)] last:border-0 transition-opacity ${isPast ? "opacity-35" : ""}`}>
+    <div className={`flex items-start gap-3 py-2.5 transition-all ${isPast ? "opacity-35" : ""} ${customClass ? customClass : "border-b border-[var(--border)] last:border-0"}`}>
       {/* Time */}
       <span className={`text-xs font-semibold shrink-0 w-10 text-right pt-px ${isCurrent ? "text-emerald-500" : "text-[var(--muted)]"}`}>
         {act.startTime}
@@ -76,11 +94,17 @@ function TimelineRow({
       {/* Content */}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
-          <span className={`text-sm font-medium truncate ${isCurrent ? "text-[var(--foreground)]" : "text-[var(--foreground)]/75"}`}>
+          <span className={`text-sm font-medium truncate flex items-center gap-1.5 ${isCurrent ? "text-[var(--foreground)]" : "text-[var(--foreground)]/75"}`}>
+            {Icon && <Icon className={`w-3.5 h-3.5 shrink-0 ${act.type === 'break' ? 'text-slate-400' : act.type === 'meal' ? 'text-amber-400' : 'text-indigo-400'}`} />}
             {act.title}
           </span>
           {isCurrent && (
             <span className="text-[9px] font-bold uppercase tracking-wider text-emerald-500 bg-emerald-500/10 px-1.5 py-0.5 rounded">עכשיו</span>
+          )}
+          {tagClass && (
+            <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded shrink-0 ${tagClass}`}>
+              {act.type === 'break' ? 'הפסקה' : act.type === 'meal' ? 'ארוחה' : 'החלפה'}
+            </span>
           )}
         </div>
         <div className="flex items-center gap-3 mt-0.5 flex-wrap">
@@ -312,6 +336,7 @@ export default function Home() {
           staffNames:   (a.staffIds || (a.instructorId ? [a.instructorId] : []))
                           .map((id: string) => userMap[id] || "").filter(Boolean),
           groupId:      a.groupId || a.hosenType || "all",
+          type:         a.type || "activity",
         })).sort((a: ScheduleAct, b: ScheduleAct) => a.startTime.localeCompare(b.startTime));
         setActivities(acts);
 

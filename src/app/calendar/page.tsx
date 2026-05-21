@@ -6,7 +6,7 @@ import {
   Calendar as CalendarIcon, ChevronLeft, ChevronRight, Clock, MapPin,
   Plus, Loader2, ArrowRight, ExternalLink, AlertTriangle, RefreshCw,
   CheckCircle, Info, Trash2, X, Check, Search, Filter, MoreVertical,
-  Users, Layers,
+  Users, Layers, Coffee, Utensils, ArrowLeftRight,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
@@ -17,6 +17,7 @@ import { useAuth } from "@/context/AuthContext";
 import {
   format, startOfMonth, endOfMonth, startOfWeek, endOfWeek,
   eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, parseISO,
+  addDays, subDays,
 } from "date-fns";
 import { he } from "date-fns/locale";
 
@@ -62,6 +63,7 @@ const getEventStart = (e: CalendarEvent) =>
 interface DayActivity {
   id: string; title: string; startTime: string; endTime: string;
   locationId: string; groupId: string; notes?: string;
+  type?: 'activity' | 'break' | 'meal' | 'swap' | 'custom';
 }
 interface GroupMeta { id: string; name: string; programId?: string }
 interface ProgramMeta { id: string; name: string }
@@ -73,12 +75,46 @@ const ACTIVITY_COLORS = [
   "border-amber-500/40 bg-amber-500/5 text-amber-400",
 ];
 
+const getActivityStyle = (a: DayActivity, index: number) => {
+  if (a.type === "break") {
+    return {
+      cls: "border-slate-500/20 bg-slate-500/5 text-slate-400 hover:bg-slate-500/8",
+      Icon: Coffee,
+    };
+  }
+  if (a.type === "meal") {
+    return {
+      cls: "border-amber-500/30 bg-amber-500/5 text-amber-400 hover:bg-amber-500/8",
+      Icon: Utensils,
+    };
+  }
+  if (a.type === "swap") {
+    return {
+      cls: "border-indigo-500/30 bg-indigo-500/5 text-indigo-400 hover:bg-indigo-500/8",
+      Icon: ArrowLeftRight,
+    };
+  }
+  const standardCls = ACTIVITY_COLORS[index % ACTIVITY_COLORS.length];
+  return {
+    cls: standardCls,
+    Icon: null,
+  };
+};
+
 export default function CalendarPage() {
   const router = useRouter();
   const {
     assignedGroups, preferredProgramIds, preferredGroupIds,
     isAdmin, isManager,
   } = useAuth();
+
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
 
   const [currentDate,  setCurrentDate]  = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -126,7 +162,16 @@ export default function CalendarPage() {
     setScheduleLoading(true);
     getDoc(doc(db, "schedules", dateStr)).then(snap => {
       if (!snap.exists()) { setDayActivities([]); return; }
-      const acts: DayActivity[] = (snap.data().activities || []).sort((a: DayActivity, b: DayActivity) => a.startTime.localeCompare(b.startTime));
+      const acts: DayActivity[] = (snap.data().activities || []).map((a: any) => ({
+        id:         a.id || "",
+        title:      a.title || "",
+        startTime:  a.startTime || "",
+        endTime:    a.endTime || "",
+        locationId: a.locationId || "",
+        groupId:    a.groupId || "",
+        notes:      a.notes || "",
+        type:       a.type || "activity",
+      })).sort((a: DayActivity, b: DayActivity) => a.startTime.localeCompare(b.startTime));
       setDayActivities(acts);
     }).finally(() => setScheduleLoading(false));
   }, [selectedDate]);
@@ -289,7 +334,7 @@ export default function CalendarPage() {
                 syncStatus === "ok" ? "text-emerald-400/80" : 
                 syncStatus === "error" ? "text-amber-400/80" : "text-slate-500"
               }`}>
-                {syncStatus === "loading" ? "מסנכרן..." : syncStatus === "ok" ? "Google Cal Connected" : "Connection Error"}
+                {syncStatus === "loading" ? "מסנכרן..." : syncStatus === "ok" ? "חיבור ליומן פעיל" : "שגיאת חיבור ליומן"}
               </span>
             </div>
           </div>
@@ -333,8 +378,8 @@ export default function CalendarPage() {
         {/* ── Content Area ── */}
         <main className="flex-1 overflow-hidden flex flex-col md:flex-row">
           
-          {/* Left Sidebar (Desktop Only) */}
-          <aside className="hidden lg:flex w-72 shrink-0 border-l border-border bg-card-bg/40 p-6 flex-col gap-8 overflow-y-auto custom-scrollbar">
+          {/* Left Sidebar (Desktop & Tablet Split Layout) */}
+          <aside className="hidden md:flex w-64 xl:w-72 shrink-0 border-l border-border bg-card-bg/40 p-5 xl:p-6 flex-col gap-8 overflow-y-auto custom-scrollbar">
             
             {/* Mini Calendar Navigation */}
             <div>
@@ -398,7 +443,7 @@ export default function CalendarPage() {
               ) : (
                 <div className="space-y-1.5">
                   {visibleActivities.map((a, i) => {
-                    const cls = ACTIVITY_COLORS[i % ACTIVITY_COLORS.length];
+                    const { cls, Icon } = getActivityStyle(a, i);
                     return (
                       <div key={a.id} className={`flex gap-2.5 px-3 py-2 rounded-lg border ${cls} text-right`}>
                         <div className="shrink-0 text-right w-10">
@@ -406,7 +451,10 @@ export default function CalendarPage() {
                           <span className="text-[8px] opacity-60">{a.endTime}</span>
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-[11px] font-semibold leading-tight truncate">{a.title || "פעילות"}</p>
+                          <p className="text-[11px] font-semibold leading-tight truncate flex items-center gap-1.5">
+                            {Icon && <Icon className="w-3.5 h-3.5 shrink-0" />}
+                            {a.title || "פעילות"}
+                          </p>
                           <p className="text-[9px] opacity-60 mt-0.5 flex items-center gap-1">
                             <Layers className="w-2.5 h-2.5" />
                             {groupName(a.groupId)}
@@ -494,8 +542,8 @@ export default function CalendarPage() {
                     const isToday = isSameDay(day, new Date());
                     return (
                       <button key={i} onClick={() => setSelectedDate(day)}
-                        className={`flex flex-col items-center min-w-[48px] py-2 rounded-xl transition-all ${
-                          isSelected ? "bg-emerald-600 text-white" : "bg-white/5 text-slate-400"
+                        className={`flex flex-col items-center min-w-[48px] py-2 rounded-xl transition-all active:scale-[0.93] hover:scale-[1.03] duration-150 ease-out cursor-pointer ${
+                          isSelected ? "bg-emerald-600 text-white shadow-md" : "bg-white/5 text-slate-400"
                         }`}>
                         <span className="text-[10px] font-bold uppercase">{format(day, "eee", { locale: he })}</span>
                         <span className="text-sm font-black">{format(day, "d")}</span>
@@ -506,26 +554,44 @@ export default function CalendarPage() {
                </div>
                
                {/* Selected Day Events */}
-               <div className="flex-1 overflow-y-auto p-4 pb-24">
+               <motion.div 
+                  drag="x"
+                  dragConstraints={{ left: 0, right: 0 }}
+                  dragElastic={0.2}
+                  onDragEnd={(e, info) => {
+                    const threshold = 60;
+                    if (info.offset.x < -threshold) {
+                      // Swiped left (tomorrow / next day in Hebrew layout)
+                      setSelectedDate(d => addDays(d, 1));
+                    } else if (info.offset.x > threshold) {
+                      // Swiped right (yesterday / previous day in Hebrew layout)
+                      setSelectedDate(d => subDays(d, 1));
+                    }
+                  }}
+                  className="flex-1 overflow-y-auto p-4 pb-24 outline-none cursor-grab active:cursor-grabbing select-none"
+               >
                   <h3 className="text-xs font-black text-slate-500 uppercase tracking-widest mb-4">{format(selectedDate, "EEEE, d בMMMM", { locale: he })}</h3>
 
                   {/* Firebase group schedule — mobile */}
                   {visibleActivities.length > 0 && (
-                    <div className="mb-4">
+                    <div className="mb-4 pointer-events-auto">
                       <p className="text-[9px] font-bold uppercase tracking-widest text-violet-400 mb-2 flex items-center gap-1">
                         <Users className="w-2.5 h-2.5" /> לוז קבוצות
                       </p>
                       <div className="space-y-1.5">
                         {visibleActivities.map((a, i) => {
-                          const cls = ACTIVITY_COLORS[i % ACTIVITY_COLORS.length];
+                          const { cls, Icon } = getActivityStyle(a, i);
                           return (
-                            <div key={a.id} className={`flex items-center gap-3 px-3 py-2.5 rounded-xl border ${cls}`}>
+                            <div key={a.id} className={`flex items-center gap-3 px-3 py-2.5 rounded-xl border ${cls} active:scale-[0.97] transition-transform duration-150 ease-out`}>
                               <div className="shrink-0 w-12 text-right">
                                 <span className="text-[11px] font-black block">{a.startTime}</span>
                                 <span className="text-[9px] opacity-60">{a.endTime}</span>
                               </div>
                               <div className="flex-1 min-w-0">
-                                <p className="text-sm font-semibold truncate">{a.title || "פעילות"}</p>
+                                <p className="text-sm font-semibold truncate flex items-center gap-1.5">
+                                  {Icon && <Icon className="w-4 h-4 shrink-0" />}
+                                  {a.title || "פעילות"}
+                                </p>
                                 <p className="text-[10px] opacity-60 flex items-center gap-1 mt-0.5">
                                   <Layers className="w-2.5 h-2.5" />
                                   {groupName(a.groupId)}
@@ -540,31 +606,31 @@ export default function CalendarPage() {
                     </div>
                   )}
                   {selectedEvs.length === 0 ? (
-                    <div className="py-20 text-center opacity-30 grayscale flex flex-col items-center">
+                    <div className="py-20 text-center opacity-30 grayscale flex flex-col items-center select-none pointer-events-none">
                        <CalendarIcon className="w-12 h-12 mb-4" />
                        <p className="text-sm">אין אירועים רשומים ליום זה</p>
                     </div>
                   ) : (
-                   <div className="space-y-3">
-                      {selectedEvs.map(e => (
-                         <div key={e.id} onClick={() => openEdit(e)}
-                            className="bg-white/5 border border-white/5 rounded-2xl p-4 flex gap-4 cursor-pointer hover:bg-white/10 transition-all active:scale-[0.99]">
-                            <div className="w-1 bg-emerald-600 rounded-full shrink-0" />
-                            <div className="flex-1">
-                               <p className="font-bold text-sm text-white mb-1">{e.summary}</p>
-                               <div className="flex items-center gap-3 text-xs text-slate-500">
-                                  <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {format(getEventStart(e), "HH:mm")}</span>
-                                  {e.location && <span className="flex items-center gap-1"><MapPin className="w-3 h-3" /> {e.location}</span>}
-                               </div>
-                            </div>
-                            <div className="flex flex-col gap-2">
-                               <button onClick={(ev) => { ev.stopPropagation(); handleDelete(e.id); }} className="p-2 text-slate-700 active:text-emerald-500 transition-colors"><Trash2 className="w-4 h-4" /></button>
-                            </div>
-                         </div>
-                      ))}
-                   </div>
+                    <div className="space-y-3 pointer-events-auto">
+                       {selectedEvs.map(e => (
+                          <div key={e.id} onClick={() => openEdit(e)}
+                             className="bg-white/5 border border-white/5 rounded-2xl p-4 flex gap-4 cursor-pointer hover:bg-white/10 hover:scale-[1.01] transition-all active:scale-[0.97] duration-150 ease-out">
+                             <div className="w-1 bg-emerald-600 rounded-full shrink-0" />
+                             <div className="flex-1">
+                                <p className="font-bold text-sm text-white mb-1">{e.summary}</p>
+                                <div className="flex items-center gap-3 text-xs text-slate-500">
+                                   <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {format(getEventStart(e), "HH:mm")}</span>
+                                   {e.location && <span className="flex items-center gap-1"><MapPin className="w-3 h-3" /> {e.location}</span>}
+                                </div>
+                             </div>
+                             <div className="flex flex-col gap-2">
+                                <button onClick={(ev) => { ev.stopPropagation(); handleDelete(e.id); }} className="p-2 text-slate-700 active:text-rose-500 hover:text-rose-400 transition-colors rounded-lg active:scale-95"><Trash2 className="w-4 h-4" /></button>
+                             </div>
+                          </div>
+                       ))}
+                    </div>
                   )}
-               </div>
+               </motion.div>
             </div>
 
           </div>
@@ -574,20 +640,59 @@ export default function CalendarPage() {
         {/* ── Modals (Create Event) ── */}
         <AnimatePresence>
           {showCreate && (
-            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowCreate(false)} className="absolute inset-0 bg-black/80 backdrop-blur-md" />
-               <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 10 }} className="relative bg-slate-900 border border-white/[0.1] rounded-3xl w-full max-w-md overflow-hidden shadow-2xl">
-                  <div className="px-6 py-5 border-b border-white/[0.07] flex items-center justify-between bg-white/[0.02]">
+            <div className={`fixed inset-0 z-[100] flex ${isMobile ? "items-end p-0" : "items-center justify-center p-4"}`}>
+               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => { setShowCreate(false); setEditingId(null); }} className="absolute inset-0 bg-black/80 backdrop-blur-md" />
+               <motion.div 
+                 custom={isMobile}
+                 variants={{
+                   initial: (isMob: boolean) => isMob ? { y: "100%" } : { opacity: 0, scale: 0.95, y: 20 },
+                   animate: (isMob: boolean) => isMob ? { y: 0 } : { opacity: 1, scale: 1, y: 0 },
+                   exit: (isMob: boolean) => isMob ? { y: "100%" } : { opacity: 0, scale: 0.95, y: 10 }
+                 }}
+                 initial="initial"
+                 animate="animate"
+                 exit="exit"
+                 transition={isMobile ? { type: "spring", damping: 25, stiffness: 220 } : { duration: 0.2 }}
+                 drag={isMobile ? "y" : false}
+                 dragConstraints={{ top: 0 }}
+                 dragElastic={{ top: 0, bottom: 0.6 }}
+                 onDragEnd={(e, info) => {
+                   if (isMobile && info.offset.y > 100) {
+                     setShowCreate(false);
+                     setEditingId(null);
+                   }
+                 }}
+                 className={`relative bg-slate-900 border border-white/[0.1] shadow-2xl w-full md:max-w-md overflow-hidden ${
+                   isMobile 
+                     ? "rounded-t-[2.5rem] rounded-b-none border-b-0 max-h-[85vh] flex flex-col" 
+                     : "rounded-3xl"
+                 }`}
+               >
+                  {isMobile && (
+                    <div className="flex justify-center pt-3.5 pb-1 shrink-0">
+                      <div className="w-12 h-1 bg-white/20 rounded-full" />
+                    </div>
+                  )}
+                  <div className="px-6 py-5 border-b border-white/[0.07] flex items-center justify-between bg-white/[0.02] shrink-0">
                     <h3 className="text-lg font-bold text-white flex items-center gap-2">
                       {editingId ? <RefreshCw className="w-4 h-4 text-emerald-500" /> : <Plus className="w-4 h-4 text-emerald-500" />}
                       {editingId ? "עריכת אירוע" : "אירוע חדש"}
                     </h3>
-                    <button onClick={() => setShowCreate(false)} className="p-2 hover:bg-white/5 rounded-xl transition-colors"><X className="w-4 h-4" /></button>
+                    <button onClick={() => { setShowCreate(false); setEditingId(null); }} className="p-2 hover:bg-white/5 rounded-xl transition-colors"><X className="w-4 h-4" /></button>
                   </div>
-                  <div className="p-6 space-y-4">
+                  <div className="p-6 space-y-4 overflow-y-auto no-scrollbar flex-1">
+                    {createError && (
+                      <div className="p-3.5 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex items-start gap-2.5 text-right">
+                        <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                        <div className="space-y-1">
+                          <p className="text-xs font-bold text-amber-400">משהו קטן השתבש, אל דאגה:</p>
+                          <p className="text-[11px] text-amber-400/80 leading-relaxed">{createError}</p>
+                        </div>
+                      </div>
+                    )}
                     <div className="space-y-1.5">
                       <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest px-1">כותרת האירוע</label>
-                      <input autoFocus value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder="לדוגמה: ישיבת צוות שבועית" className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-sm font-medium focus:border-emerald-500/50 outline-none transition-all" />
+                      <input autoFocus={!isMobile} value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder="לדוגמה: ישיבת צוות שבועית" className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-sm font-medium focus:border-emerald-500/50 outline-none transition-all" />
                     </div>
                     
                     <div className="grid grid-cols-3 gap-3">
@@ -610,9 +715,9 @@ export default function CalendarPage() {
                       <input value={form.location} onChange={e => setForm(f => ({ ...f, location: e.target.value }))} placeholder="חדר ישיבות, זום..." className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-sm font-medium focus:border-emerald-500/50 outline-none transition-all" />
                     </div>
                   </div>
-                  <div className="p-6 border-t border-white/[0.07] bg-white/[0.01] flex gap-3">
-                    <button onClick={() => { setShowCreate(false); setEditingId(null); }} className="flex-1 py-3.5 bg-white/5 hover:bg-white/10 rounded-2xl font-bold text-sm text-slate-400">ביטול</button>
-                    <button onClick={handleSave} disabled={!form.title.trim() || creating} className="flex-1 py-3.5 bg-emerald-600 hover:bg-emerald-500 rounded-2xl font-bold text-sm text-white shadow-lg shadow-emerald-600/20 flex items-center justify-center gap-2">
+                  <div className="p-6 border-t border-white/[0.07] bg-white/[0.01] flex gap-3 shrink-0">
+                    <button onClick={() => { setShowCreate(false); setEditingId(null); }} className="flex-1 py-3.5 bg-white/5 hover:bg-white/10 rounded-2xl font-bold text-sm text-slate-400 active:scale-[0.98] transition-transform">ביטול</button>
+                    <button onClick={handleSave} disabled={!form.title.trim() || creating} className="flex-1 py-3.5 bg-emerald-600 hover:bg-emerald-500 rounded-2xl font-bold text-sm text-white shadow-lg shadow-emerald-600/20 flex items-center justify-center gap-2 active:scale-[0.98] transition-all">
                       {creating ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Check className="w-4 h-4" /> {editingId ? "עדכן אירוע" : "צור אירוע"}</>}
                     </button>
                   </div>

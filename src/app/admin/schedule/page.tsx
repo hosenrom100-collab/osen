@@ -7,7 +7,7 @@ import { collection, getDocs, setDoc, doc, query, orderBy, getDoc } from "fireba
 import {
   MapPin, Users, Plus, Trash2, Save, Copy, Clock, Search, CheckCircle,
   Loader2, ChevronLeft, ChevronRight, Edit3, X, Check, Calendar, CopyPlus,
-  AlertCircle,
+  AlertCircle, Coffee, Utensils, ArrowLeftRight,
 } from "lucide-react";
 import { useAutoSave } from "@/hooks/useAutoSave";
 import { AutoSaveIndicator } from "@/components/ui/AutoSaveIndicator";
@@ -26,6 +26,7 @@ import { Suspense } from "react";
 interface Activity {
   id: string; title: string; startTime: string; endTime: string;
   locationId: string; staffIds: string[]; groupId: string; notes?: string;
+  type?: 'activity' | 'break' | 'meal' | 'swap' | 'custom';
 }
 interface DaySchedule { dutyInstructorId: string; activities: Activity[] }
 interface Program  { id: string; name: string }
@@ -52,6 +53,7 @@ const migrate = (a: any): Activity => ({
   staffIds:   a.staffIds   || (a.instructorId ? [a.instructorId] : []),
   groupId:    a.groupId    || a.hosenType || "all",
   notes:      a.notes      || "",
+  type:       a.type       || "activity",
 });
 
 // Group color palette — index 0 = "all", then groups, last = staff_only
@@ -142,7 +144,19 @@ function ActivityCard({
   onEdit: () => void; onDelete: () => void; onDuplicate: () => void;
   nameOf: (id: string) => string; locName: (id: string) => string;
 }) {
-  const pal = PALETTE[palIdx] ?? PALETTE[0];
+  let pal = PALETTE[palIdx] ?? PALETTE[0];
+  let Icon = null;
+  if (activity.type === "break") {
+    pal = { dot: "bg-slate-400", border: "border-slate-500/20", bg: "bg-slate-500/8", text: "text-slate-400", chip: "bg-slate-500/10 text-slate-400" };
+    Icon = Coffee;
+  } else if (activity.type === "meal") {
+    pal = { dot: "bg-amber-500", border: "border-amber-500/30", bg: "bg-amber-500/8", text: "text-amber-400", chip: "bg-amber-500/10 text-amber-400" };
+    Icon = Utensils;
+  } else if (activity.type === "swap") {
+    pal = { dot: "bg-indigo-500", border: "border-indigo-500/30", bg: "bg-indigo-500/8", text: "text-indigo-400", chip: "bg-indigo-500/10 text-indigo-400" };
+    Icon = ArrowLeftRight;
+  }
+
   return (
     <motion.div layout initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}
       className={`flex gap-3 px-3 py-2.5 rounded-lg border ${pal.border} ${pal.bg} group transition-colors`}>
@@ -156,7 +170,8 @@ function ActivityCard({
       {/* Content */}
       <div className="flex-1 min-w-0">
         <div className="flex items-start justify-between gap-2">
-          <p className="font-semibold text-sm leading-tight truncate text-white">
+          <p className="font-semibold text-sm leading-tight truncate text-white flex items-center gap-1.5">
+            {Icon && <Icon className={`w-3.5 h-3.5 ${pal.text} shrink-0`} />}
             {activity.title || <span className="text-slate-600 italic text-xs">ללא שם</span>}
           </p>
           <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded shrink-0 ${pal.chip}`}>{groupLabel}</span>
@@ -248,6 +263,23 @@ function ActivityModal({
   const toggleStaff = (id: string) =>
     set({ staffIds: form.staffIds.includes(id) ? form.staffIds.filter(x => x !== id) : [...form.staffIds, id] });
 
+  const handleTypeChange = (newType: 'activity' | 'break' | 'meal' | 'swap' | 'custom') => {
+    const defaultTitles: Record<string, string> = {
+      break: "הפסקה",
+      meal: "ארוחה",
+      swap: "החלפה/התארגנות",
+      activity: "",
+    };
+
+    set({ type: newType });
+
+    const currentTitle = form.title.trim();
+    const otherDefaults = ["הפסקה", "ארוחה", "ארוחת צהריים", "ארוחת בוקר", "החלפה/התארגנות", "החלפה", ""];
+    if (otherDefaults.includes(currentTitle)) {
+      set({ title: defaultTitles[newType] || "" });
+    }
+  };
+
   // Build program-hierarchical group options
   type GroupOption = { id: string; label: string; programLabel?: string; pi: number };
   const groupOptions: GroupOption[] = [
@@ -315,9 +347,39 @@ function ActivityModal({
             
             {/* Right Column: Main Details */}
             <div className="space-y-6">
-              <div className="space-y-4">
+              <div className="space-y-6">
                 <h3 className="text-[10px] font-black text-rose-500 uppercase tracking-[0.2em] mb-4">פרטי הפעילות</h3>
                 
+                <div className="space-y-2">
+                  <label className="block text-xs font-bold text-slate-500 pr-1">סוג חלון זמן</label>
+                  <div className="grid grid-cols-4 gap-2">
+                    {[
+                      { id: "activity", label: "פעילות", icon: Calendar, color: "hover:border-emerald-500/30 active:bg-emerald-500/10 text-emerald-400" },
+                      { id: "break", label: "הפסקה", icon: Coffee, color: "hover:border-slate-500/30 active:bg-slate-500/10 text-slate-400" },
+                      { id: "meal", label: "ארוחה", icon: Utensils, color: "hover:border-amber-500/30 active:bg-amber-500/10 text-amber-400" },
+                      { id: "swap", label: "החלפה", icon: ArrowLeftRight, color: "hover:border-indigo-500/30 active:bg-indigo-500/10 text-indigo-400" },
+                    ].map(t => {
+                      const Icon = t.icon;
+                      const isSel = (form.type || "activity") === t.id;
+                      return (
+                        <button
+                          key={t.id}
+                          type="button"
+                          onClick={() => handleTypeChange(t.id as any)}
+                          className={`flex flex-col items-center justify-center py-2.5 px-2 rounded-2xl border text-xs font-bold transition-all active:scale-95 ${
+                            isSel
+                              ? "bg-emerald-600/20 border-emerald-500/30 text-white shadow-sm ring-1 ring-emerald-500/10"
+                              : `bg-white/[0.02] border-white/5 text-slate-500 hover:bg-white/5 ${t.color}`
+                          }`}
+                        >
+                          <Icon className="w-4 h-4 mb-1" />
+                          <span>{t.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
                 <div className="space-y-2">
                   <label className="block text-xs font-bold text-slate-500 pr-1">שם הפעילות / סוג שיעור</label>
                   <input value={form.title} onChange={e => set({ title: e.target.value })}
@@ -1026,12 +1088,11 @@ function SchedulePageInner() {
           </div>
         </div>
 
-        {/* Activity Modal */}
         <AnimatePresence>
           {editingActivity !== null && (
             <ActivityModal
               initial={editingActivity === "new"
-                ? { id: uid(), title: "", startTime: "09:00", endTime: "10:00", locationId: "", staffIds: [], groupId: newActivityGroup, notes: "" }
+                ? { id: uid(), title: "", startTime: "09:00", endTime: "10:00", locationId: "", staffIds: [], groupId: newActivityGroup, notes: "", type: "activity" }
                 : editingActivity}
               groups={groups} programs={programs} staff={staff} locations={locations}
               onSave={upsertActivity} onClose={() => setEditingActivity(null)}

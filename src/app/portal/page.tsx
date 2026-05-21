@@ -10,7 +10,7 @@ import {
 import {
   Calendar, MapPin, Users, Check, X, Clock, Loader2,
   Plus, MessageCircle, BarChart3, Shield, Globe, ArrowLeft, ArrowRight,
-  ChevronLeft, FileText
+  ChevronLeft, FileText, Coffee, Utensils, ArrowLeftRight
 } from "lucide-react";
 import { format, parseISO, differenceInDays, addMonths } from "date-fns";
 import { he } from "date-fns/locale";
@@ -22,6 +22,7 @@ interface Activity {
   id: string; title: string;
   startTime: string; endTime: string;
   locationId: string; staffIds: string[]; groupId: string;
+  type?: 'activity' | 'break' | 'meal' | 'swap' | 'custom';
 }
 interface Announcement {
   id: string; title: string; content: string;
@@ -95,7 +96,16 @@ export default function PortalDashboard() {
         const unsubSched = onSnapshot(doc(db, "schedules", today), async (snap) => {
           if (snap.exists()) {
             const data = snap.data();
-            const acts = (data.activities || []) as Activity[];
+            const acts: Activity[] = (data.activities || []).map((a: any) => ({
+              id: a.id || "",
+              title: a.title || "",
+              startTime: a.startTime || "",
+              endTime: a.endTime || "",
+              locationId: a.locationId || "",
+              staffIds: a.staffIds || [],
+              groupId: a.groupId || "",
+              type: a.type || "activity",
+            }));
             setActivities(acts.filter(a => a.groupId === myGroupId || a.groupId === "all").slice(0, 3));
             
             const dId = data.dutyInstructorId || data.dutyId;
@@ -455,27 +465,53 @@ export default function PortalDashboard() {
               </div>
               <div className="space-y-3">
                 {activities.length > 0 ? (
-                  activities.map((a) => (
-                    <div 
-                      key={a.id} 
-                      onClick={() => router.push("/portal/schedule")}
-                      className="relative bg-white rounded-[1.5rem] p-5 shadow-[0_8px_30px_rgba(0,85,212,0.018)] border border-slate-100/60 flex items-center justify-between text-right cursor-pointer hover:border-slate-200 transition-all group"
-                    >
-                      <div className="absolute right-0 top-5 bottom-5 w-1 bg-[#0055D4] rounded-l-full" />
-                      <div className="flex items-center gap-3.5 pr-2">
-                        <div className="w-11 h-11 rounded-full bg-[#EBF3FF] text-[#0055D4] flex items-center justify-center font-black text-xs shrink-0">
-                          {a.startTime}
+                  activities.map((a) => {
+                    let accentBar = "bg-[#0055D4]";
+                    let bubbleBg = "bg-[#EBF3FF] text-[#0055D4]";
+                    let iconColor = "text-[#0055D4]";
+                    let Icon = null;
+                    if (a.type === "break") {
+                      accentBar = "bg-slate-400";
+                      bubbleBg = "bg-slate-100 text-slate-500";
+                      iconColor = "text-slate-400";
+                      Icon = Coffee;
+                    } else if (a.type === "meal") {
+                      accentBar = "bg-amber-400";
+                      bubbleBg = "bg-amber-100 text-amber-600";
+                      iconColor = "text-amber-500";
+                      Icon = Utensils;
+                    } else if (a.type === "swap") {
+                      accentBar = "bg-indigo-400";
+                      bubbleBg = "bg-indigo-100 text-indigo-600";
+                      iconColor = "text-indigo-500";
+                      Icon = ArrowLeftRight;
+                    }
+
+                    return (
+                      <div 
+                        key={a.id} 
+                        onClick={() => router.push("/portal/schedule")}
+                        className="relative bg-white rounded-[1.5rem] p-5 shadow-[0_8px_30px_rgba(0,85,212,0.018)] border border-slate-100/60 flex items-center justify-between text-right cursor-pointer hover:border-slate-200 transition-all group"
+                      >
+                        <div className={`absolute right-0 top-5 bottom-5 w-1 ${accentBar} rounded-l-full`} />
+                        <div className="flex items-center gap-3.5 pr-2">
+                          <div className={`w-11 h-11 rounded-full ${bubbleBg} flex items-center justify-center font-black text-xs shrink-0`}>
+                            {a.startTime}
+                          </div>
+                          <div>
+                            <h4 className="font-extrabold text-[13.5px] text-[#002244] group-hover:text-[#0055D4] transition-colors flex items-center gap-1.5">
+                              {Icon && <Icon className={`w-3.5 h-3.5 shrink-0 ${iconColor}`} />}
+                              {a.title}
+                            </h4>
+                            <p className="text-[10.5px] text-[#53687E] flex items-center gap-1 mt-1 font-semibold">
+                              <MapPin className={`w-3 h-3 ${iconColor}`} /> מרכז חוסן, חוות רום
+                            </p>
+                          </div>
                         </div>
-                        <div>
-                          <h4 className="font-extrabold text-[13.5px] text-[#002244] group-hover:text-[#0055D4] transition-colors">{a.title}</h4>
-                          <p className="text-[10.5px] text-[#53687E] flex items-center gap-1 mt-1 font-semibold">
-                            <MapPin className="w-3 h-3 text-[#0055D4]" /> מרכז חוסן, חוות רום
-                          </p>
-                        </div>
+                        <ChevronLeft className="w-5 h-5 text-[#B6C5D6] group-hover:translate-x-[-3px] transition-transform shrink-0" />
                       </div>
-                      <ChevronLeft className="w-5 h-5 text-[#B6C5D6] group-hover:translate-x-[-3px] transition-transform shrink-0" />
-                    </div>
-                  ))
+                    );
+                  })
                 ) : (
                   /* Elegant continue treatment block */
                   <div 
