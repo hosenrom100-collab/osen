@@ -488,27 +488,27 @@ function AttendancePageContent() {
 
         {/* Stats card */}
         <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-4 space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-5">
-              <div className="text-center">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center justify-between sm:justify-start gap-3 sm:gap-5 w-full sm:w-auto">
+              <div className="text-center flex-1 sm:flex-none">
                 <p className="text-xl font-black text-emerald-500 leading-none">{stats.present}</p>
                 <p className="text-[9px] font-black text-[var(--muted)] uppercase tracking-widest mt-0.5">נוכחים</p>
               </div>
-              <div className="w-px h-8 bg-[var(--border)]" />
-              <div className="text-center">
+              <div className="w-px h-8 bg-[var(--border)] shrink-0" />
+              <div className="text-center flex-1 sm:flex-none">
                 <p className="text-xl font-black text-rose-500 leading-none">{stats.absent}</p>
                 <p className="text-[9px] font-black text-[var(--muted)] uppercase tracking-widest mt-0.5">נעדרים</p>
               </div>
-              <div className="w-px h-8 bg-[var(--border)]" />
-              <div className="text-center">
+              <div className="w-px h-8 bg-[var(--border)] shrink-0" />
+              <div className="text-center flex-1 sm:flex-none">
                 <p className="text-xl font-black text-[var(--muted)]/40 leading-none">{stats.unset}</p>
                 <p className="text-[9px] font-black text-[var(--muted)] uppercase tracking-widest mt-0.5">ממתינים</p>
               </div>
             </div>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center justify-between sm:justify-end gap-4 w-full sm:w-auto pt-3 sm:pt-0 border-t border-[var(--border)]/60 sm:border-0">
               <button
                 onClick={copyAttendanceToClipboard}
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-[11px] font-black transition-all ${
+                className={`flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-2 sm:px-3 sm:py-1.5 rounded-xl border text-[11px] font-black transition-all ${
                   copied
                     ? "bg-emerald-500/20 border-emerald-500/30 text-emerald-400"
                     : "bg-[var(--foreground)]/5 border-[var(--border)] hover:bg-[var(--foreground)]/10 text-[var(--foreground)] active:scale-95 shadow-sm"
@@ -519,7 +519,7 @@ function AttendancePageContent() {
                 <span>{copied ? "הועתק!" : "העתק לוואטסאפ"}</span>
               </button>
 
-              <div className="text-left">
+              <div className="text-left shrink-0">
                 <p className="text-2xl font-black leading-none">{pct}<span className="text-sm font-bold text-[var(--muted)]">%</span></p>
                 <p className="text-[9px] font-black text-[var(--muted)] uppercase tracking-widest mt-0.5">נוכחות</p>
               </div>
