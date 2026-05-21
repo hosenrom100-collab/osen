@@ -8,7 +8,7 @@ import {
 } from "firebase/firestore";
 import {
   ArrowRight, Loader2, CheckCircle, Users, ChevronDown,
-  ClipboardList, RefreshCw, Layers
+  ClipboardList, RefreshCw, Layers, Share2, Check
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
@@ -42,7 +42,59 @@ export default function AttendanceOverviewPage() {
   const [data,     setData]     = useState<ProgramData[]>([]);
   const [loading,  setLoading]  = useState(true);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [copiedId, setCopiedId] = useState<string | null>(null);
   const today = format(new Date(), "yyyy-MM-dd");
+
+  const handleCopyGroup = (groupName: string, programName: string, presentNames: string[], groupId: string) => {
+    const formattedDate = format(new Date(), "EEEE (dd/MM/yyyy)", { locale: he });
+    const programStr = programName && programName !== "קבוצות ללא תוכנית" ? ` (${programName})` : "";
+    
+    let text = `*נוכחות קבוצת ${groupName}${programStr} - ${formattedDate}*\n\n`;
+    text += `נוכחים (${presentNames.length}):\n`;
+    
+    if (presentNames.length > 0) {
+      text += presentNames.map(name => `• ${name}`).join("\n");
+    } else {
+      text += `אין נוכחים רשומים.`;
+    }
+    
+    navigator.clipboard.writeText(text)
+      .then(() => {
+        setCopiedId(groupId);
+        setTimeout(() => setCopiedId(null), 2000);
+      })
+      .catch(err => console.error("Failed to copy text: ", err));
+  };
+
+  const handleCopyAll = () => {
+    const formattedDate = format(new Date(), "EEEE (dd/MM/yyyy)", { locale: he });
+    
+    let text = `*דוח נוכחות מלא - מרכז חיבור - ${formattedDate}*\n`;
+    text += `סה"כ נוכחים במרכז היום: ${grandPresent}/${grandTotal} (${grandPct}%)\n\n`;
+    
+    data.forEach(progData => {
+      const progName = progData.program.name;
+      text += `*🔹 ${progName}* (נוכחים: ${progData.present}/${progData.total})\n`;
+      text += `-----------------\n`;
+      
+      progData.groups.forEach(gd => {
+        text += `• *קבוצת ${gd.group.name}* (${gd.present}/${gd.total} נוכחים):\n`;
+        if (gd.presentNames.length > 0) {
+          text += gd.presentNames.map(name => `  - ${name}`).join("\n") + "\n";
+        } else {
+          text += `  - אין נוכחים\n`;
+        }
+      });
+      text += `\n`;
+    });
+    
+    navigator.clipboard.writeText(text.trim())
+      .then(() => {
+        setCopiedId("all");
+        setTimeout(() => setCopiedId(null), 2000);
+      })
+      .catch(err => console.error("Failed to copy text: ", err));
+  };
 
   useEffect(() => { fetchAll(); }, []);
 
@@ -187,7 +239,25 @@ export default function AttendanceOverviewPage() {
                   <motion.div className="h-full bg-emerald-500 rounded-full"
                     initial={{ width: 0 }} animate={{ width: `${grandPct}%` }} transition={{ duration: 0.6 }} />
                 </div>
-                <p className="text-[11px] text-emerald-500/70 mt-1 font-bold">{grandPct}% נוכחות</p>
+                <div className="flex items-center justify-between mt-3 pt-2 border-t border-emerald-500/10">
+                  <p className="text-[11px] text-emerald-500/70 font-bold">{grandPct}% נוכחות</p>
+                  <button
+                    onClick={handleCopyAll}
+                    className="flex items-center gap-1.5 py-1 px-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 hover:bg-emerald-500/20 active:scale-95 transition-all text-[11px] font-bold text-emerald-300"
+                  >
+                    {copiedId === "all" ? (
+                      <>
+                        <Check className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
+                        <span>הועתק!</span>
+                      </>
+                    ) : (
+                      <>
+                        <Share2 className="w-3.5 h-3.5" />
+                        <span>העתק דוח מלא</span>
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
 
               {/* Per program */}
@@ -245,6 +315,17 @@ export default function AttendanceOverviewPage() {
                                     onClick={() => router.push(`/admin/patient-attendance?group=${gd.group.id}`)}
                                     className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded-lg hover:bg-emerald-500/20 transition-colors flex-shrink-0">
                                     סמן
+                                  </button>
+                                  <button
+                                    onClick={() => handleCopyGroup(gd.group.name, progData.program.name, gd.presentNames, gd.group.id)}
+                                    className="p-1.5 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 text-slate-400 hover:text-slate-200 active:scale-95 transition-all flex-shrink-0 flex items-center justify-center"
+                                    title="העתק נוכחות לוואטסאפ"
+                                  >
+                                    {copiedId === gd.group.id ? (
+                                      <Check className="w-3.5 h-3.5 text-emerald-400" />
+                                    ) : (
+                                      <Share2 className="w-3.5 h-3.5" />
+                                    )}
                                   </button>
                                 </div>
 

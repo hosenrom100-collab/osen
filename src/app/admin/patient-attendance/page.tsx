@@ -7,7 +7,7 @@ import { collection, getDocs, query, where, doc, setDoc, deleteDoc } from "fireb
 import {
   Search, Loader2, ChevronLeft, ChevronRight,
   Calendar as CalendarIcon, Users, CheckCircle,
-  ClipboardList, Filter, Check, X
+  ClipboardList, Filter, Check, X, Share2
 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AttendanceItem } from "@/components/admin/attendance/AttendanceItem";
@@ -91,6 +91,35 @@ function AttendancePageContent() {
   const [searchTerm,     setSearchTerm]     = useState("");
   const [selectedDate,   setSelectedDate]   = useState(format(new Date(), "yyyy-MM-dd"));
   const [showCalendar,   setShowCalendar]   = useState(false);
+  const [copied,         setCopied]         = useState(false);
+
+  const copyAttendanceToClipboard = () => {
+    const activeSelection = selectionItems.find(item => item.id === selectedId);
+    const programName = activeSelection ? activeSelection.name : "כללי";
+    const presentList = filteredPatients.filter(p => attendance[p.id] === "present");
+
+    const dateStr = format(parseISO(selectedDate), "dd/MM/yyyy");
+    const dayName = format(parseISO(selectedDate), "EEEE", { locale: he });
+
+    let text = `*דוח נוכחות - ${programName}*\n`;
+    text += `יום ${dayName} (${dateStr})\n\n`;
+    text += `*נוכחים:* \n`;
+    
+    if (presentList.length === 0) {
+      text += `אין נוכחים רשומים.`;
+    } else {
+      presentList.forEach((p, idx) => {
+        text += `• ${p.firstName} ${p.lastName}\n`;
+      });
+    }
+
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }).catch(err => {
+      console.error("Failed to copy text: ", err);
+    });
+  };
 
   // Local persistent display filters
   const [reloadTrigger, setReloadTrigger] = useState(0);
@@ -476,9 +505,24 @@ function AttendancePageContent() {
                 <p className="text-[9px] font-black text-[var(--muted)] uppercase tracking-widest mt-0.5">ממתינים</p>
               </div>
             </div>
-            <div className="text-left">
-              <p className="text-2xl font-black leading-none">{pct}<span className="text-sm font-bold text-[var(--muted)]">%</span></p>
-              <p className="text-[9px] font-black text-[var(--muted)] uppercase tracking-widest mt-0.5">נוכחות</p>
+            <div className="flex items-center gap-4">
+              <button
+                onClick={copyAttendanceToClipboard}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-[11px] font-black transition-all ${
+                  copied
+                    ? "bg-emerald-500/20 border-emerald-500/30 text-emerald-400"
+                    : "bg-[var(--foreground)]/5 border-[var(--border)] hover:bg-[var(--foreground)]/10 text-[var(--foreground)] active:scale-95 shadow-sm"
+                }`}
+                title="העתק רשימת נוכחים לוואטסאפ"
+              >
+                {copied ? <Check className="w-3.5 h-3.5" /> : <Share2 className="w-3.5 h-3.5 text-emerald-500" />}
+                <span>{copied ? "הועתק!" : "העתק לוואטסאפ"}</span>
+              </button>
+
+              <div className="text-left">
+                <p className="text-2xl font-black leading-none">{pct}<span className="text-sm font-bold text-[var(--muted)]">%</span></p>
+                <p className="text-[9px] font-black text-[var(--muted)] uppercase tracking-widest mt-0.5">נוכחות</p>
+              </div>
             </div>
           </div>
 

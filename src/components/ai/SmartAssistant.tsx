@@ -34,11 +34,11 @@ interface Message {
 interface AppData {
   today: string;
   schedule: {
-    activities: Array<{ name: string; time?: string; location?: string }>;
+    activities: Array<{ id: string; name: string; time?: string; location?: string }>;
     dutyInstructorName?: string;
     hasDutyInstructor: boolean;
   };
-  attendance: { totalActive: number; totalPresent: number; missingCount: number };
+  attendance: { totalActive: number; totalPresent: number; missingCount: number; missingPatientsNames?: string[] };
   shopping: {
     pendingCount: number;
     pendingItems: Array<{ name: string; quantity: string }>;
@@ -50,6 +50,8 @@ interface AppData {
   };
   staffList: Array<{ id: string; name: string; role: string }>;
   patientList: Array<{ id: string; fullName: string }>;
+  groupList?: Array<{ id: string; name: string; programId?: string }>;
+  programList?: Array<{ id: string; name: string }>;
   validCategories: string[];
   productPool: string[];
   memory: string[];
@@ -83,7 +85,17 @@ export function SmartAssistant() {
   const [confirmingNewProduct, setConfirmingNewProduct] = useState<AssistantResult | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>("");
   const [isListening, setIsListening] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -104,7 +116,8 @@ export function SmartAssistant() {
     try {
       const [
         schedSnap, patientsSnap, attendanceSnap, shopSnap, 
-        shopPurchasedSnap, absSnap, usersSnap, settingsSnap, poolSnap, memorySnap
+        shopPurchasedSnap, absSnap, usersSnap, settingsSnap, poolSnap, memorySnap,
+        groupSnap, programSnap
       ] = await Promise.all([
         getDoc(doc(db, "schedules", today)),
         getDocs(query(collection(db, "patients"), where("status", "==", "active"))),
@@ -116,6 +129,8 @@ export function SmartAssistant() {
         getDoc(doc(db, "settings", "shopping")),
         getDocs(collection(db, "product_pool")),
         getDoc(doc(db, "settings", "ai_memory")),
+        getDocs(collection(db, "groups")),
+        getDocs(collection(db, "programs")),
       ]);
 
       const schedData = schedSnap.exists() ? schedSnap.data() : {};
@@ -149,9 +164,11 @@ export function SmartAssistant() {
       });
 
       let unmarkedCount = 0;
+      const missingPatientsNames: string[] = [];
       patientsSnap.forEach(d => {
         const p = d.data();
         const pId = d.id;
+        const fullName = p.fullName || `${p.firstName} ${p.lastName}`;
 
         const gIds: string[] = [];
         if (p.hosenType) gIds.push(p.hosenType);
@@ -169,6 +186,7 @@ export function SmartAssistant() {
         const hasUncheckedGroup = gIds.some(gId => !checkedContexts?.has(gId));
         if (hasUncheckedGroup) {
           unmarkedCount++;
+          missingPatientsNames.push(fullName);
         }
       });
 
@@ -178,6 +196,7 @@ export function SmartAssistant() {
         today,
         schedule: {
           activities: (schedData.activities || []).map((a: any) => ({
+            id: a.id || "",
             name: a.name || a.title || "",
             time: a.time || a.startTime || "",
             location: a.location || "",
@@ -189,6 +208,7 @@ export function SmartAssistant() {
           totalActive,
           totalPresent: presentCount,
           missingCount: unmarkedCount,
+          missingPatientsNames,
         },
         shopping: {
           pendingCount: shopSnap.size,
@@ -211,7 +231,17 @@ export function SmartAssistant() {
         staffList: usersSnap.docs
           .filter((d) => d.data().status !== "pending" && d.data().status !== "rejected")
           .map((d) => ({ id: d.id, name: d.data().name || d.data().email?.split("@")[0] || "", role: d.data().role || "" })),
-        patientList: patientsSnap.docs.map((d) => ({ id: d.id, fullName: d.data().fullName || `${d.data().firstName} ${d.data().lastName}` })),
+        patientList: patientsSnap.docs.map((d) => {
+          const p = d.data();
+          return {
+            id: d.id,
+            fullName: p.fullName || `${p.firstName} ${p.lastName}`,
+            groupIds: p.groupIds || [],
+            hosenType: p.hosenType || ""
+          };
+        }),
+        groupList: groupSnap.docs.map((d) => ({ id: d.id, name: d.data().name, programId: d.data().programId || "" })),
+        programList: programSnap.docs.map((d) => ({ id: d.id, name: d.data().name })),
         validCategories: settingsSnap.exists() ? settingsSnap.data().categories || [] : [],
         productPool: poolSnap.docs.map((d) => d.data().name),
         memory: memorySnap.exists() ? memorySnap.data().facts || [] : [],
@@ -510,6 +540,185 @@ export function SmartAssistant() {
         }
         return null;
       }
+
+      if (action === "mark_attendance") {
+        const { patientId, status } = actionData || {};
+        if (!patientId) return "לא נמצא מזהה משתתף.";
+
+        const patientDoc = await getDoc(doc(db, "patients", patientId));
+        if (!patientDoc.exists()) {
+          return `לא נמצא משתתף עם מזהה ${patientId}`;
+        }
+        const pData = patientDoc.data();
+        const contextId = pData.hosenType || (pData.groupIds && pData.groupIds[0]) || "general";
+
+        const attId = `${patientId}_${contextId}_${today}`;
+        if (status === "unset") {
+          await deleteDoc(doc(db, "attendance", attId));
+        } else {
+          await setDoc(doc(db, "attendance", attId), {
+            patientId,
+            date: today,
+            status,
+            contextId,
+            updatedAt: new Date().toISOString(),
+          });
+        }
+        await loadAppData();
+        return null;
+      }
+
+      if (action === "set_duty_instructor") {
+        const { instructorId } = actionData || {};
+        if (!instructorId) return "לא נמצא מזהה מדריך.";
+
+        const ref = doc(db, "schedules", today);
+        const snap = await getDoc(ref);
+        if (snap.exists()) {
+          await updateDoc(ref, { dutyInstructorId: instructorId });
+        } else {
+          await setDoc(ref, { dutyInstructorId: instructorId, activities: [] });
+        }
+        await loadAppData();
+        return null;
+      }
+
+      if (action === "add_schedule_activity") {
+        const { title, startTime, notes } = actionData || {};
+        if (!title) return "לא נמצא שם לפעילות.";
+
+        const actTime = startTime || "09:00";
+        const computeEndTime = (t: string) => {
+          if (!t || !t.includes(":")) return "10:00";
+          const [h, m] = t.split(":").map(Number);
+          const nextHour = (h + 1) % 24;
+          return `${String(nextHour).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+        };
+
+        const newActivity = {
+          id: Math.random().toString(36).slice(2, 9),
+          title: title,
+          startTime: actTime,
+          endTime: computeEndTime(actTime),
+          locationId: "",
+          staffIds: [],
+          groupId: "all",
+          notes: notes || "",
+          type: "activity"
+        };
+
+        const ref = doc(db, "schedules", today);
+        const snap = await getDoc(ref);
+        if (snap.exists()) {
+          const current = snap.data().activities || [];
+          await updateDoc(ref, {
+            activities: [...current, newActivity]
+          });
+        } else {
+          await setDoc(ref, {
+            activities: [newActivity],
+            dutyInstructorId: ""
+          });
+        }
+        await loadAppData();
+        return null;
+      }
+
+      if (action === "delete_schedule_activity") {
+        const { activityId } = actionData || {};
+        if (!activityId) return "לא נמצא מזהה פעילות למחיקה.";
+
+        const ref = doc(db, "schedules", today);
+        const snap = await getDoc(ref);
+        if (snap.exists()) {
+          const current = snap.data().activities || [];
+          const updated = current.filter((a: any) => a.id !== activityId);
+          await updateDoc(ref, { activities: updated });
+        }
+        await loadAppData();
+        return null;
+      }
+
+      if (action === "mark_attendance_batch") {
+        const { updates } = actionData || {};
+        if (!updates || !Array.isArray(updates) || updates.length === 0) {
+          return "לא נמצאו עדכוני נוכחות לביצוע.";
+        }
+
+        const batch = writeBatch(db);
+        for (const update of updates) {
+          const { patientId, status } = update;
+          if (!patientId) continue;
+          
+          const patientDoc = await getDoc(doc(db, "patients", patientId));
+          if (!patientDoc.exists()) continue;
+          const pData = patientDoc.data();
+          const contextId = pData.hosenType || (pData.groupIds && pData.groupIds[0]) || "general";
+          
+          const attId = `${patientId}_${contextId}_${today}`;
+          if (status === "unset") {
+            batch.delete(doc(db, "attendance", attId));
+          } else {
+            batch.set(doc(db, "attendance", attId), {
+              patientId,
+              date: today,
+              status,
+              contextId,
+              updatedAt: new Date().toISOString(),
+            });
+          }
+        }
+        await batch.commit();
+        await loadAppData();
+        return null;
+      }
+
+      if (action === "update_schedule_activity") {
+        const { activityId, updates: actUpdates } = actionData || {};
+        if (!activityId) return "לא נמצא מזהה פעילות לעדכון.";
+
+        const ref = doc(db, "schedules", today);
+        const snap = await getDoc(ref);
+        if (snap.exists()) {
+          const current = snap.data().activities || [];
+          const updated = current.map((a: any) => {
+            if (a.id === activityId) {
+              const merged = { ...a, ...actUpdates };
+              if (actUpdates.startTime && !actUpdates.endTime) {
+                const [h, m] = actUpdates.startTime.split(":").map(Number);
+                const nextHour = (h + 1) % 24;
+                merged.endTime = `${String(nextHour).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+              }
+              return merged;
+            }
+            return a;
+          });
+          await updateDoc(ref, { activities: updated });
+        }
+        await loadAppData();
+        return null;
+      }
+
+      if (action === "purchase_shopping_item") {
+        const term = (actionData?.searchTerm || "").toLowerCase();
+        if (!term) return "לא צוין שם מוצר.";
+        
+        const q = query(collection(db, "shopping_requests"), where("status", "==", "pending"));
+        const snap = await getDocs(q);
+        const match = snap.docs.find((d) => d.data().name?.toLowerCase().includes(term) || term.includes(d.data().name?.toLowerCase()));
+        if (match) {
+          await updateDoc(match.ref, {
+            status: "purchased",
+            purchasedAt: serverTimestamp(),
+            purchasedBy: user?.uid || "system",
+            purchasedByName: user?.displayName || "Hosen AI"
+          });
+          await loadAppData();
+        } else {
+          return `לא מצאתי מוצר ממתין בשם "${actionData?.searchTerm}" ברשימת הקניות.`;
+        }
+        return null;
+      }
     } catch (e) {
       console.error("Action execution error:", e);
       return "אירעה שגיאה בביצוע הפעולה.";
@@ -632,6 +841,24 @@ export function SmartAssistant() {
     recognition.start();
   };
 
+  const containerVariants = {
+    hidden: isMobile 
+      ? { y: "100%", opacity: 0 }
+      : { opacity: 0, scale: 0.95, y: 20, filter: "blur(10px)" },
+    visible: isMobile
+      ? { y: 0, opacity: 1 }
+      : { opacity: 1, scale: 1, y: 0, filter: "blur(0px)" },
+    exit: isMobile
+      ? { y: "100%", opacity: 0 }
+      : { opacity: 0, scale: 0.95, y: 20, filter: "blur(10px)" },
+  };
+
+  const containerTransition = {
+    type: "spring" as const,
+    damping: isMobile ? 32 : 25,
+    stiffness: isMobile ? 280 : 200,
+  };
+
   if (authLoading || !user || pathname === "/login" || pathname.startsWith("/portal") || isParticipant || role === "participant") return null;
 
   return (
@@ -639,13 +866,22 @@ export function SmartAssistant() {
       <AnimatePresence>
         {isOpen && (
           <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 20, filter: "blur(10px)" }}
-            animate={{ opacity: 1, scale: 1, y: 0, filter: "blur(0px)" }}
-            exit={{ opacity: 0, scale: 0.95, y: 20, filter: "blur(10px)" }}
-            className="absolute bottom-20 right-0 md:right-auto md:left-0 w-[calc(100vw-48px)] md:w-[400px] h-[calc(100vh-140px)] md:h-[600px] bg-[var(--surface)]/90 backdrop-blur-3xl border border-[var(--border-strong)] rounded-[32px] shadow-[0_32px_64px_-12px_rgba(0,0,0,0.5)] flex flex-col overflow-hidden pointer-events-auto"
+            variants={containerVariants}
+            initial="hidden"
+            animate="visible"
+            exit="exit"
+            transition={containerTransition}
+            className={
+              isMobile
+                ? "fixed inset-0 w-full h-[100dvh] bg-[var(--surface)]/95 backdrop-blur-3xl z-[150] flex flex-col overflow-hidden pointer-events-auto"
+                : "absolute bottom-20 right-0 md:right-auto md:left-0 w-[calc(100vw-48px)] md:w-[400px] h-[calc(100vh-140px)] md:h-[600px] bg-[var(--surface)]/90 backdrop-blur-3xl border border-[var(--border-strong)] rounded-[32px] shadow-[0_32px_64px_-12px_rgba(0,0,0,0.5)] flex flex-col overflow-hidden pointer-events-auto"
+            }
           >
             {/* Header */}
-            <div className="relative p-6 border-b border-[var(--border)] overflow-hidden">
+            <div 
+              className="relative p-6 border-b border-[var(--border)] overflow-hidden shrink-0"
+              style={{ paddingTop: isMobile ? "calc(1.5rem + env(safe-area-inset-top, 0px))" : undefined }}
+            >
               <div className="absolute inset-0 bg-gradient-to-br from-[var(--primary)]/10 to-transparent pointer-events-none" />
               <div className="relative flex items-center justify-between mb-4">
                 <div className="flex items-center gap-4">
@@ -783,7 +1019,10 @@ export function SmartAssistant() {
             </div>
 
             {/* Input area */}
-            <div className="p-6 bg-[var(--surface)] border-t border-[var(--border)]">
+            <div 
+              className="p-6 bg-[var(--surface)] border-t border-[var(--border)] shrink-0"
+              style={{ paddingBottom: isMobile ? "calc(1.5rem + env(safe-area-inset-bottom, 0px))" : undefined }}
+            >
               <div className="relative flex items-center gap-3">
                 <div className="relative flex-1 group">
                   <input
@@ -825,23 +1064,25 @@ export function SmartAssistant() {
       </AnimatePresence>
 
       {/* FAB */}
-      <motion.button
-        whileHover={{ scale: 1.05, y: -2 }}
-        whileTap={{ scale: 0.95 }}
-        onClick={() => setIsOpen(!isOpen)}
-        title="העוזר החכם של חוסן"
-        className={`w-12 h-12 md:w-14 md:h-14 rounded-2xl flex items-center justify-center shadow-[0_12px_24px_-8px_rgba(0,0,0,0.5)] transition-all relative overflow-hidden group pointer-events-auto ${
-          isOpen ? "bg-[var(--surface-raised)] text-[var(--foreground)] rotate-90" : "bg-[var(--primary)] text-white"
-        }`}
-      >
-        <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-        <div className="relative z-10">
-          {isOpen ? <X className="w-5 h-5" /> : <Bot className="w-6 h-6" />}
-        </div>
-        {!isOpen && insights.length > 0 && (
-          <span className="absolute top-3 right-3 w-2.5 h-2.5 bg-rose-500 border-2 border-[var(--primary)] rounded-full z-20 animate-bounce" />
-        )}
-      </motion.button>
+      {(!isMobile || !isOpen) && (
+        <motion.button
+          whileHover={{ scale: 1.05, y: -2 }}
+          whileTap={{ scale: 0.95 }}
+          onClick={() => setIsOpen(!isOpen)}
+          title="העוזר החכם של חוסן"
+          className={`w-12 h-12 md:w-14 md:h-14 rounded-2xl flex items-center justify-center shadow-[0_12px_24px_-8px_rgba(0,0,0,0.5)] transition-all relative overflow-hidden group pointer-events-auto ${
+            isOpen ? "bg-[var(--surface-raised)] text-[var(--foreground)] rotate-90" : "bg-[var(--primary)] text-white"
+          }`}
+        >
+          <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+          <div className="relative z-10">
+            {isOpen ? <X className="w-5 h-5" /> : <Bot className="w-6 h-6" />}
+          </div>
+          {!isOpen && insights.length > 0 && (
+            <span className="absolute top-3 right-3 w-2.5 h-2.5 bg-rose-500 border-2 border-[var(--primary)] rounded-full z-20 animate-bounce" />
+          )}
+        </motion.button>
+      )}
     </div>
   );
 }
