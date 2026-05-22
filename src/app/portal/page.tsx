@@ -10,7 +10,7 @@ import {
 import {
   Calendar, MapPin, Users, Check, X, Clock, Loader2,
   Plus, MessageCircle, BarChart3, Shield, Globe, ArrowLeft, ArrowRight,
-  ChevronLeft, FileText, Coffee, Utensils, ArrowLeftRight
+  ChevronLeft, FileText, Coffee, Utensils, ArrowLeftRight, AlertTriangle
 } from "lucide-react";
 import { format, parseISO, differenceInDays, addMonths } from "date-fns";
 import { he } from "date-fns/locale";
@@ -34,6 +34,7 @@ export default function PortalDashboard() {
   const router = useRouter();
 
   const [activities, setActivities] = useState<Activity[]>([]);
+  const [signups, setSignups] = useState<Record<string, string[]>>({});
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [attendanceHistory, setAttendanceHistory] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -46,6 +47,26 @@ export default function PortalDashboard() {
 
   const today = format(new Date(), "yyyy-MM-dd");
   const myGroupId = assignedGroups[0] ?? null;
+
+  const todaySlots = useMemo(() => {
+    const slots: Record<string, Activity[]> = {};
+    activities.forEach(a => {
+      const key = `${a.startTime}-${a.endTime}`;
+      if (!slots[key]) slots[key] = [];
+      slots[key].push(a);
+    });
+    return Object.entries(slots)
+      .map(([key, items]) => {
+        const [startTime, endTime] = key.split("-");
+        return {
+          key,
+          startTime,
+          endTime,
+          items: items.sort((a, b) => a.title.localeCompare(b.title)),
+        };
+      })
+      .sort((a, b) => a.startTime.localeCompare(b.startTime));
+  }, [activities]);
 
   useEffect(() => {
     if (!user) return;
@@ -106,7 +127,8 @@ export default function PortalDashboard() {
               groupId: a.groupId || "",
               type: a.type || "activity",
             }));
-            setActivities(acts.filter(a => a.groupId === myGroupId || a.groupId === "all").slice(0, 3));
+            setActivities(acts.filter(a => a.groupId === myGroupId || a.groupId === "all"));
+            setSignups((data.signups || {}) as Record<string, string[]>);
             
             const dId = data.dutyInstructorId || data.dutyId;
             if (dId) {
@@ -464,53 +486,145 @@ export default function PortalDashboard() {
                 )}
               </div>
               <div className="space-y-3">
-                {activities.length > 0 ? (
-                  activities.map((a) => {
-                    let accentBar = "bg-[#0055D4]";
-                    let bubbleBg = "bg-[#EBF3FF] text-[#0055D4]";
-                    let iconColor = "text-[#0055D4]";
-                    let Icon = null;
-                    if (a.type === "break") {
-                      accentBar = "bg-slate-400";
-                      bubbleBg = "bg-slate-100 text-slate-500";
-                      iconColor = "text-slate-400";
-                      Icon = Coffee;
-                    } else if (a.type === "meal") {
-                      accentBar = "bg-amber-400";
-                      bubbleBg = "bg-amber-100 text-amber-600";
-                      iconColor = "text-amber-500";
-                      Icon = Utensils;
-                    } else if (a.type === "swap") {
-                      accentBar = "bg-indigo-400";
-                      bubbleBg = "bg-indigo-100 text-indigo-600";
-                      iconColor = "text-indigo-500";
-                      Icon = ArrowLeftRight;
-                    }
+                {todaySlots.length > 0 ? (
+                  todaySlots.map((slot) => {
+                    const hasMultiple = slot.items.length > 1;
+                    const registerableItems = slot.items.filter(item => item.type !== "break" && item.type !== "meal" && item.type !== "swap" && item.type !== "custom");
+                    const isAlternativeSlot = hasMultiple && registerableItems.length > 1;
 
-                    return (
-                      <div 
-                        key={a.id} 
-                        onClick={() => router.push("/portal/schedule")}
-                        className="relative bg-white rounded-[1.5rem] p-5 shadow-[0_8px_30px_rgba(0,85,212,0.018)] border border-slate-100/60 flex items-center justify-between text-right cursor-pointer hover:border-slate-200 transition-all group"
-                      >
-                        <div className={`absolute right-0 top-5 bottom-5 w-1 ${accentBar} rounded-l-full`} />
-                        <div className="flex items-center gap-3.5 pr-2">
-                          <div className={`w-11 h-11 rounded-full ${bubbleBg} flex items-center justify-center font-black text-xs shrink-0`}>
-                            {a.startTime}
+                    if (isAlternativeSlot) {
+                      const chosenItem = registerableItems.find(a => (signups[a.id] ?? []).includes(user?.uid ?? ""));
+
+                      if (chosenItem) {
+                        const accentBar = "bg-teal-500";
+                        const bubbleBg = "bg-teal-500 text-white shadow-lg shadow-teal-500/20";
+                        const iconColor = "text-teal-500";
+
+                        return (
+                          <div 
+                            key={chosenItem.id} 
+                            onClick={() => router.push("/portal/schedule")}
+                            className="relative bg-white rounded-[1.5rem] p-5 shadow-[0_8px_30px_rgba(0,85,212,0.018)] border border-teal-500/30 flex items-center justify-between text-right cursor-pointer hover:border-slate-200 transition-all group"
+                          >
+                            <div className={`absolute right-0 top-5 bottom-5 w-1 ${accentBar} rounded-l-full`} />
+                            <div className="flex items-center gap-3.5 pr-2">
+                              <div className={`w-11 h-11 rounded-full ${bubbleBg} flex items-center justify-center font-black text-xs shrink-0`}>
+                                {chosenItem.startTime}
+                              </div>
+                              <div>
+                                <h4 className="font-extrabold text-[13.5px] text-[#002244] group-hover:text-[#0055D4] transition-colors flex items-center gap-1.5 flex-wrap">
+                                  {chosenItem.title}
+                                  <span className="bg-teal-500 text-white text-[9px] font-black px-2 py-0.5 rounded-full flex items-center gap-0.5 shadow-sm">
+                                    <Check className="w-2.5 h-2.5" /> הבחירה שלך
+                                  </span>
+                                </h4>
+                                <p className="text-[10.5px] text-[#53687E] flex items-center gap-1 mt-1 font-semibold">
+                                  <MapPin className={`w-3 h-3 ${iconColor}`} /> מרכז חוסן, חוות רום
+                                </p>
+                              </div>
+                            </div>
+                            <ChevronLeft className="w-5 h-5 text-[#B6C5D6] group-hover:translate-x-[-3px] transition-transform shrink-0" />
                           </div>
-                          <div>
-                            <h4 className="font-extrabold text-[13.5px] text-[#002244] group-hover:text-[#0055D4] transition-colors flex items-center gap-1.5">
-                              {Icon && <Icon className={`w-3.5 h-3.5 shrink-0 ${iconColor}`} />}
-                              {a.title}
-                            </h4>
-                            <p className="text-[10.5px] text-[#53687E] flex items-center gap-1 mt-1 font-semibold">
-                              <MapPin className={`w-3 h-3 ${iconColor}`} /> מרכז חוסן, חוות רום
-                            </p>
+                        );
+                      } else {
+                        const alternativesList = registerableItems.map(item => item.title).join(" או ");
+                        return (
+                          <div 
+                            key={slot.key} 
+                            onClick={() => router.push("/portal/schedule")}
+                            className="relative bg-amber-500/[0.02] rounded-[1.5rem] p-5 shadow-[0_8px_30px_rgba(245,158,11,0.02)] border border-amber-500/35 flex items-center justify-between text-right cursor-pointer hover:border-amber-500/50 transition-all group"
+                          >
+                            <div className="absolute right-0 top-5 bottom-5 w-1 bg-amber-500 rounded-l-full" />
+                            <div className="flex items-center gap-3.5 pr-2">
+                              <div className="w-11 h-11 rounded-full bg-amber-500/10 text-amber-600 border border-amber-500/20 flex flex-col items-center justify-center font-black text-[10px] shrink-0">
+                                <span>{slot.startTime}</span>
+                                <span className="text-[8px] opacity-60 leading-none">{slot.endTime}</span>
+                              </div>
+                              <div>
+                                <h4 className="font-extrabold text-[13.5px] text-amber-700 group-hover:text-amber-800 transition-colors flex items-center gap-1.5">
+                                  <AlertTriangle className="w-4 h-4 text-amber-500 animate-pulse shrink-0" />
+                                  נדרשת בחירת פעילות
+                                </h4>
+                                <p className="text-[10.5px] text-slate-500 font-semibold mt-0.5 line-clamp-1 max-w-[210px] md:max-w-none">
+                                  {alternativesList}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-1 text-[11px] font-bold text-amber-600 shrink-0">
+                              <span>לבחירה</span>
+                              <ChevronLeft className="w-4 h-4 text-amber-500 group-hover:translate-x-[-3px] transition-transform" />
+                            </div>
                           </div>
+                        );
+                      }
+                    } else {
+                      const a = slot.items[0];
+                      const isSignedUp = (signups[a.id] ?? []).includes(user?.uid ?? "");
+                      let accentBar = "bg-[#0055D4]";
+                      let bubbleBg = "bg-[#EBF3FF] text-[#0055D4]";
+                      let iconColor = "text-[#0055D4]";
+                      let Icon = null;
+                      const isCustomType = a.type === "break" || a.type === "meal" || a.type === "swap" || a.type === "custom";
+
+                      if (a.type === "break") {
+                        accentBar = "bg-slate-400";
+                        bubbleBg = "bg-slate-100 text-slate-500";
+                        iconColor = "text-slate-400";
+                        Icon = Coffee;
+                      } else if (a.type === "meal") {
+                        accentBar = "bg-amber-400";
+                        bubbleBg = "bg-amber-100 text-amber-600";
+                        iconColor = "text-amber-500";
+                        Icon = Utensils;
+                      } else if (a.type === "swap") {
+                        accentBar = "bg-indigo-400";
+                        bubbleBg = "bg-indigo-100 text-indigo-600";
+                        iconColor = "text-indigo-500";
+                        Icon = ArrowLeftRight;
+                      } else {
+                        if (isSignedUp) {
+                          accentBar = "bg-teal-500";
+                          bubbleBg = "bg-teal-500 text-white shadow-lg shadow-teal-500/20";
+                          iconColor = "text-teal-500";
+                        } else {
+                          accentBar = "bg-[#0055D4]/40";
+                          bubbleBg = "bg-slate-100 text-slate-500 border border-slate-200";
+                          iconColor = "text-slate-400";
+                        }
+                      }
+
+                      return (
+                        <div 
+                          key={a.id} 
+                          onClick={() => router.push("/portal/schedule")}
+                          className={`relative bg-white rounded-[1.5rem] p-5 shadow-[0_8px_30px_rgba(0,85,212,0.018)] border flex items-center justify-between text-right cursor-pointer hover:border-slate-200 transition-all group ${
+                            isSignedUp && !isCustomType ? 'border-teal-500/30' : 'border-slate-100/60'
+                          }`}
+                        >
+                          <div className={`absolute right-0 top-5 bottom-5 w-1 ${accentBar} rounded-l-full`} />
+                          <div className="flex items-center gap-3.5 pr-2">
+                            <div className={`w-11 h-11 rounded-full ${bubbleBg} flex items-center justify-center font-black text-xs shrink-0`}>
+                              {a.startTime}
+                            </div>
+                            <div>
+                              <h4 className="font-extrabold text-[13.5px] text-[#002244] group-hover:text-[#0055D4] transition-colors flex items-center gap-1.5 flex-wrap">
+                                {Icon && <Icon className={`w-3.5 h-3.5 shrink-0 ${iconColor}`} />}
+                                {a.title}
+                                {isSignedUp && !isCustomType && (
+                                  <span className="bg-teal-500 text-white text-[9px] font-black px-2 py-0.5 rounded-full flex items-center gap-0.5 shadow-sm">
+                                    <Check className="w-2.5 h-2.5" /> רשום/ה
+                                  </span>
+                                )}
+                              </h4>
+                              <p className="text-[10.5px] text-[#53687E] flex items-center gap-1 mt-1 font-semibold">
+                                <MapPin className={`w-3 h-3 ${iconColor}`} /> מרכז חוסן, חוות רום
+                              </p>
+                            </div>
+                          </div>
+                          <ChevronLeft className="w-5 h-5 text-[#B6C5D6] group-hover:translate-x-[-3px] transition-transform shrink-0" />
                         </div>
-                        <ChevronLeft className="w-5 h-5 text-[#B6C5D6] group-hover:translate-x-[-3px] transition-transform shrink-0" />
-                      </div>
-                    );
+                      );
+                    }
                   })
                 ) : (
                   /* Elegant continue treatment block */

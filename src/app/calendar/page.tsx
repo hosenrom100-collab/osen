@@ -501,15 +501,15 @@ export default function CalendarPage() {
             {/* Info Card - Dual Function Explanation */}
             <div className="mt-auto p-4 bg-emerald-500/5 border border-emerald-500/10 rounded-2xl">
               <div className="flex items-center gap-2 mb-2">
-                <Info className="w-3.5 h-3.5 text-emerald-400" />
-                <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-tight">מהו מסך זה?</span>
+                <Info className="w-3.5 h-3.5 text-emerald-600" />
+                <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-tight">מהו מסך זה?</span>
               </div>
-              <p className="text-[10px] text-slate-300 leading-relaxed font-bold">
+              <p className="text-[10px] text-slate-800 leading-relaxed font-bold">
                 ניהול זמן משולב במרכז:
               </p>
-              <div className="text-[10px] text-slate-400 leading-relaxed mt-2 space-y-1.5">
-                <p>📅 <strong className="text-slate-200">אירועים ופגישות</strong>: פגישות ואירועים כלליים המסונכרנים עם Google Calendar.</p>
-                <p>👥 <strong className="text-slate-200">לו״ז קבוצות</strong>: מערכת השיבוצים והפעילויות של המשתתפים במרכז.</p>
+              <div className="text-[10px] text-slate-600 leading-relaxed mt-2 space-y-1.5 font-medium">
+                <p>📅 <strong className="text-slate-800 font-bold">אירועים ופגישות</strong>: פגישות ואירועים כלליים המסונכרנים עם Google Calendar.</p>
+                <p>👥 <strong className="text-slate-800 font-bold">לו״ז קבוצות</strong>: מערכת השיבוצים והפעילויות של המשתתפים במרכז.</p>
               </div>
             </div>
           </aside>
@@ -674,19 +674,19 @@ export default function CalendarPage() {
                         exit={{ opacity: 0, height: 0 }}
                         className="mb-4 p-4 bg-emerald-500/5 border border-emerald-500/10 rounded-2xl relative overflow-hidden"
                       >
-                        <button onClick={dismissInfo} className="absolute left-3 top-3 p-1.5 text-slate-500 hover:text-white rounded-lg hover:bg-white/5 transition-all">
+                        <button onClick={dismissInfo} className="absolute left-3 top-3 p-1.5 text-slate-500 hover:text-slate-800 rounded-lg hover:bg-slate-100 transition-all">
                           <X className="w-3.5 h-3.5" />
                         </button>
                         <div className="flex items-center gap-2 mb-2">
-                          <Info className="w-3.5 h-3.5 text-emerald-400" />
-                          <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-tight">מדריך קצר ליומן</span>
+                          <Info className="w-3.5 h-3.5 text-emerald-600" />
+                          <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-tight">מדריך קצר ליומן</span>
                         </div>
-                        <p className="text-[10px] text-slate-400 leading-relaxed pr-2">
+                        <p className="text-[10px] text-slate-800 leading-relaxed pr-2 font-bold">
                           דשבורד זה מאחד בין שני עולמות:
                         </p>
-                        <div className="text-[10px] text-slate-400 leading-relaxed mt-2 pr-2 space-y-1.5">
-                          <p>📅 <strong className="text-white">אירועים ופגישות</strong>: פגישות ואירועי צוות כלליים המסונכרנים עם Google Calendar.</p>
-                          <p>👥 <strong className="text-white">לו״ז קבוצות</strong>: מערכת השיבוצים היומית של המשתתפים לפי תוכניות וקבוצות במרכז.</p>
+                        <div className="text-[10px] text-slate-600 leading-relaxed mt-2 pr-2 space-y-1.5 font-medium">
+                          <p>📅 <strong className="text-slate-800 font-bold">אירועים ופגישות</strong>: פגישות ואירועי צוות כלליים המסונכרנים עם Google Calendar.</p>
+                          <p>👥 <strong className="text-slate-800 font-bold">לו״ז קבוצות</strong>: מערכת השיבוצים היומית של המשתתפים לפי תוכניות וקבוצות במרכז.</p>
                         </div>
                       </motion.div>
                     )}
