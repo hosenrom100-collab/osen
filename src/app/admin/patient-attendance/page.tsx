@@ -81,7 +81,7 @@ function MiniCalendar({ value, onChange }: { value: string; onChange: (d: string
 function AttendancePageContent() {
   const searchParams = useSearchParams();
   const router       = useRouter();
-  const { preferredProgramIds, preferredGroupIds } = useAuth();
+  const { preferredProgramIds, preferredGroupIds, setPreferredPrograms, setPreferredGroups } = useAuth();
 
   const [selectionItems, setSelectionItems] = useState<SelectionItem[]>([]);
   const [selectedId,     setSelectedId]     = useState<string>(searchParams.get("group") || "");
@@ -130,22 +130,6 @@ function AttendancePageContent() {
   const [allGroupsForModal, setAllGroupsForModal] = useState<{ id: string, name: string, programId: string }[]>([]);
 
   const openFilterModal = async () => {
-    let savedProgs: string[] = [];
-    let savedGroups: string[] = [];
-    let hasLocal = false;
-    if (typeof window !== "undefined") {
-      const sp = localStorage.getItem("hosen_attendance_pref_programs");
-      const sg = localStorage.getItem("hosen_attendance_pref_groups");
-      if (sp) {
-        savedProgs = JSON.parse(sp);
-        hasLocal = true;
-      }
-      if (sg) {
-        savedGroups = JSON.parse(sg);
-        hasLocal = true;
-      }
-    }
-
     let progsList: any[] = [];
     let groupsList: any[] = [];
     try {
@@ -162,24 +146,28 @@ function AttendancePageContent() {
       console.error("Error loading programs/groups for modal filter:", err);
     }
 
-    if (hasLocal) {
-      setTempPrefPrograms(savedProgs);
-      setTempPrefGroups(savedGroups);
+    const hasPrefs = (preferredProgramIds && preferredProgramIds.length > 0) || (preferredGroupIds && preferredGroupIds.length > 0);
+    if (hasPrefs) {
+      setTempPrefPrograms(preferredProgramIds);
+      setTempPrefGroups(preferredGroupIds);
     } else {
-      // Pre-check all programs and groups by default on first load
+      // Pre-check all programs and groups by default on first load if no prefs exist
       setTempPrefPrograms(progsList.map(p => p.id));
       setTempPrefGroups(groupsList.map(g => g.id));
     }
     setShowFilterModal(true);
   };
 
-  const saveFilters = () => {
-    if (typeof window !== "undefined") {
-      localStorage.setItem("hosen_attendance_pref_programs", JSON.stringify(tempPrefPrograms));
-      localStorage.setItem("hosen_attendance_pref_groups", JSON.stringify(tempPrefGroups));
+  const saveFilters = async () => {
+    try {
+      await Promise.all([
+        setPreferredPrograms(tempPrefPrograms),
+        setPreferredGroups(tempPrefGroups)
+      ]);
+      setShowFilterModal(false);
+    } catch (err) {
+      console.error("Failed to save global user preferences:", err);
     }
-    setShowFilterModal(false);
-    setReloadTrigger(prev => prev + 1);
   };
 
   const toggleModalProgram = (progId: string) => {
@@ -216,32 +204,17 @@ function AttendancePageContent() {
         }
       });
       
-      // Filter selections based on user preferences in localStorage (or show all by default)
-      let savedProgs: string[] = [];
-      let savedGroups: string[] = [];
-      let hasLocalPrefs = false;
-      if (typeof window !== "undefined") {
-        const sp = localStorage.getItem("hosen_attendance_pref_programs");
-        const sg = localStorage.getItem("hosen_attendance_pref_groups");
-        if (sp) {
-          savedProgs = JSON.parse(sp);
-          hasLocalPrefs = true;
-        }
-        if (sg) {
-          savedGroups = JSON.parse(sg);
-          hasLocalPrefs = true;
-        }
-      }
+      const hasPrefs = (preferredProgramIds && preferredProgramIds.length > 0) || (preferredGroupIds && preferredGroupIds.length > 0);
 
       let filteredItems = items;
-      if (hasLocalPrefs) {
+      if (hasPrefs) {
         filteredItems = items.filter(item => {
           if (item.type === 'program') {
-            return savedProgs.includes(item.id);
+            return preferredProgramIds.includes(item.id);
           } else {
             const groupDoc = groups.find(g => g.id === item.id);
-            const inPrefGroup = savedGroups.includes(item.id);
-            const inPrefProgram = groupDoc?.programId ? savedProgs.includes(groupDoc.programId) : false;
+            const inPrefGroup = preferredGroupIds.includes(item.id);
+            const inPrefProgram = groupDoc?.programId ? preferredProgramIds.includes(groupDoc.programId) : false;
             return inPrefGroup || inPrefProgram;
           }
         });
@@ -689,13 +662,16 @@ function AttendancePageContent() {
                   שמור סינון
                 </button>
                 <button
-                  onClick={() => {
-                    if (typeof window !== "undefined") {
-                      localStorage.removeItem("hosen_attendance_pref_programs");
-                      localStorage.removeItem("hosen_attendance_pref_groups");
+                  onClick={async () => {
+                    try {
+                      await Promise.all([
+                        setPreferredPrograms([]),
+                        setPreferredGroups([])
+                      ]);
+                      setShowFilterModal(false);
+                    } catch (err) {
+                      console.error("Failed to reset preferences:", err);
                     }
-                    setShowFilterModal(false);
-                    setReloadTrigger(prev => prev + 1);
                   }}
                   className="px-4 py-3 bg-[var(--foreground)]/5 hover:bg-[var(--foreground)]/10 border border-[var(--border)] rounded-2xl text-xs font-black active:scale-95 transition-all"
                 >
