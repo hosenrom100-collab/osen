@@ -6,7 +6,7 @@ import { useRouter, usePathname } from "next/navigation";
 import { 
   Calendar, BarChart3, FileText, LayoutDashboard, 
   LogOut, Sun, Moon, Bell, Menu, X, User,
-  ChevronLeft, Shield, Globe
+  ChevronLeft, ChevronRight, Shield, Globe
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useState, useEffect } from "react";
@@ -17,7 +17,6 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
   const { theme, setTheme } = useSettings();
   const router = useRouter();
   const pathname = usePathname();
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // Guard: if not onboardingComplete, let children handle it (it will show verify screen)
   
@@ -92,73 +91,29 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
       </aside>
 
       {/* Header - Mobile */}
-      <header className="md:hidden sticky top-0 z-50 bg-[var(--background)]/80 backdrop-blur-xl border-b border-[var(--border)] px-4 h-16 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-xl bg-teal-500 flex items-center justify-center text-white">
-            <Shield className="w-5 h-5" />
-          </div>
-          <span className="font-black text-sm">מרכז חוסן</span>
+      <header className="md:hidden sticky top-0 z-50 bg-[var(--background)]/85 backdrop-blur-xl border-b border-[var(--border)] px-4 h-15 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          {pathname !== "/portal" ? (
+            <button
+              onClick={() => router.push("/portal")}
+              className="p-1.5 rounded-xl bg-[var(--surface)] border border-[var(--border)] text-[var(--foreground)] active:scale-95 transition-transform"
+            >
+              <ChevronRight className="w-5 h-5 text-teal-500" />
+            </button>
+          ) : (
+            <div className="w-8 h-8 rounded-xl bg-teal-500 flex items-center justify-center text-white shadow-md shadow-teal-500/15">
+              <Shield className="w-4.5 h-4.5" />
+            </div>
+          )}
+          <span className="font-black text-sm text-[var(--foreground)]">
+            {pathname === "/portal" ? "מרכז חוסן" : (navItems.find(i => i.href === pathname)?.label || "איזור אישי")}
+          </span>
         </div>
         
         <div className="flex items-center gap-2">
           <NotificationCenter />
-          <button 
-            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            className="p-2 rounded-xl bg-[var(--surface)] border border-[var(--border)] text-[var(--foreground)]"
-          >
-            {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-          </button>
         </div>
       </header>
-
-      {/* Mobile Menu Overlay */}
-      <AnimatePresence>
-        {isMobileMenuOpen && (
-          <motion.div
-            initial={{ opacity: 0, x: 300 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: 300 }}
-            className="fixed inset-0 z-[60] bg-[var(--background)] md:hidden p-6 pt-24"
-          >
-            <div className="space-y-4">
-              {navItems.map((item) => (
-                <button
-                  key={item.href}
-                  onClick={() => {
-                    router.push(item.href);
-                    setIsMobileMenuOpen(false);
-                  }}
-                  className={`w-full flex items-center gap-4 px-6 py-5 rounded-2xl text-lg font-black transition-all ${
-                    pathname === item.href 
-                    ? "bg-teal-500 text-white shadow-2xl shadow-teal-500/20" 
-                    : "bg-[var(--surface)] border border-[var(--border)] text-[var(--muted)]"
-                  }`}
-                >
-                  <item.icon className="w-6 h-6" />
-                  {item.label}
-                </button>
-              ))}
-              
-              <div className="pt-8 space-y-4">
-                 <button 
-                   onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-                   className="w-full flex items-center justify-between px-6 py-5 rounded-2xl bg-[var(--surface)] border border-[var(--border)] text-[var(--foreground)]"
-                 >
-                   <span className="font-black">מצב {theme === 'dark' ? 'יום' : 'לילה'}</span>
-                   {theme === 'dark' ? <Sun className="w-6 h-6" /> : <Moon className="w-6 h-6" />}
-                 </button>
-                 <button 
-                   onClick={handleLogout}
-                   className="w-full flex items-center gap-4 px-6 py-5 rounded-2xl bg-rose-500/5 border border-rose-500/10 text-rose-500 font-black"
-                 >
-                   <LogOut className="w-6 h-6" />
-                   התנתקות
-                 </button>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       {/* Main Content Area */}
       <main className="flex-1 flex flex-col min-w-0">

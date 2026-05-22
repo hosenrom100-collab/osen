@@ -345,14 +345,28 @@ export default function SchedulePage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {registerableItems.map(a => {
                     const isSelected = (signups[a.id] ?? []).includes(user?.uid ?? "");
+                    const hasSelectedAlternative = registerableItems.some(item => item.id !== a.id && (signups[item.id] ?? []).includes(user?.uid ?? ""));
                     const locName = locations.find(l => l.id === a.locationId)?.name || "מרכז חוסן";
                     const allSlotActivityIds = registerableItems.map(item => item.id);
                     const now = format(new Date(), "HH:mm");
                     const isPast = a.endTime < now;
 
+                    let cardClass = "";
+                    if (isPast) {
+                      cardClass = "opacity-50 grayscale cursor-not-allowed border-[var(--border)] bg-slate-100";
+                    } else if (isSelected) {
+                      cardClass = "border-teal-500 bg-gradient-to-br from-teal-500/[0.08] to-emerald-500/[0.08] shadow-[0_8px_24px_rgba(20,184,166,0.12)] ring-1 ring-teal-500/20";
+                    } else if (hasSelectedAlternative) {
+                      cardClass = "border-[var(--border)] bg-[var(--surface-raised)]/35 opacity-40 scale-[0.98]";
+                    } else {
+                      cardClass = "border-[var(--border)] hover:border-teal-500/40 bg-[var(--surface-raised)] hover:shadow-[0_4px_12px_rgba(0,0,0,0.02)]";
+                    }
+
                     return (
-                      <div
+                      <motion.div
                         key={a.id}
+                        layout
+                        whileTap={!isPast ? { scale: 0.97 } : undefined}
                         onClick={() => {
                           if (isPast) return;
                           if (isSelected) {
@@ -361,23 +375,22 @@ export default function SchedulePage() {
                             signUpExclusive(a.id, allSlotActivityIds);
                           }
                         }}
-                        className={`border-2 rounded-2xl p-5 transition-all cursor-pointer flex flex-col justify-between gap-4 relative group ${
-                          isPast ? 'opacity-50 grayscale cursor-not-allowed' :
-                          isSelected 
-                            ? 'border-teal-500 bg-teal-500/[0.02] shadow-md shadow-teal-500/5' 
-                            : 'border-[var(--border)] hover:border-[var(--border-strong)] bg-[var(--surface-raised)]'
-                        }`}
+                        className={`border-2 rounded-[1.5rem] p-5 transition-all cursor-pointer flex flex-col justify-between gap-4 relative group ${cardClass}`}
                       >
                         {isSelected && (
-                          <span className="absolute top-3 left-3 bg-teal-500 text-white text-[9px] font-black px-2 py-0.5 rounded-full flex items-center gap-1 shadow-sm">
+                          <motion.span 
+                            initial={{ scale: 0.8, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            className="absolute top-3 left-3 bg-gradient-to-r from-teal-500 to-emerald-500 text-white text-[9px] font-black px-2.5 py-0.5 rounded-full flex items-center gap-1 shadow-sm"
+                          >
                             <Check className="w-3 h-3" /> הבחירה שלך
-                          </span>
+                          </motion.span>
                         )}
                         <div>
                           <h5 className="font-black text-base text-[var(--foreground)] mb-2 pr-2">{a.title}</h5>
                           <div className="flex flex-wrap items-center gap-3 text-xs text-[var(--muted)]">
-                            <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" /> {locName}</span>
-                            <span className="flex items-center gap-1"><Users className="w-3.5 h-3.5" /> {(signups[a.id] ?? []).length} רשומים</span>
+                            <span className="flex items-center gap-1 font-bold"><MapPin className="w-3.5 h-3.5 text-teal-500/60" /> {locName}</span>
+                            <span className="flex items-center gap-1 font-bold"><Users className="w-3.5 h-3.5 text-teal-500/60" /> {(signups[a.id] ?? []).length} רשומים</span>
                           </div>
                         </div>
 
@@ -396,7 +409,7 @@ export default function SchedulePage() {
                             )}
                           </div>
                         )}
-                      </div>
+                      </motion.div>
                     );
                   })}
                 </div>

@@ -44,6 +44,56 @@ export default function PortalDashboard() {
   const [showRenewalPrompt, setShowRenewalPrompt] = useState(false);
   const [renewalBusy, setRenewalBusy] = useState(false);
   const [dutyName, setDutyName] = useState<string>("");
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 60000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const activeAndNextActivity = useMemo(() => {
+    if (activities.length === 0) {
+      return { 
+        active: null as Activity | null, 
+        next: null as Activity | null, 
+        timeRemaining: null as number | null 
+      };
+    }
+    const currentHours = currentTime.getHours();
+    const currentMinutes = currentTime.getMinutes();
+    const currentTotalMinutes = currentHours * 60 + currentMinutes;
+
+    let active: Activity | null = null;
+    let next: Activity | null = null;
+    let minDiff = Infinity;
+    let timeRemaining: number | null = null;
+
+    activities.forEach(a => {
+      const [startH, startM] = a.startTime.split(":").map(Number);
+      const [endH, endM] = a.endTime.split(":").map(Number);
+      
+      if (isNaN(startH) || isNaN(endH)) return;
+
+      const startTotal = startH * 60 + startM;
+      const endTotal = endH * 60 + endM;
+
+      if (currentTotalMinutes >= startTotal && currentTotalMinutes < endTotal) {
+        const isSignedUp = (signups[a.id] ?? []).includes(user?.uid ?? "");
+        if (!active || isSignedUp) {
+          active = a;
+          timeRemaining = endTotal - currentTotalMinutes;
+        }
+      } else if (startTotal > currentTotalMinutes) {
+        const diff = startTotal - currentTotalMinutes;
+        if (diff < minDiff) {
+          minDiff = diff;
+          next = a;
+        }
+      }
+    });
+
+    return { active, next, timeRemaining };
+  }, [activities, signups, user, currentTime]);
 
   const today = format(new Date(), "yyyy-MM-dd");
   const myGroupId = assignedGroups[0] ?? null;
@@ -284,6 +334,65 @@ export default function PortalDashboard() {
           
           {/* ── Column 1 & 2: Main Dashboard Content (2/3 width on desktop) ── */}
           <div className="lg:col-span-2 space-y-7">
+            
+            {/* ── 1.5 Dynamic Now/Next Active Card (Premium Mobile Companion) ── */}
+            {(activeAndNextActivity.active || activeAndNextActivity.next) && (
+              <div className="bg-gradient-to-br from-teal-500 via-teal-600 to-[#0055D4] rounded-[1.8rem] p-6 text-white shadow-[0_12px_30px_rgba(0,85,212,0.15)] relative overflow-hidden">
+                <div className="absolute top-0 left-0 w-32 h-32 bg-white/5 rounded-full -translate-x-10 -translate-y-10 blur-xl pointer-events-none" />
+                <div className="absolute bottom-0 right-0 w-40 h-40 bg-teal-300/10 rounded-full translate-x-10 translate-y-10 blur-2xl pointer-events-none" />
+                
+                {activeAndNextActivity.active ? (
+                  <div className="relative z-10 flex flex-col gap-3">
+                    <div className="flex items-center justify-between">
+                      <span className="flex items-center gap-1.5 text-[10px] font-black tracking-widest bg-white/25 text-white px-3 py-1 rounded-full uppercase">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+                        פעילות פעילה עכשיו
+                      </span>
+                      {activeAndNextActivity.timeRemaining !== null && (
+                        <span className="text-[11px] font-extrabold bg-black/15 px-2.5 py-1 rounded-lg flex items-center gap-1 font-mono">
+                          <Clock className="w-3.5 h-3.5" />
+                          נותרו {activeAndNextActivity.timeRemaining} דק'
+                        </span>
+                      )}
+                    </div>
+                    <div>
+                      <h3 className="text-xl md:text-2xl font-black">{activeAndNextActivity.active.title}</h3>
+                      <p className="text-xs text-white/90 font-bold mt-1.5 flex items-center gap-1">
+                        <MapPin className="w-3.5 h-3.5 shrink-0 text-teal-200" />
+                        שעות: {activeAndNextActivity.active.startTime} - {activeAndNextActivity.active.endTime} • מרכז חוסן, חוות רום
+                      </p>
+                    </div>
+                    {activeAndNextActivity.next && (
+                      <div className="border-t border-white/10 mt-3 pt-3 flex items-center justify-between text-xs text-white/90 font-bold">
+                        <span>הבא בתור: {activeAndNextActivity.next.title}</span>
+                        <span className="font-mono opacity-80">{activeAndNextActivity.next.startTime}</span>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  activeAndNextActivity.next && (
+                    <div className="relative z-10 flex flex-col gap-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-black tracking-widest bg-white/25 text-white px-3 py-1 rounded-full uppercase">
+                          הפעילות הבאה שלך היום
+                        </span>
+                        <span className="text-[11px] font-extrabold bg-black/15 px-2.5 py-1 rounded-lg flex items-center gap-1 font-mono">
+                          <Clock className="w-3.5 h-3.5" />
+                          מתחילה ב-{activeAndNextActivity.next.startTime}
+                        </span>
+                      </div>
+                      <div>
+                        <h3 className="text-xl md:text-2xl font-black">{activeAndNextActivity.next.title}</h3>
+                        <p className="text-xs text-white/95 font-bold mt-1.5 flex items-center gap-1">
+                          <MapPin className="w-3.5 h-3.5 shrink-0 text-teal-200" />
+                          שעות: {activeAndNextActivity.next.startTime} - {activeAndNextActivity.next.endTime} • מרכז חוסן, חוות רום
+                        </p>
+                      </div>
+                    </div>
+                  )
+                )}
+              </div>
+            )}
             
             {/* ── 2. Quick Actions circular row ── */}
             <div className="bg-white rounded-[1.8rem] p-6 shadow-[0_8px_30px_rgba(0,0,0,0.012)] border border-slate-100/50">
@@ -529,10 +638,12 @@ export default function PortalDashboard() {
                       } else {
                         const alternativesList = registerableItems.map(item => item.title).join(" או ");
                         return (
-                          <div 
+                          <motion.div 
                             key={slot.key} 
                             onClick={() => router.push("/portal/schedule")}
-                            className="relative bg-amber-500/[0.02] rounded-[1.5rem] p-5 shadow-[0_8px_30px_rgba(245,158,11,0.02)] border border-amber-500/35 flex items-center justify-between text-right cursor-pointer hover:border-amber-500/50 transition-all group"
+                            animate={{ scale: [1, 1.015, 1] }}
+                            transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
+                            className="relative bg-amber-500/[0.03] rounded-[1.5rem] p-5 shadow-[0_8px_30px_rgba(245,158,11,0.03)] border-2 border-amber-400/50 flex items-center justify-between text-right cursor-pointer hover:border-amber-500/80 transition-all group"
                           >
                             <div className="absolute right-0 top-5 bottom-5 w-1 bg-amber-500 rounded-l-full" />
                             <div className="flex items-center gap-3.5 pr-2">
@@ -554,7 +665,7 @@ export default function PortalDashboard() {
                               <span>לבחירה</span>
                               <ChevronLeft className="w-4 h-4 text-amber-500 group-hover:translate-x-[-3px] transition-transform" />
                             </div>
-                          </div>
+                          </motion.div>
                         );
                       }
                     } else {
