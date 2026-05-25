@@ -661,7 +661,7 @@ export default function AttendanceMatrixPage() {
     }
   };
 
-  const years = [2026, 2027, 2028, 2029, 2030];
+  const years = [2025, 2026, 2027, 2028, 2029, 2030];
   const months = Array.from({ length: 12 }, (_, i) => i);
 
   return (

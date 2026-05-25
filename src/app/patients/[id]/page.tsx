@@ -61,7 +61,7 @@ export default function PatientDetailPage() {
   const [participantUid, setParticipantUid] = useState<string | null>(null);
   const [newMessage, setNewMessage] = useState("");
   const [groups, setGroups] = useState<Group[]>([]);
-  const [programs, setPrograms] = useState<{ id: string; name: string }[]>([]);
+  const [programs, setPrograms] = useState<{ id: string; name: string; activeDays?: number[] }[]>([]);
   const [reportLoading, setReportLoading] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState(format(new Date(), "yyyy-MM"));
   const [showEditModal, setShowEditModal] = useState(false);
@@ -75,9 +75,29 @@ export default function PatientDetailPage() {
   // Recipient and PDF modal states
   const [showRecipientModal, setShowRecipientModal] = useState(false);
   const [recipientText, setRecipientText] = useState("עו״ס אגף השיקום משרד הביטחון");
-  const [pendingReportType, setPendingReportType] = useState<'participation' | 'attendance' | 'stay' | null>(null);
+  const [pendingReportType, setPendingReportType] = useState<'participation' | 'attendance' | 'stay' | 'travel' | null>(null);
   const [pendingRequest, setPendingRequest] = useState<any | null>(null);
-  const [activeReportType, setActiveReportType] = useState<'participation' | 'attendance'>('participation');
+  const [activeReportType, setActiveReportType] = useState<'participation' | 'attendance' | 'travel'>('participation');
+
+  const getProgramDaysText = (defaultText: string) => {
+    const patientProgram = programs.find(p => p.id === (patient as any)?.programId);
+    const activeDays = patientProgram?.activeDays;
+    
+    if (!activeDays || activeDays.length === 0) {
+      return defaultText;
+    }
+
+    const dayNames = ["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת"];
+    const sortedDays = [...activeDays].sort((a, b) => a - b);
+    const mapped = sortedDays.map(d => dayNames[d]);
+
+    if (mapped.length === 1) {
+      return `ביום ${mapped[0]}`;
+    }
+
+    const last = mapped.pop();
+    return `בימים ${mapped.join(", ")} ו${last}`;
+  };
 
   useEffect(() => { if (id) fetchPatientData(); }, [id]);
 
@@ -93,7 +113,7 @@ export default function PatientDetailPage() {
         getDocs(collection(db, "users"))
       ]);
       setGroups(groupsSnap.docs.map(d => ({ id: d.id, name: d.data().name } as Group)));
-      setPrograms(progsSnap.docs.map(d => ({ id: d.id, name: d.data().name })));
+      setPrograms(progsSnap.docs.map(d => ({ id: d.id, name: d.data().name, activeDays: d.data().activeDays })));
       setSocialWorkers(usersSnap.docs.map(d => ({ id: d.id, name: d.data().displayName || d.data().name || d.data().email })));
 
       const attQuery = query(
@@ -218,6 +238,13 @@ export default function PatientDetailPage() {
       setPendingRequest(request);
       setPendingReportType('stay');
       setActiveReportType('participation');
+      setRecipientText("עו״ס אגף השיקום משרד הביטחון");
+      setShowRecipientModal(true);
+    } else if (request.type === 'travel') {
+      setPendingRequest(request);
+      setPendingReportType('travel');
+      setActiveReportType('travel');
+      setRecipientText("משרד הביטחון - אגף השיקום");
       setShowRecipientModal(true);
     } else {
       if (request.type === 'attendance') {
@@ -267,7 +294,7 @@ export default function PatientDetailPage() {
         type: request.type,
         url: downloadUrl,
         createdAt: serverTimestamp(),
-        processedBy: authUser?.uid,
+        processedBy: authUser?.uid || null,
       });
 
       await updateDoc(doc(db, "document_requests", request.id), {
@@ -331,36 +358,70 @@ export default function PatientDetailPage() {
       const imgHeight = (canvas.height * imgWidth) / canvas.width;
       pdf.addImage(imgData, "JPEG", 0, 0, imgWidth, imgHeight);
 
-      if (pendingReportType === 'participation') {
-        pdf.save(`אישור_השתתפות_${patient.firstName}_${patient.lastName}.pdf`);
-      } else if (pendingReportType === 'stay' && pendingRequest) {
-        const pdfBlob = pdf.output("blob");
-        const storageRef = ref(storage, `documents/${patient.id}/${Date.now()}_stay.pdf`);
-        await uploadBytes(storageRef, pdfBlob, { contentType: "application/pdf" });
-        const downloadUrl = await getDownloadURL(storageRef);
+      const docType = (pendingReportType === 'participation' || pendingReportType === 'stay') ? 'stay' : 'travel';
+      const docTitle = docType === 'stay' ? 'אישור שהייה' : 'אישור נוכחות חודשי';
+      const fileName = docType === 'stay' ? 'אישור_שהייה' : 'אישור_נוכחות_חודשי';
 
+      // If manual generation (no pending request), download locally
+      if (!pendingRequest) {
+        pdf.save(`${fileName}_${patient.firstName}_${patient.lastName}.pdf`);
+      }
+
+      // In all cases, upload to storage and register in documents collection
+      let downloadUrl = "";
+      try {
+        const pdfBlob = pdf.output("blob");
+        const storageRef = ref(storage, `documents/${patient.id}/${Date.now()}_${docType}.pdf`);
+        await uploadBytes(storageRef, pdfBlob, { contentType: "application/pdf" });
+        downloadUrl = await getDownloadURL(storageRef);
+      } catch (storageErr) {
+        console.warn("Storage upload failed, attempting data URL fallback to prevent workflow failure:", storageErr);
+        
+        // If this was a pending request, we download it for the admin locally so they have it immediately
+        if (pendingRequest) {
+          pdf.save(`${fileName}_${patient.firstName}_${patient.lastName}.pdf`);
+          alert("שים לב: העלאה לענן נכשלה עקב שגיאת שרת. הקובץ הורד ישירות למחשבך ויירשם במערכת.");
+        }
+        
+        try {
+          const dataUri = pdf.output("datauristring");
+          if (dataUri.length < 900000) { // Firestore 1MB document limit
+            downloadUrl = dataUri;
+          } else {
+            downloadUrl = "#";
+          }
+        } catch (pdfErr) {
+          downloadUrl = "#";
+        }
+      }
+
+      try {
         const newDocRef = doc(collection(db, "documents"));
         await setDoc(newDocRef, {
           patientId: patient.id,
-          title: 'אישור שהייה',
-          type: 'stay',
+          title: docTitle,
+          type: docType,
           url: downloadUrl,
           createdAt: serverTimestamp(),
-          processedBy: authUser?.uid,
+          processedBy: authUser?.uid || null,
         });
 
-        await updateDoc(doc(db, "document_requests", pendingRequest.id), {
-          status: "completed",
-          processedAt: serverTimestamp(),
-          documentId: newDocRef.id,
-        });
+        // If responding to a specific request, mark it as completed
+        if (pendingRequest) {
+          await updateDoc(doc(db, "document_requests", pendingRequest.id), {
+            status: "completed",
+            processedAt: serverTimestamp(),
+            documentId: newDocRef.id,
+          });
+        }
 
+        // Notify the participant if their UID is available
         if (participantUid) {
           await setDoc(doc(collection(db, "notifications")), {
             title: 'מסמך מוכן להורדה',
-            body: `אישור שהייה מוכן לצפייה ולהורדה באיזור האישי שלך`,
+            body: `${docTitle} מוכן לצפייה ולהורדה באיזור האישי שלך`,
             recipientIds: [participantUid],
-            senderId: authUser?.uid,
+            senderId: authUser?.uid || null,
             createdAt: serverTimestamp(),
             readBy: [],
             type: 'chat',
@@ -372,17 +433,19 @@ export default function PatientDetailPage() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               title: 'מסמך מוכן להורדה',
-              body: `אישור שהייה מוכן לצפייה ולהורדה באיזור האישי שלך`,
+              body: `${docTitle} מוכן לצפייה ולהורדה באיזור האישי שלך`,
               userId: participantUid,
               link: '/portal',
               skipDb: true
             }),
           }).catch(console.error);
         }
-
-        alert("המסמך הופק ונשלח בהצלחה!");
-        fetchPatientData();
+      } catch (firestoreErr) {
+        console.error("Failed to register document in Firestore history database:", firestoreErr);
       }
+
+      alert("המסמך הופק ונשלח בהצלחה!");
+      fetchPatientData();
     } catch (e) {
       console.error(e);
       alert("שגיאה בהפקת המסמך");
@@ -414,7 +477,7 @@ export default function PatientDetailPage() {
         type: request.type,
         url: downloadUrl,
         createdAt: serverTimestamp(),
-        processedBy: authUser?.uid,
+        processedBy: authUser?.uid || null,
       });
 
       await updateDoc(doc(db, "document_requests", request.id), {
@@ -511,12 +574,19 @@ export default function PatientDetailPage() {
     } catch (e) { console.error(e); }
   }
 
-  const generateReport = async (type: 'participation' | 'attendance') => {
+  const generateReport = async (type: 'participation' | 'attendance' | 'travel') => {
     if (!patient) return;
     if (type === 'participation') {
       setPendingRequest(null);
       setPendingReportType('participation');
       setActiveReportType('participation');
+      setRecipientText("עו״ס אגף השיקום משרד הביטחון");
+      setShowRecipientModal(true);
+    } else if (type === 'travel') {
+      setPendingRequest(null);
+      setPendingReportType('travel');
+      setActiveReportType('travel');
+      setRecipientText("משרד הביטחון - אגף השיקום");
       setShowRecipientModal(true);
     } else {
       setActiveReportType('attendance');
@@ -927,61 +997,61 @@ export default function PatientDetailPage() {
             )}
 
             {activeTab === "reports" && (
-              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} key="reports" className="space-y-6">
+              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} key="reports" className="space-y-5">
                 
                 {/* Document Requests Section */}
-                <div className="bg-[var(--card-bg)] border border-[var(--border)] rounded-[2.5rem] p-8 shadow-sm">
-                   <div className="flex items-center gap-3 mb-8">
-                      <div className="w-10 h-10 rounded-2xl bg-amber-50 text-amber-500 flex items-center justify-center">
-                        <Bell className="w-5 h-5" />
+                <div className="bg-[var(--card-bg)] border border-[var(--border)] rounded-3xl p-5 shadow-sm">
+                   <div className="flex items-center gap-2.5 mb-4">
+                      <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-500 flex items-center justify-center">
+                        <Bell className="w-4 h-4" />
                       </div>
                       <div>
-                        <h3 className="text-sm font-black leading-tight text-slate-900">בקשות להנפקת דוחות</h3>
-                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">בקשות הממתינות לטיפול המשתתף</p>
+                        <h3 className="text-xs font-black leading-tight text-slate-900">בקשות להנפקת דוחות</h3>
+                        <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wide mt-0.5">בקשות הממתינות לטיפול עבור המשתתף</p>
                       </div>
                    </div>
 
-                   <div className="space-y-4">
+                   <div className="space-y-2.5">
                       {docRequests.filter(r => r.status === 'pending').length === 0 ? (
-                        <div className="py-12 text-center bg-slate-50/50 border border-dashed border-slate-200 rounded-3xl">
-                          <p className="text-xs text-slate-400 font-bold italic">אין בקשות פתוחות כרגע</p>
+                        <div className="py-6 text-center bg-slate-50/50 border border-dashed border-slate-200 rounded-2xl">
+                          <p className="text-[10px] text-slate-400 font-bold italic">אין בקשות פתוחות כרגע</p>
                         </div>
                       ) : (
-                                                 docRequests.filter(r => r.status === 'pending').map((req) => (
-                           <div key={req.id} className="flex flex-col md:flex-row md:items-center justify-between p-6 bg-amber-50/20 border border-amber-500/10 rounded-3xl gap-4">
-                              <div className="flex items-start gap-4">
-                                 <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-600 shrink-0 mt-0.5">
-                                   {req.type === 'stay' ? <Shield className="w-5 h-5" /> : req.type === 'attendance' ? <Printer className="w-5 h-5" /> : <FileText className="w-5 h-5" />}
+                        docRequests.filter(r => r.status === 'pending').map((req) => (
+                           <div key={req.id} className="flex flex-col md:flex-row md:items-center justify-between p-4 bg-amber-50/20 border border-amber-500/10 rounded-2xl gap-3">
+                              <div className="flex items-start gap-3">
+                                 <div className="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center text-amber-600 shrink-0 mt-0.5">
+                                   {req.type === 'stay' ? <Shield className="w-4 h-4" /> : req.type === 'attendance' ? <Printer className="w-4 h-4" /> : <FileText className="w-4 h-4" />}
                                  </div>
                                  <div>
-                                   <p className="text-sm font-black text-slate-900">
+                                   <p className="text-xs font-black text-slate-900">
                                      {req.type === 'stay' ? 'אישור שהייה' : req.type === 'attendance' ? `דו״ח נוכחות חודשי - ${req.month}` : (req.customType || 'בקשה מיוחדת')}
                                    </p>
-                                   <p className="text-[10px] text-slate-400 font-bold uppercase mt-0.5">
+                                   <p className="text-[9px] text-slate-400 font-bold uppercase mt-0.5">
                                      התבקש ב-{req.createdAt?.toDate ? format(req.createdAt.toDate(), "dd/MM/yyyy HH:mm") : "עכשיו"}
                                    </p>
                                    {req.notes && (
-                                     <p className="text-xs text-amber-800 bg-amber-500/5 border border-amber-500/10 rounded-xl p-3 mt-3 font-medium leading-relaxed">
+                                     <p className="text-[11px] text-amber-800 bg-amber-500/5 border border-amber-500/10 rounded-xl p-2.5 mt-2 font-medium leading-relaxed">
                                         הערת משתתף: {req.notes}
                                      </p>
                                    )}
                                  </div>
                               </div>
 
-                              <div className="flex flex-wrap items-center gap-2 shrink-0 self-end md:self-center">
+                              <div className="flex flex-wrap items-center gap-1.5 shrink-0 self-end md:self-center">
                                  {req.type !== 'custom' && (
                                     <button 
                                       onClick={() => handleProcessRequest(req)}
                                       disabled={reportLoading}
-                                      className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 disabled:opacity-50"
+                                      className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 text-white px-3.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all active:scale-95 disabled:opacity-50"
                                     >
-                                      {reportLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle className="w-3.5 h-3.5" />}
+                                      {reportLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle className="w-3 h-3" />}
                                       הפק אוטומטית
                                     </button>
                                  )}
                                  
-                                 <label className="flex items-center gap-2 bg-emerald-500 text-white px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all hover:bg-emerald-600 active:scale-95 cursor-pointer shadow-lg shadow-emerald-500/10">
-                                    <Upload className="w-3.5 h-3.5" />
+                                 <label className="flex items-center gap-1.5 bg-emerald-500 text-white px-3.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all hover:bg-emerald-600 active:scale-95 cursor-pointer shadow-sm">
+                                    <Upload className="w-3 h-3" />
                                     העלה קובץ ידנית
                                     <input 
                                       type="file"
@@ -1002,41 +1072,55 @@ export default function PatientDetailPage() {
 
                 {/* Manual Generation Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-4xl mx-auto">
-                   {/* Participation Certificate */}
-                   <div className="bg-[var(--card-bg)] border border-[var(--border)] p-8 rounded-[2.5rem] shadow-sm hover:border-emerald-500/40 transition-all group">
-                      <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-500 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
-                         <Printer className="w-6 h-6" />
+                   {/* Stay Certificate */}
+                   <div className="bg-[var(--card-bg)] border border-[var(--border)] p-5 rounded-3xl shadow-sm hover:border-emerald-500/40 transition-all group flex flex-col justify-between min-h-[160px]">
+                      <div>
+                        <div className="flex items-center gap-3 mb-2">
+                          <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-500 flex items-center justify-center group-hover:scale-105 transition-transform shrink-0">
+                             <Printer className="w-4.5 h-4.5" />
+                          </div>
+                          <div>
+                            <h4 className="text-xs font-black text-slate-800">הנפקת אישור שהייה</h4>
+                            <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wide">אישור רשמי ופרטי התוכנית</p>
+                          </div>
+                        </div>
+                        <p className="text-[11px] text-slate-500 leading-relaxed mb-4">
+                          הפקת מסמך רשמי המאשר את חברות המשתתף בתוכנית וזמני הגעתו לחווה.
+                        </p>
                       </div>
-                      <h4 className="text-sm font-black mb-2">הנפקת אישור השתתפות</h4>
-                      <p className="text-[10px] text-slate-400 font-bold leading-relaxed mb-8 uppercase tracking-widest">
-                        הפקת מסמך רשמי המאשר את חברות המשתתף בתוכנית ונוכחותו.
-                      </p>
                       <button 
                         onClick={() => generateReport('participation')}
                         disabled={reportLoading}
-                        className="w-full bg-emerald-500 text-white py-3.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all hover:bg-emerald-600 shadow-lg shadow-emerald-500/10 active:scale-[0.98] flex items-center justify-center gap-2"
+                        className="w-full bg-emerald-500 text-white py-2 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all hover:bg-emerald-600 shadow-sm active:scale-[0.98] flex items-center justify-center gap-1.5 mt-auto"
                       >
-                        {reportLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-                        הורד אישור רשמי
+                        {reportLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
+                        הורד אישור שהייה
                       </button>
                    </div>
 
-                   {/* Attendance Report */}
-                   <div className="bg-white border border-slate-200 p-8 rounded-[2.5rem] shadow-sm hover:border-slate-900/40 transition-all group">
-                      <div className="w-12 h-12 rounded-2xl bg-slate-100 text-slate-900 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
-                         <FileText className="w-6 h-6" />
+                   {/* Monthly Attendance Certificate */}
+                   <div className="bg-[var(--card-bg)] border border-[var(--border)] p-5 rounded-3xl shadow-sm hover:border-sky-500/40 transition-all group flex flex-col justify-between min-h-[160px]">
+                      <div>
+                        <div className="flex items-center gap-3 mb-2">
+                          <div className="w-9 h-9 rounded-xl bg-sky-50 text-sky-500 flex items-center justify-center group-hover:scale-105 transition-transform shrink-0">
+                             <Shield className="w-4.5 h-4.5" />
+                          </div>
+                          <div>
+                            <h4 className="text-xs font-black text-slate-800">אישור נוכחות חודשי</h4>
+                            <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wide">פירוט ימי הגעה בפועל</p>
+                          </div>
+                        </div>
+                        <p className="text-[11px] text-slate-500 leading-relaxed mb-4">
+                          הפקת מכתב מפורט הכולל את רשימת ימי ההגעה המדויקים בפועל של המשתתף בחודש שנבחר.
+                        </p>
                       </div>
-                      <h4 className="text-sm font-black mb-2">דוח נוכחות תקופתי</h4>
-                      <p className="text-[10px] text-slate-400 font-bold leading-relaxed mb-6 uppercase tracking-widest">
-                        בחר חודש להפקת דוח נוכחות מפורט למשתתף.
-                      </p>
                       
-                      <div className="flex flex-col gap-3">
-                         <div className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2">
+                      <div className="flex items-center gap-2 mt-auto w-full">
+                         <div className="bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 shrink-0">
                            <select 
                             value={selectedMonth}
                             onChange={e => setSelectedMonth(e.target.value)}
-                            className="w-full bg-transparent border-none text-xs font-bold outline-none cursor-pointer"
+                            className="bg-transparent border-none text-[11px] font-bold outline-none cursor-pointer text-slate-700"
                            >
                             {Array.from({ length: 12 }).map((_, i) => {
                               const d = subMonths(new Date(), i);
@@ -1050,36 +1134,36 @@ export default function PatientDetailPage() {
                          </div>
 
                          <button 
-                          onClick={() => generateReport('attendance')}
+                          onClick={() => generateReport('travel')}
                           disabled={reportLoading}
-                          className="w-full bg-emerald-600 text-white py-3.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all hover:bg-emerald-500 active:scale-[0.98] flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/10"
+                          className="flex-1 bg-sky-500 text-white py-2 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all hover:bg-sky-600 shadow-sm active:scale-[0.98] flex items-center justify-center gap-1.5"
                          >
-                           {reportLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Printer className="w-4 h-4" />}
-                           הפק דוח נוכחות חודשי
+                          {reportLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
+                          הפק אישור
                          </button>
                       </div>
                    </div>
                 </div>
 
                 {/* History Section */}
-                <div className="bg-white border border-slate-200 rounded-[2.5rem] p-8 shadow-sm">
-                   <h3 className="text-sm font-black mb-6">מסמכים שהונפקו לאחרונה</h3>
-                   <div className="space-y-3">
+                <div className="bg-white border border-slate-200 rounded-3xl p-5 shadow-sm">
+                   <h3 className="text-xs font-black mb-3">מסמכים שהונפקו לאחרונה</h3>
+                   <div className="space-y-2">
                       {processedDocs.length === 0 ? (
-                        <p className="text-[10px] text-slate-400 italic text-center py-8">טרם הונפקו מסמכים למשתתף זה</p>
+                        <p className="text-[10px] text-slate-400 italic text-center py-4">טרם הונפקו מסמכים למשתתף זה</p>
                       ) : (
                         processedDocs.map(doc => (
-                          <div key={doc.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                             <div className="flex items-center gap-3">
-                                <FileText className="w-4 h-4 text-slate-400" />
+                          <div key={doc.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100/80">
+                             <div className="flex items-center gap-2.5">
+                                <FileText className="w-3.5 h-3.5 text-slate-400" />
                                 <div>
                                    <p className="text-xs font-black text-slate-800">{doc.title}</p>
-                                   <p className="text-[9px] text-slate-400 font-bold uppercase">
+                                   <p className="text-[9px] text-slate-400 font-bold">
                                      הונפק ב-{doc.createdAt?.toDate ? format(doc.createdAt.toDate(), "dd/MM/yyyy") : "—"}
                                    </p>
                                 </div>
                              </div>
-                             <span className="text-[8px] font-black uppercase tracking-widest text-emerald-500 bg-emerald-500/10 px-2 py-1 rounded-lg">נשלח למשתתף</span>
+                             <span className="text-[8px] font-black uppercase tracking-wider text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded">נשלח למשתתף</span>
                           </div>
                         ))
                       )}
@@ -1097,46 +1181,45 @@ export default function PatientDetailPage() {
             color: "#000000", fontFamily: "Arial, sans-serif", lineHeight: 1.6, direction: "rtl"
           }}>
             {/* Background Logo Page */}
-            <img 
-              src="/logopage.png" 
-              style={{ 
-                position: "absolute", 
-                top: 0, 
-                left: 0, 
-                width: "100%", 
-                height: "100%", 
+            <img
+              src="/logopage.png"
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                width: "100%",
+                height: "100%",
                 objectFit: "cover",
                 zIndex: 0
-              }} 
+              }}
             />
 
             {/* Content Overlay */}
-            <div style={{ 
-              position: "relative", 
-              zIndex: 1, 
-              paddingTop: "180px", 
-              paddingBottom: "120px", 
-              paddingLeft: "75px", 
-              paddingRight: "75px" 
+            <div style={{
+              position: "relative",
+              zIndex: 1,
+              paddingTop: "180px",
+              paddingBottom: "120px",
+              paddingLeft: "75px",
+              paddingRight: "75px"
             }}>
               {activeReportType === 'participation' ? (
                 /* Stay / Participation Certificate */
                 <div>
                   {/* Document Meta */}
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "40px", fontSize: "14px", color: "#64748b", fontWeight: 700 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px", fontSize: "14px", color: "#64748b", fontWeight: 700 }}>
                     <div>תאריך: {format(new Date(), "dd.MM.yyyy")}</div>
                     <div>סימוכין: {patient.id?.slice(-6).toUpperCase()}</div>
                   </div>
 
                   {/* Recipient */}
-                  <div style={{ fontSize: "16px", marginBottom: "28px", fontWeight: 700 }}>
+                  <div style={{ fontSize: "16px", marginBottom: "24px", fontWeight: 700 }}>
                     עבור: {recipientText}
                   </div>
 
                   {/* Title */}
-                  <div style={{ textAlign: "center", marginBottom: "48px" }}>
-                    <h3 style={{ fontSize: "26px", fontWeight: 900, margin: "0 0 16px 0", color: "#1e293b" }}>אישור השתתפות בחווה שיקומית</h3>
-                    <div style={{ width: "96px", height: "4px", backgroundColor: "#10b981", margin: "0 auto", borderRadius: "9999px" }} />
+                  <div style={{ textAlign: "center", marginBottom: "32px" }}>
+                    <h3 style={{ fontSize: "26px", fontWeight: 900, margin: "0 0 8px 0", color: "#1e293b" }}>אישור שהייה בחווה שיקומית</h3>
                   </div>
 
                   {/* Body */}
@@ -1148,7 +1231,7 @@ export default function PatientDetailPage() {
                       הרינו לאשר כי החל בהגעה לחווה מהתאריך <strong>{patient.startDate ? format(parseISO(patient.startDate), "dd.MM.yyyy") : "—"}</strong>.
                     </p>
                     <p style={{ marginBottom: "20px", lineHeight: 1.8 }}>
-                      הפעילות בחווה בתוכנית חרבות ברזל מתקיימת בימים ב' ג' וד' בין השעות 9:00-15:00.
+                      הפעילות בחווה בתוכנית חרבות ברזל מתקיימת {getProgramDaysText("בימים ב' ג' וד'")} בין השעות 9:00-15:00.
                     </p>
                     <p style={{ marginBottom: "36px", lineHeight: 1.8 }}>
                       הפעילויות השונות המתקיימות בחווה: עבודה חקלאית, גילוף בעץ ומלאכות קדומות, דיקור, יוגה, סדנאות שונות ושיחות קבוצתיות.
@@ -1176,132 +1259,168 @@ export default function PatientDetailPage() {
                     )}
                   </div>
                 </div>
-              ) : (
-                /* Attendance Report with Table */
+              ) : activeReportType === 'travel' ? (
+                /* Monthly Attendance Certificate */
                 <div>
                   {/* Document Meta */}
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "28px", fontSize: "13px", color: "#64748b", fontWeight: 700 }}>
-                    <div>תאריך: {format(new Date(), "dd.MM.yyyy")}</div>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px", fontSize: "14px", color: "#64748b", fontWeight: 700 }}>
+                    <div>תאריך: {format(new Date(), "EEEE d MMMM yyyy", { locale: he })}</div>
                     <div>סימוכין: {patient.id?.slice(-6).toUpperCase()}</div>
                   </div>
 
+                  {/* Recipient */}
+                  <div style={{ fontSize: "16px", marginBottom: "24px", fontWeight: 700 }}>
+                    עבור: {recipientText}
+                  </div>
+
                   {/* Title */}
-                  <div style={{ textAlign: "center", marginBottom: "28px" }}>
-                    <h3 style={{ fontSize: "24px", fontWeight: 900, margin: "0 0 8px 0", color: "#0284c7" }}>דו״ח נוכחות חודשי מפורט</h3>
-                    <p style={{ fontSize: "14px", color: "#64748b", fontWeight: 700, margin: 0 }}>
-                      חודש: {(() => {
-                        if (!selectedMonth) return "";
+                  <div style={{ textAlign: "center", marginBottom: "32px" }}>
+                    <h3 style={{ fontSize: "26px", fontWeight: 900, margin: "0 0 8px 0", color: "#1e293b" }}>
+                      {(() => {
                         const [year, month] = selectedMonth.split("-");
                         const months = [
                           "ינואר", "פברואר", "מרץ", "אפריל", "מאי", "יוני",
                           "יולי", "אוגוסט", "ספטמבר", "אוקטובר", "נובמבר", "דצמבר"
                         ];
-                        return `${months[parseInt(month) - 1]} ${year}`;
+                        return `אישור נוכחות בחוות רום לחודש ${months[parseInt(month) - 1]} שנה ${year}`;
                       })()}
+                    </h3>
+                  </div>
+
+                  {/* Body */}
+                  <div style={{ fontSize: "16px", color: "#000000" }}>
+                    <p style={{ marginBottom: "16px" }}>הנדון: <strong>{patientName}</strong></p>
+                    <p style={{ marginBottom: "24px" }}>ת.ז: <strong>{patient.idNumber || "—"}</strong></p>
+                    
+                    <p style={{ marginBottom: "20px", lineHeight: 1.8 }}>
+                      הרינו לאשר כי קיבל אישור להגעה לחווה החל התאריך: <strong>{patient.startDate ? format(parseISO(patient.startDate), "dd.MM.yyyy") : "—"}</strong>.
                     </p>
-                    <div style={{ width: "96px", height: "4px", backgroundColor: "#0284c7", margin: "8px auto 0 auto", borderRadius: "9999px" }} />
-                  </div>
+                    <p style={{ marginBottom: "20px", lineHeight: 1.8 }}>
+                      הפעילות בחווה בתוכנית <strong>{programs.find(p => p.id === (patient as any).programId)?.name || "חוסן"}</strong> מתקיימת {getProgramDaysText("בימי ראשון")}.
+                    </p>
 
-                  {/* Participant Details Card */}
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", padding: "16px 20px", backgroundColor: "#f8fafc", borderRadius: "16px", border: "1px solid #e2e8f0", marginBottom: "24px", fontSize: "13px" }}>
-                    <div>
-                      <p style={{ margin: "0 0 4px 0" }}>שם המשתתף/ת: <strong>{patientName}</strong></p>
-                      <p style={{ margin: 0 }}>ת.ז: <strong>{patient.idNumber || "—"}</strong></p>
-                    </div>
-                    <div>
-                      <p style={{ margin: "0 0 4px 0" }}>קבוצה: <strong>{fullGroupName}</strong></p>
-                      <p style={{ margin: 0 }}>עובד/ת סוציאלי/ת מלווה: <strong>{authUser?.displayName || "צוות המרכז"}</strong></p>
-                    </div>
-                  </div>
-
-                  {/* Stats box */}
-                  <div style={{ backgroundColor: "#f0f9ff", padding: "16px 20px", borderRadius: "16px", border: "1px solid #bae6fd", marginBottom: "24px" }}>
-                    <div style={{ display: "flex", justifyContent: "space-around", alignItems: "center" }}>
-                      <div style={{ textAlign: "center" }}>
-                        <p style={{ fontSize: "24px", fontWeight: 900, color: "#0369a1", margin: "0 0 2px 0" }}>{attendance.filter(h => h.date.startsWith(selectedMonth) && h.status === 'present').length}</p>
-                        <p style={{ fontSize: "11px", fontWeight: 700, color: "#0284c7", margin: 0 }}>ימי נוכחות בפועל</p>
-                      </div>
-                      <div style={{ width: "1px", height: "32px", backgroundColor: "#bae6fd" }} />
-                      <div style={{ textAlign: "center" }}>
-                        <p style={{ fontSize: "24px", fontWeight: 900, color: "#e11d48", margin: "0 0 2px 0" }}>{attendance.filter(h => h.date.startsWith(selectedMonth) && h.status === 'absent').length}</p>
-                        <p style={{ fontSize: "11px", fontWeight: 700, color: "#be123c", margin: 0 }}>ימי היעדרות</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Table */}
-                  <div style={{ overflow: "hidden", borderRadius: "12px", border: "1px solid #e2e8f0", marginBottom: "28px" }}>
-                    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px", direction: "rtl", textAlign: "right" }}>
-                      <thead>
-                        <tr style={{ backgroundColor: "#0284c7", color: "#ffffff" }}>
-                          <th style={{ padding: "10px 12px", fontWeight: 700 }}>תאריך</th>
-                          <th style={{ padding: "10px 12px", fontWeight: 700 }}>יום בשבוע</th>
-                          <th style={{ padding: "10px 12px", fontWeight: 700 }}>קבוצה</th>
-                          <th style={{ padding: "10px 12px", fontWeight: 700, textAlign: "left" }}>סטטוס</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {attendance
-                          .filter(h => h.date.startsWith(selectedMonth))
-                          .sort((a, b) => a.date.localeCompare(b.date))
-                          .slice(0, 15)
-                          .map((h, i) => (
-                            <tr key={i} style={{ borderBottom: "1px solid #e2e8f0", backgroundColor: i % 2 === 0 ? "#f8fafc" : "#ffffff" }}>
-                              <td style={{ padding: "8px 12px", fontWeight: 500 }}>{format(parseISO(h.date), "dd/MM/yyyy")}</td>
-                              <td style={{ padding: "8px 12px", color: "#64748b" }}>{(() => {
-                                const days = ["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת"];
-                                try { return `יום ${days[new Date(h.date).getDay()]}`; } catch { return ""; }
-                              })()}</td>
-                              <td style={{ padding: "8px 12px", color: "#64748b" }}>{fullGroupName}</td>
-                              <td style={{ padding: "8px 12px", textAlign: "left" }}>
-                                <span style={{
-                                  fontSize: "10px", fontWeight: 900,
-                                  backgroundColor: h.status === 'present' ? '#d1fae5' : '#fee2e2',
-                                  color: h.status === 'present' ? '#065f46' : '#991b1b',
-                                  display: "inline-block", padding: "2px 8px", borderRadius: "6px"
-                                }}>
-                                  {h.status === 'present' ? 'נוכח/ת' : 'נעדר/ת'}
-                                </span>
-                              </td>
-                            </tr>
-                        ))}
-                        {attendance.filter(h => h.date.startsWith(selectedMonth)).length === 0 && (
-                          <tr>
-                            <td colSpan={4} style={{ padding: "24px", textAlign: "center", color: "#94a3b8", fontStyle: "italic" }}>
-                              אין רשומות נוכחות רשומות לחודש זה.
-                            </td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-
-                  {/* Footer Signatures */}
-                  <div style={{ display: "flex", justifyContent: "space-between", marginTop: "36px", fontSize: "12px", borderTop: "1px solid #e2e8f0", paddingTop: "20px" }}>
-                    <div>
-                      <p style={{ margin: "0 0 2px 0", fontWeight: 700 }}>חתימת מלווה/מנחה:</p>
-                      {signatureImage ? (
-                        <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-                          <img 
-                            src={signatureImage} 
-                            alt="חתימה דיגיטלית" 
-                            style={{ maxHeight: "36px", maxWidth: "120px", objectFit: "contain", alignSelf: "flex-start" }} 
-                          />
-                          <p style={{ fontWeight: 900, margin: "2px 0 0 0", fontSize: "11px" }}>{authUser?.displayName || "מורשה חתימה"}</p>
-                          <p style={{ fontSize: "10px", color: "#64748b", margin: 0 }}>{signatureTitle || "עו\"ס בחווה"}</p>
+                    {(() => {
+                      const arrivedDates = attendance
+                        .filter(h => h.date.startsWith(selectedMonth) && h.status === 'present')
+                        .sort((a, b) => a.date.localeCompare(b.date))
+                        .map(h => format(parseISO(h.date), "dd/MM/yyyy"));
+                      const totalDays = arrivedDates.length;
+                      const datesStr = arrivedDates.length > 0 ? arrivedDates.join(", ") : "אין ימי נוכחות בחודש זה";
+                      return (
+                        <div style={{ marginTop: "24px" }}>
+                          <p style={{ marginBottom: "8px" }}>להלן תאריכי ההגעה בחודש זה :</p>
+                          <p style={{ fontWeight: 700, color: "#0369a1", marginBottom: "12px", direction: "ltr", textAlign: "right" }}>
+                            {datesStr}
+                          </p>
+                          <p style={{ marginBottom: "36px", lineHeight: 1.8 }}>
+                            סה״כ {totalDays} ימי נוכחות
+                          </p>
                         </div>
-                      ) : (
-                        <div>
-                          <div style={{ width: "140px", height: "36px", borderBottom: "1px dashed #cbd5e1" }} />
-                          <p style={{ fontSize: "11px", color: "#64748b", margin: "4px 0 0 0" }}>{authUser?.displayName || "צוות מרכז חוסן"}</p>
+                      );
+                    })()}
+
+                    <p style={{ marginTop: "40px", marginBottom: "8px" }}>בברכה,</p>
+                    
+                    {/* Signature Area */}
+                    {signatureImage ? (
+                      <div style={{ display: "flex", flexDirection: "column", gap: "2px", marginTop: "4px" }}>
+                        <img 
+                          src={signatureImage} 
+                          alt="חתימה דיגיטלית" 
+                          style={{ maxHeight: "64px", maxWidth: "160px", objectFit: "contain", alignSelf: "flex-start" }} 
+                        />
+                        <p style={{ fontWeight: 900, margin: "4px 0 2px 0", fontSize: "14px" }}>{authUser?.displayName || "מורשה חתימה"}</p>
+                        <p style={{ fontSize: "12px", color: "#64748b", margin: 0 }}>{signatureTitle || "עו\"ס בחווה"}</p>
+                      </div>
+                    ) : (
+                      <div style={{ display: "flex", flexDirection: "column", gap: "2px", marginTop: "4px" }}>
+                        <div style={{ height: "48px", borderBottom: "1px dashed #cbd5e1", width: "160px", marginBottom: "8px" }} />
+                        <p style={{ fontWeight: 900, margin: "4px 0 2px 0", fontSize: "14px" }}>{authUser?.displayName || "מורשה חתימה"}</p>
+                        <p style={{ fontSize: "12px", color: "#64748b", margin: 0 }}>{signatureTitle || "עו\"ס בחווה"}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                /* Attendance Report - Fallback */
+                <div>
+                  {/* Document Meta */}
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px", fontSize: "14px", color: "#64748b", fontWeight: 700 }}>
+                    <div>תאריך: {format(new Date(), "EEEE d MMMM yyyy", { locale: he })}</div>
+                    <div>סימוכין: {patient.id?.slice(-6).toUpperCase()}</div>
+                  </div>
+
+                  {/* Recipient */}
+                  <div style={{ fontSize: "16px", marginBottom: "24px", fontWeight: 700 }}>
+                    עבור: {recipientText}
+                  </div>
+
+                  {/* Title */}
+                  <div style={{ textAlign: "center", marginBottom: "32px" }}>
+                    <h3 style={{ fontSize: "26px", fontWeight: 900, margin: "0 0 8px 0", color: "#1e293b" }}>
+                      {(() => {
+                        const [year, month] = selectedMonth.split("-");
+                        const months = [
+                          "ינואר", "פברואר", "מרץ", "אפריל", "מאי", "יוני",
+                          "יולי", "אוגוסט", "ספטמבר", "אוקטובר", "נובמבר", "דצמבר"
+                        ];
+                        return `אישור נוכחות בחוות רום לחודש ${months[parseInt(month) - 1]} שנה ${year}`;
+                      })()}
+                    </h3>
+                  </div>
+
+                  {/* Body */}
+                  <div style={{ fontSize: "16px", color: "#000000" }}>
+                    <p style={{ marginBottom: "16px" }}>הנדון: <strong>{patientName}</strong></p>
+                    <p style={{ marginBottom: "24px" }}>ת.ז: <strong>{patient.idNumber || "—"}</strong></p>
+                    
+                    <p style={{ marginBottom: "20px", lineHeight: 1.8 }}>
+                      הרינו לאשר כי קיבל אישור להגעה לחווה החל התאריך: <strong>{patient.startDate ? format(parseISO(patient.startDate), "dd.MM.yyyy") : "—"}</strong>.
+                    </p>
+                    <p style={{ marginBottom: "20px", lineHeight: 1.8 }}>
+                      הפעילות בחווה בתוכנית <strong>{programs.find(p => p.id === (patient as any).programId)?.name || "חוסן"}</strong> מתקיימת {getProgramDaysText("בימי ראשון")}.
+                    </p>
+
+                    {(() => {
+                      const arrivedDates = attendance
+                        .filter(h => h.date.startsWith(selectedMonth) && h.status === 'present')
+                        .sort((a, b) => a.date.localeCompare(b.date))
+                        .map(h => format(parseISO(h.date), "dd/MM/yyyy"));
+                      const totalDays = arrivedDates.length;
+                      const datesStr = arrivedDates.length > 0 ? arrivedDates.join(", ") : "אין ימי נוכחות בחודש זה";
+                      return (
+                        <div style={{ marginTop: "24px" }}>
+                          <p style={{ marginBottom: "8px" }}>להלן תאריכי ההגעה בחודש זה :</p>
+                          <p style={{ fontWeight: 700, color: "#0369a1", marginBottom: "12px", direction: "ltr", textAlign: "right" }}>
+                            {datesStr}
+                          </p>
+                          <p style={{ marginBottom: "36px", lineHeight: 1.8 }}>
+                            סה״כ {totalDays} ימי נוכחות
+                          </p>
                         </div>
-                      )}
-                    </div>
-                    <div style={{ textAlign: "left" }}>
-                      <p style={{ margin: "0 0 2px 0", fontWeight: 700 }}>חותמת המרכז:</p>
-                      <div style={{ width: "100px", height: "36px", borderBottom: "1px dashed #cbd5e1", marginLeft: "auto" }} />
-                      <p style={{ fontSize: "11px", color: "#64748b", margin: "4px 0 0 0" }}>מרכז חוסן חוות רום</p>
-                    </div>
+                      );
+                    })()}
+
+                    <p style={{ marginTop: "40px", marginBottom: "8px" }}>בברכה,</p>
+                    
+                    {/* Signature Area */}
+                    {signatureImage ? (
+                      <div style={{ display: "flex", flexDirection: "column", gap: "2px", marginTop: "4px" }}>
+                        <img 
+                          src={signatureImage} 
+                          alt="חתימה דיגיטלית" 
+                          style={{ maxHeight: "64px", maxWidth: "160px", objectFit: "contain", alignSelf: "flex-start" }} 
+                        />
+                        <p style={{ fontWeight: 900, margin: "4px 0 2px 0", fontSize: "14px" }}>{authUser?.displayName || "מורשה חתימה"}</p>
+                        <p style={{ fontSize: "12px", color: "#64748b", margin: 0 }}>{signatureTitle || "עו\"ס בחווה"}</p>
+                      </div>
+                    ) : (
+                      <div style={{ display: "flex", flexDirection: "column", gap: "2px", marginTop: "4px" }}>
+                        <div style={{ height: "48px", borderBottom: "1px dashed #cbd5e1", width: "160px", marginBottom: "8px" }} />
+                        <p style={{ fontWeight: 900, margin: "4px 0 2px 0", fontSize: "14px" }}>{authUser?.displayName || "מורשה חתימה"}</p>
+                        <p style={{ fontSize: "12px", color: "#64748b", margin: 0 }}>{signatureTitle || "עו\"ס בחווה"}</p>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -1333,7 +1452,9 @@ export default function PatientDetailPage() {
                       <FileText className="w-5 h-5" />
                     </div>
                     <div>
-                      <h3 className="text-base font-black text-slate-900">התאמת אישור השתתפות</h3>
+                      <h3 className="text-base font-black text-slate-900">
+                        {pendingReportType === 'participation' ? 'התאמת אישור שהייה' : 'התאמת אישור נוכחות חודשי'}
+                      </h3>
                       <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
                         התאמת שדה הנמען לפני הנפקת המסמך
                       </p>
