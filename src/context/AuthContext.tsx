@@ -3,7 +3,7 @@
 import { auth, db } from "@/lib/firebase/config";
 import { onAuthStateChanged, signInWithPopup, GoogleAuthProvider, signOut, User } from "firebase/auth";
 import { createContext, useContext, useEffect, useState } from "react";
-import { doc, getDoc, getDocFromServer, updateDoc, onSnapshot, setDoc, serverTimestamp } from "firebase/firestore";
+import { doc, getDoc, getDocFromServer, updateDoc, onSnapshot, setDoc, serverTimestamp, query, where, getDocs, collection, deleteDoc } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 
 export type UserRole = "admin" | "manager" | "instructor" | "social_worker" | "employee" | "logistics" | "participant";
@@ -33,6 +33,8 @@ interface AuthContextType {
   phoneNumber?:    string;
   workSchedule?:   Record<string, { start: string, end: string }>;
   onboardingComplete?: boolean;
+  signatureTitle?: string;
+  signatureImage?: string;
   login:           () => Promise<void>;
   logout:          () => Promise<void>;
 }
@@ -60,6 +62,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [photoURL,       setPhotoURL]       = useState<string | undefined>();
   const [workSchedule,   setWorkSchedule]   = useState<Record<string, { start: string, end: string }> | undefined>();
   const [onboardingComplete, setOnboardingComplete] = useState<boolean>(false);
+  const [signatureTitle, setSignatureTitleState] = useState<string | undefined>();
+  const [signatureImage, setSignatureImageState] = useState<string | undefined>();
   const router = useRouter();
 
   useEffect(() => {
@@ -99,6 +103,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setPhotoURL(data.photoURL || firebaseUser.photoURL || undefined);
             setWorkSchedule(data.workSchedule);
             setOnboardingComplete(!!data.onboardingComplete);
+            setSignatureTitleState(data.signatureTitle || undefined);
+            setSignatureImageState(data.signatureImage || undefined);
 
             // Sync profile info if missing or outdated
             if ((!data.photoURL && firebaseUser.photoURL) || (!data.displayName && firebaseUser.displayName)) {
@@ -145,37 +151,68 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               return;
             }
 
+            // Query for pre-created user profiles with this email
+            const q = query(
+              collection(db, "users"), 
+              where("email", "==", (firebaseUser.email || "").toLowerCase()), 
+              where("isPreCreated", "==", true)
+            );
+            const qSnap = await getDocs(q);
+
+            let preCreatedData: any = {};
+            let preCreatedDocId: string | null = null;
+            if (!qSnap.empty) {
+              preCreatedDocId = qSnap.docs[0].id;
+              preCreatedData = qSnap.docs[0].data();
+            }
+
             // Create the user document for the first time (no merge — document is confirmed new).
-            const initialName = firebaseUser.displayName || "";
+            const initialName = firebaseUser.displayName || preCreatedData.displayName || preCreatedData.name || "";
+            const initialRoles = preCreatedData.roles || (preCreatedData.role ? [preCreatedData.role] : ["employee"]);
+            const initialRole = preCreatedData.role || initialRoles[0] || "employee";
+            const initialStatus = preCreatedData.status || "pending";
+
             await setDoc(userRef, {
-              email: firebaseUser.email || "",
+              email: (firebaseUser.email || "").toLowerCase(),
               displayName: initialName,
               name: initialName,
               photoURL: firebaseUser.photoURL || "",
-              role: "employee",
-              roles: ["employee"],
-              status: "pending",
-              onboardingComplete: false,
+              role: initialRole,
+              roles: initialRoles,
+              status: initialStatus,
+              onboardingComplete: !!preCreatedData.onboardingComplete,
               createdAt: serverTimestamp(),
-              assignedGroups: [],
+              assignedGroups: preCreatedData.assignedGroupIds || preCreatedData.assignedGroups || [],
+              assignedProgramIds: preCreatedData.assignedProgramIds || [],
               preferredProgramIds: [],
               fcmTokens: [],
             });
 
-            // Notify admins and managers of the new sign-up.
-            try {
-              fetch("/api/notify", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  role: ["admin", "manager"],
-                  title: "איש צוות חדש ממתין לאישור",
-                  body: `${firebaseUser.displayName || firebaseUser.email} נרשם למערכת וממתין לאישור.`,
-                  link: "/admin/users"
-                })
-              });
-            } catch (e) {
-              console.error("Notify failed:", e);
+            // Delete the old pre-created placeholder document
+            if (preCreatedDocId) {
+              try {
+                await deleteDoc(doc(db, "users", preCreatedDocId));
+              } catch (delErr) {
+                console.error("Failed to delete placeholder pre-created user doc:", delErr);
+              }
+            }
+
+            // Notify admins and managers of the new sign-up if it wasn't pre-created/pre-approved
+            if (!preCreatedDocId) {
+              try {
+                fetch("/api/notify", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    role: ["admin", "manager"],
+                    title: "איש צוות חדש ממתין לאישור",
+                    body: `${firebaseUser.displayName || firebaseUser.email} נרשם למערכת וממתין לאישור.`,
+                    link: "/admin/users"
+                  })
+                });
+              } catch (e) {
+                console.error("Notify failed:", e);
+              }
             }
           }
           setLoading(false);
@@ -233,6 +270,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setPrimaryGroupId, setPreferredPrograms, setPreferredGroups,
       isAdmin, isManager, isLogistics, isInstructor, isEmployee, isParticipant, isWhitelisted,
       phoneNumber, photoURL, workSchedule, onboardingComplete,
+      signatureTitle, signatureImage,
       login, logout
     }}>
       {children}

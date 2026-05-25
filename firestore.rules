@@ -51,7 +51,16 @@ service cloud.firestore {
     // Users collection
     match /users/{userId} {
       allow read: if isAuthenticated();
-      allow write: if isAuthenticated() && request.auth.uid == userId;
+      allow write: if isAuthenticated() && (request.auth.uid == userId || isManager());
+    }
+
+    // Personal Tasks
+    match /personal_tasks/{taskId} {
+      allow read, write: if isAuthenticated() && (
+        resource == null || 
+        resource.data.userId == request.auth.uid ||
+        request.resource.data.userId == request.auth.uid
+      );
     }
 
     // Patients collection

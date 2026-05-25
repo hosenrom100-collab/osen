@@ -10,7 +10,7 @@ export default function NewPatientPage() {
   const router = useRouter();
 
   return (
-    <RoleGuard allowedRoles={["admin", "manager", "instructor"]} redirectTo="/">
+    <RoleGuard allowedRoles={["admin", "manager", "instructor", "social_worker"]} redirectTo="/">
       <main className="min-h-screen bg-[var(--background)] text-[var(--foreground)] p-4 md:p-12 relative overflow-hidden">
         {/* Decorative background elements */}
         <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-emerald-500/5 rounded-full blur-[120px] pointer-events-none -mr-40 -mt-40 transition-opacity"></div>

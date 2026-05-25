@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { 
   Home, ClipboardList, Users, ShoppingCart, 
   BarChart3, Settings, Clock, MessageSquare, Calendar,
-  Sun, Moon
+  Sun, Moon, CheckSquare
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useSettings } from "@/context/SettingsContext";
@@ -14,6 +14,7 @@ import { NotificationCenter } from "../notifications/NotificationCenter";
 
 const NAV = [
   { href: "/",           icon: Home,          label: "בית",           color: "text-indigo-400" },
+  { href: "/tasks",      icon: CheckSquare,   label: "משימות ותזכורות",color: "text-indigo-400" },
   { href: "/admin/inbox",icon: MessageSquare, label: "תיבת הודעות",    color: "text-blue-400" },
   { href: "/attendance", icon: ClipboardList, label: "נוכחות",        color: "text-emerald-400" },
   { href: "/patients",   icon: Users,         label: "משתתפים",       color: "text-sky-400" },

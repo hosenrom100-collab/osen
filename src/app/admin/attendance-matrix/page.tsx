@@ -19,6 +19,7 @@ import { he } from "date-fns/locale";
 import { motion, AnimatePresence } from "framer-motion";
 import * as XLSX from "xlsx";
 import { MobileFriendlyGuard } from "@/components/ui/MobileFriendlyGuard";
+import { useAuth } from "@/context/AuthContext";
 
 interface Patient {
   id: string;
@@ -43,17 +44,23 @@ interface Group {
 }
 
 interface AttendanceMap {
-  [key: string]: "present" | "absent"; // Key: patientId_yyyy-MM-dd
+  [key: string]: "present" | "absent" | "unset"; // Key: patientId_yyyy-MM-dd
 }
 
 export default function AttendanceMatrixPage() {
   const router = useRouter();
+  const { role, roles } = useAuth();
   const [loading, setLoading] = useState(true);
   const [patients, setPatients] = useState<Patient[]>([]);
   const [programs, setPrograms] = useState<Program[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
   const [attendance, setAttendance] = useState<AttendanceMap>({});
   
+  const canEditMatrix = useMemo(() => {
+    const userRoles = roles || (role ? [role] : []);
+    return userRoles.some((r: string) => ["admin", "manager", "social_worker", "instructor"].includes(r));
+  }, [role, roles]);
+
   const [currentDate, setCurrentDate] = useState(new Date());
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedProgramId, setSelectedProgramId] = useState<string>("all");
@@ -182,6 +189,50 @@ export default function AttendanceMatrixPage() {
       }
     } catch (err) {
       console.error("Error setting attendance:", err);
+    }
+  };
+
+  const handleToggleMatrixCell = async (patientId: string, dateStr: string) => {
+    if (!canEditMatrix) return;
+    const patient = patients.find(p => p.id === patientId);
+    if (!patient) return;
+    const contextId = patient.hosenType || "general";
+    const attKey = `${patientId}_${dateStr}`;
+    const attId = `${patientId}_${contextId}_${dateStr}`;
+    const currentStatus = attendance[attKey];
+
+    let newStatus: "present" | "absent" | "unset";
+    if (!currentStatus || currentStatus === "unset") {
+      newStatus = "present";
+    } else if (currentStatus === "present") {
+      newStatus = "absent";
+    } else {
+      newStatus = "unset";
+    }
+
+    try {
+      if (newStatus === "unset") {
+        await deleteDoc(doc(db, "attendance", attId));
+        setAttendance(prev => {
+          const next = { ...prev };
+          delete next[attKey];
+          return next;
+        });
+      } else {
+        await setDoc(doc(db, "attendance", attId), {
+          patientId,
+          date: dateStr,
+          status: newStatus,
+          contextId,
+          updatedAt: new Date().toISOString()
+        });
+        setAttendance(prev => ({
+          ...prev,
+          [attKey]: newStatus
+        }));
+      }
+    } catch (err) {
+      console.error("Error setting matrix cell attendance:", err);
     }
   };
 
@@ -862,7 +913,8 @@ export default function AttendanceMatrixPage() {
                             return (
                               <td 
                                 key={dateStr}
-                                className={`p-0 border-l border-[var(--border)] text-center ${!isActiveForThisPatient ? 'bg-[var(--foreground)]/[0.03]' : ''}`}
+                                className={`p-0 border-l border-[var(--border)] text-center ${!isActiveForThisPatient ? 'bg-[var(--foreground)]/[0.03]' : ''} ${isActiveForThisPatient && canEditMatrix ? 'cursor-pointer hover:bg-[var(--foreground)]/5 transition-colors select-none' : ''}`}
+                                onClick={() => isActiveForThisPatient && canEditMatrix && handleToggleMatrixCell(p.id, dateStr)}
                               >
                                 {!isActiveForThisPatient ? (
                                   <div className="w-full h-full flex items-center justify-center py-2.5 opacity-20" title="יום לא פעיל בתוכנית של משתתף זה">

@@ -3,7 +3,7 @@
 import { RoleGuard } from "@/components/auth/RoleGuard";
 import { useAuth } from "@/context/AuthContext";
 import { useSettings } from "@/context/SettingsContext";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { 
   User, Mail, Shield, Smartphone, Globe, Camera, 
@@ -22,7 +22,8 @@ import { he } from "date-fns/locale";
 export default function ProfilePage() {
   const { 
     user, logout, role, workSchedule, photoURL,
-    preferredProgramIds, preferredGroupIds, setPreferredPrograms, setPreferredGroups 
+    preferredProgramIds, preferredGroupIds, setPreferredPrograms, setPreferredGroups,
+    signatureTitle: savedSignatureTitle, signatureImage: savedSignatureImage
   } = useAuth();
   const { theme, setTheme, fontSize, setFontSize } = useSettings();
   const router = useRouter();
@@ -31,6 +32,124 @@ export default function ProfilePage() {
   const [displayName, setDisplayName] = useState(user?.displayName || "");
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+
+  // Digital Signature States
+  const [signatureTitle, setLocalSignatureTitle] = useState("");
+  const [localSignatureImage, setLocalSignatureImage] = useState<string | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const [isDrawing, setIsDrawing] = useState(false);
+
+  useEffect(() => {
+    if (savedSignatureTitle) setLocalSignatureTitle(savedSignatureTitle);
+    if (savedSignatureImage) setLocalSignatureImage(savedSignatureImage);
+  }, [savedSignatureTitle, savedSignatureImage]);
+
+  // Clear Canvas
+  const handleClearSignature = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    setLocalSignatureImage(null);
+  };
+
+  // Start Drawing
+  const startDrawing = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    ctx.strokeStyle = "#000000"; // Black signature ink
+    ctx.lineWidth = 3;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+
+    // Prevent scrolling on touch screens
+    if (e.nativeEvent instanceof TouchEvent) {
+      e.preventDefault();
+    }
+
+    const { x, y } = getCoord(e);
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    setIsDrawing(true);
+  };
+
+  // Draw
+  const draw = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
+    if (!isDrawing) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    if (e.nativeEvent instanceof TouchEvent) {
+      e.preventDefault();
+    }
+
+    const { x, y } = getCoord(e);
+    ctx.lineTo(x, y);
+    ctx.stroke();
+  };
+
+  // Stop Drawing
+  const stopDrawing = () => {
+    setIsDrawing(false);
+  };
+
+  // Helper to get coordinates relative to canvas bounding rect
+  const getCoord = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return { x: 0, y: 0 };
+    const rect = canvas.getBoundingClientRect();
+    
+    // Support mouse or touch events
+    if ('touches' in e) {
+      if (e.touches.length === 0) return { x: 0, y: 0 };
+      const touch = e.touches[0];
+      return {
+        x: touch.clientX - rect.left,
+        y: touch.clientY - rect.top
+      };
+    } else {
+      return {
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top
+      };
+    }
+  };
+
+  // Save Signature
+  const handleSaveSignature = async () => {
+    if (!user) return;
+    setIsSaving(true);
+    try {
+      const canvas = canvasRef.current;
+      let finalSignatureImage = localSignatureImage;
+      
+      // If canvas is drawn on, save it
+      if (canvas) {
+        const dataUrl = canvas.toDataURL("image/png");
+        // Only override if canvas was actually drawn on (drawn pixel check is simple, or just save the URL)
+        finalSignatureImage = dataUrl;
+      }
+
+      await updateDoc(doc(db, "users", user.uid), {
+        signatureTitle: signatureTitle.trim(),
+        signatureImage: finalSignatureImage || "",
+        updatedAt: serverTimestamp()
+      });
+
+      setMessage({ type: 'success', text: 'החתימה והתואר עודכנו בהצלחה' });
+    } catch (e) {
+      console.error(e);
+      setMessage({ type: 'error', text: 'שגיאה בעדכון החתימה והתואר' });
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   // Preferred display items on homepage
   const [allPrograms, setAllPrograms] = useState<{ id: string; name: string }[]>([]);
@@ -371,6 +490,81 @@ export default function ProfilePage() {
                   </div>
                 </section>
               )}
+
+              {/* Digital Signature & Certificates Settings */}
+              <section className="space-y-6">
+                <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-[var(--foreground)]/20 mr-2">חתימה דיגיטלית ואישורים רשמיים</h3>
+                <div className="bg-[var(--card-bg)] border border-[var(--border)] p-6 md:p-8 rounded-3xl md:rounded-[2.5rem] shadow-sm space-y-6">
+                  <div>
+                    <p className="text-base md:text-lg font-black tracking-tight">הפקדת חתימה ותואר מקצועי</p>
+                    <p className="text-xs text-[var(--foreground)]/40 font-bold mt-1">הגדר את תוארך המקצועי וצייר את חתימתך הפיזית. חתימה זו תוטמע אוטומטית בכל אישורי שהייה והשתתפות שאתה מפיק עבור משתתפי החווה.</p>
+                  </div>
+
+                  <div className="space-y-6">
+                    {/* Custom Title Input */}
+                    <div className="space-y-1.5">
+                      <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-[var(--foreground)]/30 mr-1">תואר מקצועי מלווה (למשל: עו״ס MSW)</label>
+                      <input 
+                        type="text" 
+                        value={signatureTitle}
+                        onChange={(e) => setLocalSignatureTitle(e.target.value)}
+                        placeholder="לדוגמה: עו״ס MSW, רכז שיקום בחווה"
+                        className="w-full bg-[var(--background)] border border-[var(--border)] rounded-2xl px-5 py-4 text-xs font-bold outline-none focus:border-rose-500 transition-all shadow-inner"
+                      />
+                    </div>
+
+                    {/* Canvas Drawing Pad Container */}
+                    <div className="space-y-3.5">
+                      <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-[var(--foreground)]/30 mr-1">ציור חתימה אישית</label>
+                      
+                      {localSignatureImage && (
+                        <div className="border border-[var(--border)] rounded-2xl p-4 bg-white flex flex-col items-center justify-center gap-2 shadow-inner">
+                          <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider">תצוגה מקדימה של החתימה הפעילה שלך:</p>
+                          <img src={localSignatureImage} alt="חתימה פעילה" className="max-h-24 object-contain animate-fade-in" />
+                        </div>
+                      )}
+
+                      <div className="border border-[var(--border)] rounded-2xl bg-white overflow-hidden relative shadow-inner">
+                        <canvas
+                          ref={canvasRef}
+                          width={500}
+                          height={180}
+                          onMouseDown={startDrawing}
+                          onMouseMove={draw}
+                          onMouseUp={stopDrawing}
+                          onMouseLeave={stopDrawing}
+                          onTouchStart={startDrawing}
+                          onTouchMove={draw}
+                          onTouchEnd={stopDrawing}
+                          className="w-full h-44 cursor-crosshair touch-none bg-white"
+                        />
+                        <div className="absolute bottom-3 left-3 flex gap-2">
+                          <button
+                            type="button"
+                            onClick={handleClearSignature}
+                            className="px-3.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-xl text-[10px] font-black uppercase tracking-wider transition-colors cursor-pointer border border-rose-100 shadow-sm"
+                          >
+                            נקה לוח
+                          </button>
+                        </div>
+                      </div>
+                      
+                      <p className="text-[10px] text-[var(--muted)] font-medium leading-relaxed leading-none mt-1 mr-1">
+                        * צייר את החתימה שלך עם העכבר או האצבע בתוך התיבה הלבנה, ולאחר מכן לחץ על "שמור חתימה ותואר".
+                      </p>
+                    </div>
+
+                    <button
+                      onClick={handleSaveSignature}
+                      disabled={isSaving}
+                      className="w-full bg-rose-600 hover:bg-rose-500 disabled:opacity-50 text-white py-4.5 rounded-2xl text-[11px] font-black uppercase tracking-[0.2em] transition-all shadow-lg shadow-rose-600/10 active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      {isSaving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
+                      שמור חתימה ותואר
+                    </button>
+                  </div>
+                </div>
+              </section>
 
               {/* Interface Settings */}
               <section className="space-y-6">

@@ -4,14 +4,15 @@ import React, { useState, useEffect } from "react";
 import { useAuth, UserRole, UserStatus } from "@/context/AuthContext";
 import { RoleGuard } from "@/components/auth/RoleGuard";
 import { db } from "@/lib/firebase/config";
-import { collection, getDocs, doc, updateDoc, query, orderBy } from "firebase/firestore";
+import { collection, getDocs, doc, updateDoc, query, orderBy, addDoc, deleteDoc } from "firebase/firestore";
 import { 
   Shield, UserPlus, ArrowRight, Search, Loader2, 
-  ChevronDown, ChevronUp, Check, X, ShieldAlert, Users, Layers, Edit3
+  ChevronDown, ChevronUp, Check, X, ShieldAlert, Users, Layers, Edit3, Trash2
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { StatusBadge } from "@/components/admin/users/StatusBadge";
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
+import { motion, AnimatePresence } from "framer-motion";
 
 export interface UserProfile {
   id: string;
@@ -21,6 +22,7 @@ export interface UserProfile {
   status: UserStatus;
   assignedProgramIds: string[];
   assignedGroupIds: string[];
+  isPreCreated?: boolean;
 }
 
 export interface Program { id: string; name: string }
@@ -65,6 +67,64 @@ export default function UserManagementPage() {
   const [editingNameId, setEditingNameId] = useState<string | null>(null);
   const [tempName, setTempName] = useState("");
 
+  // Pre-create user modal states
+  const [showPreCreateModal, setShowPreCreateModal] = useState(false);
+  const [preCreateName, setPreCreateName] = useState("");
+  const [preCreateEmail, setPreCreateEmail] = useState("");
+  const [preCreateRoles, setPreCreateRoles] = useState<UserRole[]>(["employee"]);
+  const [preCreateProgramIds, setPreCreateProgramIds] = useState<string[]>([]);
+  const [preCreateGroupIds, setPreCreateGroupIds] = useState<string[]>([]);
+  const [preCreateLoading, setPreCreateLoading] = useState(false);
+
+  const handlePreCreateUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!preCreateEmail.trim() || !preCreateName.trim()) return;
+    setPreCreateLoading(true);
+    try {
+      await addDoc(collection(db, "users"), {
+        email: preCreateEmail.trim().toLowerCase(),
+        displayName: preCreateName.trim(),
+        name: preCreateName.trim(),
+        role: preCreateRoles[0] || "employee",
+        roles: preCreateRoles,
+        status: "approved", // Pre-approved so they can log in instantly
+        isPreCreated: true,
+        assignedProgramIds: preCreateProgramIds,
+        assignedGroupIds: preCreateGroupIds,
+        createdAt: new Date(),
+        onboardingComplete: false,
+      });
+      
+      // Reset state and reload
+      setShowPreCreateModal(false);
+      setPreCreateName("");
+      setPreCreateEmail("");
+      setPreCreateRoles(["employee"]);
+      setPreCreateProgramIds([]);
+      setPreCreateGroupIds([]);
+      await fetchData();
+    } catch (err) {
+      console.error("Error pre-creating user:", err);
+      alert("שגיאה ביצירת עובד מראש");
+    } finally {
+      setPreCreateLoading(false);
+    }
+  };
+
+  const handleDeletePreCreatedUser = async (userId: string, userName: string) => {
+    if (!confirm(`האם אתה בטוח שברצונך למחוק את העובד הטרום-רשום ${userName}?`)) return;
+    setUpdatingId(userId);
+    try {
+      await deleteDoc(doc(db, "users", userId));
+      setUsers(prev => prev.filter(u => u.id !== userId));
+    } catch (err) {
+      console.error("Error deleting pre-created user:", err);
+      alert("שגיאה במחיקת עובד");
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
   const handleSaveName = async (userId: string) => {
     if (!tempName.trim()) return;
     const finalName = tempName.trim();
@@ -102,7 +162,8 @@ export default function UserManagementPage() {
             roles: data.roles || (data.role ? [data.role] : ["employee"]),
             status: data.status || "pending",
             assignedProgramIds: data.assignedProgramIds || [],
-            assignedGroupIds: data.assignedGroupIds || data.assignedGroups || []
+            assignedGroupIds: data.assignedGroupIds || data.assignedGroups || [],
+            isPreCreated: !!data.isPreCreated
           };
         });
       setUsers(userList);
@@ -179,15 +240,26 @@ export default function UserManagementPage() {
               </div>
             </div>
 
-            <div className="relative max-w-sm w-full">
-              <Search className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--muted)]/50" />
-              <input
-                type="text"
-                placeholder="חיפוש עובד לפי שם או אימייל..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-xl py-2.5 pr-10 pl-4 text-xs font-medium focus:outline-none focus:border-emerald-500/30 transition-colors"
-              />
+            <div className="flex items-center gap-3 w-full md:w-auto shrink-0">
+              <button
+                type="button"
+                onClick={() => setShowPreCreateModal(true)}
+                className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2.5 rounded-xl text-xs font-black transition-all shadow-md shadow-emerald-600/10 active:scale-95 border border-emerald-600 shrink-0 cursor-pointer"
+              >
+                <UserPlus className="w-4 h-4" />
+                רשום עובד מראש
+              </button>
+
+              <div className="relative max-w-xs w-full">
+                <Search className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--muted)]/50" />
+                <input
+                  type="text"
+                  placeholder="חיפוש עובד לפי שם או אימייל..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-xl py-2.5 pr-10 pl-4 text-xs font-medium focus:outline-none focus:border-emerald-500/30 transition-colors text-[var(--foreground)] placeholder:text-[var(--foreground)]/30"
+                />
+              </div>
             </div>
           </div>
 
@@ -359,7 +431,13 @@ export default function UserManagementPage() {
 
                             {/* Status */}
                             <td className="py-3.5 px-4">
-                              <StatusBadge status={user.status} />
+                              {user.isPreCreated ? (
+                                <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-orange-500/10 text-orange-500 border border-orange-500/20 whitespace-nowrap">
+                                  ממתין לרישום
+                                </span>
+                              ) : (
+                                <StatusBadge status={user.status} />
+                              )}
                             </td>
 
                             {/* Program/Group assignments trigger button */}
@@ -382,6 +460,16 @@ export default function UserManagementPage() {
                               <div className="inline-flex items-center gap-2">
                                 {isUpdating ? (
                                   <Loader2 className="w-4 h-4 animate-spin text-emerald-500" />
+                                ) : user.isPreCreated ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeletePreCreatedUser(user.id, user.name)}
+                                    className="p-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 border border-rose-500/20 rounded-lg transition-all shrink-0 cursor-pointer flex items-center gap-1.5 text-[10px] font-black"
+                                    title="מחק עובד טרום-רשום"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                    מחק
+                                  </button>
                                 ) : user.status === "pending" ? (
                                   <button
                                     onClick={() => setShowConfirmModal({ open: true, type: "approve", user })}
@@ -519,6 +607,181 @@ export default function UserManagementPage() {
             "כן, אשר הצטרפות"
           }
         />
+
+        {/* Pre-create User Modal */}
+        <AnimatePresence>
+          {showPreCreateModal && (
+            <>
+              <motion.div 
+                initial={{ opacity: 0 }} 
+                animate={{ opacity: 1 }} 
+                exit={{ opacity: 0 }}
+                onClick={() => setShowPreCreateModal(false)}
+                className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm"
+              />
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                className="fixed inset-x-4 bottom-4 md:bottom-auto md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:max-w-md z-50 bg-[var(--surface)] border border-[var(--border)] rounded-3xl shadow-2xl p-6 overflow-hidden flex flex-col max-h-[85vh]"
+              >
+                <div className="flex items-center justify-between pb-4 border-b border-[var(--border)]">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-500">
+                      <UserPlus className="w-4 h-4" />
+                    </div>
+                    <h3 className="text-sm font-black">רישום איש צוות מראש</h3>
+                  </div>
+                  <button 
+                    onClick={() => setShowPreCreateModal(false)}
+                    className="w-8 h-8 flex items-center justify-center rounded-lg bg-[var(--foreground)]/5 text-[var(--muted)] hover:bg-[var(--foreground)]/10 cursor-pointer"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+
+                <form onSubmit={handlePreCreateUser} className="flex-1 overflow-y-auto py-4 space-y-4 pr-1 text-right">
+                  {/* Name field */}
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black uppercase tracking-wider text-[var(--muted)]">שם מלא</label>
+                    <input 
+                      type="text" 
+                      required
+                      value={preCreateName}
+                      onChange={e => setPreCreateName(e.target.value)}
+                      placeholder="לדוגמה: ישראל ישראלי"
+                      className="w-full bg-[var(--foreground)]/5 border border-[var(--border)] rounded-xl px-4 py-2.5 text-xs font-bold focus:outline-none focus:border-emerald-500/30 text-[var(--foreground)]"
+                    />
+                  </div>
+
+                  {/* Email field */}
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black uppercase tracking-wider text-[var(--muted)]">כתובת אימייל</label>
+                    <input 
+                      type="email" 
+                      required
+                      value={preCreateEmail}
+                      onChange={e => setPreCreateEmail(e.target.value)}
+                      placeholder="שם העובד או האימייל שלו"
+                      className="w-full bg-[var(--foreground)]/5 border border-[var(--border)] rounded-xl px-4 py-2.5 text-xs font-bold focus:outline-none focus:border-emerald-500/30 text-[var(--foreground)] left-to-right"
+                      dir="ltr"
+                    />
+                  </div>
+
+                  {/* Role picker */}
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black uppercase tracking-wider text-[var(--muted)]">תפקידים במערכת (בחר לפחות אחד)</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {(["social_worker", "instructor", "logistics", "manager", "admin", "employee"] as UserRole[]).map(r => {
+                        const isSelected = preCreateRoles.includes(r);
+                        return (
+                          <button
+                            type="button"
+                            key={r}
+                            onClick={() => {
+                              setPreCreateRoles(prev => 
+                                prev.includes(r)
+                                  ? prev.filter(x => x !== r)
+                                  : [...prev, r]
+                              );
+                            }}
+                            className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-bold transition-all text-right cursor-pointer ${
+                              isSelected
+                                ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-600 font-extrabold"
+                                : "bg-[var(--foreground)]/5 border-[var(--border)] hover:bg-[var(--foreground)]/10 text-[var(--foreground)]"
+                            }`}
+                          >
+                            <input 
+                              type="checkbox" 
+                              checked={isSelected}
+                              readOnly
+                              className="rounded border-[var(--border)] text-emerald-500 w-3.5 h-3.5 ml-1 pointer-events-none cursor-pointer"
+                            />
+                            {ROLE_LABELS[r]}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Program picker */}
+                  <div className="space-y-1.5 pt-2 border-t border-[var(--border)]">
+                    <label className="text-[10px] font-black uppercase tracking-wider text-[var(--muted)]">שיוך לתוכניות</label>
+                    <div className="flex flex-wrap gap-1.5">
+                      {programs.map(p => {
+                        const isSelected = preCreateProgramIds.includes(p.id);
+                        return (
+                          <button
+                            type="button"
+                            key={p.id}
+                            onClick={() => {
+                              setPreCreateProgramIds(prev => 
+                                prev.includes(p.id) ? prev.filter(id => id !== p.id) : [...prev, p.id]
+                              );
+                            }}
+                            className={`px-2.5 py-1.5 rounded-lg text-[10px] font-bold border transition-all cursor-pointer ${
+                              isSelected 
+                                ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600 font-extrabold' 
+                                : 'bg-transparent border-[var(--border)] opacity-50 hover:opacity-100 text-[var(--foreground)]'
+                            }`}
+                          >
+                            {p.name}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Group picker */}
+                  <div className="space-y-1.5 pt-2 border-t border-[var(--border)]">
+                    <label className="text-[10px] font-black uppercase tracking-wider text-[var(--muted)]">שיוך לקבוצות</label>
+                    <div className="flex flex-wrap gap-1.5">
+                      {groups.map(g => {
+                        const isSelected = preCreateGroupIds.includes(g.id);
+                        return (
+                          <button
+                            type="button"
+                            key={g.id}
+                            onClick={() => {
+                              setPreCreateGroupIds(prev => 
+                                prev.includes(g.id) ? prev.filter(id => id !== g.id) : [...prev, g.id]
+                              );
+                            }}
+                            className={`px-2.5 py-1.5 rounded-lg text-[10px] font-bold border transition-all cursor-pointer ${
+                              isSelected 
+                                ? 'bg-rose-500/10 border-rose-500/30 text-rose-600 font-extrabold' 
+                                : 'bg-transparent border-[var(--border)] opacity-50 hover:opacity-100 text-[var(--foreground)]'
+                            }`}
+                          >
+                            {g.name}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div className="pt-4 border-t border-[var(--border)] flex items-center gap-3">
+                    <button
+                      type="submit"
+                      disabled={preCreateLoading || preCreateRoles.length === 0}
+                      className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-2xl text-xs font-black shadow-lg shadow-emerald-500/20 active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      {preCreateLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                      שמור ורשום עובד
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowPreCreateModal(false)}
+                      className="px-4 py-3 bg-[var(--foreground)]/5 hover:bg-[var(--foreground)]/10 border border-[var(--border)] rounded-2xl text-xs font-black active:scale-95 transition-all cursor-pointer"
+                    >
+                      ביטול
+                    </button>
+                  </div>
+                </form>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
 
       </main>
     </RoleGuard>

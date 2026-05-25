@@ -47,7 +47,7 @@ interface Attendance { id: string; date: string; status: "present" | "absent" | 
 
 export default function PatientDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const { isAdmin, isManager, user: authUser } = useAuth();
+  const { isAdmin, isManager, user: authUser, signatureTitle, signatureImage } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   const reportRef = useRef<HTMLDivElement>(null);
@@ -71,6 +71,13 @@ export default function PatientDetailPage() {
   const [socialWorkers, setSocialWorkers] = useState<{ id: string; name: string }[]>([]);
   const [docRequests, setDocRequests] = useState<any[]>([]);
   const [processedDocs, setProcessedDocs] = useState<any[]>([]);
+
+  // Recipient and PDF modal states
+  const [showRecipientModal, setShowRecipientModal] = useState(false);
+  const [recipientText, setRecipientText] = useState("עו״ס אגף השיקום משרד הביטחון");
+  const [pendingReportType, setPendingReportType] = useState<'participation' | 'attendance' | 'stay' | null>(null);
+  const [pendingRequest, setPendingRequest] = useState<any | null>(null);
+  const [activeReportType, setActiveReportType] = useState<'participation' | 'attendance'>('participation');
 
   useEffect(() => { if (id) fetchPatientData(); }, [id]);
 
@@ -206,17 +213,39 @@ export default function PatientDetailPage() {
   }
 
   const handleProcessRequest = async (request: any) => {
-    if (!patient || !reportRef.current) return;
-    setReportLoading(true);
-    try {
-      const docTitle = request.type === 'stay' 
-        ? 'אישור שהייה' 
-        : request.type === 'attendance' 
-          ? `דו״ח נוכחות - ${request.month || format(new Date(), "MM/yyyy")}` 
-          : (request.customType || 'בקשה מיוחדת');
+    if (!patient) return;
+    if (request.type === 'stay') {
+      setPendingRequest(request);
+      setPendingReportType('stay');
+      setActiveReportType('participation');
+      setShowRecipientModal(true);
+    } else {
+      if (request.type === 'attendance') {
+        setActiveReportType('attendance');
+        if (request.month) {
+          setSelectedMonth(request.month);
+        }
+      }
+      setReportLoading(true);
+      try {
+        await executeDirectRequestProcessing(request);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setReportLoading(false);
+      }
+    }
+  };
 
-      // Generate PDF from the hidden template
-      await new Promise(r => setTimeout(r, 100));
+  const executeDirectRequestProcessing = async (request: any) => {
+    if (!patient || !reportRef.current) return;
+    try {
+      const docTitle = request.type === 'attendance' 
+        ? `דו״ח נוכחות - ${request.month || format(new Date(), "MM/yyyy")}` 
+        : (request.customType || 'בקשה מיוחדת');
+
+      // Wait for rendering
+      await new Promise(r => setTimeout(r, 300));
       const canvas = await html2canvas(reportRef.current, {
         scale: 2, useCORS: true, logging: false, backgroundColor: "#ffffff"
       });
@@ -226,13 +255,11 @@ export default function PatientDetailPage() {
       const imgHeight = (canvas.height * imgWidth) / canvas.width;
       pdf.addImage(imgData, "JPEG", 0, 0, imgWidth, imgHeight);
 
-      // Upload to Firebase Storage and get download URL
       const pdfBlob = pdf.output("blob");
       const storageRef = ref(storage, `documents/${patient.id}/${Date.now()}_${request.type}.pdf`);
       await uploadBytes(storageRef, pdfBlob, { contentType: "application/pdf" });
       const downloadUrl = await getDownloadURL(storageRef);
 
-      // Save document record with real URL
       const newDocRef = doc(collection(db, "documents"));
       await setDoc(newDocRef, {
         patientId: patient.id,
@@ -249,7 +276,6 @@ export default function PatientDetailPage() {
         documentId: newDocRef.id,
       });
 
-      // Notify participant via Firestore notification + push
       if (participantUid) {
         await setDoc(doc(collection(db, "notifications")), {
           title: 'מסמך מוכן להורדה',
@@ -280,7 +306,91 @@ export default function PatientDetailPage() {
     } catch (e) {
       console.error(e);
       alert("שגיאה בהפקת המסמך");
-    } finally { setReportLoading(false); }
+    }
+  };
+
+  const executePDFGeneration = async () => {
+    if (!patient || !reportRef.current) return;
+    setShowRecipientModal(false);
+    setReportLoading(true);
+    
+    try {
+      // Wait for rendering
+      await new Promise(r => setTimeout(r, 350));
+      
+      const canvas = await html2canvas(reportRef.current, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: "#ffffff"
+      });
+      
+      const imgData = canvas.toDataURL("image/jpeg", 1.0);
+      const pdf = new jsPDF("p", "mm", "a4");
+      const imgWidth = 210;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      pdf.addImage(imgData, "JPEG", 0, 0, imgWidth, imgHeight);
+
+      if (pendingReportType === 'participation') {
+        pdf.save(`אישור_השתתפות_${patient.firstName}_${patient.lastName}.pdf`);
+      } else if (pendingReportType === 'stay' && pendingRequest) {
+        const pdfBlob = pdf.output("blob");
+        const storageRef = ref(storage, `documents/${patient.id}/${Date.now()}_stay.pdf`);
+        await uploadBytes(storageRef, pdfBlob, { contentType: "application/pdf" });
+        const downloadUrl = await getDownloadURL(storageRef);
+
+        const newDocRef = doc(collection(db, "documents"));
+        await setDoc(newDocRef, {
+          patientId: patient.id,
+          title: 'אישור שהייה',
+          type: 'stay',
+          url: downloadUrl,
+          createdAt: serverTimestamp(),
+          processedBy: authUser?.uid,
+        });
+
+        await updateDoc(doc(db, "document_requests", pendingRequest.id), {
+          status: "completed",
+          processedAt: serverTimestamp(),
+          documentId: newDocRef.id,
+        });
+
+        if (participantUid) {
+          await setDoc(doc(collection(db, "notifications")), {
+            title: 'מסמך מוכן להורדה',
+            body: `אישור שהייה מוכן לצפייה ולהורדה באיזור האישי שלך`,
+            recipientIds: [participantUid],
+            senderId: authUser?.uid,
+            createdAt: serverTimestamp(),
+            readBy: [],
+            type: 'chat',
+            link: '/portal',
+          });
+
+          fetch('/api/notify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              title: 'מסמך מוכן להורדה',
+              body: `אישור שהייה מוכן לצפייה ולהורדה באיזור האישי שלך`,
+              userId: participantUid,
+              link: '/portal',
+              skipDb: true
+            }),
+          }).catch(console.error);
+        }
+
+        alert("המסמך הופק ונשלח בהצלחה!");
+        fetchPatientData();
+      }
+    } catch (e) {
+      console.error(e);
+      alert("שגיאה בהפקת המסמך");
+    } finally {
+      setReportLoading(false);
+      setPendingRequest(null);
+      setPendingReportType(null);
+    }
   };
 
   const handleUploadCustomDoc = async (request: any, file: File) => {
@@ -402,31 +512,44 @@ export default function PatientDetailPage() {
   }
 
   const generateReport = async (type: 'participation' | 'attendance') => {
+    if (!patient) return;
+    if (type === 'participation') {
+      setPendingRequest(null);
+      setPendingReportType('participation');
+      setActiveReportType('participation');
+      setShowRecipientModal(true);
+    } else {
+      setActiveReportType('attendance');
+      setReportLoading(true);
+      try {
+        await executeManualGeneration('attendance');
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setReportLoading(false);
+      }
+    }
+  };
+
+  const executeManualGeneration = async (type: 'attendance') => {
     if (!patient || !reportRef.current) return;
-    setReportLoading(true);
-    
     try {
-      await new Promise(r => setTimeout(r, 100));
-      
+      await new Promise(r => setTimeout(r, 300));
       const canvas = await html2canvas(reportRef.current, {
         scale: 2,
         useCORS: true,
         logging: false,
         backgroundColor: "#ffffff"
       });
-      
       const imgData = canvas.toDataURL("image/jpeg", 1.0);
       const pdf = new jsPDF("p", "mm", "a4");
       const imgWidth = 210;
       const imgHeight = (canvas.height * imgWidth) / canvas.width;
-      
       pdf.addImage(imgData, "JPEG", 0, 0, imgWidth, imgHeight);
-      pdf.save(`${type === 'participation' ? 'אישור_השתתפות' : 'דוח_נוכחות'}_${patient.firstName}_${patient.lastName}.pdf`);
+      pdf.save(`דוח_נוכחות_${patient.firstName}_${patient.lastName}.pdf`);
     } catch (err) {
       console.error(err);
       alert("שגיאה בהפקת הדוח");
-    } finally {
-      setReportLoading(false);
     }
   };
 
@@ -970,64 +1093,291 @@ export default function PatientDetailPage() {
         {/* ── PDF Template — inline styles only to avoid html2canvas lab() parse error ── */}
         <div style={{ position: "fixed", left: -9999, top: -9999 }}>
           <div ref={reportRef} style={{
-            width: "794px", padding: "80px", backgroundColor: "#ffffff",
+            width: "794px", height: "1123px", position: "relative", backgroundColor: "#ffffff",
             color: "#000000", fontFamily: "Arial, sans-serif", lineHeight: 1.6, direction: "rtl"
           }}>
-            {/* Header */}
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", borderBottom: "2px solid #059669", paddingBottom: "32px", marginBottom: "48px" }}>
-              <div>
-                <h1 style={{ fontSize: "32px", fontWeight: 900, color: "#059669", margin: "0 0 8px 0" }}>מרכז חוסן</h1>
-                <h2 style={{ fontSize: "18px", fontWeight: 700, color: "#64748b", margin: 0 }}>חוות רום</h2>
-              </div>
-              <div style={{ textAlign: "left", fontSize: "13px", color: "#94a3b8", fontFamily: "monospace" }}>
-                <p style={{ margin: "0 0 4px 0" }}>{format(new Date(), "dd/MM/yyyy")}</p>
-                <p style={{ margin: 0 }}>סימוכין: {id?.slice(-6).toUpperCase()}</p>
-              </div>
-            </div>
+            {/* Background Logo Page */}
+            <img 
+              src="/logopage.png" 
+              style={{ 
+                position: "absolute", 
+                top: 0, 
+                left: 0, 
+                width: "100%", 
+                height: "100%", 
+                objectFit: "cover",
+                zIndex: 0
+              }} 
+            />
 
-            {/* Title */}
-            <div style={{ textAlign: "center", marginBottom: "64px" }}>
-              <h3 style={{ fontSize: "26px", fontWeight: 900, margin: "0 0 16px 0" }}>אישור השתתפות בתוכנית</h3>
-              <div style={{ width: "96px", height: "4px", backgroundColor: "#10b981", margin: "0 auto", borderRadius: "9999px" }} />
-            </div>
-
-            {/* Body */}
-            <div style={{ fontSize: "17px" }}>
-              <p style={{ marginBottom: "24px" }}>לכל המעוניין,</p>
-              <p style={{ marginBottom: "24px", lineHeight: 2 }}>
-                הרינו לאשר כי המשתתף/ת <strong>{patientName}</strong>, ת.ז <strong>{patient.idNumber}</strong>, משתתף/ת באופן פעיל בתוכנית המרכז במסגרת קבוצת <strong>{fullGroupName}</strong>.
-              </p>
-              <p style={{ marginBottom: "24px" }}>
-                המשתתף/ת החל/ה את פעילותו/ה בתוכנית בתאריך {patient.startDate ? format(new Date(patient.startDate), "dd/MM/yyyy") : "—"}.
-              </p>
-
-              {/* Stats box */}
-              <div style={{ backgroundColor: "#f8fafc", padding: "32px", borderRadius: "24px", border: "1px solid #f1f5f9", margin: "48px 0" }}>
-                <h4 style={{ fontWeight: 900, fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.15em", color: "#94a3b8", marginBottom: "16px" }}>סיכום נוכחות תקופתי</h4>
-                <div style={{ display: "flex", justifyContent: "space-around", alignItems: "center" }}>
-                  <div style={{ textAlign: "center" }}>
-                    <p style={{ fontSize: "28px", fontWeight: 900, color: "#059669", margin: "0 0 4px 0" }}>{attendance.filter(a => a.status === "present").length}</p>
-                    <p style={{ fontSize: "11px", fontWeight: 700, color: "#64748b", margin: 0 }}>ימי נוכחות</p>
+            {/* Content Overlay */}
+            <div style={{ 
+              position: "relative", 
+              zIndex: 1, 
+              paddingTop: "180px", 
+              paddingBottom: "120px", 
+              paddingLeft: "75px", 
+              paddingRight: "75px" 
+            }}>
+              {activeReportType === 'participation' ? (
+                /* Stay / Participation Certificate */
+                <div>
+                  {/* Document Meta */}
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "40px", fontSize: "14px", color: "#64748b", fontWeight: 700 }}>
+                    <div>תאריך: {format(new Date(), "dd.MM.yyyy")}</div>
+                    <div>סימוכין: {patient.id?.slice(-6).toUpperCase()}</div>
                   </div>
-                  <div style={{ width: "1px", height: "48px", backgroundColor: "#e2e8f0" }} />
-                  <div style={{ textAlign: "center" }}>
-                    <p style={{ fontSize: "28px", fontWeight: 900, color: "#e11d48", margin: "0 0 4px 0" }}>{attendance.filter(a => a.status === "absent").length}</p>
-                    <p style={{ fontSize: "11px", fontWeight: 700, color: "#64748b", margin: 0 }}>ימי היעדרות</p>
+
+                  {/* Recipient */}
+                  <div style={{ fontSize: "16px", marginBottom: "28px", fontWeight: 700 }}>
+                    עבור: {recipientText}
+                  </div>
+
+                  {/* Title */}
+                  <div style={{ textAlign: "center", marginBottom: "48px" }}>
+                    <h3 style={{ fontSize: "26px", fontWeight: 900, margin: "0 0 16px 0", color: "#1e293b" }}>אישור השתתפות בחווה שיקומית</h3>
+                    <div style={{ width: "96px", height: "4px", backgroundColor: "#10b981", margin: "0 auto", borderRadius: "9999px" }} />
+                  </div>
+
+                  {/* Body */}
+                  <div style={{ fontSize: "16px", color: "#000000" }}>
+                    <p style={{ marginBottom: "16px" }}>הנדון: <strong>{patientName}</strong></p>
+                    <p style={{ marginBottom: "24px" }}>ת.ז: <strong>{patient.idNumber || "—"}</strong></p>
+                    
+                    <p style={{ marginBottom: "20px", lineHeight: 1.8 }}>
+                      הרינו לאשר כי החל בהגעה לחווה מהתאריך <strong>{patient.startDate ? format(parseISO(patient.startDate), "dd.MM.yyyy") : "—"}</strong>.
+                    </p>
+                    <p style={{ marginBottom: "20px", lineHeight: 1.8 }}>
+                      הפעילות בחווה בתוכנית חרבות ברזל מתקיימת בימים ב' ג' וד' בין השעות 9:00-15:00.
+                    </p>
+                    <p style={{ marginBottom: "36px", lineHeight: 1.8 }}>
+                      הפעילויות השונות המתקיימות בחווה: עבודה חקלאית, גילוף בעץ ומלאכות קדומות, דיקור, יוגה, סדנאות שונות ושיחות קבוצתיות.
+                    </p>
+
+                    <p style={{ marginTop: "40px", marginBottom: "8px" }}>בברכה,</p>
+                    
+                    {/* Signature Area */}
+                    {signatureImage ? (
+                      <div style={{ display: "flex", flexDirection: "column", gap: "2px", marginTop: "4px" }}>
+                        <img 
+                          src={signatureImage} 
+                          alt="חתימה דיגיטלית" 
+                          style={{ maxHeight: "64px", maxWidth: "160px", objectFit: "contain", alignSelf: "flex-start" }} 
+                        />
+                        <p style={{ fontWeight: 900, margin: "4px 0 2px 0", fontSize: "14px" }}>{authUser?.displayName || "מורשה חתימה"}</p>
+                        <p style={{ fontSize: "12px", color: "#64748b", margin: 0 }}>{signatureTitle || "עו\"ס בחווה"}</p>
+                      </div>
+                    ) : (
+                      <div style={{ display: "flex", flexDirection: "column", gap: "2px", marginTop: "4px" }}>
+                        <div style={{ height: "48px", borderBottom: "1px dashed #cbd5e1", width: "160px", marginBottom: "8px" }} />
+                        <p style={{ fontWeight: 900, margin: "4px 0 2px 0", fontSize: "14px" }}>{authUser?.displayName || "מורשה חתימה"}</p>
+                        <p style={{ fontSize: "12px", color: "#64748b", margin: 0 }}>{signatureTitle || "עו\"ס בחווה"}</p>
+                      </div>
+                    )}
                   </div>
                 </div>
-              </div>
+              ) : (
+                /* Attendance Report with Table */
+                <div>
+                  {/* Document Meta */}
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "28px", fontSize: "13px", color: "#64748b", fontWeight: 700 }}>
+                    <div>תאריך: {format(new Date(), "dd.MM.yyyy")}</div>
+                    <div>סימוכין: {patient.id?.slice(-6).toUpperCase()}</div>
+                  </div>
 
-              <p style={{ marginTop: "48px", marginBottom: "8px" }}>בברכה,</p>
-              <p style={{ fontWeight: 900, margin: "0 0 4px 0" }}>הנהלת מרכז חוסן</p>
-              <p style={{ fontSize: "13px", color: "#64748b", fontStyle: "italic", margin: 0 }}>חוות רום - שיקום חקלאי וקהילתי</p>
-            </div>
+                  {/* Title */}
+                  <div style={{ textAlign: "center", marginBottom: "28px" }}>
+                    <h3 style={{ fontSize: "24px", fontWeight: 900, margin: "0 0 8px 0", color: "#0284c7" }}>דו״ח נוכחות חודשי מפורט</h3>
+                    <p style={{ fontSize: "14px", color: "#64748b", fontWeight: 700, margin: 0 }}>
+                      חודש: {(() => {
+                        if (!selectedMonth) return "";
+                        const [year, month] = selectedMonth.split("-");
+                        const months = [
+                          "ינואר", "פברואר", "מרץ", "אפריל", "מאי", "יוני",
+                          "יולי", "אוגוסט", "ספטמבר", "אוקטובר", "נובמבר", "דצמבר"
+                        ];
+                        return `${months[parseInt(month) - 1]} ${year}`;
+                      })()}
+                    </p>
+                    <div style={{ width: "96px", height: "4px", backgroundColor: "#0284c7", margin: "8px auto 0 auto", borderRadius: "9999px" }} />
+                  </div>
 
-            {/* Footer */}
-            <div style={{ marginTop: "96px", paddingTop: "24px", borderTop: "1px solid #f1f5f9", fontSize: "9px", color: "#94a3b8", textAlign: "center" }}>
-              מסמך זה הופק באופן ממוחשב ואינו דורש חתימה | מרכז חוסן - חוות רום
+                  {/* Participant Details Card */}
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", padding: "16px 20px", backgroundColor: "#f8fafc", borderRadius: "16px", border: "1px solid #e2e8f0", marginBottom: "24px", fontSize: "13px" }}>
+                    <div>
+                      <p style={{ margin: "0 0 4px 0" }}>שם המשתתף/ת: <strong>{patientName}</strong></p>
+                      <p style={{ margin: 0 }}>ת.ז: <strong>{patient.idNumber || "—"}</strong></p>
+                    </div>
+                    <div>
+                      <p style={{ margin: "0 0 4px 0" }}>קבוצה: <strong>{fullGroupName}</strong></p>
+                      <p style={{ margin: 0 }}>עובד/ת סוציאלי/ת מלווה: <strong>{authUser?.displayName || "צוות המרכז"}</strong></p>
+                    </div>
+                  </div>
+
+                  {/* Stats box */}
+                  <div style={{ backgroundColor: "#f0f9ff", padding: "16px 20px", borderRadius: "16px", border: "1px solid #bae6fd", marginBottom: "24px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-around", alignItems: "center" }}>
+                      <div style={{ textAlign: "center" }}>
+                        <p style={{ fontSize: "24px", fontWeight: 900, color: "#0369a1", margin: "0 0 2px 0" }}>{attendance.filter(h => h.date.startsWith(selectedMonth) && h.status === 'present').length}</p>
+                        <p style={{ fontSize: "11px", fontWeight: 700, color: "#0284c7", margin: 0 }}>ימי נוכחות בפועל</p>
+                      </div>
+                      <div style={{ width: "1px", height: "32px", backgroundColor: "#bae6fd" }} />
+                      <div style={{ textAlign: "center" }}>
+                        <p style={{ fontSize: "24px", fontWeight: 900, color: "#e11d48", margin: "0 0 2px 0" }}>{attendance.filter(h => h.date.startsWith(selectedMonth) && h.status === 'absent').length}</p>
+                        <p style={{ fontSize: "11px", fontWeight: 700, color: "#be123c", margin: 0 }}>ימי היעדרות</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Table */}
+                  <div style={{ overflow: "hidden", borderRadius: "12px", border: "1px solid #e2e8f0", marginBottom: "28px" }}>
+                    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px", direction: "rtl", textAlign: "right" }}>
+                      <thead>
+                        <tr style={{ backgroundColor: "#0284c7", color: "#ffffff" }}>
+                          <th style={{ padding: "10px 12px", fontWeight: 700 }}>תאריך</th>
+                          <th style={{ padding: "10px 12px", fontWeight: 700 }}>יום בשבוע</th>
+                          <th style={{ padding: "10px 12px", fontWeight: 700 }}>קבוצה</th>
+                          <th style={{ padding: "10px 12px", fontWeight: 700, textAlign: "left" }}>סטטוס</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {attendance
+                          .filter(h => h.date.startsWith(selectedMonth))
+                          .sort((a, b) => a.date.localeCompare(b.date))
+                          .slice(0, 15)
+                          .map((h, i) => (
+                            <tr key={i} style={{ borderBottom: "1px solid #e2e8f0", backgroundColor: i % 2 === 0 ? "#f8fafc" : "#ffffff" }}>
+                              <td style={{ padding: "8px 12px", fontWeight: 500 }}>{format(parseISO(h.date), "dd/MM/yyyy")}</td>
+                              <td style={{ padding: "8px 12px", color: "#64748b" }}>{(() => {
+                                const days = ["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת"];
+                                try { return `יום ${days[new Date(h.date).getDay()]}`; } catch { return ""; }
+                              })()}</td>
+                              <td style={{ padding: "8px 12px", color: "#64748b" }}>{fullGroupName}</td>
+                              <td style={{ padding: "8px 12px", textAlign: "left" }}>
+                                <span style={{
+                                  fontSize: "10px", fontWeight: 900,
+                                  backgroundColor: h.status === 'present' ? '#d1fae5' : '#fee2e2',
+                                  color: h.status === 'present' ? '#065f46' : '#991b1b',
+                                  display: "inline-block", padding: "2px 8px", borderRadius: "6px"
+                                }}>
+                                  {h.status === 'present' ? 'נוכח/ת' : 'נעדר/ת'}
+                                </span>
+                              </td>
+                            </tr>
+                        ))}
+                        {attendance.filter(h => h.date.startsWith(selectedMonth)).length === 0 && (
+                          <tr>
+                            <td colSpan={4} style={{ padding: "24px", textAlign: "center", color: "#94a3b8", fontStyle: "italic" }}>
+                              אין רשומות נוכחות רשומות לחודש זה.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Footer Signatures */}
+                  <div style={{ display: "flex", justifyContent: "space-between", marginTop: "36px", fontSize: "12px", borderTop: "1px solid #e2e8f0", paddingTop: "20px" }}>
+                    <div>
+                      <p style={{ margin: "0 0 2px 0", fontWeight: 700 }}>חתימת מלווה/מנחה:</p>
+                      {signatureImage ? (
+                        <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                          <img 
+                            src={signatureImage} 
+                            alt="חתימה דיגיטלית" 
+                            style={{ maxHeight: "36px", maxWidth: "120px", objectFit: "contain", alignSelf: "flex-start" }} 
+                          />
+                          <p style={{ fontWeight: 900, margin: "2px 0 0 0", fontSize: "11px" }}>{authUser?.displayName || "מורשה חתימה"}</p>
+                          <p style={{ fontSize: "10px", color: "#64748b", margin: 0 }}>{signatureTitle || "עו\"ס בחווה"}</p>
+                        </div>
+                      ) : (
+                        <div>
+                          <div style={{ width: "140px", height: "36px", borderBottom: "1px dashed #cbd5e1" }} />
+                          <p style={{ fontSize: "11px", color: "#64748b", margin: "4px 0 0 0" }}>{authUser?.displayName || "צוות מרכז חוסן"}</p>
+                        </div>
+                      )}
+                    </div>
+                    <div style={{ textAlign: "left" }}>
+                      <p style={{ margin: "0 0 2px 0", fontWeight: 700 }}>חותמת המרכז:</p>
+                      <div style={{ width: "100px", height: "36px", borderBottom: "1px dashed #cbd5e1", marginLeft: "auto" }} />
+                      <p style={{ fontSize: "11px", color: "#64748b", margin: "4px 0 0 0" }}>מרכז חוסן חוות רום</p>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
+
+        {/* Recipient Customization Modal */}
+        <AnimatePresence>
+          {showRecipientModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setShowRecipientModal(false)}
+                className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+              />
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                className="relative w-full max-w-lg bg-white border border-slate-200 rounded-[2.5rem] shadow-2xl overflow-hidden p-8 z-10"
+                dir="rtl"
+              >
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-500 flex items-center justify-center">
+                      <FileText className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h3 className="text-base font-black text-slate-900">התאמת אישור השתתפות</h3>
+                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+                        התאמת שדה הנמען לפני הנפקת המסמך
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setShowRecipientModal(false)}
+                    className="p-2 hover:bg-slate-100 rounded-xl transition-all"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">עבור (נמען):</label>
+                    <input
+                      type="text"
+                      value={recipientText}
+                      onChange={(e) => setRecipientText(e.target.value)}
+                      placeholder="לדוגמה: עו״ס אגף השיקום משרד הביטחון"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3.5 text-sm outline-none focus:border-emerald-500 transition-all font-bold"
+                    />
+                  </div>
+
+                  <div className="pt-2 flex gap-3">
+                    <button
+                      onClick={executePDFGeneration}
+                      className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white py-3.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+                    >
+                      הפק אישור
+                    </button>
+                    <button
+                      onClick={() => setShowRecipientModal(false)}
+                      className="flex-1 bg-slate-50 hover:bg-slate-100 border border-slate-200 py-3.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all"
+                    >
+                      ביטול
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
 
 
       </div>
