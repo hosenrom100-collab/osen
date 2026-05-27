@@ -57,10 +57,11 @@ export default function PatientsPage() {
   const [staff, setStaff] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedFilters, setSelectedFilters] = useState<{ programs: string[]; groups: string[]; workers: string[] }>({
+  const [selectedFilters, setSelectedFilters] = useState<{ programs: string[]; groups: string[]; workers: string[]; statuses: string[] }>({
     programs: [],
     groups: [],
-    workers: []
+    workers: [],
+    statuses: ["active"]
   });
   const [filterDropdownOpen, setFilterDropdownOpen] = useState(false);
   const [sortBy, setSortBy] = useState<string>("lastNameAsc");
@@ -359,7 +360,8 @@ export default function PatientsPage() {
             setSelectedFilters({
               programs: parsed.programs || [],
               groups: parsed.groups || [],
-              workers: parsed.workers || []
+              workers: parsed.workers || [],
+              statuses: parsed.statuses || ["active"]
             });
           } else {
             localStorage.removeItem("hosen_patients_selected_filters");
@@ -489,8 +491,19 @@ export default function PatientsPage() {
     });
   };
 
+  const handleToggleStatusFilter = (id: string) => {
+    setSelectedFilters(prev => {
+      const nextStatuses = prev.statuses ? (prev.statuses.includes(id)
+        ? prev.statuses.filter(x => x !== id)
+        : [...prev.statuses, id]) : [id];
+      const next = { ...prev, statuses: nextStatuses };
+      localStorage.setItem("hosen_patients_selected_filters", JSON.stringify(next));
+      return next;
+    });
+  };
+
   const handleClearFilters = () => {
-    const next = { programs: [], groups: [], workers: [] };
+    const next = { programs: [], groups: [], workers: [], statuses: ["active"] };
     setSelectedFilters(next);
     localStorage.setItem("hosen_patients_selected_filters", JSON.stringify(next));
   };
@@ -521,6 +534,12 @@ export default function PatientsPage() {
       if (selectedFilters.workers && selectedFilters.workers.length > 0) {
         const matchesWorker = selectedFilters.workers.includes(p.assignedWorkerId || "");
         if (!matchesWorker) return false;
+      }
+
+      // Status filter
+      if (selectedFilters.statuses && selectedFilters.statuses.length > 0) {
+        const pStatus = p.status === "active" ? "active" : "inactive";
+        if (!selectedFilters.statuses.includes(pStatus)) return false;
       }
 
       return true;
@@ -585,6 +604,11 @@ export default function PatientsPage() {
       return dateStr;
     }
   };
+
+  const activeFiltersCount = selectedFilters.programs.length + 
+    selectedFilters.groups.length + 
+    (selectedFilters.workers?.length || 0) + 
+    ((selectedFilters.statuses && (selectedFilters.statuses.length !== 1 || selectedFilters.statuses[0] !== "active")) ? 1 : 0);
 
   return (
     <RoleGuard allowedRoles={["admin", "manager", "instructor", "social_worker", "employee"]} redirectTo="/">
@@ -663,9 +687,9 @@ export default function PatientsPage() {
             >
               <div className="flex items-center gap-2">
                 <Filter className="w-3.5 h-3.5 text-emerald-500" />
-                <span>{selectedFilters.programs.length + selectedFilters.groups.length + (selectedFilters.workers?.length || 0) > 0 
-                  ? `סינון פעיל (${selectedFilters.programs.length + selectedFilters.groups.length + (selectedFilters.workers?.length || 0)})` 
-                  : "כל התוכניות והקבוצות"}</span>
+                <span>{activeFiltersCount > 0 
+                  ? `סינון פעיל (${activeFiltersCount})` 
+                  : "כל המשתתפים"}</span>
               </div>
               <ChevronDown className={`w-4 h-4 transition-transform duration-300 ${filterDropdownOpen ? 'rotate-180' : ''}`} />
             </button>
@@ -690,8 +714,8 @@ export default function PatientsPage() {
                   dir="rtl"
                 >
                   <div className="flex items-center justify-between border-b border-[var(--border)] pb-2 mb-3">
-                    <span className="text-xs font-black text-[var(--foreground)]">סינון לפי תוכניות וקבוצות</span>
-                    {(selectedFilters.programs.length > 0 || selectedFilters.groups.length > 0 || (selectedFilters.workers?.length || 0) > 0) && (
+                    <span className="text-xs font-black text-[var(--foreground)]">סינונים</span>
+                    {(activeFiltersCount > 0 || (selectedFilters.statuses && selectedFilters.statuses.length !== 1) || (selectedFilters.statuses && selectedFilters.statuses[0] !== "active")) && (
                       <button 
                         onClick={handleClearFilters}
                         className="text-[10px] font-black text-rose-500 hover:text-rose-600 transition-colors flex items-center gap-1"
@@ -703,6 +727,33 @@ export default function PatientsPage() {
                   </div>
 
                   <div className="overflow-y-auto max-h-[320px] pr-1 space-y-4 no-scrollbar">
+                    {/* Status Section */}
+                    <div className="space-y-1.5">
+                      <h4 className="text-[10px] font-black uppercase text-[var(--muted)] tracking-wider mb-2 pr-1 border-r-2 border-blue-500">סטטוס פעילות</h4>
+                      <div className="grid grid-cols-1 gap-1">
+                        {[
+                          { id: "active", name: "פעילים" },
+                          { id: "inactive", name: "לא פעילים" }
+                        ].map(s => {
+                          const isSelected = selectedFilters.statuses?.includes(s.id);
+                          return (
+                            <button
+                              key={s.id}
+                              onClick={() => handleToggleStatusFilter(s.id)}
+                              className={`w-full text-right px-3 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-between active:scale-[0.98] ${
+                                isSelected 
+                                  ? 'bg-blue-500/10 text-blue-500 border border-blue-500/20' 
+                                  : 'hover:bg-[var(--foreground)]/5 border border-transparent'
+                              }`}
+                            >
+                              <span>{s.name}</span>
+                              {isSelected && <Check className="w-3.5 h-3.5 text-blue-500 stroke-[3]" />}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
                     {/* Programs Section */}
                     {programs.length > 0 && (
                       <div className="space-y-1.5">
