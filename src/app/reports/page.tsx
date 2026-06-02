@@ -691,72 +691,73 @@ export default function ReportsPage() {
             }}
           >
             <div>
-              {/* Document Meta (Date & Patient Identification) */}
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "32px", fontSize: "13px", color: "#475569", fontWeight: 700 }}>
+              {/* Document Meta (Date & Patient Identification) - Plain black */}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px", fontSize: "13px", color: "#000000", fontWeight: 700 }}>
                 <div>תאריך: {planDate}</div>
                 <div>סיווג: אישי / שיקומי</div>
               </div>
 
-              {/* Title Banner */}
-              <div style={{ textAlign: "center", marginBottom: "36px" }}>
-                <h2 style={{ fontSize: "24px", fontWeight: 900, margin: "0 0 8px 0", color: "#0f766e" }}>תוכנית שיקום אישית</h2>
-                <h4 style={{ fontSize: "14px", fontWeight: 700, margin: 0, color: "#475569" }}>במסגרת יום חוסן – חרבות ברזל</h4>
-                <div style={{ width: "80px", height: "3px", backgroundColor: "#0d9488", margin: "10px auto 0 auto", borderRadius: "999px" }} />
+              {/* Title Banner - Plain black */}
+              <div style={{ textAlign: "center", marginBottom: "24px" }}>
+                <h2 style={{ fontSize: "22px", fontWeight: 900, margin: "0 0 6px 0", color: "#000000" }}>תוכנית שיקום אישית</h2>
+                <h4 style={{ fontSize: "13px", fontWeight: 700, margin: 0, color: "#000000" }}>במסגרת יום חוסן – חרבות ברזל</h4>
+                <div style={{ width: "80px", height: "1px", backgroundColor: "#000000", margin: "8px auto 0 auto" }} />
               </div>
 
-              {/* Administrative Details Block */}
+              {/* Administrative Details Block - Plain transparent card with standard simple borders */}
               <div 
                 style={{ 
                   display: "grid", 
                   gridTemplateColumns: "1fr 1fr", 
-                  gap: "14px", 
-                  padding: "16px 20px", 
-                  backgroundColor: "#f8fafc", 
-                  borderRadius: "12px", 
-                  border: "1px solid #e2e8f0", 
-                  marginBottom: "32px", 
-                  fontSize: "13px" 
+                  gap: "12px", 
+                  padding: "12px 16px", 
+                  backgroundColor: "transparent", 
+                  borderRadius: "0px", 
+                  border: "1px solid #000000", 
+                  marginBottom: "24px", 
+                  fontSize: "13px",
+                  color: "#000000"
                 }}
               >
                 <div>
-                  <p style={{ margin: "0 0 6px 0", color: "#334155" }}>שם המטופל/ת: <strong style={{ color: "#0f172a" }}>{patientName || "—"}</strong></p>
-                  <p style={{ margin: 0, color: "#334155" }}>ת.ז: <strong style={{ color: "#0f172a" }}>{patientId || "—"}</strong></p>
+                  <p style={{ margin: "0 0 4px 0", color: "#000000" }}>שם המטופל/ת: <strong style={{ color: "#000000" }}>{patientName || "—"}</strong></p>
+                  <p style={{ margin: 0, color: "#000000" }}>ת.ז: <strong style={{ color: "#000000" }}>{patientId || "—"}</strong></p>
                 </div>
                 <div>
-                  <p style={{ margin: "0 0 6px 0", color: "#334155" }}>איש הצוות הטיפולי המלווה בחווה: <strong style={{ color: "#0f172a" }}>{therapistName || "—"}</strong></p>
-                  <p style={{ margin: 0, color: "#334155" }}>שם העו"ס במחוז: <strong style={{ color: "#0f172a" }}>{districtWorker || "—"}</strong></p>
+                  <p style={{ margin: "0 0 4px 0", color: "#000000" }}>איש הצוות הטיפולי המלווה בחווה: <strong style={{ color: "#000000" }}>{therapistName || "—"}</strong></p>
+                  <p style={{ margin: 0, color: "#000000" }}>שם העו"ס במחוז: <strong style={{ color: "#000000" }}>{districtWorker || "—"}</strong></p>
                 </div>
               </div>
 
-              {/* Section א: Areas needing improvement */}
-              <div style={{ marginBottom: "32px" }}>
-                <h3 style={{ fontSize: "14px", fontWeight: 900, color: "#0f766e", borderRight: "3px solid #0d9488", paddingRight: "8px", marginBottom: "12px" }}>
+              {/* Section א: Areas needing improvement - Plain black */}
+              <div style={{ marginBottom: "20px" }}>
+                <h3 style={{ fontSize: "13px", fontWeight: 900, color: "#000000", borderRight: "3px solid #000000", paddingRight: "8px", marginBottom: "10px" }}>
                   א. באילו תחומים בחייך היית מעוניין לראות שיפור? ציין את התחומים על פי סדר החשיבות:
                 </h3>
                 <div style={{ paddingRight: "12px" }}>
                   {planData.areasOfImprovement.map((area, idx) => (
-                    <div key={idx} style={{ display: "flex", alignItems: "flex-start", gap: "8px", marginBottom: "8px", fontSize: "13px", color: "#0f172a" }}>
-                      <span style={{ fontWeight: 900, color: "#0d9488", minWidth: "16px" }}>{idx + 1}.</span>
-                      <span style={{ lineHeight: 1.6 }}>{area}</span>
+                    <div key={idx} style={{ display: "flex", alignItems: "flex-start", gap: "8px", marginBottom: "6px", fontSize: "12px", color: "#000000" }}>
+                      <span style={{ fontWeight: 900, color: "#000000", minWidth: "16px" }}>{idx + 1}.</span>
+                      <span style={{ lineHeight: 1.5 }}>{area}</span>
                     </div>
                   ))}
                   {planData.areasOfImprovement.length === 0 && (
-                    <p style={{ fontStyle: "italic", color: "#94a3b8", fontSize: "12px", margin: 0 }}>לא הוגדרו תחומים</p>
+                    <p style={{ fontStyle: "italic", color: "#666666", fontSize: "11px", margin: 0 }}>לא הוגדרו תחומים</p>
                   )}
                 </div>
               </div>
 
-              {/* Section ב: Specific Goal */}
-              <div style={{ marginBottom: "36px" }}>
-                <h3 style={{ fontSize: "14px", fontWeight: 900, color: "#0f766e", borderRight: "3px solid #0d9488", paddingRight: "8px", marginBottom: "12px" }}>
+              {/* Section ב: Specific Goal - Plain black */}
+              <div style={{ marginBottom: "24px" }}>
+                <h3 style={{ fontSize: "13px", fontWeight: 900, color: "#000000", borderRight: "3px solid #000000", paddingRight: "8px", marginBottom: "10px" }}>
                   ב. הגדר את המטרה באופן ספציפי וברור:
                 </h3>
                 <div 
                   style={{ 
                     paddingRight: "12px", 
-                    fontSize: "13px", 
-                    color: "#0f172a", 
-                    lineHeight: 1.7, 
+                    fontSize: "12px", 
+                    color: "#000000", 
+                    lineHeight: 1.6, 
                     whiteSpace: "pre-wrap" 
                   }}
                 >
@@ -764,61 +765,95 @@ export default function ReportsPage() {
                 </div>
               </div>
 
-              {/* Grid/Table columns layout */}
-              <div 
-                style={{ 
-                  display: "grid", 
-                  gridTemplateColumns: "1fr 1fr", 
-                  gap: "20px", 
-                  borderTop: "1px solid #cbd5e1", 
-                  paddingTop: "24px",
-                  marginBottom: "40px"
+              {/* Section 2 Structured inside a plain HTML Table element with simple borders */}
+              <table
+                style={{
+                  width: "100%",
+                  borderCollapse: "collapse",
+                  border: "1px solid #000000",
+                  marginBottom: "24px",
+                  fontSize: "12px",
+                  color: "#000000"
                 }}
               >
-                {/* Ways to achieve goals */}
-                <div style={{ borderLeft: "1px solid #e2e8f0", paddingLeft: "15px" }}>
-                  <h4 style={{ fontSize: "13px", fontWeight: 900, color: "#0f766e", marginBottom: "12px", borderBottom: "2px solid #f1f5f9", paddingBottom: "6px" }}>
-                    דרכים אפשריות להשגת המטרה (בדגש החווה)
-                  </h4>
-                  <div>
-                    {planData.waysToAchieve.map((way, idx) => (
-                      <div key={idx} style={{ display: "flex", gap: "6px", marginBottom: "10px", fontSize: "12px", color: "#334155", lineHeight: 1.5 }}>
-                        <span style={{ color: "#0d9488", fontWeight: 900 }}>•</span>
-                        <span>{way}</span>
-                      </div>
-                    ))}
-                    {planData.waysToAchieve.length === 0 && (
-                      <p style={{ fontStyle: "italic", color: "#94a3b8", fontSize: "11px" }}>אין רשומות</p>
-                    )}
-                  </div>
-                </div>
+                <thead>
+                  <tr style={{ borderBottom: "1px solid #000000" }}>
+                    <th
+                      style={{
+                        width: "50%",
+                        padding: "8px 10px",
+                        fontWeight: "bold",
+                        borderLeft: "1px solid #000000",
+                        textAlign: "right",
+                        color: "#000000"
+                      }}
+                    >
+                      דרכים אפשריות להשגת המטרה (בדגש החווה)
+                    </th>
+                    <th
+                      style={{
+                        width: "50%",
+                        padding: "8px 10px",
+                        fontWeight: "bold",
+                        textAlign: "right",
+                        color: "#000000"
+                      }}
+                    >
+                      מקורות סיוע להשגת המטרה - מה או מי יכול לסייע?
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td
+                      style={{
+                        padding: "8px 10px",
+                        borderLeft: "1px solid #000000",
+                        verticalAlign: "top",
+                        lineHeight: 1.5,
+                        color: "#000000"
+                      }}
+                    >
+                      {planData.waysToAchieve.map((way, idx) => (
+                        <div key={idx} style={{ display: "flex", gap: "4px", marginBottom: "6px" }}>
+                          <span>•</span>
+                          <span>{way}</span>
+                        </div>
+                      ))}
+                      {planData.waysToAchieve.length === 0 && (
+                        <p style={{ fontStyle: "italic", color: "#666666", fontSize: "11px", margin: 0 }}>אין רשומות</p>
+                      )}
+                    </td>
+                    <td
+                      style={{
+                        padding: "8px 10px",
+                        verticalAlign: "top",
+                        lineHeight: 1.5,
+                        color: "#000000"
+                      }}
+                    >
+                      {planData.sourcesOfSupport.map((support, idx) => (
+                        <div key={idx} style={{ display: "flex", gap: "4px", marginBottom: "6px" }}>
+                          <span>•</span>
+                          <span>{support}</span>
+                        </div>
+                      ))}
+                      {planData.sourcesOfSupport.length === 0 && (
+                        <p style={{ fontStyle: "italic", color: "#666666", fontSize: "11px", margin: 0 }}>אין רשומות</p>
+                      )}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
 
-                {/* Sources of support */}
-                <div>
-                  <h4 style={{ fontSize: "13px", fontWeight: 900, color: "#0f766e", marginBottom: "12px", borderBottom: "2px solid #f1f5f9", paddingBottom: "6px" }}>
-                    מקורות סיוע להשגת המטרה - מה או מי יכול לסייע?
-                  </h4>
-                  <div>
-                    {planData.sourcesOfSupport.map((support, idx) => (
-                      <div key={idx} style={{ display: "flex", gap: "6px", marginBottom: "10px", fontSize: "12px", color: "#334155", lineHeight: 1.5 }}>
-                        <span style={{ color: "#0d9488", fontWeight: 900 }}>•</span>
-                        <span>{support}</span>
-                      </div>
-                    ))}
-                    {planData.sourcesOfSupport.length === 0 && (
-                      <p style={{ fontStyle: "italic", color: "#94a3b8", fontSize: "11px" }}>אין רשומות</p>
-                    )}
-                  </div>
-                </div>
-              </div>
             </div>
 
-            {/* Standard Signature Block */}
+            {/* Standard Signature Block - Plain black */}
             <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", fontSize: "13px", color: "#000000" }}>
-              <p style={{ margin: "0 0 6px 0" }}>בברכה,</p>
-              <strong style={{ fontSize: "14px", color: "#0f172a" }}>{therapistName}</strong>
-              <span style={{ fontSize: "12px", color: "#475569", marginTop: "2px" }}>{therapistTitle}</span>
-              <span style={{ fontSize: "11px", color: "#94a3b8", marginTop: "1px" }}>צוות טיפולי, חוות רום</span>
+              <p style={{ margin: "0 0 4px 0" }}>בברכה,</p>
+              <strong style={{ fontSize: "14px", color: "#000000" }}>{therapistName}</strong>
+              <span style={{ fontSize: "12px", color: "#000000", marginTop: "2px" }}>{therapistTitle}</span>
+              <span style={{ fontSize: "11px", color: "#000000", marginTop: "1px" }}>צוות טיפולי, חוות רום</span>
             </div>
 
           </div>
