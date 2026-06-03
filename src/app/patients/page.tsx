@@ -39,6 +39,7 @@ interface Patient {
   extensionReceived?: boolean;
   extensionReceivedAt?: string;
   rehabPlanCompleted?: boolean;
+  summaryReportCompleted?: boolean;
 }
 
 interface Group {
@@ -481,6 +482,18 @@ export default function PatientsPage() {
       setPatients(prev => prev.map(p => p.id === pId ? { ...p, rehabPlanCompleted: nextVal } : p));
     } catch (err) {
       console.error("Error toggling rehabPlanCompleted:", err);
+      alert("שגיאה בעדכון הסטטוס");
+    }
+  };
+
+  const handleToggleSummaryReportCompleted = async (pId: string, currentVal: boolean, e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      const nextVal = !currentVal;
+      await updateDoc(doc(db, "patients", pId), { summaryReportCompleted: nextVal });
+      setPatients(prev => prev.map(p => p.id === pId ? { ...p, summaryReportCompleted: nextVal } : p));
+    } catch (err) {
+      console.error("Error toggling summaryReportCompleted:", err);
       alert("שגיאה בעדכון הסטטוס");
     }
   };
@@ -1007,17 +1020,18 @@ export default function PatientsPage() {
                 <table className="w-full text-right border-collapse">
                   <thead>
                     <tr className="border-b border-[var(--border)]">
-                      <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-6 py-4 text-[9px] font-black uppercase tracking-widest text-[var(--muted)] z-10 shadow-[inset_0_-1px_0_var(--border)]">משתתף</th>
-                      <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-6 py-4 text-[9px] font-black uppercase tracking-widest text-[var(--muted)] z-10 shadow-[inset_0_-1px_0_var(--border)]">תעודת זהות</th>
-                      <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-6 py-4 text-[9px] font-black uppercase tracking-widest text-[var(--muted)] z-10 shadow-[inset_0_-1px_0_var(--border)]">עו"ס מלווה</th>
-                      <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-6 py-4 text-[9px] font-black uppercase tracking-widest text-[var(--muted)] z-10 shadow-[inset_0_-1px_0_var(--border)]">תוכנית</th>
-                      <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-6 py-4 text-[9px] font-black uppercase tracking-widest text-[var(--muted)] z-10 shadow-[inset_0_-1px_0_var(--border)]">תאריך התחלה</th>
-                      <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-6 py-4 text-[9px] font-black uppercase tracking-widest text-[var(--muted)] z-10 shadow-[inset_0_-1px_0_var(--border)]">תאריך סיום</th>
-                      <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-6 py-4 text-[9px] font-black uppercase tracking-widest text-[var(--muted)] text-center z-10 shadow-[inset_0_-1px_0_var(--border)]">תוכנית שיקום</th>
-                      <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-6 py-4 text-[9px] font-black uppercase tracking-widest text-[var(--muted)] text-center z-10 shadow-[inset_0_-1px_0_var(--border)]">הוגשה הארכה</th>
-                      <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-6 py-4 text-[9px] font-black uppercase tracking-widest text-[var(--muted)] text-center z-10 shadow-[inset_0_-1px_0_var(--border)]">התקבלה הארכה</th>
-                      <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-6 py-4 text-[9px] font-black uppercase tracking-widest text-[var(--muted)] z-10 shadow-[inset_0_-1px_0_var(--border)]">סטטוס</th>
-                      <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-6 py-4 text-[9px] font-black uppercase tracking-widest text-[var(--muted)] w-16 z-10 shadow-[inset_0_-1px_0_var(--border)]"></th>
+                      <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-3 py-3 text-[9px] font-black uppercase tracking-widest text-[var(--muted)] z-10 shadow-[inset_0_-1px_0_var(--border)]">משתתף</th>
+                      <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-3 py-3 text-[9px] font-black uppercase tracking-widest text-[var(--muted)] z-10 shadow-[inset_0_-1px_0_var(--border)]">תעודת זהות</th>
+                      <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-3 py-3 text-[9px] font-black uppercase tracking-widest text-[var(--muted)] z-10 shadow-[inset_0_-1px_0_var(--border)]">עו"ס מלווה</th>
+                      <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-3 py-3 text-[9px] font-black uppercase tracking-widest text-[var(--muted)] z-10 shadow-[inset_0_-1px_0_var(--border)]">תוכנית</th>
+                      <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-3 py-3 text-[9px] font-black uppercase tracking-widest text-[var(--muted)] z-10 shadow-[inset_0_-1px_0_var(--border)]">תאריך התחלה</th>
+                      <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-3 py-3 text-[9px] font-black uppercase tracking-widest text-[var(--muted)] z-10 shadow-[inset_0_-1px_0_var(--border)]">תאריך סיום</th>
+                      <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-2 py-3 text-[9px] font-black uppercase tracking-widest text-[var(--muted)] text-center z-10 shadow-[inset_0_-1px_0_var(--border)]">תוכנית שיקום</th>
+                      <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-2 py-3 text-[9px] font-black uppercase tracking-widest text-[var(--muted)] text-center z-10 shadow-[inset_0_-1px_0_var(--border)]">דוח אמצע והארכה</th>
+                      <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-2 py-3 text-[9px] font-black uppercase tracking-widest text-[var(--muted)] text-center z-10 shadow-[inset_0_-1px_0_var(--border)]">התקבלה הארכה</th>
+                      <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-2 py-3 text-[9px] font-black uppercase tracking-widest text-[var(--muted)] text-center z-10 shadow-[inset_0_-1px_0_var(--border)]">דוח סיכום</th>
+                      <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-3 py-3 text-[9px] font-black uppercase tracking-widest text-[var(--muted)] z-10 shadow-[inset_0_-1px_0_var(--border)]">סטטוס</th>
+                      <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-3 py-3 text-[9px] font-black uppercase tracking-widest text-[var(--muted)] w-12 z-10 shadow-[inset_0_-1px_0_var(--border)]"></th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[var(--border)]">
@@ -1038,43 +1052,43 @@ export default function PatientsPage() {
                               : 'hover:bg-[var(--foreground)]/[0.02]'
                           }`}
                         >
-                          <td className="px-6 py-5">
+                          <td className="px-3 py-3">
                             <div className="flex items-center gap-3">
-                              <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-xs shrink-0 ${
+                              <div className={`w-8 h-8 rounded-xl flex items-center justify-center font-black text-[10px] shrink-0 ${
                                 isExpiring6m ? 'bg-rose-500/20 text-rose-600' : isExpiring3m ? 'bg-amber-500/20 text-amber-600' : 'bg-emerald-500/10 text-emerald-600'
                               }`}>
                                 {p.firstName?.[0]}{p.lastName?.[0]}
                               </div>
                               <div className="flex flex-col gap-0.5">
-                                <span className={`font-black text-sm transition-colors ${
+                                <span className={`font-black text-xs transition-colors ${
                                   isExpiring6m ? 'text-rose-700 group-hover:text-rose-800' : isExpiring3m ? 'text-amber-700 group-hover:text-amber-800' : 'group-hover:text-emerald-500'
                                 }`}>
                                   {p.firstName} {p.lastName}
                                 </span>
                                 {isExpiring3m && (
-                                  <span className="flex items-center gap-1 text-[9px] font-black text-amber-600 bg-amber-500/10 px-1.5 py-0.5 rounded-md whitespace-nowrap w-fit">
-                                    <AlertCircle className="w-2.5 h-2.5" />
-                                    {daysLeft < 0 ? 'עבר 3 חודשים!' : `מסיים 3 חודשים (נותרו ${daysLeft} ימים)`}
+                                  <span className="flex items-center gap-1 text-[8px] font-black text-amber-600 bg-amber-500/10 px-1 py-0.5 rounded whitespace-nowrap w-fit">
+                                    <AlertCircle className="w-2 h-2" />
+                                    {daysLeft < 0 ? 'עבר 3 חודשים!' : `מסיים 3 מ' (נותרו ${daysLeft} י')`}
                                   </span>
                                 )}
                                 {isExpiring6m && (
-                                  <span className="flex items-center gap-1 text-[9px] font-black text-rose-600 bg-rose-500/10 px-1.5 py-0.5 rounded-md whitespace-nowrap w-fit">
-                                    <AlertCircle className="w-2.5 h-2.5" />
-                                    {daysLeft < 0 ? 'עבר חצי שנה (פרידה)!' : `מסיים חצי שנה (נותרו ${daysLeft} ימים)`}
+                                  <span className="flex items-center gap-1 text-[8px] font-black text-rose-600 bg-rose-500/10 px-1 py-0.5 rounded whitespace-nowrap w-fit">
+                                    <AlertCircle className="w-2 h-2" />
+                                    {daysLeft < 0 ? 'עבר חצי שנה!' : `מסיים חצי שנה (נותרו ${daysLeft} י')`}
                                   </span>
                                 )}
                               </div>
                             </div>
                           </td>
-                          <td className="px-6 py-5 text-xs font-bold font-mono opacity-60">{p.idNumber}</td>
-                          <td className="px-6 py-5">
-                            <div className="flex items-center gap-2">
+                          <td className="px-3 py-3 text-[11px] font-bold font-mono opacity-60">{p.idNumber}</td>
+                          <td className="px-3 py-3">
+                            <div className="flex items-center gap-1.5">
                                <Briefcase className="w-3.5 h-3.5 text-emerald-500/40" />
-                               <span className="text-xs font-bold">{staff[p.assignedWorkerId || ""] || "לא שובץ"}</span>
+                               <span className="text-[11px] font-bold">{staff[p.assignedWorkerId || ""] || "לא שובץ"}</span>
                             </div>
                           </td>
-                          <td className="px-6 py-5">
-                            <span className="px-3 py-1 rounded-full bg-[var(--foreground)]/5 border border-[var(--border)] text-[10px] font-black">
+                          <td className="px-3 py-3">
+                            <span className="px-2 py-0.5 rounded-full bg-[var(--foreground)]/5 border border-[var(--border)] text-[9px] font-black">
                               {(() => {
                                 const patientProgs = p.programIds || (p.programId ? [p.programId] : []);
                                 const patientGrps = p.groupIds || (p.hosenType ? [p.hosenType] : []);
@@ -1105,9 +1119,9 @@ export default function PatientsPage() {
                               })()}
                             </span>
                           </td>
-                          <td className="px-6 py-5 text-xs font-bold opacity-60">{formatDate(p.startDate)}</td>
-                          <td className="px-6 py-5 text-xs font-bold opacity-60">{formatDate(p.endDate)}</td>
-                          <td className="px-6 py-5 text-center">
+                          <td className="px-3 py-3 text-[11px] font-bold opacity-60">{formatDate(p.startDate)}</td>
+                          <td className="px-3 py-3 text-[11px] font-bold opacity-60">{formatDate(p.endDate)}</td>
+                          <td className="px-2 py-3 text-center">
                             <div className="flex justify-center">
                               <button
                                 onClick={(e) => handleToggleRehabPlanCompleted(p.id, !!p.rehabPlanCompleted, e)}
@@ -1121,7 +1135,7 @@ export default function PatientsPage() {
                               </button>
                             </div>
                           </td>
-                          <td className="px-6 py-5 text-center">
+                          <td className="px-2 py-3 text-center">
                             <div className="flex justify-center">
                               <button
                                 onClick={(e) => handleToggleExtensionSent(p.id, !!p.extensionSent, e)}
@@ -1135,7 +1149,7 @@ export default function PatientsPage() {
                               </button>
                             </div>
                           </td>
-                          <td className="px-6 py-5 text-center">
+                          <td className="px-2 py-3 text-center">
                             <div className="flex justify-center">
                               <button
                                 onClick={(e) => handleToggleExtensionReceived(p.id, !!p.extensionReceived, e)}
@@ -1149,17 +1163,31 @@ export default function PatientsPage() {
                               </button>
                             </div>
                           </td>
-                          <td className="px-6 py-4">
-                            <div className="flex items-center gap-2">
-                              <div className={`w-1.5 h-1.5 rounded-full ${p.status === 'active' ? 'bg-emerald-500' : 'bg-[var(--muted)]/30'}`} />
-                              <span className="text-xs font-bold">{p.status === 'active' ? 'פעיל' : 'לא פעיל'}</span>
+                          <td className="px-2 py-3 text-center">
+                            <div className="flex justify-center">
+                              <button
+                                onClick={(e) => handleToggleSummaryReportCompleted(p.id, !!p.summaryReportCompleted, e)}
+                                className={`w-5 h-5 rounded border flex items-center justify-center transition-all ${
+                                  p.summaryReportCompleted 
+                                    ? 'bg-blue-600 border-blue-700 text-white' 
+                                    : 'border-[var(--border)] hover:border-blue-600 bg-[var(--surface)] hover:scale-105'
+                                }`}
+                              >
+                                {p.summaryReportCompleted && <Check className="w-3.5 h-3.5 stroke-[4]" />}
+                              </button>
                             </div>
                           </td>
-                          <td className="px-6 py-5 text-left">
+                          <td className="px-3 py-3">
+                            <div className="flex items-center gap-1.5">
+                              <div className={`w-1.5 h-1.5 rounded-full ${p.status === 'active' ? 'bg-emerald-500' : 'bg-[var(--muted)]/30'}`} />
+                              <span className="text-[11px] font-bold">{p.status === 'active' ? 'פעיל' : 'לא פעיל'}</span>
+                            </div>
+                          </td>
+                          <td className="px-3 py-3 text-left">
                             <button 
                               onClick={(e) => handleDelete(p.id, e)}
                               title="מחיקת משתתף"
-                              className="p-2 hover:bg-rose-500/10 text-[var(--foreground)]/20 hover:text-rose-500 rounded-lg transition-all"
+                              className="p-1.5 hover:bg-rose-500/10 text-[var(--foreground)]/20 hover:text-rose-500 rounded-lg transition-all"
                             >
                               <Trash2 className="w-4 h-4" />
                             </button>
@@ -1292,7 +1320,7 @@ export default function PatientsPage() {
                           תוכנית שיקום
                         </button>
 
-                        <button
+                         <button
                           onClick={(e) => handleToggleExtensionSent(p.id, !!p.extensionSent, e)}
                           className="flex items-center gap-2 text-[10px] font-bold text-[var(--muted)] hover:text-amber-500 transition-colors"
                         >
@@ -1303,7 +1331,7 @@ export default function PatientsPage() {
                           }`}>
                             {p.extensionSent && <Check className="w-3 h-3 stroke-[4]" />}
                           </div>
-                          הוגשה הארכה
+                          דוח אמצע והארכה
                         </button>
 
                         <button
@@ -1318,6 +1346,20 @@ export default function PatientsPage() {
                             {p.extensionReceived && <Check className="w-3 h-3 stroke-[4]" />}
                           </div>
                           התקבלה הארכה
+                        </button>
+
+                        <button
+                          onClick={(e) => handleToggleSummaryReportCompleted(p.id, !!p.summaryReportCompleted, e)}
+                          className="flex items-center gap-2 text-[10px] font-bold text-[var(--muted)] hover:text-blue-500 transition-colors"
+                        >
+                          <div className={`w-4 h-4 rounded border flex items-center justify-center transition-all ${
+                            p.summaryReportCompleted 
+                              ? 'bg-blue-600 border-blue-700 text-white' 
+                              : 'border-[var(--border)] hover:border-blue-600 bg-[var(--surface)]'
+                          }`}>
+                            {p.summaryReportCompleted && <Check className="w-3 h-3 stroke-[4]" />}
+                          </div>
+                          דוח סיכום
                         </button>
                       </div>
                     </div>
