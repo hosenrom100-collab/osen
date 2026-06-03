@@ -22,31 +22,7 @@ export function BottomNav() {
   const [activeOverlay, setActiveOverlay] = useState<"menu" | null>(null);
 
   // Scroll visibility logic
-  const [isVisible, setIsVisible] = useState(true);
-  const lastScrollY = useRef(0);
-
-  useEffect(() => {
-    const handleScroll = () => {
-      const currentScrollY = window.scrollY;
-      
-      // Don't hide if menu overlay is open
-      if (activeOverlay !== null) {
-        setIsVisible(true);
-        return;
-      }
-
-      // Hide menu when scrolling down, show when scrolling up
-      if (currentScrollY > lastScrollY.current && currentScrollY > 40) {
-        setIsVisible(false);
-      } else {
-        setIsVisible(true);
-      }
-      lastScrollY.current = currentScrollY;
-    };
-
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, [activeOverlay]);
+  const isVisible = true;
 
   // If not logged in, or on public/onboarding pages, do not show BottomNav
   if (!user || pathname === "/portal/join" || pathname === "/login") return null;
@@ -141,10 +117,7 @@ export function BottomNav() {
   return (
     <>
       {/* Bottom Nav Bar */}
-      <motion.div 
-        initial={{ y: 0 }}
-        animate={{ y: isVisible ? 0 : "100%" }}
-        transition={{ duration: 0.2, ease: "easeOut" }}
+      <div 
         className="fixed bottom-0 inset-x-0 z-50 md:hidden bg-[var(--surface)] border-t border-[var(--border)] shadow-[0_-4px_24px_rgba(0,85,212,0.05)]"
       >
         <nav className="flex items-center justify-around h-[68px] px-2" dir="rtl">
@@ -185,7 +158,7 @@ export function BottomNav() {
         </nav>
         {/* Safe Area Inset for modern mobile devices */}
         <div className="h-[env(safe-area-inset-bottom)] bg-[var(--surface)]" />
-      </motion.div>
+      </div>
 
       {/* Overlays Backdrop */}
       <AnimatePresence>
