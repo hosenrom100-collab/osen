@@ -19,6 +19,60 @@ interface RehabPlanData {
   sourcesOfSupport: string[];
 }
 
+const serializePlanData = (data: RehabPlanData): string => {
+  const areas = data.areasOfImprovement.map((area, idx) => `${idx + 1}. ${area}`).join("\n");
+  const goal = data.specificGoal;
+  const ways = data.waysToAchieve.map(way => `- ${way}`).join("\n");
+  const supports = data.sourcesOfSupport.map(support => `- ${support}`).join("\n");
+
+  return `א. תחומים לשיפור:
+${areas || "1. "}
+
+ב. מטרה ספציפית:
+${goal || ""}
+
+ג. דרכים להשגת המטרה:
+${ways || "- "}
+
+ד. מקורות סיוע:
+${supports || "- "}`;
+};
+
+const deserializePlanData = (text: string): RehabPlanData => {
+  const result: RehabPlanData = {
+    areasOfImprovement: [],
+    specificGoal: "",
+    waysToAchieve: [],
+    sourcesOfSupport: []
+  };
+
+  const sections = text.split(/(?=^[אבגדה]\.\s)/m);
+
+  sections.forEach(section => {
+    const lines = section.split("\n");
+    const header = lines[0] || "";
+    const contentLines = lines.slice(1);
+
+    if (header.includes("א.")) {
+      result.areasOfImprovement = contentLines
+        .map(line => line.replace(/^\d+[\.\)]\s*/, "").trim())
+        .filter(Boolean);
+    } else if (header.includes("ב.")) {
+      result.specificGoal = contentLines.join("\n").trim();
+    } else if (header.includes("ג.")) {
+      result.waysToAchieve = contentLines
+        .map(line => line.replace(/^[\-\*\u2022]\s*/, "").trim())
+        .filter(Boolean);
+    } else if (header.includes("ד.")) {
+      result.sourcesOfSupport = contentLines
+        .map(line => line.replace(/^[\-\*\u2022]\s*/, "").trim())
+        .filter(Boolean);
+    }
+  });
+
+  return result;
+};
+
 export default function ReportsPage() {
   const { user } = useAuth();
   const router = useRouter();
@@ -36,6 +90,7 @@ export default function ReportsPage() {
   const [therapistName, setTherapistName] = useState(user?.displayName || "עמיר אייל");
   const [therapistTitle, setTherapistTitle] = useState("עו'ס, MSW");
   const [planDate, setPlanDate] = useState("");
+  const [editableText, setEditableText] = useState("");
 
   // Clinical Rehabilitation Plan Data
   const [planData, setPlanData] = useState<RehabPlanData>({
@@ -122,12 +177,14 @@ export default function ReportsPage() {
       const data = await response.json();
       
       // Update states with AI parsed data
-      setPlanData({
+      const parsed = {
         areasOfImprovement: data.areasOfImprovement || [],
         specificGoal: data.specificGoal || "",
         waysToAchieve: data.waysToAchieve || [],
         sourcesOfSupport: data.sourcesOfSupport || []
-      });
+      };
+      setPlanData(parsed);
+      setEditableText(serializePlanData(parsed));
 
       // Automatically open editing modal
       setShowEditModal(true);
@@ -491,125 +548,21 @@ export default function ReportsPage() {
                     </div>
                   </div>
                 </div>
-
-                {/* 2. א. Areas needing improvement */}
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <h4 className="text-xs font-black uppercase tracking-wider text-[var(--muted)] border-r-2 border-teal-500 pr-2">
-                      א. באילו תחומים בחייך היית מעוניין לראות שיפור? (לפי סדר חשיבות)
-                    </h4>
-                    <button 
-                      onClick={handleAddArea}
-                      className="flex items-center gap-1.5 text-[10px] font-black bg-teal-500/10 text-teal-500 px-3 py-1.5 rounded-xl hover:bg-teal-500/20 transition-all"
-                    >
-                      <Plus className="w-3.5 h-3.5" /> הוסף תחום
-                    </button>
-                  </div>
-
-                  <div className="space-y-3">
-                    {planData.areasOfImprovement.map((area, idx) => (
-                      <div key={idx} className="flex gap-3 items-center group">
-                        <span className="w-7 h-7 rounded-xl bg-teal-500/5 text-teal-500 flex items-center justify-center font-bold text-xs shrink-0">{idx + 1}</span>
-                        <input
-                          type="text"
-                          value={area}
-                          onChange={(e) => handleUpdateArea(idx, e.target.value)}
-                          className="flex-1 bg-[var(--background)] border border-[var(--border)] rounded-2xl px-4 py-3 text-xs outline-none focus:border-teal-500 font-bold transition-all"
-                        />
-                        <button 
-                          onClick={() => handleRemoveArea(idx)}
-                          className="p-3 bg-rose-500/10 text-rose-500 rounded-xl hover:bg-rose-500/20 transition-all shrink-0"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* 3. ב. Specific Goal */}
+                {/* 2. Rehabilitation Plan Content Editor (Single Area) */}
                 <div className="space-y-3">
                   <h4 className="text-xs font-black uppercase tracking-wider text-[var(--muted)] border-r-2 border-teal-500 pr-2">
-                    ב. הגדר את המטרה באופן ספציפי וברור
+                    תוכן תוכנית השיקום (ניתן לעריכה באזור אחד)
                   </h4>
                   <textarea
-                    value={planData.specificGoal}
-                    onChange={(e) => setPlanData(prev => ({ ...prev, specificGoal: e.target.value }))}
-                    rows={4}
-                    className="w-full bg-[var(--background)] border border-[var(--border)] rounded-3xl p-5 text-xs outline-none focus:border-teal-500 font-bold leading-relaxed resize-none transition-all"
+                    value={editableText}
+                    onChange={(e) => {
+                      setEditableText(e.target.value);
+                      setPlanData(deserializePlanData(e.target.value));
+                    }}
+                    rows={18}
+                    className="w-full bg-[var(--background)] border border-[var(--border)] rounded-3xl p-6 text-xs outline-none focus:border-teal-500 font-bold leading-relaxed resize-y transition-all font-mono text-right"
+                    placeholder="הקלד את תוכנית השיקום..."
                   />
-                </div>
-
-                {/* 4. Side-by-side: Ways to Achieve & Sources of Support */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  
-                  {/* Ways to achieve goals (Farm Focus) */}
-                  <div className="space-y-4">
-                    <div className="flex justify-between items-center">
-                      <h4 className="text-xs font-black uppercase tracking-wider text-[var(--muted)] border-r-2 border-teal-500 pr-2">
-                        דרכים אפשריות להשגת המטרה (בדגש החווה)
-                      </h4>
-                      <button 
-                        onClick={handleAddWay}
-                        className="flex items-center gap-1.5 text-[10px] font-black bg-teal-500/10 text-teal-500 px-3 py-1.5 rounded-xl hover:bg-teal-500/20 transition-all"
-                      >
-                        <Plus className="w-3 h-3" /> הוסף דרך
-                      </button>
-                    </div>
-
-                    <div className="space-y-3">
-                      {planData.waysToAchieve.map((way, idx) => (
-                        <div key={idx} className="flex gap-2 items-center">
-                          <textarea
-                            value={way}
-                            onChange={(e) => handleUpdateWay(idx, e.target.value)}
-                            rows={2}
-                            className="flex-1 bg-[var(--background)] border border-[var(--border)] rounded-2xl px-4 py-2.5 text-xs outline-none focus:border-teal-500 font-medium resize-none transition-all"
-                          />
-                          <button 
-                            onClick={() => handleRemoveWay(idx)}
-                            className="p-2.5 bg-rose-500/10 text-rose-500 rounded-xl hover:bg-rose-500/20 transition-all shrink-0"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Sources of support */}
-                  <div className="space-y-4">
-                    <div className="flex justify-between items-center">
-                      <h4 className="text-xs font-black uppercase tracking-wider text-[var(--muted)] border-r-2 border-teal-500 pr-2">
-                        מקורות סיוע להשגת המטרה - מי/מה יכול לסייע?
-                      </h4>
-                      <button 
-                        onClick={handleAddSupport}
-                        className="flex items-center gap-1.5 text-[10px] font-black bg-teal-500/10 text-teal-500 px-3 py-1.5 rounded-xl hover:bg-teal-500/20 transition-all"
-                      >
-                        <Plus className="w-3 h-3" /> הוסף מקור
-                      </button>
-                    </div>
-
-                    <div className="space-y-3">
-                      {planData.sourcesOfSupport.map((support, idx) => (
-                        <div key={idx} className="flex gap-2 items-center">
-                          <textarea
-                            value={support}
-                            onChange={(e) => handleUpdateSupport(idx, e.target.value)}
-                            rows={2}
-                            className="flex-1 bg-[var(--background)] border border-[var(--border)] rounded-2xl px-4 py-2.5 text-xs outline-none focus:border-teal-500 font-medium resize-none transition-all"
-                          />
-                          <button 
-                            onClick={() => handleRemoveSupport(idx)}
-                            className="p-2.5 bg-rose-500/10 text-rose-500 rounded-xl hover:bg-rose-500/20 transition-all shrink-0"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
                 </div>
 
               </div>

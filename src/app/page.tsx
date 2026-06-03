@@ -470,24 +470,26 @@ export default function Home() {
       {/* ── Status bar — single line summary ── */}
       {dataLoaded && totalActive > 0 && (
         <div className="border-b border-[var(--border)] px-4 md:px-6">
-          <div className="flex items-center gap-4 h-9 text-xs">
-            <Link href="/attendance" className="flex items-center gap-1.5 hover:text-emerald-500 transition-colors">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 py-2 md:py-0 md:h-9 text-xs">
+            <Link href="/attendance" className="flex items-center gap-1.5 hover:text-emerald-500 transition-colors shrink-0">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
               <span className="font-semibold text-emerald-500">{totalPresent}</span>
               <span className="text-[var(--muted)]">נוכחים</span>
             </Link>
             {totalMissing > 0 && (
-              <Link href="/attendance" className="flex items-center gap-1.5 hover:text-amber-500 transition-colors">
+              <Link href="/attendance" className="flex items-center gap-1.5 hover:text-amber-500 transition-colors shrink-0">
                 <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
                 <span className="font-semibold text-amber-500">{totalMissing}</span>
-                <span className="text-[var(--muted)]">משתתפים ממתינים לבדיקת נוכחות</span>
+                <span className="text-[var(--muted)] hidden sm:inline">משתתפים ממתינים לבדיקת נוכחות</span>
+                <span className="text-[var(--muted)] sm:hidden">ממתינים לנוכחות</span>
               </Link>
             )}
             {shoppingCount > 0 && (
-              <Link href="/shopping" className="flex items-center gap-1.5 hover:text-[var(--primary)] transition-colors">
+              <Link href="/shopping" className="flex items-center gap-1.5 hover:text-[var(--primary)] transition-colors shrink-0">
                 <span className="w-1.5 h-1.5 rounded-full bg-[var(--primary)]" />
                 <span className="font-semibold text-[var(--primary)]">{shoppingCount}</span>
-                <span className="text-[var(--muted)]">בקשות רכש</span>
+                <span className="text-[var(--muted)] hidden sm:inline">בקשות רכש</span>
+                <span className="text-[var(--muted)] sm:hidden">רכש</span>
               </Link>
             )}
             <div className="mr-auto hidden md:flex items-center gap-1.5">

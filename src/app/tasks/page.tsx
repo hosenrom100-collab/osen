@@ -532,23 +532,22 @@ export default function PersonalTasksPage() {
                   </div>
 
                   {/* Modal Body */}
-                  <form onSubmit={handleSaveTask} className="flex-1 overflow-y-auto p-5 md:p-6 space-y-4 flex flex-col justify-between md:justify-start">
-                    <div className="space-y-4">
+                  <form onSubmit={handleSaveTask} className="flex-1 overflow-y-auto p-5 md:p-6 flex flex-col justify-between md:justify-start h-full">
+                    <div className="space-y-4 flex-1 flex flex-col">
                       {/* Task Title */}
-                      <div className="space-y-1.5 text-right">
-                        <label className="text-[10px] font-black text-[var(--muted)] uppercase tracking-wider mr-1">תיאור המשימה *</label>
+                      <div className="space-y-1.5 text-right flex-1 flex flex-col min-h-[200px] md:min-h-0">
+                        <label className="text-[10px] font-black text-[var(--muted)] uppercase tracking-wider mr-1 shrink-0">תיאור המשימה *</label>
                         <textarea
                           required
-                          rows={4}
                           placeholder="הקלד את תיאור המשימה..."
                           value={newTitle}
                           onChange={e => setNewTitle(e.target.value)}
-                          className="w-full bg-[var(--foreground)]/5 border border-[var(--border)] text-[var(--foreground)] rounded-2xl p-4 text-xs font-bold outline-none focus:border-indigo-500/30 transition-all placeholder:text-[var(--foreground)]/30 resize-none text-right"
+                          className="w-full flex-1 bg-[var(--foreground)]/5 border border-[var(--border)] text-[var(--foreground)] rounded-2xl p-4 text-xs font-bold outline-none focus:border-indigo-500/30 transition-all placeholder:text-[var(--foreground)]/30 resize-none text-right"
                         />
                       </div>
 
                       {/* Patient / Participant */}
-                      <div className="space-y-1.5 text-right">
+                      <div className="space-y-1.5 text-right shrink-0">
                         <label className="text-[10px] font-black text-[var(--muted)] uppercase tracking-wider mr-1">שיוך למשתתף (אופציונלי)</label>
                         <div className="relative">
                           <select
@@ -568,7 +567,7 @@ export default function PersonalTasksPage() {
                       </div>
 
                       {/* Due Date */}
-                      <div className="space-y-1.5 text-right">
+                      <div className="space-y-1.5 text-right shrink-0">
                         <label className="text-[10px] font-black text-[var(--muted)] uppercase tracking-wider mr-1">תאריך יעד (אופציונלי)</label>
                         <input
                           type="date"
