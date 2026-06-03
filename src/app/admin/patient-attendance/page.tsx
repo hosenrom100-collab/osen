@@ -94,24 +94,8 @@ function AttendancePageContent() {
   const [copied,         setCopied]         = useState(false);
 
   const copyAttendanceToClipboard = () => {
-    const activeSelection = selectionItems.find(item => item.id === selectedId);
-    const programName = activeSelection ? activeSelection.name : "כללי";
     const presentList = filteredPatients.filter(p => attendance[p.id] === "present");
-
-    const dateStr = format(parseISO(selectedDate), "dd/MM/yyyy");
-    const dayName = format(parseISO(selectedDate), "EEEE", { locale: he });
-
-    let text = `*דוח נוכחות - ${programName}*\n`;
-    text += `יום ${dayName} (${dateStr})\n\n`;
-    text += `*נוכחים:* \n`;
-    
-    if (presentList.length === 0) {
-      text += `אין נוכחים רשומים.`;
-    } else {
-      presentList.forEach((p, idx) => {
-        text += `• ${p.firstName} ${p.lastName}\n`;
-      });
-    }
+    const text = presentList.map(p => p.firstName).filter(Boolean).join("\n");
 
     navigator.clipboard.writeText(text).then(() => {
       setCopied(true);

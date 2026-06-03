@@ -46,17 +46,7 @@ export default function AttendanceOverviewPage() {
   const today = format(new Date(), "yyyy-MM-dd");
 
   const handleCopyGroup = (groupName: string, programName: string, presentNames: string[], groupId: string) => {
-    const formattedDate = format(new Date(), "EEEE (dd/MM/yyyy)", { locale: he });
-    const programStr = programName && programName !== "קבוצות ללא תוכנית" ? ` (${programName})` : "";
-    
-    let text = `*נוכחות קבוצת ${groupName}${programStr} - ${formattedDate}*\n\n`;
-    text += `נוכחים (${presentNames.length}):\n`;
-    
-    if (presentNames.length > 0) {
-      text += presentNames.map(name => `• ${name}`).join("\n");
-    } else {
-      text += `אין נוכחים רשומים.`;
-    }
+    const text = presentNames.map(name => name.split(" ")[0]).filter(Boolean).join("\n");
     
     navigator.clipboard.writeText(text)
       .then(() => {
@@ -67,26 +57,17 @@ export default function AttendanceOverviewPage() {
   };
 
   const handleCopyAll = () => {
-    const formattedDate = format(new Date(), "EEEE (dd/MM/yyyy)", { locale: he });
-    
-    let text = `*דוח נוכחות מלא - מרכז חיבור - ${formattedDate}*\n`;
-    text += `סה"כ נוכחים במרכז היום: ${grandPresent}/${grandTotal} (${grandPct}%)\n\n`;
-    
+    const allPresentNames: string[] = [];
     data.forEach(progData => {
-      const progName = progData.program.name;
-      text += `*🔹 ${progName}* (נוכחים: ${progData.present}/${progData.total})\n`;
-      text += `-----------------\n`;
-      
       progData.groups.forEach(gd => {
-        text += `• *קבוצת ${gd.group.name}* (${gd.present}/${gd.total} נוכחים):\n`;
-        if (gd.presentNames.length > 0) {
-          text += gd.presentNames.map(name => `  - ${name}`).join("\n") + "\n";
-        } else {
-          text += `  - אין נוכחים\n`;
-        }
+        gd.presentNames.forEach(name => {
+          const first = name.split(" ")[0];
+          if (first) allPresentNames.push(first);
+        });
       });
-      text += `\n`;
     });
+    
+    const text = allPresentNames.join("\n");
     
     navigator.clipboard.writeText(text.trim())
       .then(() => {
