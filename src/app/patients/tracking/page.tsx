@@ -156,6 +156,27 @@ export default function PatientTrackingPage() {
       .sort((a, b) => (daysLeft(a) ?? 0) - (daysLeft(b) ?? 0));
   }, [active, user?.uid, isSocialWorker]);
 
+  // Patients who need rehab plan completed after 14 days
+  const rehabAlertPatients = useMemo(() => {
+    const scope = isSocialWorker ? active.filter(p => p.assignedWorkerId === user?.uid) : active;
+    return scope
+      .filter(p => {
+        if (p.rehabPlanCompleted) return false;
+        if (!p.startDate) return false;
+        try {
+          const start = parseISO(p.startDate);
+          if (!isValid(start)) return false;
+          const daysElapsed = differenceInDays(new Date(), start);
+          return daysElapsed >= 14;
+        } catch { return false; }
+      })
+      .sort((a, b) => {
+        const da = a.startDate ? parseISO(a.startDate).getTime() : 0;
+        const db_ = b.startDate ? parseISO(b.startDate).getTime() : 0;
+        return da - db_;
+      });
+  }, [active, user?.uid, isSocialWorker]);
+
   async function markExtensionSent(patientId: string) {
     setSaving(patientId + "_sent");
     try {
@@ -304,6 +325,54 @@ export default function PatientTrackingPage() {
                           >
                             {saving === p.id + "_recv" ? <Loader2 className="w-3 h-3 animate-spin" /> : <Download className="w-3 h-3" />}
                             סמן: הארכה התקבלה (+3 חודשים)
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* ── Rehabilitation Program Reminders Banner ── */}
+          <AnimatePresence>
+            {rehabAlertPatients.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: -8 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mb-5 bg-indigo-500/8 border border-indigo-500/25 rounded-2xl overflow-hidden"
+              >
+                <div className="flex items-center gap-3 px-4 py-3 border-b border-indigo-500/15">
+                  <AlertCircle className="w-4 h-4 text-indigo-400 shrink-0 animate-pulse" />
+                  <p className="text-sm font-black text-indigo-300">
+                    שים לב: ישנם {rehabAlertPatients.length} משתתפים שטרם מולאה עבורם תוכנית שיקום לאחר שבועיים בחווה
+                  </p>
+                </div>
+                <div className="divide-y divide-indigo-500/10">
+                  {rehabAlertPatients.map(p => {
+                    const daysElapsed = p.startDate ? differenceInDays(new Date(), parseISO(p.startDate)) : 0;
+                    return (
+                      <div key={p.id} className="flex items-center gap-3 px-4 py-3 flex-wrap">
+                        <button
+                          onClick={() => router.push(`/patients/${p.id}`)}
+                          className="font-semibold text-sm hover:text-indigo-300 transition-colors text-right"
+                        >
+                          {p.firstName} {p.lastName}
+                        </button>
+                        <span className="text-[10px] text-indigo-400/70 font-mono">
+                          {workers[p.assignedWorkerId || ""] || "—"}
+                        </span>
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-500/10 text-indigo-400">
+                          בחווה {daysElapsed} ימים
+                        </span>
+                        <div className="mr-auto flex items-center gap-2">
+                          <button
+                            onClick={() => toggleCompleted(p)}
+                            className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black bg-indigo-500/15 text-indigo-300 border border-indigo-500/20 rounded-lg hover:bg-indigo-500/25 transition-all"
+                          >
+                            <Check className="w-3 h-3" />
+                            סמן: הושלמה תוכנית שיקום
                           </button>
                         </div>
                       </div>

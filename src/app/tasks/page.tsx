@@ -11,7 +11,7 @@ import {
 import { 
   CheckCircle, Circle, Trash2, Calendar, User, 
   Plus, Search, Loader2, ClipboardCheck, X, Check,
-  ChevronLeft, AlertCircle
+  ChevronLeft, AlertCircle, Edit3
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
@@ -43,6 +43,8 @@ export default function PersonalTasksPage() {
   const [patients, setPatients] = useState<Patient[]>([]);
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingTask, setEditingTask] = useState<PersonalTask | null>(null);
 
   // Form states
   const [newTitle, setNewTitle] = useState("");
@@ -105,40 +107,62 @@ export default function PersonalTasksPage() {
     }
   };
 
-  const handleAddTask = async (e: React.FormEvent) => {
+  const handleSaveTask = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTitle.trim() || !user?.uid) return;
     setAdding(true);
     try {
-      const docRef = await addDoc(collection(db, "personal_tasks"), {
-        userId: user.uid,
-        title: newTitle.trim(),
-        completed: false,
-        patientId: selectedPatientId || null,
-        dueDate: dueDate || null,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      });
+      if (editingTask) {
+        // Editing existing task
+        await updateDoc(doc(db, "personal_tasks", editingTask.id), {
+          title: newTitle.trim(),
+          patientId: selectedPatientId || null,
+          dueDate: dueDate || null,
+          updatedAt: serverTimestamp(),
+        });
 
-      const newTask: PersonalTask = {
-        id: docRef.id,
-        userId: user.uid,
-        title: newTitle.trim(),
-        completed: false,
-        patientId: selectedPatientId || null,
-        dueDate: dueDate || null,
-        createdAt: new Date(),
-      };
+        setTasks(prev => prev.map(t => t.id === editingTask.id ? {
+          ...t,
+          title: newTitle.trim(),
+          patientId: selectedPatientId || null,
+          dueDate: dueDate || null,
+        } : t));
 
-      setTasks(prev => [newTask, ...prev]);
+        setIsModalOpen(false);
+      } else {
+        // Adding new task
+        const docRef = await addDoc(collection(db, "personal_tasks"), {
+          userId: user.uid,
+          title: newTitle.trim(),
+          completed: false,
+          patientId: selectedPatientId || null,
+          dueDate: dueDate || null,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        });
+
+        const newTask: PersonalTask = {
+          id: docRef.id,
+          userId: user.uid,
+          title: newTitle.trim(),
+          completed: false,
+          patientId: selectedPatientId || null,
+          dueDate: dueDate || null,
+          createdAt: new Date(),
+        };
+
+        setTasks(prev => [newTask, ...prev]);
+        setIsModalOpen(false);
+      }
 
       // Reset form
       setNewTitle("");
       setSelectedPatientId("");
       setDueDate("");
+      setEditingTask(null);
     } catch (err) {
-      console.error("Error creating personal task:", err);
-      alert("שגיאה ביצירת המשימה");
+      console.error("Error saving personal task:", err);
+      alert("שגיאה בשמירת המשימה");
     } finally {
       setAdding(false);
     }
@@ -276,72 +300,27 @@ export default function PersonalTasksPage() {
             </div>
           </div>
 
-          {/* Quick Add Task Form */}
-          <div className="bg-[var(--surface)] border border-[var(--border)] rounded-[2rem] p-5 shadow-sm space-y-4">
-            <h3 className="text-xs font-black text-[var(--foreground)]/80 uppercase tracking-widest flex items-center gap-1.5 mr-1">
-              <Plus className="w-4 h-4 text-emerald-500" />
-              הוספת משימה / תזכורת חדשה
-            </h3>
-            
-            <form onSubmit={handleAddTask} className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
-              {/* Title Input */}
-              <div className="md:col-span-5 space-y-1.5">
-                <label className="text-[9px] font-black text-[var(--muted)] uppercase tracking-wider mr-1">מה המשימה?</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="למשל: שיחת מעקב חצי שנתית, כתיבת דו״ח שיקומי..."
-                  value={newTitle}
-                  onChange={e => setNewTitle(e.target.value)}
-                  className="w-full bg-[var(--foreground)]/5 border border-[var(--border)] text-[var(--foreground)] rounded-xl px-4 h-10 text-xs font-bold outline-none focus:border-indigo-500/30 transition-all placeholder:text-[var(--foreground)]/30"
-                />
+          {/* Add Task Trigger Card */}
+          <div 
+            onClick={() => {
+              setEditingTask(null);
+              setNewTitle("");
+              setSelectedPatientId("");
+              setDueDate("");
+              setIsModalOpen(true);
+            }}
+            className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-4 shadow-sm hover:border-indigo-500/30 transition-all cursor-pointer flex items-center justify-between group"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-indigo-500/10 text-indigo-500 flex items-center justify-center group-hover:scale-105 transition-transform">
+                <Plus className="w-5 h-5" />
               </div>
-
-              {/* Patient Selector */}
-              <div className="md:col-span-3 space-y-1.5">
-                <label className="text-[9px] font-black text-[var(--muted)] uppercase tracking-wider mr-1">שיוך למשתתף (אופציונלי)</label>
-                <div className="relative">
-                  <select
-                    value={selectedPatientId}
-                    onChange={e => setSelectedPatientId(e.target.value)}
-                    className="w-full bg-[var(--foreground)]/5 border border-[var(--border)] text-[var(--foreground)] rounded-xl px-4 h-10 text-xs font-bold outline-none focus:border-indigo-500/30 transition-all appearance-none cursor-pointer"
-                  >
-                    <option value="" className="bg-[var(--card-bg)] text-[var(--foreground)]">-- ללא שיוך --</option>
-                    {patients.map(p => (
-                      <option key={p.id} value={p.id} className="bg-[var(--card-bg)] text-[var(--foreground)]">
-                        {p.firstName} {p.lastName}
-                      </option>
-                    ))}
-                  </select>
-                  <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--muted)]/30 pointer-events-none" />
-                </div>
+              <div className="text-right">
+                <h3 className="text-xs font-black text-[var(--foreground)]">הוספת משימה או תזכורת חדשה</h3>
+                <p className="text-[10px] text-[var(--muted)] mt-0.5 font-medium">לחץ כאן כדי לרשום משימה חדשה, לשייך אותה למשתתף ולקבוע תאריך יעד</p>
               </div>
-
-              {/* Due Date Picker */}
-              <div className="md:col-span-2 space-y-1.5">
-                <label className="text-[9px] font-black text-[var(--muted)] uppercase tracking-wider mr-1">תאריך יעד (אופציונלי)</label>
-                <div className="relative">
-                  <input
-                    type="date"
-                    value={dueDate}
-                    onChange={e => setDueDate(e.target.value)}
-                    className="w-full bg-[var(--foreground)]/5 border border-[var(--border)] text-[var(--foreground)] rounded-xl px-4 h-10 text-xs font-bold outline-none focus:border-indigo-500/30 transition-all cursor-pointer"
-                  />
-                </div>
-              </div>
-
-              {/* Submit Button */}
-              <div className="md:col-span-2">
-                <button
-                  type="submit"
-                  disabled={adding || !newTitle.trim()}
-                  className="w-full bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl h-10 text-xs font-black shadow-md shadow-indigo-600/10 active:scale-95 transition-all flex items-center justify-center gap-1.5 disabled:opacity-50 cursor-pointer"
-                >
-                  {adding ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-                  הוסף
-                </button>
-              </div>
-            </form>
+            </div>
+            <ChevronLeft className="w-4 h-4 text-[var(--muted)]/50 group-hover:-translate-x-1 transition-transform rotate-180" />
           </div>
 
           {/* Filters & Tasks List Wrapper */}
@@ -453,14 +432,31 @@ export default function PersonalTasksPage() {
                             </div>
                           </div>
 
-                          {/* Delete button */}
-                          <button
-                            onClick={() => handleDeleteTask(t.id)}
-                            className="p-2 text-[var(--muted)]/40 hover:text-rose-500 hover:bg-rose-500/5 rounded-xl transition-all cursor-pointer shrink-0"
-                            title="מחק משימה"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                          <div className="flex items-center gap-1 shrink-0">
+                            {/* Edit button */}
+                            <button
+                              onClick={() => {
+                                setEditingTask(t);
+                                setNewTitle(t.title);
+                                setSelectedPatientId(t.patientId || "");
+                                setDueDate(t.dueDate || "");
+                                setIsModalOpen(true);
+                              }}
+                              className="p-2 text-[var(--muted)]/40 hover:text-indigo-500 hover:bg-indigo-500/5 rounded-xl transition-all cursor-pointer"
+                              title="ערוך משימה"
+                            >
+                              <Edit3 className="w-4 h-4" />
+                            </button>
+
+                            {/* Delete button */}
+                            <button
+                              onClick={() => handleDeleteTask(t.id)}
+                              className="p-2 text-[var(--muted)]/40 hover:text-rose-500 hover:bg-rose-500/5 rounded-xl transition-all cursor-pointer"
+                              title="מחק משימה"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
                         </motion.div>
                       );
                     })}
@@ -469,6 +465,146 @@ export default function PersonalTasksPage() {
               )}
             </div>
           </div>
+
+          {/* Mobile Floating Action Button (FAB) */}
+          <button 
+            onClick={() => {
+              setEditingTask(null);
+              setNewTitle("");
+              setSelectedPatientId("");
+              setDueDate("");
+              setIsModalOpen(true);
+            }}
+            className="md:hidden fixed bottom-6 left-6 z-40 bg-indigo-600 hover:bg-indigo-500 text-white w-14 h-14 rounded-full shadow-lg shadow-indigo-600/30 flex items-center justify-center transition-transform active:scale-95 cursor-pointer"
+            title="הוסף משימה"
+          >
+            <Plus className="w-6 h-6" />
+          </button>
+
+          {/* Add / Edit Task Modal */}
+          <AnimatePresence>
+            {isModalOpen && (
+              <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center">
+                {/* Backdrop */}
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  onClick={() => {
+                    setIsModalOpen(false);
+                    setEditingTask(null);
+                  }}
+                  className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+                />
+
+                {/* Modal Content container: Fullscreen on mobile, elegant dialog on desktop */}
+                <motion.div
+                  initial={{ opacity: 0, y: "100%" }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: "100%" }}
+                  transition={{ type: "spring", damping: 25, stiffness: 250 }}
+                  className="relative w-full h-[100dvh] md:h-auto md:max-w-xl bg-[var(--surface)] border-none md:border border-[var(--border)] rounded-none md:rounded-[2rem] shadow-2xl flex flex-col z-10 overflow-hidden"
+                >
+                  {/* Modal Header */}
+                  <div className="flex items-center justify-between p-5 md:p-6 border-b border-[var(--border)] shrink-0 bg-[var(--surface)]">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-xl bg-indigo-500/10 text-indigo-500 flex items-center justify-center">
+                        <ClipboardCheck className="w-4.5 h-4.5" />
+                      </div>
+                      <div className="text-right">
+                        <h3 className="text-sm font-black text-[var(--foreground)] leading-tight">
+                          {editingTask ? "עריכת משימה / תזכורת" : "הוספת משימה / תזכורת חדשה"}
+                        </h3>
+                        <p className="text-[9px] text-[var(--muted)] font-black uppercase tracking-wider leading-none mt-0.5">
+                          {editingTask ? "עדכן את פרטי המשימה" : "רשום משימה אישית חדשה"}
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setIsModalOpen(false);
+                        setEditingTask(null);
+                      }}
+                      className="p-2 hover:bg-[var(--foreground)]/5 rounded-xl transition-all"
+                    >
+                      <X className="w-5 h-5 text-[var(--muted)]" />
+                    </button>
+                  </div>
+
+                  {/* Modal Body */}
+                  <form onSubmit={handleSaveTask} className="flex-1 overflow-y-auto p-5 md:p-6 space-y-4 flex flex-col justify-between md:justify-start">
+                    <div className="space-y-4">
+                      {/* Task Title */}
+                      <div className="space-y-1.5 text-right">
+                        <label className="text-[10px] font-black text-[var(--muted)] uppercase tracking-wider mr-1">תיאור המשימה *</label>
+                        <textarea
+                          required
+                          rows={4}
+                          placeholder="הקלד את תיאור המשימה..."
+                          value={newTitle}
+                          onChange={e => setNewTitle(e.target.value)}
+                          className="w-full bg-[var(--foreground)]/5 border border-[var(--border)] text-[var(--foreground)] rounded-2xl p-4 text-xs font-bold outline-none focus:border-indigo-500/30 transition-all placeholder:text-[var(--foreground)]/30 resize-none text-right"
+                        />
+                      </div>
+
+                      {/* Patient / Participant */}
+                      <div className="space-y-1.5 text-right">
+                        <label className="text-[10px] font-black text-[var(--muted)] uppercase tracking-wider mr-1">שיוך למשתתף (אופציונלי)</label>
+                        <div className="relative">
+                          <select
+                            value={selectedPatientId}
+                            onChange={e => setSelectedPatientId(e.target.value)}
+                            className="w-full bg-[var(--foreground)]/5 border border-[var(--border)] text-[var(--foreground)] rounded-2xl px-4 pl-10 h-12 text-xs font-bold outline-none focus:border-indigo-500/30 transition-all appearance-none cursor-pointer text-right"
+                          >
+                            <option value="" className="bg-[var(--card-bg)] text-[var(--foreground)]">-- ללא שיוך --</option>
+                            {patients.map(p => (
+                              <option key={p.id} value={p.id} className="bg-[var(--card-bg)] text-[var(--foreground)]">
+                                {p.firstName} {p.lastName}
+                              </option>
+                            ))}
+                          </select>
+                          <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-[var(--muted)]/30 pointer-events-none" />
+                        </div>
+                      </div>
+
+                      {/* Due Date */}
+                      <div className="space-y-1.5 text-right">
+                        <label className="text-[10px] font-black text-[var(--muted)] uppercase tracking-wider mr-1">תאריך יעד (אופציונלי)</label>
+                        <input
+                          type="date"
+                          value={dueDate}
+                          onChange={e => setDueDate(e.target.value)}
+                          className="w-full bg-[var(--foreground)]/5 border border-[var(--border)] text-[var(--foreground)] rounded-2xl px-4 h-12 text-xs font-bold outline-none focus:border-indigo-500/30 transition-all cursor-pointer text-right"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Footer Buttons */}
+                    <div className="flex gap-3 pt-6 border-t border-[var(--border)] mt-auto shrink-0">
+                      <button
+                        type="submit"
+                        disabled={adding || !newTitle.trim()}
+                        className="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl h-12 text-xs font-black shadow-md shadow-indigo-600/10 active:scale-95 transition-all flex items-center justify-center gap-1.5 disabled:opacity-50 cursor-pointer"
+                      >
+                        {adding ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                        {editingTask ? "שמור שינויים" : "צור משימה"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsModalOpen(false);
+                          setEditingTask(null);
+                        }}
+                        className="flex-1 bg-[var(--foreground)]/5 hover:bg-[var(--foreground)]/10 text-[var(--foreground)] rounded-2xl h-12 text-xs font-black active:scale-95 transition-all"
+                      >
+                        ביטול
+                      </button>
+                    </div>
+                  </form>
+                </motion.div>
+              </div>
+            )}
+          </AnimatePresence>
 
         </main>
       </div>

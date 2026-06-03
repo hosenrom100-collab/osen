@@ -3,6 +3,7 @@
 import { RoleGuard } from "@/components/auth/RoleGuard";
 import { useState, useMemo, useEffect } from "react";
 import { db } from "@/lib/firebase/config";
+import { useAuth } from "@/context/AuthContext";
 import { collection, getDocs, doc, deleteDoc, updateDoc } from "firebase/firestore";
 import { 
   Users, Search, Plus, Filter, MoreHorizontal, 
@@ -37,6 +38,7 @@ interface Patient {
   extensionSentAt?: string;
   extensionReceived?: boolean;
   extensionReceivedAt?: string;
+  rehabPlanCompleted?: boolean;
 }
 
 interface Group {
@@ -51,6 +53,7 @@ interface Staff {
 }
 
 export default function PatientsPage() {
+  const { user } = useAuth();
   const [patients, setPatients] = useState<Patient[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
   const [programs, setPrograms] = useState<{ id: string; name: string }[]>([]);
@@ -374,6 +377,18 @@ export default function PatientsPage() {
   }, []);
 
   useEffect(() => {
+    if (user?.uid) {
+      const saved = localStorage.getItem("hosen_patients_selected_filters");
+      if (!saved) {
+        setSelectedFilters(prev => ({
+          ...prev,
+          workers: [user.uid]
+        }));
+      }
+    }
+  }, [user?.uid]);
+
+  useEffect(() => {
     const fetchData = async () => {
       try {
         const [pSnap, gSnap, prSnap, uSnap] = await Promise.all([
@@ -454,6 +469,18 @@ export default function PatientsPage() {
       setPatients(prev => prev.map(p => p.id === pId ? { ...p, extensionReceived: nextVal } : p));
     } catch (err) {
       console.error("Error toggling extensionReceived:", err);
+      alert("שגיאה בעדכון הסטטוס");
+    }
+  };
+
+  const handleToggleRehabPlanCompleted = async (pId: string, currentVal: boolean, e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      const nextVal = !currentVal;
+      await updateDoc(doc(db, "patients", pId), { rehabPlanCompleted: nextVal });
+      setPatients(prev => prev.map(p => p.id === pId ? { ...p, rehabPlanCompleted: nextVal } : p));
+    } catch (err) {
+      console.error("Error toggling rehabPlanCompleted:", err);
       alert("שגיאה בעדכון הסטטוס");
     }
   };
@@ -584,6 +611,22 @@ export default function PatientsPage() {
       }
     });
   }, [patients, searchTerm, selectedFilters, groups, sortBy, staff]);
+
+  const rehabAlertPatients = useMemo(() => {
+    return patients.filter(p => {
+      if (p.status !== "active") return false;
+      if (p.assignedWorkerId !== user?.uid) return false;
+      if (p.rehabPlanCompleted) return false;
+      if (!p.startDate) return false;
+      try {
+        const start = new Date(p.startDate);
+        const diffDays = Math.floor((Date.now() - start.getTime()) / (1000 * 60 * 60 * 24));
+        return diffDays >= 14;
+      } catch {
+        return false;
+      }
+    });
+  }, [patients, user?.uid]);
 
   const handleDelete = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -914,6 +957,41 @@ export default function PatientsPage() {
         </div>
 
         <div className="max-w-7xl mx-auto mt-8">
+          <AnimatePresence>
+            {rehabAlertPatients.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: -8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                className="mb-6 bg-indigo-500/5 border border-indigo-500/20 rounded-[2rem] overflow-hidden"
+              >
+                <div className="flex items-center gap-3 px-6 py-4 border-b border-indigo-500/10">
+                  <AlertCircle className="w-5 h-5 text-indigo-500 shrink-0 animate-pulse" />
+                  <p className="text-xs font-black text-indigo-600 dark:text-indigo-400">
+                    שים לב: ישנם {rehabAlertPatients.length} משתתפים באחריותך שטרם מולאה עבורם תוכנית שיקום לאחר שבועיים בחווה
+                  </p>
+                </div>
+                <div className="divide-y divide-indigo-500/5">
+                  {rehabAlertPatients.map(p => (
+                    <div key={p.id} className="flex items-center justify-between px-6 py-3.5 hover:bg-indigo-500/[0.01] transition-colors">
+                      <div className="flex items-center gap-3">
+                        <span className="text-xs font-bold text-[var(--foreground)]">{p.firstName} {p.lastName}</span>
+                        <span className="text-[10px] text-[var(--muted)]">התחיל ב-{formatDate(p.startDate)}</span>
+                      </div>
+                      <button 
+                        onClick={() => router.push(`/patients/${p.id}`)}
+                        className="text-[10px] font-black text-indigo-500 hover:underline flex items-center gap-1"
+                      >
+                        מעבר לתיק המטופל
+                        <ChevronLeft className="w-3.5 h-3.5 rotate-180" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
           {loading ? (
             <div className="flex flex-col items-center justify-center py-40 gap-4 opacity-20">
               <Loader2 className="w-10 h-10 animate-spin" />
@@ -935,6 +1013,7 @@ export default function PatientsPage() {
                       <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-6 py-4 text-[9px] font-black uppercase tracking-widest text-[var(--muted)] z-10 shadow-[inset_0_-1px_0_var(--border)]">תוכנית</th>
                       <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-6 py-4 text-[9px] font-black uppercase tracking-widest text-[var(--muted)] z-10 shadow-[inset_0_-1px_0_var(--border)]">תאריך התחלה</th>
                       <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-6 py-4 text-[9px] font-black uppercase tracking-widest text-[var(--muted)] z-10 shadow-[inset_0_-1px_0_var(--border)]">תאריך סיום</th>
+                      <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-6 py-4 text-[9px] font-black uppercase tracking-widest text-[var(--muted)] text-center z-10 shadow-[inset_0_-1px_0_var(--border)]">תוכנית שיקום</th>
                       <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-6 py-4 text-[9px] font-black uppercase tracking-widest text-[var(--muted)] text-center z-10 shadow-[inset_0_-1px_0_var(--border)]">הוגשה הארכה</th>
                       <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-6 py-4 text-[9px] font-black uppercase tracking-widest text-[var(--muted)] text-center z-10 shadow-[inset_0_-1px_0_var(--border)]">התקבלה הארכה</th>
                       <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-6 py-4 text-[9px] font-black uppercase tracking-widest text-[var(--muted)] z-10 shadow-[inset_0_-1px_0_var(--border)]">סטטוס</th>
@@ -1028,6 +1107,20 @@ export default function PatientsPage() {
                           </td>
                           <td className="px-6 py-5 text-xs font-bold opacity-60">{formatDate(p.startDate)}</td>
                           <td className="px-6 py-5 text-xs font-bold opacity-60">{formatDate(p.endDate)}</td>
+                          <td className="px-6 py-5 text-center">
+                            <div className="flex justify-center">
+                              <button
+                                onClick={(e) => handleToggleRehabPlanCompleted(p.id, !!p.rehabPlanCompleted, e)}
+                                className={`w-5 h-5 rounded border flex items-center justify-center transition-all ${
+                                  p.rehabPlanCompleted 
+                                    ? 'bg-indigo-500 border-indigo-600 text-white' 
+                                    : 'border-[var(--border)] hover:border-indigo-500 bg-[var(--surface)] hover:scale-105'
+                                }`}
+                              >
+                                {p.rehabPlanCompleted && <Check className="w-3.5 h-3.5 stroke-[4]" />}
+                              </button>
+                            </div>
+                          </td>
                           <td className="px-6 py-5 text-center">
                             <div className="flex justify-center">
                               <button
@@ -1184,7 +1277,21 @@ export default function PatientsPage() {
 
                     {/* Quick Action Toggle Checkboxes for Mobile */}
                     <div className="flex items-center justify-between border-t border-[var(--border)] pt-3 mt-1">
-                      <div className="flex items-center gap-4">
+                      <div className="flex flex-wrap items-center gap-4">
+                        <button
+                          onClick={(e) => handleToggleRehabPlanCompleted(p.id, !!p.rehabPlanCompleted, e)}
+                          className="flex items-center gap-2 text-[10px] font-bold text-[var(--muted)] hover:text-indigo-500 transition-colors"
+                        >
+                          <div className={`w-4 h-4 rounded border flex items-center justify-center transition-all ${
+                            p.rehabPlanCompleted 
+                              ? 'bg-indigo-500 border-indigo-600 text-white' 
+                              : 'border-[var(--border)] hover:border-indigo-500 bg-[var(--surface)]'
+                          }`}>
+                            {p.rehabPlanCompleted && <Check className="w-3 h-3 stroke-[4]" />}
+                          </div>
+                          תוכנית שיקום
+                        </button>
+
                         <button
                           onClick={(e) => handleToggleExtensionSent(p.id, !!p.extensionSent, e)}
                           className="flex items-center gap-2 text-[10px] font-bold text-[var(--muted)] hover:text-amber-500 transition-colors"
