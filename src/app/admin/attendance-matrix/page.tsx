@@ -64,6 +64,7 @@ export default function AttendanceMatrixPage() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedProgramId, setSelectedProgramId] = useState<string>("all");
+  const [selectedRowId, setSelectedRowId] = useState<string | null>(null);
   
   // Excel export menu & loader states
   const [showExportMenu, setShowExportMenu] = useState(false);
@@ -673,7 +674,7 @@ export default function AttendanceMatrixPage() {
         fallbackUrl="/admin"
         fallbackLabel="חזרה ללוח בקרה"
       >
-        <div dir="rtl" className="min-h-screen bg-[var(--background)] text-[var(--foreground)] overflow-hidden flex flex-col">
+        <div dir="rtl" className="h-screen bg-[var(--background)] text-[var(--foreground)] overflow-hidden flex flex-col">
           
           {/* Full-Screen Export Loader Backdrop */}
           <AnimatePresence>
@@ -856,7 +857,7 @@ export default function AttendanceMatrixPage() {
           </div>
 
           {/* Matrix Container */}
-          <div className="flex-1 overflow-auto relative p-6 bg-[var(--background)]">
+          <div className="flex-1 overflow-hidden relative p-6 bg-[var(--background)] flex flex-col">
             {loading ? (
               <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-[var(--background)]">
                 <Loader2 className="w-8 h-8 text-[var(--primary)] animate-spin" />
@@ -868,17 +869,17 @@ export default function AttendanceMatrixPage() {
                 <p className="text-xs font-black text-[var(--foreground)]/40">לא נמצאו משתתפים בחתך שנבחר</p>
               </div>
             ) : (
-              <div className="inline-block min-w-full align-middle border border-[var(--border)] rounded-[2rem] overflow-hidden bg-[var(--card-bg)] shadow-sm">
+              <div className="flex-1 overflow-auto border border-[var(--border)] bg-[var(--card-bg)] shadow-sm">
                 <table className="border-collapse text-right w-full text-[var(--foreground)] text-xs">
-                  <thead className="sticky top-0 z-20">
-                    <tr className="bg-[var(--foreground)]/[0.03] shadow-[0_1px_0_0_var(--border)]">
-                      <th className="sticky right-0 z-30 bg-[var(--card-bg)] p-3.5 border-b border-l border-[var(--border)] font-black min-w-[180px] shadow-[1px_0_0_0_var(--border)]">משתתף</th>
-                      <th className="p-3.5 border-b border-l border-[var(--border)] font-black min-w-[100px]">ת.ז</th>
-                      <th className="p-3.5 border-b border-l border-[var(--border)] font-black min-w-[120px]">תוכנית</th>
-                      <th className="p-3.5 border-b border-l border-[var(--border)] font-black min-w-[100px]">קבוצה</th>
+                  <thead className="sticky top-0 z-20 bg-[var(--card-bg)]">
+                    <tr className="bg-[var(--foreground)]/[0.02] shadow-[0_1px_0_0_var(--border)]">
+                      <th className="sticky top-0 right-0 z-30 bg-[var(--card-bg)] p-3.5 border-b border-l border-[var(--border)] font-black min-w-[180px] shadow-[-1px_0_0_0_var(--border)]">משתתף</th>
+                      <th className="sticky top-0 bg-[var(--card-bg)] p-3.5 border-b border-l border-[var(--border)] font-black min-w-[100px]">ת.ז</th>
+                      <th className="sticky top-0 bg-[var(--card-bg)] p-3.5 border-b border-l border-[var(--border)] font-black min-w-[120px]">תוכנית</th>
+                      <th className="sticky top-0 bg-[var(--card-bg)] p-3.5 border-b border-l border-[var(--border)] font-black min-w-[100px]">קבוצה</th>
                       
                       {activeDates.map(day => (
-                        <th key={day.toISOString()} className="p-2 border-b border-l border-[var(--border)] text-center min-w-[38px] bg-[var(--foreground)]/[0.01]">
+                        <th key={day.toISOString()} className="sticky top-0 bg-[var(--card-bg)] p-2 border-b border-l border-[var(--border)] text-center min-w-[38px]">
                           <p className="text-[9px] font-bold text-[var(--foreground)]/40 leading-none">{format(day, "EE", { locale: he })}</p>
                           <p className="text-xs font-black mt-1 text-[var(--foreground)]">{format(day, "d")}</p>
                         </th>
@@ -889,11 +890,32 @@ export default function AttendanceMatrixPage() {
                     {filteredPatients.map((p) => {
                       const prog = programs.find(pr => pr.id === p.programId);
                       const pActiveDays = prog?.activeDays || [];
+                      const isSelected = selectedRowId === p.id;
 
                       return (
-                        <tr key={p.id} className="hover:bg-[var(--foreground)]/[0.01] transition-colors">
-                          <td className="sticky right-0 z-10 bg-[var(--card-bg)] p-3 border-l border-[var(--border)] font-black shadow-[1px_0_0_0_var(--border)]">
-                            {p.firstName} {p.lastName}
+                        <tr 
+                          key={p.id} 
+                          className={`group transition-colors ${
+                            isSelected 
+                              ? "bg-[var(--primary)]/[0.03] hover:bg-[var(--primary)]/[0.06]" 
+                              : "hover:bg-[var(--foreground)]/[0.02]"
+                          }`}
+                        >
+                          <td 
+                            onClick={() => setSelectedRowId(isSelected ? null : p.id)}
+                            className={`sticky right-0 z-10 p-3 border-l border-[var(--border)] font-black shadow-[-1px_0_0_0_var(--border)] transition-colors cursor-pointer select-none ${
+                              isSelected 
+                                ? "bg-[var(--primary-faint)] text-[var(--primary)] border-r-4 border-r-[var(--primary)]" 
+                                : "bg-[var(--card-bg)] group-hover:bg-[var(--foreground)]/[0.03] text-[var(--foreground)]"
+                            }`}
+                            title="לחץ כדי לנעול סימון שורה"
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <span>{p.firstName} {p.lastName}</span>
+                              {isSelected && (
+                                <span className="w-1.5 h-1.5 rounded-full bg-[var(--primary)] animate-pulse shrink-0" />
+                              )}
+                            </div>
                           </td>
                           <td className="p-3 border-l border-[var(--border)] text-[var(--foreground)]/60 font-medium">
                             {p.idNumber}

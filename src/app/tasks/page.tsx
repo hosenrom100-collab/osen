@@ -18,6 +18,12 @@ import { motion, AnimatePresence } from "framer-motion";
 import { format, parseISO, isValid } from "date-fns";
 import { he } from "date-fns/locale";
 
+interface SubTask {
+  id: string;
+  title: string;
+  completed: boolean;
+}
+
 interface PersonalTask {
   id: string;
   userId: string;
@@ -26,6 +32,8 @@ interface PersonalTask {
   patientId?: string | null;
   dueDate?: string | null;
   createdAt: any;
+  taskType?: "text" | "checklist";
+  subtasks?: SubTask[];
 }
 
 interface Patient {
@@ -50,6 +58,9 @@ export default function PersonalTasksPage() {
   const [newTitle, setNewTitle] = useState("");
   const [selectedPatientId, setSelectedPatientId] = useState<string>("");
   const [dueDate, setDueDate] = useState("");
+  const [taskType, setTaskType] = useState<"text" | "checklist">("text");
+  const [subtasks, setSubtasks] = useState<SubTask[]>([]);
+  const [newSubtaskTitle, setNewSubtaskTitle] = useState("");
 
   // Filter/Search states
   const [filter, setFilter] = useState<"all" | "pending" | "completed">("all");
@@ -81,6 +92,8 @@ export default function PersonalTasksPage() {
           patientId: data.patientId || null,
           dueDate: data.dueDate || null,
           createdAt: data.createdAt,
+          taskType: data.taskType || "text",
+          subtasks: data.subtasks || [],
         };
       });
       setTasks(list);
@@ -112,12 +125,20 @@ export default function PersonalTasksPage() {
     if (!newTitle.trim() || !user?.uid) return;
     setAdding(true);
     try {
+      const isChecklist = taskType === "checklist";
+      const finalCompleted = isChecklist
+        ? (subtasks.length > 0 && subtasks.every(s => s.completed))
+        : (editingTask ? editingTask.completed : false);
+
       if (editingTask) {
         // Editing existing task
         await updateDoc(doc(db, "personal_tasks", editingTask.id), {
           title: newTitle.trim(),
           patientId: selectedPatientId || null,
           dueDate: dueDate || null,
+          taskType,
+          subtasks: isChecklist ? subtasks : [],
+          completed: finalCompleted,
           updatedAt: serverTimestamp(),
         });
 
@@ -126,6 +147,9 @@ export default function PersonalTasksPage() {
           title: newTitle.trim(),
           patientId: selectedPatientId || null,
           dueDate: dueDate || null,
+          taskType,
+          subtasks: isChecklist ? subtasks : [],
+          completed: finalCompleted,
         } : t));
 
         setIsModalOpen(false);
@@ -134,9 +158,11 @@ export default function PersonalTasksPage() {
         const docRef = await addDoc(collection(db, "personal_tasks"), {
           userId: user.uid,
           title: newTitle.trim(),
-          completed: false,
+          completed: finalCompleted,
           patientId: selectedPatientId || null,
           dueDate: dueDate || null,
+          taskType,
+          subtasks: isChecklist ? subtasks : [],
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
         });
@@ -145,9 +171,11 @@ export default function PersonalTasksPage() {
           id: docRef.id,
           userId: user.uid,
           title: newTitle.trim(),
-          completed: false,
+          completed: finalCompleted,
           patientId: selectedPatientId || null,
           dueDate: dueDate || null,
+          taskType,
+          subtasks: isChecklist ? subtasks : [],
           createdAt: new Date(),
         };
 
@@ -159,6 +187,9 @@ export default function PersonalTasksPage() {
       setNewTitle("");
       setSelectedPatientId("");
       setDueDate("");
+      setTaskType("text");
+      setSubtasks([]);
+      setNewSubtaskTitle("");
       setEditingTask(null);
     } catch (err) {
       console.error("Error saving personal task:", err);
@@ -170,13 +201,50 @@ export default function PersonalTasksPage() {
 
   const handleToggleTask = async (taskId: string, currentCompleted: boolean) => {
     try {
+      const nextCompleted = !currentCompleted;
+      const t = tasks.find(x => x.id === taskId);
+      if (!t) return;
+
+      let updatedSubtasks = t.subtasks || [];
+      if (t.taskType === "checklist") {
+        updatedSubtasks = updatedSubtasks.map(s => ({ ...s, completed: nextCompleted }));
+      }
+
       await updateDoc(doc(db, "personal_tasks", taskId), {
-        completed: !currentCompleted,
+        completed: nextCompleted,
+        subtasks: updatedSubtasks,
         updatedAt: serverTimestamp()
       });
-      setTasks(prev => prev.map(t => t.id === taskId ? { ...t, completed: !currentCompleted } : t));
+      setTasks(prev => prev.map(item => item.id === taskId ? { ...item, completed: nextCompleted, subtasks: updatedSubtasks } : item));
     } catch (err) {
       console.error("Error toggling task:", err);
+    }
+  };
+
+  const handleToggleSubtask = async (taskId: string, subtaskId: string, currentSubtaskCompleted: boolean) => {
+    try {
+      const t = tasks.find(x => x.id === taskId);
+      if (!t) return;
+
+      const updatedSubtasks = (t.subtasks || []).map(s => 
+        s.id === subtaskId ? { ...s, completed: !currentSubtaskCompleted } : s
+      );
+
+      const allCompleted = updatedSubtasks.length > 0 && updatedSubtasks.every(s => s.completed);
+
+      await updateDoc(doc(db, "personal_tasks", taskId), {
+        subtasks: updatedSubtasks,
+        completed: allCompleted,
+        updatedAt: serverTimestamp()
+      });
+
+      setTasks(prev => prev.map(item => item.id === taskId ? {
+        ...item,
+        subtasks: updatedSubtasks,
+        completed: allCompleted
+      } : item));
+    } catch (err) {
+      console.error("Error toggling subtask:", err);
     }
   };
 
@@ -231,7 +299,7 @@ export default function PersonalTasksPage() {
 
         {/* Sticky Header */}
         <header className="sticky top-0 z-40 bg-[var(--background)]/95 backdrop-blur-xl border-b border-[var(--border)] px-4 md:px-6">
-          <div className="max-w-4xl mx-auto flex items-center justify-between h-14">
+          <div className="max-w-7xl mx-auto flex items-center justify-between h-14">
             <div className="flex items-center gap-3">
               <button 
                 onClick={() => router.push("/")}
@@ -258,212 +326,349 @@ export default function PersonalTasksPage() {
           </div>
         </header>
 
-        <main className="max-w-4xl mx-auto px-4 md:px-6 py-6 space-y-6 relative">
+        <main className="max-w-7xl mx-auto px-4 md:px-6 py-6 relative">
           
-          {/* Stats & Search row */}
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
-            {/* Quick stats panel */}
-            <div className="md:col-span-7 bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-4 flex items-center justify-between gap-4 shadow-sm">
-              <div className="flex items-center gap-4">
-                <div className="text-right">
-                  <p className="text-2xl font-black text-indigo-500 leading-none">{stats.pending}</p>
-                  <p className="text-[9px] font-black text-[var(--muted)] uppercase tracking-widest mt-1">בביצוע</p>
-                </div>
-                <div className="w-px h-8 bg-[var(--border)] shrink-0" />
-                <div className="text-right">
-                  <p className="text-2xl font-black text-emerald-500 leading-none">{stats.completed}</p>
-                  <p className="text-[9px] font-black text-[var(--muted)] uppercase tracking-widest mt-1">הושלמו</p>
-                </div>
-                <div className="w-px h-8 bg-[var(--border)] shrink-0" />
-                <div className="text-right">
-                  <p className="text-2xl font-black text-[var(--foreground)]/40 leading-none">{stats.total}</p>
-                  <p className="text-[9px] font-black text-[var(--muted)] uppercase tracking-widest mt-1">סה"כ</p>
-                </div>
-              </div>
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+            
+            {/* Desktop Sidebar (lg:col-span-4) - sticky */}
+            <aside className="hidden lg:flex lg:col-span-4 flex-col gap-6 sticky top-20">
               
-              <div className="text-left shrink-0">
-                <p className="text-xl font-black leading-none">{stats.percent}<span className="text-xs font-bold text-[var(--muted)]">%</span></p>
-                <p className="text-[9px] font-black text-[var(--muted)] uppercase tracking-widest mt-1">התקדמות</p>
+              {/* Add Task Button */}
+              <button 
+                onClick={() => {
+                  setEditingTask(null);
+                  setNewTitle("");
+                  setSelectedPatientId("");
+                  setDueDate("");
+                  setTaskType("text");
+                  setSubtasks([]);
+                  setNewSubtaskTitle("");
+                  setIsModalOpen(true);
+                }}
+                className="w-full bg-gradient-to-l from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 text-white rounded-2xl p-4 shadow-md shadow-indigo-600/10 active:scale-[0.98] transition-all flex items-center justify-center gap-2 group cursor-pointer border-none"
+              >
+                <Plus className="w-5 h-5 group-hover:rotate-90 transition-transform duration-300" />
+                <span className="text-xs font-black">הוספת משימה חדשה</span>
+              </button>
+
+              {/* Search Input */}
+              <div className="relative flex items-center">
+                <Search className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--muted)]/40" />
+                <input
+                  type="text"
+                  placeholder="חיפוש משימה או שם משתתף..."
+                  value={searchTerm}
+                  onChange={e => setSearchTerm(e.target.value)}
+                  className="w-full bg-[var(--surface)] border border-[var(--border)] text-[var(--foreground)] rounded-2xl pr-10 pl-4 h-12 text-xs font-bold outline-none focus:border-indigo-500/30 transition-all placeholder:text-[var(--foreground)]/30"
+                />
               </div>
-            </div>
 
-            {/* Search Input */}
-            <div className="md:col-span-5 relative flex items-center">
-              <Search className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--muted)]/40" />
-              <input
-                type="text"
-                placeholder="חיפוש משימה או שם משתתף..."
-                value={searchTerm}
-                onChange={e => setSearchTerm(e.target.value)}
-                className="w-full bg-[var(--surface)] border border-[var(--border)] text-[var(--foreground)] rounded-2xl pr-10 pl-4 h-12 text-xs font-bold outline-none focus:border-indigo-500/30 transition-all placeholder:text-[var(--foreground)]/30"
-              />
-            </div>
-          </div>
-
-          {/* Add Task Trigger Card */}
-          <div 
-            onClick={() => {
-              setEditingTask(null);
-              setNewTitle("");
-              setSelectedPatientId("");
-              setDueDate("");
-              setIsModalOpen(true);
-            }}
-            className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-4 shadow-sm hover:border-indigo-500/30 transition-all cursor-pointer flex items-center justify-between group"
-          >
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-indigo-500/10 text-indigo-500 flex items-center justify-center group-hover:scale-105 transition-transform">
-                <Plus className="w-5 h-5" />
+              {/* Vertical Filters */}
+              <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-2 shadow-sm space-y-1">
+                {[
+                  { id: "all", label: "כל המשימות", count: stats.total, color: "text-[var(--foreground)]/60 bg-[var(--foreground)]/5" },
+                  { id: "pending", label: "בביצוע", count: stats.pending, color: "text-rose-405 bg-rose-500/10 border border-rose-500/10" },
+                  { id: "completed", label: "הושלמו", count: stats.completed, color: "text-emerald-400 bg-emerald-500/10 border border-emerald-500/10" },
+                ].map(t => (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => setFilter(t.id as any)}
+                    className={`w-full px-4 h-11 rounded-xl text-xs font-black transition-all flex items-center justify-between cursor-pointer border-none ${
+                      filter === t.id
+                        ? "bg-[var(--foreground)]/5 text-indigo-500 font-extrabold"
+                        : "text-[var(--foreground)]/60 hover:bg-[var(--foreground)]/[0.02] hover:text-[var(--foreground)] bg-transparent"
+                    }`}
+                  >
+                    <span>{t.label}</span>
+                    <span className={`text-[10px] px-2.5 py-0.5 rounded-full font-mono font-bold ${t.color}`}>{t.count}</span>
+                  </button>
+                ))}
               </div>
-              <div className="text-right">
-                <h3 className="text-xs font-black text-[var(--foreground)]">הוספת משימה או תזכורת חדשה</h3>
-                <p className="text-[10px] text-[var(--muted)] mt-0.5 font-medium">לחץ כאן כדי לרשום משימה חדשה, לשייך אותה למשתתף ולקבוע תאריך יעד</p>
-              </div>
-            </div>
-            <ChevronLeft className="w-4 h-4 text-[var(--muted)]/50 group-hover:-translate-x-1 transition-transform rotate-180" />
-          </div>
 
-          {/* Filters & Tasks List Wrapper */}
-          <div className="space-y-4">
-            {/* Tabs filter */}
-            <div className="flex bg-[var(--foreground)]/5 p-1 rounded-xl border border-[var(--border)] w-fit gap-1">
-              {[
-                { id: "all", label: "כל המשימות", count: stats.total },
-                { id: "pending", label: "בביצוע", count: stats.pending, color: "text-rose-400" },
-                { id: "completed", label: "הושלמו", count: stats.completed, color: "text-emerald-400" },
-              ].map(t => (
-                <button
-                  key={t.id}
-                  onClick={() => setFilter(t.id as any)}
-                  className={`px-4 h-8 rounded-lg text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer ${
-                    filter === t.id
-                      ? "bg-[var(--card-bg)] text-indigo-500 border border-[var(--border)] shadow-sm font-extrabold"
-                      : "text-[var(--foreground)]/50 hover:text-[var(--foreground)]"
-                  }`}
-                >
-                  {t.label}
-                  <span className={`text-[10px] opacity-75 font-mono ${t.color || ""}`}>{t.count}</span>
-                </button>
-              ))}
-            </div>
-
-            {/* Tasks Container */}
-            <div className="bg-[var(--surface)] border border-[var(--border)] rounded-[2rem] overflow-hidden shadow-sm">
-              {loading ? (
-                <div className="flex flex-col items-center justify-center py-20 gap-3 opacity-30">
-                  <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
-                  <p className="text-[10px] font-black uppercase tracking-widest">טוען משימות...</p>
+              {/* Quick stats panel */}
+              <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-5 shadow-sm space-y-4">
+                <h4 className="text-[10px] font-black text-[var(--muted)] uppercase tracking-wider">סטטיסטיקת משימות</h4>
+                
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center text-[10px] font-bold text-[var(--muted)]">
+                    <span>התקדמות כללית</span>
+                    <span className="font-mono text-indigo-500">{stats.percent}%</span>
+                  </div>
+                  <div className="w-full h-2 bg-[var(--foreground)]/5 rounded-full overflow-hidden border border-[var(--border)]/30">
+                    <div 
+                      className="h-full bg-gradient-to-l from-indigo-500 to-emerald-500 rounded-full transition-all duration-300"
+                      style={{ width: `${stats.percent}%` }}
+                    />
+                  </div>
                 </div>
-              ) : filteredTasks.length === 0 ? (
-                <div className="text-center py-20 opacity-30 flex flex-col items-center gap-3">
-                  <ClipboardCheck className="w-12 h-12 text-[var(--foreground)]/30 animate-pulse" />
-                  <p className="text-xs font-black italic">אין משימות להצגה</p>
+
+                <div className="grid grid-cols-3 gap-2 pt-2 border-t border-[var(--border)]">
+                  <div className="text-center">
+                    <p className="text-lg font-black text-rose-500 leading-none">{stats.pending}</p>
+                    <p className="text-[9px] font-bold text-[var(--muted)] mt-1">בביצוע</p>
+                  </div>
+                  <div className="text-center border-r border-[var(--border)]">
+                    <p className="text-lg font-black text-emerald-500 leading-none">{stats.completed}</p>
+                    <p className="text-[9px] font-bold text-[var(--muted)] mt-1">הושלמו</p>
+                  </div>
+                  <div className="text-center border-r border-[var(--border)]">
+                    <p className="text-lg font-black text-[var(--foreground)]/40 leading-none">{stats.total}</p>
+                    <p className="text-[9px] font-bold text-[var(--muted)] mt-1">סה"כ</p>
+                  </div>
                 </div>
-              ) : (
-                <div className="divide-y divide-[var(--border)]">
-                  <AnimatePresence initial={false}>
-                    {filteredTasks.map(t => {
-                      const hasDue = !!t.dueDate;
-                      const parsedDue = hasDue ? parseISO(t.dueDate!) : null;
-                      const isDueValid = parsedDue ? isValid(parsedDue) : false;
-                      const dueFormatted = isDueValid ? format(parsedDue!, "dd/MM/yyyy") : "";
-                      const hasPatient = !!t.patientId;
-                      const patientName = hasPatient ? getPatientName(t.patientId) : "";
+              </div>
 
-                      return (
-                        <motion.div
-                          key={t.id}
-                          initial={{ opacity: 0, height: 0 }}
-                          animate={{ opacity: 1, height: "auto" }}
-                          exit={{ opacity: 0, height: 0 }}
-                          className={`p-4 md:p-5 flex items-center justify-between gap-4 hover:bg-[var(--foreground)]/[0.005] transition-colors ${
-                            t.completed ? "bg-[var(--foreground)]/[0.015]" : ""
-                          }`}
-                        >
-                          <div className="flex items-center gap-3 min-w-0">
-                            {/* Toggle checkbox */}
-                            <button
-                              onClick={() => handleToggleTask(t.id, t.completed)}
-                              className="shrink-0 text-indigo-500 hover:scale-110 active:scale-95 transition-all cursor-pointer"
-                            >
-                              {t.completed ? (
-                                <CheckCircle className="w-5.5 h-5.5 text-emerald-500 fill-emerald-500/10" />
-                              ) : (
-                                <Circle className="w-5.5 h-5.5 text-[var(--muted)]/40 hover:text-indigo-400" />
-                              )}
-                            </button>
+            </aside>
 
-                            <div className="min-w-0">
-                              {/* Task Title */}
-                              <p className={`text-xs font-bold leading-relaxed break-words text-[var(--foreground)] ${
-                                t.completed ? "line-through opacity-40 font-medium" : ""
-                              }`}>
-                                {t.title}
-                              </p>
+            {/* Main Content Column (lg:col-span-8) */}
+            <div className="lg:col-span-8 space-y-6">
+              
+              {/* Mobile/Tablet View Controls (hidden on desktop) */}
+              <div className="lg:hidden space-y-4">
+                {/* Search & Add row */}
+                <div className="flex gap-3">
+                  <div className="relative flex-1">
+                    <Search className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--muted)]/40" />
+                    <input
+                      type="text"
+                      placeholder="חיפוש משימה או שם משתתף..."
+                      value={searchTerm}
+                      onChange={e => setSearchTerm(e.target.value)}
+                      className="w-full bg-[var(--surface)] border border-[var(--border)] text-[var(--foreground)] rounded-2xl pr-10 pl-4 h-12 text-xs font-bold outline-none focus:border-indigo-500/30 transition-all placeholder:text-[var(--foreground)]/30"
+                    />
+                  </div>
+                  
+                  <button 
+                    onClick={() => {
+                      setEditingTask(null);
+                      setNewTitle("");
+                      setSelectedPatientId("");
+                      setDueDate("");
+                      setTaskType("text");
+                      setSubtasks([]);
+                      setNewSubtaskTitle("");
+                      setIsModalOpen(true);
+                    }}
+                    className="h-12 w-12 shrink-0 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl flex items-center justify-center shadow-md shadow-indigo-600/10 active:scale-95 transition-all cursor-pointer border-none"
+                    title="הוספת משימה"
+                  >
+                    <Plus className="w-5 h-5" />
+                  </button>
+                </div>
 
-                              {/* Badges row */}
-                              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1.5 text-[9px] font-black uppercase tracking-wider text-[var(--muted)]">
-                                {/* Participant badge */}
-                                {hasPatient && (
-                                  <button
-                                    onClick={() => router.push(`/patients/${t.patientId}`)}
-                                    className="flex items-center gap-1 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 border border-emerald-500/25 px-2 py-0.5 rounded-md hover:scale-105 active:scale-95 transition-all shrink-0 cursor-pointer"
-                                    title="פתח תיק משתתף"
-                                  >
-                                    <User className="w-3 h-3 fill-emerald-600/10" />
-                                    <span>{patientName}</span>
-                                  </button>
+                {/* Compact Stats widget */}
+                <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-4 flex items-center justify-between gap-4 shadow-sm">
+                  <div className="flex items-center gap-4">
+                    <div className="text-right">
+                      <p className="text-xl font-black text-indigo-500 leading-none">{stats.pending}</p>
+                      <p className="text-[9px] font-black text-[var(--muted)] mt-1">בביצוע</p>
+                    </div>
+                    <div className="w-px h-8 bg-[var(--border)] shrink-0" />
+                    <div className="text-right">
+                      <p className="text-xl font-black text-emerald-500 leading-none">{stats.completed}</p>
+                      <p className="text-[9px] font-black text-[var(--muted)] mt-1">הושלמו</p>
+                    </div>
+                    <div className="w-px h-8 bg-[var(--border)] shrink-0" />
+                    <div className="text-right">
+                      <p className="text-xl font-black text-[var(--foreground)]/40 leading-none">{stats.total}</p>
+                      <p className="text-[9px] font-black text-[var(--muted)] mt-1">סה"כ</p>
+                    </div>
+                  </div>
+                  
+                  <div className="text-left shrink-0">
+                    <p className="text-lg font-black leading-none">{stats.percent}<span className="text-xs font-bold text-[var(--muted)]">%</span></p>
+                    <p className="text-[9px] font-black text-[var(--muted)] mt-1">התקדמות</p>
+                  </div>
+                </div>
+
+                {/* Horizontal scrollable Filter tabs */}
+                <div className="flex bg-[var(--foreground)]/5 p-1 rounded-xl border border-[var(--border)] w-full gap-1 overflow-x-auto">
+                  {[
+                    { id: "all", label: "כל המשימות", count: stats.total },
+                    { id: "pending", label: "בביצוע", count: stats.pending, color: "text-rose-400" },
+                    { id: "completed", label: "הושלמו", count: stats.completed, color: "text-emerald-400" },
+                  ].map(t => (
+                    <button
+                      key={t.id}
+                      onClick={() => setFilter(t.id as any)}
+                      className={`flex-1 min-w-[90px] px-3 h-8 rounded-lg text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer border-none ${
+                        filter === t.id
+                          ? "bg-[var(--card-bg)] text-indigo-500 border border-[var(--border)] shadow-sm font-extrabold"
+                          : "text-[var(--foreground)]/50 hover:text-[var(--foreground)] bg-transparent"
+                      }`}
+                    >
+                      <span>{t.label}</span>
+                      <span className={`text-[10px] opacity-75 font-mono ${t.color || ""}`}>{t.count}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Tasks Container */}
+              <div className="bg-[var(--surface)] border border-[var(--border)] rounded-[2rem] overflow-hidden shadow-sm">
+                {loading ? (
+                  <div className="flex flex-col items-center justify-center py-20 gap-3 opacity-30">
+                    <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
+                    <p className="text-[10px] font-black uppercase tracking-widest">טוען משימות...</p>
+                  </div>
+                ) : filteredTasks.length === 0 ? (
+                  <div className="text-center py-20 opacity-30 flex flex-col items-center gap-3">
+                    <ClipboardCheck className="w-12 h-12 text-[var(--foreground)]/30 animate-pulse" />
+                    <p className="text-xs font-black italic">אין משימות להצגה</p>
+                  </div>
+                ) : (
+                  <div className="divide-y divide-[var(--border)]">
+                    <AnimatePresence initial={false}>
+                      {filteredTasks.map(t => {
+                        const hasDue = !!t.dueDate;
+                        const parsedDue = hasDue ? parseISO(t.dueDate!) : null;
+                        const isDueValid = parsedDue ? isValid(parsedDue) : false;
+                        const dueFormatted = isDueValid ? format(parsedDue!, "dd/MM/yyyy") : "";
+                        const hasPatient = !!t.patientId;
+                        const patientName = hasPatient ? getPatientName(t.patientId) : "";
+
+                        return (
+                          <motion.div
+                            key={t.id}
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: "auto" }}
+                            exit={{ opacity: 0, height: 0 }}
+                            className={`p-4 md:p-5 flex items-center justify-between gap-4 hover:bg-[var(--foreground)]/[0.005] transition-colors ${
+                              t.completed ? "bg-[var(--foreground)]/[0.015]" : ""
+                            }`}
+                          >
+                            <div className="flex items-center gap-3 min-w-0 flex-1">
+                              {/* Toggle checkbox */}
+                              <button
+                                onClick={() => handleToggleTask(t.id, t.completed)}
+                                className="shrink-0 text-indigo-500 hover:scale-110 active:scale-95 transition-all cursor-pointer border-none bg-transparent p-0"
+                              >
+                                {t.completed ? (
+                                  <CheckCircle className="w-5.5 h-5.5 text-emerald-500 fill-emerald-500/10" />
+                                ) : (
+                                  <Circle className="w-5.5 h-5.5 text-[var(--muted)]/40 hover:text-indigo-400" />
                                 )}
+                              </button>
 
-                                {hasPatient && hasDue && <span className="text-[var(--border-strong)]/40">•</span>}
+                              <div className="min-w-0 flex-1">
+                                {/* Task Title */}
+                                <p className={`text-xs font-bold leading-relaxed break-words text-[var(--foreground)] ${
+                                  t.completed ? "line-through opacity-40 font-medium" : ""
+                                }`}>
+                                  {t.title}
+                                </p>
 
-                                {/* Due date badge */}
-                                {hasDue && (
-                                  <span className={`flex items-center gap-1 px-2 py-0.5 rounded-md border shrink-0 ${
-                                    t.completed 
-                                      ? "bg-[var(--foreground)]/5 border-[var(--border)] text-[var(--muted)]/50" 
-                                      : "bg-indigo-500/8 border-indigo-500/15 text-indigo-500"
-                                  }`}>
-                                    <Calendar className="w-3 h-3" />
-                                    <span>יעד: {dueFormatted}</span>
-                                  </span>
-                                )}
+                                {/* Subtasks Progress & Checklist */}
+                                {t.taskType === "checklist" && t.subtasks && t.subtasks.length > 0 && (() => {
+                                  const totalSub = t.subtasks.length;
+                                  const completedSub = t.subtasks.filter(s => s.completed).length;
+                                  const progressPercent = Math.round((completedSub / totalSub) * 100);
+                                  return (
+                                    <>
+                                      <div className="mt-3 space-y-1.5">
+                                        <div className="flex items-center gap-2 text-[9px] font-black text-[var(--muted)] uppercase tracking-wider">
+                                          <span>הושלמו: {completedSub}/{totalSub} ({progressPercent}%)</span>
+                                        </div>
+                                        <div className="w-full max-w-[280px] h-1.5 bg-[var(--foreground)]/5 rounded-full overflow-hidden border border-[var(--border)]/30">
+                                          <div 
+                                            className="h-full bg-gradient-to-l from-indigo-500 to-indigo-600 rounded-full transition-all duration-300"
+                                            style={{ width: `${progressPercent}%` }}
+                                          />
+                                        </div>
+                                      </div>
+                                      <div className="mt-3 mr-1.5 space-y-2 border-r-2 border-indigo-500/20 pr-3.5 text-right">
+                                        {t.subtasks.map(sub => (
+                                          <div key={sub.id} className="flex items-center gap-2.5 py-0.5">
+                                            <button
+                                              onClick={() => handleToggleSubtask(t.id, sub.id, sub.completed)}
+                                              className="shrink-0 text-indigo-500 hover:scale-110 active:scale-95 transition-all cursor-pointer border-none bg-transparent p-0"
+                                            >
+                                              {sub.completed ? (
+                                                <CheckCircle className="w-4 h-4 text-emerald-500 fill-emerald-500/10" />
+                                              ) : (
+                                                <Circle className="w-4 h-4 text-[var(--muted)]/40 hover:text-indigo-400" />
+                                              )}
+                                            </button>
+                                            <span className={`text-[11px] font-bold leading-normal ${sub.completed ? "line-through opacity-45 font-medium text-[var(--muted)]" : "text-[var(--foreground)]"}`}>
+                                              {sub.title}
+                                            </span>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </>
+                                  );
+                                })()}
+
+                                {/* Badges row */}
+                                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-2 text-[9px] font-black uppercase tracking-wider text-[var(--muted)]">
+                                  {/* Participant badge */}
+                                  {hasPatient && (
+                                    <button
+                                      onClick={() => router.push(`/patients/${t.patientId}`)}
+                                      className="flex items-center gap-1 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 border border-emerald-500/25 px-2 py-0.5 rounded-md hover:scale-105 active:scale-95 transition-all shrink-0 cursor-pointer"
+                                      title="פתח תיק משתתף"
+                                    >
+                                      <User className="w-3 h-3 fill-emerald-600/10" />
+                                      <span>{patientName}</span>
+                                    </button>
+                                  )}
+
+                                  {hasPatient && hasDue && <span className="text-[var(--border-strong)]/40">•</span>}
+
+                                  {/* Due date badge */}
+                                  {hasDue && (
+                                    <span className={`flex items-center gap-1 px-2 py-0.5 rounded-md border shrink-0 ${
+                                      t.completed 
+                                        ? "bg-[var(--foreground)]/5 border-[var(--border)] text-[var(--muted)]/50" 
+                                        : "bg-indigo-500/8 border-indigo-500/15 text-indigo-500"
+                                    }`}>
+                                      <Calendar className="w-3 h-3" />
+                                      <span>יעד: {dueFormatted}</span>
+                                    </span>
+                                  )}
+                                </div>
                               </div>
                             </div>
-                          </div>
 
-                          <div className="flex items-center gap-1 shrink-0">
-                            {/* Edit button */}
-                            <button
-                              onClick={() => {
-                                setEditingTask(t);
-                                setNewTitle(t.title);
-                                setSelectedPatientId(t.patientId || "");
-                                setDueDate(t.dueDate || "");
-                                setIsModalOpen(true);
-                              }}
-                              className="p-2 text-[var(--muted)]/40 hover:text-indigo-500 hover:bg-indigo-500/5 rounded-xl transition-all cursor-pointer"
-                              title="ערוך משימה"
-                            >
-                              <Edit3 className="w-4 h-4" />
-                            </button>
+                            <div className="flex items-center gap-1 shrink-0">
+                              {/* Edit button */}
+                              <button
+                                onClick={() => {
+                                  setEditingTask(t);
+                                  setNewTitle(t.title);
+                                  setSelectedPatientId(t.patientId || "");
+                                  setDueDate(t.dueDate || "");
+                                  setTaskType(t.taskType || "text");
+                                  setSubtasks(t.subtasks || []);
+                                  setNewSubtaskTitle("");
+                                  setIsModalOpen(true);
+                                }}
+                                className="p-2 text-[var(--muted)]/40 hover:text-indigo-500 hover:bg-indigo-500/5 rounded-xl transition-all cursor-pointer border-none bg-transparent"
+                                title="ערוך משימה"
+                              >
+                                <Edit3 className="w-4 h-4" />
+                              </button>
 
-                            {/* Delete button */}
-                            <button
-                              onClick={() => handleDeleteTask(t.id)}
-                              className="p-2 text-[var(--muted)]/40 hover:text-rose-500 hover:bg-rose-500/5 rounded-xl transition-all cursor-pointer"
-                              title="מחק משימה"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </motion.div>
-                      );
-                    })}
-                  </AnimatePresence>
-                </div>
-              )}
+                              {/* Delete button */}
+                              <button
+                                onClick={() => handleDeleteTask(t.id)}
+                                className="p-2 text-[var(--muted)]/40 hover:text-rose-500 hover:bg-rose-500/5 rounded-xl transition-all cursor-pointer border-none bg-transparent"
+                                title="מחק משימה"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </motion.div>
+                        );
+                      })}
+                    </AnimatePresence>
+                  </div>
+                )}
+              </div>
+
             </div>
+
           </div>
 
           {/* Mobile Floating Action Button (FAB) */}
@@ -473,6 +678,9 @@ export default function PersonalTasksPage() {
               setNewTitle("");
               setSelectedPatientId("");
               setDueDate("");
+              setTaskType("text");
+              setSubtasks([]);
+              setNewSubtaskTitle("");
               setIsModalOpen(true);
             }}
             className="md:hidden fixed bottom-6 left-6 z-40 bg-indigo-600 hover:bg-indigo-500 text-white w-14 h-14 rounded-full shadow-lg shadow-indigo-600/30 flex items-center justify-center transition-transform active:scale-95 cursor-pointer"
@@ -534,17 +742,134 @@ export default function PersonalTasksPage() {
                   {/* Modal Body */}
                   <form onSubmit={handleSaveTask} className="flex-1 overflow-y-auto p-5 md:p-6 flex flex-col justify-between md:justify-start h-full">
                     <div className="space-y-4 flex-1 flex flex-col">
+                      {/* Task Type Toggle */}
+                      <div className="space-y-1.5 text-right shrink-0">
+                        <label className="text-[10px] font-black text-[var(--muted)] uppercase tracking-wider mr-1">סוג המשימה</label>
+                        <div className="flex bg-[var(--foreground)]/5 p-1 rounded-xl border border-[var(--border)] gap-1">
+                          <button
+                            type="button"
+                            onClick={() => setTaskType("text")}
+                            className={`flex-1 py-2 rounded-lg text-xs font-black transition-all cursor-pointer ${
+                              taskType === "text"
+                                ? "bg-[var(--card-bg)] text-indigo-500 border border-[var(--border)] shadow-sm font-extrabold"
+                                : "text-[var(--foreground)]/50 hover:text-[var(--foreground)]"
+                            }`}
+                          >
+                            משימה פשוטה (טקסט)
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setTaskType("checklist")}
+                            className={`flex-1 py-2 rounded-lg text-xs font-black transition-all cursor-pointer ${
+                              taskType === "checklist"
+                                ? "bg-[var(--card-bg)] text-indigo-500 border border-[var(--border)] shadow-sm font-extrabold"
+                                : "text-[var(--foreground)]/50 hover:text-[var(--foreground)]"
+                            }`}
+                          >
+                            רשימת תתי-משימות (Checklist)
+                          </button>
+                        </div>
+                      </div>
+
                       {/* Task Title */}
-                      <div className="space-y-1.5 text-right flex-1 flex flex-col min-h-[200px] md:min-h-0">
-                        <label className="text-[10px] font-black text-[var(--muted)] uppercase tracking-wider mr-1 shrink-0">תיאור המשימה *</label>
+                      <div className="space-y-1.5 text-right shrink-0">
+                        <label className="text-[10px] font-black text-[var(--muted)] uppercase tracking-wider mr-1 shrink-0">נושא / תיאור המשימה *</label>
                         <textarea
                           required
-                          placeholder="הקלד את תיאור המשימה..."
+                          placeholder="הקלד את נושא המשימה..."
                           value={newTitle}
                           onChange={e => setNewTitle(e.target.value)}
-                          className="w-full flex-1 bg-[var(--foreground)]/5 border border-[var(--border)] text-[var(--foreground)] rounded-2xl p-4 text-xs font-bold outline-none focus:border-indigo-500/30 transition-all placeholder:text-[var(--foreground)]/30 resize-none text-right"
+                          className="w-full bg-[var(--foreground)]/5 border border-[var(--border)] text-[var(--foreground)] rounded-2xl p-3 h-20 text-xs font-bold outline-none focus:border-indigo-500/30 transition-all placeholder:text-[var(--foreground)]/30 resize-none text-right"
                         />
                       </div>
+
+                      {/* Sub-tasks Section (if checklist selected) */}
+                      {taskType === "checklist" && (
+                        <div className="space-y-3 border border-[var(--border)] p-4 rounded-2xl bg-[var(--foreground)]/[0.01] shrink-0 text-right">
+                          <label className="text-[10px] font-black text-[var(--muted)] uppercase tracking-wider">תתי-משימות</label>
+                          
+                          {/* Add subtask input */}
+                          <div className="flex gap-2">
+                            <input
+                              type="text"
+                              placeholder="הוסף תת-משימה חדשה..."
+                              value={newSubtaskTitle}
+                              onChange={e => setNewSubtaskTitle(e.target.value)}
+                              onKeyDown={e => {
+                                if (e.key === "Enter") {
+                                  e.preventDefault();
+                                  if (!newSubtaskTitle.trim()) return;
+                                  setSubtasks(prev => [
+                                    ...prev,
+                                    { id: Date.now().toString() + Math.random().toString(36).substring(2, 7), title: newSubtaskTitle.trim(), completed: false }
+                                  ]);
+                                  setNewSubtaskTitle("");
+                                }
+                              }}
+                              className="flex-1 bg-[var(--foreground)]/5 border border-[var(--border)] text-[var(--foreground)] rounded-xl px-3 h-10 text-xs font-bold outline-none focus:border-indigo-500/30 transition-all text-right"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (!newSubtaskTitle.trim()) return;
+                                setSubtasks(prev => [
+                                  ...prev,
+                                  { id: Date.now().toString() + Math.random().toString(36).substring(2, 7), title: newSubtaskTitle.trim(), completed: false }
+                                ]);
+                                setNewSubtaskTitle("");
+                              }}
+                              className="px-3 bg-indigo-500 hover:bg-indigo-600 text-white rounded-xl text-xs font-black cursor-pointer"
+                            >
+                              הוסף
+                            </button>
+                          </div>
+
+                          {/* List of subtasks */}
+                          {subtasks.length === 0 ? (
+                            <p className="text-[10px] text-[var(--muted)]/50 italic text-center py-2">אין תתי-משימות ברשימה</p>
+                          ) : (
+                            <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
+                              {subtasks.map((sub, idx) => (
+                                <div key={sub.id} className="flex items-center justify-between gap-2 bg-[var(--card-bg)] border border-[var(--border)] p-2 rounded-xl">
+                                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setSubtasks(prev => prev.map(s => s.id === sub.id ? { ...s, completed: !s.completed } : s));
+                                      }}
+                                      className="shrink-0 text-indigo-500 hover:scale-105 active:scale-95 transition-all"
+                                    >
+                                      {sub.completed ? (
+                                        <CheckCircle className="w-4.5 h-4.5 text-emerald-500 fill-emerald-500/10" />
+                                      ) : (
+                                        <Circle className="w-4.5 h-4.5 text-[var(--muted)]/40 hover:text-indigo-400" />
+                                      )}
+                                    </button>
+                                    <input
+                                      type="text"
+                                      value={sub.title}
+                                      onChange={e => {
+                                        const newText = e.target.value;
+                                        setSubtasks(prev => prev.map(s => s.id === sub.id ? { ...s, title: newText } : s));
+                                      }}
+                                      className={`w-full bg-transparent border-none text-xs font-bold outline-none text-right ${sub.completed ? "line-through opacity-40 font-medium" : ""}`}
+                                    />
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setSubtasks(prev => prev.filter(s => s.id !== sub.id));
+                                    }}
+                                    className="p-1 text-[var(--muted)]/40 hover:text-rose-500 rounded-lg transition-colors cursor-pointer shrink-0"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
 
                       {/* Patient / Participant */}
                       <div className="space-y-1.5 text-right shrink-0">
