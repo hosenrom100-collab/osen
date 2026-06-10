@@ -22,6 +22,11 @@ import { he } from "date-fns/locale";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 
+const monthNamesHebrew = [
+  "ינואר", "פברואר", "מרץ", "אפריל", "מאי", "יוני",
+  "יולי", "אוגוסט", "ספטמבר", "אוקטובר", "נובמבר", "דצמבר"
+];
+
 interface Patient {
   id: string;
   firstName: string;
@@ -79,6 +84,20 @@ export default function PatientDetailPage() {
   const [pendingRequest, setPendingRequest] = useState<any | null>(null);
   const [activeReportType, setActiveReportType] = useState<'participation' | 'attendance' | 'travel'>('participation');
 
+  // Travel reimbursement specific states (Transient, not saved to DB)
+  const [showTravelModal, setShowTravelModal] = useState(false);
+  const [travelLetterDate, setTravelLetterDate] = useState("");
+  const [travelFirstName, setTravelFirstName] = useState("");
+  const [travelLastName, setTravelLastName] = useState("");
+  const [travelIdNumber, setTravelIdNumber] = useState("");
+  const [travelApprovalStartDate, setTravelApprovalStartDate] = useState("");
+  const [travelProgramName, setTravelProgramName] = useState("חרבות ברזל");
+  const [travelActivityDays, setTravelActivityDays] = useState("שני, שלישי, רביעי");
+  const [travelAttendanceDatesStr, setTravelAttendanceDatesStr] = useState("");
+  const [travelSignatoryName, setTravelSignatoryName] = useState("מירב סארמילי");
+  const [travelSignatoryTitle, setTravelSignatoryTitle] = useState("מנהלת תפעול מרכז חוסן");
+  const [travelSignatoryOrg, setTravelSignatoryOrg] = useState("חוות רום");
+
   const getProgramDaysText = (defaultText: string) => {
     const patientProgram = programs.find(p => p.id === (patient as any)?.programId);
     const activeDays = patientProgram?.activeDays;
@@ -97,6 +116,28 @@ export default function PatientDetailPage() {
 
     const last = mapped.pop();
     return `בימים ${mapped.join(", ")} ו${last}`;
+  };
+
+  const getTravelAttendanceDates = () => {
+    let result = "";
+    if (!travelAttendanceDatesStr || !travelAttendanceDatesStr.trim() || travelAttendanceDatesStr.includes("[הכנס תאריכים]")) {
+      const reqMonth = pendingRequest?.month || selectedMonth;
+      const monthlyPresence = attendance
+        .filter(h => h.date.startsWith(reqMonth) && h.status === 'present')
+        .sort((a, b) => a.date.localeCompare(b.date));
+      const dayNumbers = monthlyPresence.map(h => parseInt(h.date.split("-")[2], 10));
+      const [selYear, selMonth] = reqMonth.split("-");
+      const selMonthName = monthNamesHebrew[parseInt(selMonth, 10) - 1];
+      if (dayNumbers.length > 0) {
+        result = `${dayNumbers.join(",")} לחודש ${selMonthName} ${selYear}`;
+      } else {
+        result = "";
+      }
+    } else {
+      result = travelAttendanceDatesStr;
+    }
+    // Remove all quotes (double, single, smart quotes) and brackets
+    return result.replace(/["'“”‘’\[\]]/g, "");
   };
 
   useEffect(() => { if (id) fetchPatientData(); }, [id]);
@@ -244,8 +285,66 @@ export default function PatientDetailPage() {
       setPendingRequest(request);
       setPendingReportType('travel');
       setActiveReportType('travel');
-      setRecipientText("משרד הביטחון - אגף השיקום");
-      setShowRecipientModal(true);
+      
+      const today = new Date();
+      const hebrewDaysOfWeek = ["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת"];
+      const dayName = hebrewDaysOfWeek[today.getDay()];
+      const dayNum = today.getDate();
+      const monthNamesHebrew = [
+        "ינואר", "פברואר", "מרץ", "אפריל", "מאי", "יוני",
+        "יולי", "אוגוסט", "ספטמבר", "אוקטובר", "נובמבר", "דצמבר"
+      ];
+      const monthName = monthNamesHebrew[today.getMonth()];
+      const yearNum = today.getFullYear();
+      setTravelLetterDate(`יום ${dayName} ${dayNum} ${monthName} ${yearNum}`);
+      
+      setTravelFirstName(patient.firstName || "");
+      setTravelLastName(patient.lastName || "");
+      setTravelIdNumber(patient.idNumber || "");
+      
+      if (patient.startDate) {
+        try {
+          const parsed = parseISO(patient.startDate);
+          if (isValid(parsed)) {
+            setTravelApprovalStartDate(format(parsed, "dd.MM.yyyy"));
+          } else {
+            setTravelApprovalStartDate("08.09.2025");
+          }
+        } catch {
+          setTravelApprovalStartDate("08.09.2025");
+        }
+      } else {
+        setTravelApprovalStartDate("08.09.2025");
+      }
+      
+      setTravelProgramName("חרבות ברזל");
+      const patientProgram = programs.find(p => p.id === (patient as any)?.programId);
+      const activeDays = patientProgram?.activeDays;
+      if (activeDays && activeDays.length > 0) {
+        const sortedDays = [...activeDays].sort((a, b) => a - b);
+        const mapped = sortedDays.map(d => hebrewDaysOfWeek[d]);
+        setTravelActivityDays(mapped.join(", "));
+      } else {
+        setTravelActivityDays("שני, שלישי, רביעי");
+      }
+      
+      const reqMonth = request.month || selectedMonth;
+      const monthlyPresence = attendance
+        .filter(h => h.date.startsWith(reqMonth) && h.status === 'present')
+        .sort((a, b) => a.date.localeCompare(b.date));
+      const dayNumbers = monthlyPresence.map(h => parseInt(h.date.split("-")[2], 10));
+      const [selYear, selMonth] = reqMonth.split("-");
+      const selMonthName = monthNamesHebrew[parseInt(selMonth, 10) - 1];
+      const attDatesFormatted = dayNumbers.length > 0
+        ? `${dayNumbers.join(",")} לחודש ${selMonthName} ${selYear}`
+        : `[הכנס תאריכים] לחודש ${selMonthName} ${selYear}`;
+      setTravelAttendanceDatesStr(attDatesFormatted);
+      
+      setTravelSignatoryName("מירב סארמילי");
+      setTravelSignatoryTitle("מנהלת תפעול מרכז חוסן");
+      setTravelSignatoryOrg("חוות רום");
+      
+      setShowTravelModal(true);
     } else {
       if (request.type === 'attendance') {
         setActiveReportType('attendance');
@@ -586,8 +685,65 @@ export default function PatientDetailPage() {
       setPendingRequest(null);
       setPendingReportType('travel');
       setActiveReportType('travel');
-      setRecipientText("משרד הביטחון - אגף השיקום");
-      setShowRecipientModal(true);
+      
+      const today = new Date();
+      const hebrewDaysOfWeek = ["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת"];
+      const dayName = hebrewDaysOfWeek[today.getDay()];
+      const dayNum = today.getDate();
+      const monthNamesHebrew = [
+        "ינואר", "פברואר", "מרץ", "אפריל", "מאי", "יוני",
+        "יולי", "אוגוסט", "ספטמבר", "אוקטובר", "נובמבר", "דצמבר"
+      ];
+      const monthName = monthNamesHebrew[today.getMonth()];
+      const yearNum = today.getFullYear();
+      setTravelLetterDate(`יום ${dayName} ${dayNum} ${monthName} ${yearNum}`);
+      
+      setTravelFirstName(patient.firstName || "");
+      setTravelLastName(patient.lastName || "");
+      setTravelIdNumber(patient.idNumber || "");
+      
+      if (patient.startDate) {
+        try {
+          const parsed = parseISO(patient.startDate);
+          if (isValid(parsed)) {
+            setTravelApprovalStartDate(format(parsed, "dd.MM.yyyy"));
+          } else {
+            setTravelApprovalStartDate("08.09.2025");
+          }
+        } catch {
+          setTravelApprovalStartDate("08.09.2025");
+        }
+      } else {
+        setTravelApprovalStartDate("08.09.2025");
+      }
+      
+      setTravelProgramName("חרבות ברזל");
+      const patientProgram = programs.find(p => p.id === (patient as any)?.programId);
+      const activeDays = patientProgram?.activeDays;
+      if (activeDays && activeDays.length > 0) {
+        const sortedDays = [...activeDays].sort((a, b) => a - b);
+        const mapped = sortedDays.map(d => hebrewDaysOfWeek[d]);
+        setTravelActivityDays(mapped.join(", "));
+      } else {
+        setTravelActivityDays("שני, שלישי, רביעי");
+      }
+      
+      const monthlyPresence = attendance
+        .filter(h => h.date.startsWith(selectedMonth) && h.status === 'present')
+        .sort((a, b) => a.date.localeCompare(b.date));
+      const dayNumbers = monthlyPresence.map(h => parseInt(h.date.split("-")[2], 10));
+      const [selYear, selMonth] = selectedMonth.split("-");
+      const selMonthName = monthNamesHebrew[parseInt(selMonth, 10) - 1];
+      const attDatesFormatted = dayNumbers.length > 0
+        ? `${dayNumbers.join(",")} לחודש ${selMonthName} ${selYear}`
+        : `[הכנס תאריכים] לחודש ${selMonthName} ${selYear}`;
+      setTravelAttendanceDatesStr(attDatesFormatted);
+      
+      setTravelSignatoryName("מירב סארמילי");
+      setTravelSignatoryTitle("מנהלת תפעול מרכז חוסן");
+      setTravelSignatoryOrg("חוות רום");
+      
+      setShowTravelModal(true);
     } else {
       setActiveReportType('attendance');
       setReportLoading(true);
@@ -620,6 +776,48 @@ export default function PatientDetailPage() {
     } catch (err) {
       console.error(err);
       alert("שגיאה בהפקת הדוח");
+    }
+  };
+
+  const executeTravelPDFGeneration = async () => {
+    if (!patient || !reportRef.current) return;
+    setShowTravelModal(false);
+    setReportLoading(true);
+    try {
+      await new Promise(r => setTimeout(r, 350));
+      const canvas = await html2canvas(reportRef.current, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: "#ffffff"
+      });
+      const imgData = canvas.toDataURL("image/jpeg", 1.0);
+      const pdf = new jsPDF("p", "mm", "a4");
+      const imgWidth = 210;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      pdf.addImage(imgData, "JPEG", 0, 0, imgWidth, imgHeight);
+      
+      const fileName = `החזר_נסיעות_${travelLastName}_${travelFirstName}`;
+      pdf.save(`${fileName}.pdf`);
+      
+      // Update pending request status to completed in Firestore if there is one
+      // but do NOT save the document URL or notifications to DB as requested.
+      if (pendingRequest) {
+        await updateDoc(doc(db, "document_requests", pendingRequest.id), {
+          status: "completed",
+          processedAt: serverTimestamp()
+        });
+      }
+      
+      alert("המסמך הופק בהצלחה!");
+      fetchPatientData();
+    } catch (err) {
+      console.error(err);
+      alert("שגיאה בהפקת המסמך");
+    } finally {
+      setReportLoading(false);
+      setPendingRequest(null);
+      setPendingReportType(null);
     }
   };
 
@@ -1260,85 +1458,90 @@ export default function PatientDetailPage() {
                   </div>
                 </div>
               ) : activeReportType === 'travel' ? (
-                /* Monthly Attendance Certificate */
-                <div>
-                  {/* Document Meta */}
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px", fontSize: "14px", color: "#64748b", fontWeight: 700 }}>
-                    <div>תאריך: {format(new Date(), "EEEE d MMMM yyyy", { locale: he })}</div>
-                    <div>סימוכין: {patient.id?.slice(-6).toUpperCase()}</div>
+                /* Monthly Attendance/Travel Reimbursement Certificate */
+                <div style={{
+                  paddingTop: "20px",
+                  paddingBottom: "20px",
+                  paddingLeft: "25px",
+                  paddingRight: "25px",
+                  fontSize: "16px",
+                  color: "#000000",
+                  fontFamily: "Arial, sans-serif",
+                  lineHeight: "1.8",
+                  direction: "rtl",
+                  textAlign: "right"
+                }}>
+                  {/* Date of letter */}
+                  <div style={{ textAlign: "left", marginBottom: "40px", fontWeight: "bold" }}>
+                    {travelLetterDate}
                   </div>
+
+                  {/* Empty Line */}
+                  <div style={{ height: "20px" }} />
+
+                  {/* Document Title */}
+                  <div style={{ textAlign: "center", marginBottom: "40px" }}>
+                    <h3 style={{ fontSize: "20px", fontWeight: "bold", margin: 0 }}>החזר נסיעות חודשי</h3>
+                  </div>
+
+                  {/* Empty Line */}
+                  <div style={{ height: "20px" }} />
 
                   {/* Recipient */}
-                  <div style={{ fontSize: "16px", marginBottom: "24px", fontWeight: 700 }}>
-                    עבור: {recipientText}
+                  <div style={{ fontWeight: "bold", marginBottom: "30px" }}>
+                    עבור משרד הביטחון - אגף השיקום
                   </div>
 
-                  {/* Title */}
-                  <div style={{ textAlign: "center", marginBottom: "32px" }}>
-                    <h3 style={{ fontSize: "26px", fontWeight: 900, margin: "0 0 8px 0", color: "#1e293b" }}>
-                      {(() => {
-                        const [year, month] = selectedMonth.split("-");
-                        const months = [
-                          "ינואר", "פברואר", "מרץ", "אפריל", "מאי", "יוני",
-                          "יולי", "אוגוסט", "ספטמבר", "אוקטובר", "נובמבר", "דצמבר"
-                        ];
-                        return `אישור נוכחות בחוות רום לחודש ${months[parseInt(month) - 1]} שנה ${year}`;
-                      })()}
-                    </h3>
+                  {/* Subject */}
+                  <div style={{ fontWeight: "bold", marginBottom: "15px" }}>
+                    הנדון: <strong style={{ fontWeight: "bold" }}>{travelFirstName} {travelLastName}</strong>
                   </div>
 
-                  {/* Body */}
-                  <div style={{ fontSize: "16px", color: "#000000" }}>
-                    <p style={{ marginBottom: "16px" }}>הנדון: <strong>{patientName}</strong></p>
-                    <p style={{ marginBottom: "24px" }}>ת.ז: <strong>{patient.idNumber || "—"}</strong></p>
-                    
-                    <p style={{ marginBottom: "20px", lineHeight: 1.8 }}>
-                      הרינו לאשר כי קיבל אישור להגעה לחווה החל התאריך: <strong>{patient.startDate ? format(parseISO(patient.startDate), "dd.MM.yyyy") : "—"}</strong>.
-                    </p>
-                    <p style={{ marginBottom: "20px", lineHeight: 1.8 }}>
-                      הפעילות בחווה בתוכנית <strong>{programs.find(p => p.id === (patient as any).programId)?.name || "חוסן"}</strong> מתקיימת {getProgramDaysText("בימי ראשון")}.
-                    </p>
+                  {/* ID */}
+                  <div style={{ fontWeight: "bold", marginBottom: "40px" }}>
+                    ת.ז: <strong style={{ fontWeight: "bold" }}>{travelIdNumber}</strong>
+                  </div>
 
-                    {(() => {
-                      const arrivedDates = attendance
-                        .filter(h => h.date.startsWith(selectedMonth) && h.status === 'present')
-                        .sort((a, b) => a.date.localeCompare(b.date))
-                        .map(h => format(parseISO(h.date), "dd/MM/yyyy"));
-                      const totalDays = arrivedDates.length;
-                      const datesStr = arrivedDates.length > 0 ? arrivedDates.join(", ") : "אין ימי נוכחות בחודש זה";
-                      return (
-                        <div style={{ marginTop: "24px" }}>
-                          <p style={{ marginBottom: "8px" }}>להלן תאריכי ההגעה בחודש זה :</p>
-                          <p style={{ fontWeight: 700, color: "#0369a1", marginBottom: "12px", direction: "ltr", textAlign: "right" }}>
-                            {datesStr}
-                          </p>
-                          <p style={{ marginBottom: "36px", lineHeight: 1.8 }}>
-                            סה״כ {totalDays} ימי נוכחות
-                          </p>
-                        </div>
-                      );
-                    })()}
+                  {/* Empty Line */}
+                  <div style={{ height: "20px" }} />
 
-                    <p style={{ marginTop: "40px", marginBottom: "8px" }}>בברכה,</p>
-                    
-                    {/* Signature Area */}
-                    {signatureImage ? (
-                      <div style={{ display: "flex", flexDirection: "column", gap: "2px", marginTop: "4px" }}>
-                        <img 
-                          src={signatureImage} 
-                          alt="חתימה דיגיטלית" 
-                          style={{ maxHeight: "64px", maxWidth: "160px", objectFit: "contain", alignSelf: "flex-start" }} 
-                        />
-                        <p style={{ fontWeight: 900, margin: "4px 0 2px 0", fontSize: "14px" }}>{authUser?.displayName || "מורשה חתימה"}</p>
-                        <p style={{ fontSize: "12px", color: "#64748b", margin: 0 }}>{signatureTitle || "עו\"ס בחווה"}</p>
+                  {/* Body Paragraphs */}
+                  <p style={{ marginBottom: "24px" }}>
+                    הרינו לאשר כי קיבל אישור להגעה לחווה מהתאריך <strong style={{ fontWeight: "bold" }}>{travelApprovalStartDate}</strong>
+                  </p>
+
+                  <p style={{ marginBottom: "24px" }}>
+                    הפעילות בחווה בתוכנית <strong style={{ fontWeight: "bold" }}>{travelProgramName}</strong> מתקיימת בימי <strong style={{ fontWeight: "bold" }}>{travelActivityDays}</strong> .
+                  </p>
+
+                  <p style={{ marginBottom: "24px" }}>
+                    הפעילויות השונות המתקיימות בחווה: עבודה חקלאית, גילוף בעץ ומלאכות קדומות, דיקור, יוגה, סדנאות שונות ושיחות קבוצתיות.
+                  </p>
+
+                  <p style={{ marginBottom: "50px" }}>
+                    הנ"ל מבקש החזר נסיעות עבור ההגעה לחווה
+                    <br />
+                    בתאריכים: <strong style={{ fontWeight: "bold", textDecoration: "underline" }}>{getTravelAttendanceDates()}</strong>
+                  </p>
+
+                  {/* Signature */}
+                  <div style={{ 
+                    display: "flex", 
+                    justifyContent: "flex-end", 
+                    marginTop: "40px" 
+                  }}>
+                    <div style={{ 
+                      fontSize: "16px", 
+                      textAlign: "right", 
+                      width: "220px" 
+                    }}>
+                      <p style={{ margin: "0 0 10px 0" }}>בברכה,</p>
+                      <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                        <p style={{ fontWeight: "bold", margin: 0 }}>{travelSignatoryName}</p>
+                        <p style={{ margin: 0 }}>{travelSignatoryTitle}</p>
+                        <p style={{ margin: 0 }}>{travelSignatoryOrg}</p>
                       </div>
-                    ) : (
-                      <div style={{ display: "flex", flexDirection: "column", gap: "2px", marginTop: "4px" }}>
-                        <div style={{ height: "48px", borderBottom: "1px dashed #cbd5e1", width: "160px", marginBottom: "8px" }} />
-                        <p style={{ fontWeight: 900, margin: "4px 0 2px 0", fontSize: "14px" }}>{authUser?.displayName || "מורשה חתימה"}</p>
-                        <p style={{ fontSize: "12px", color: "#64748b", margin: 0 }}>{signatureTitle || "עו\"ס בחווה"}</p>
-                      </div>
-                    )}
+                    </div>
                   </div>
                 </div>
               ) : (
@@ -1494,6 +1697,185 @@ export default function PatientDetailPage() {
                       ביטול
                     </button>
                   </div>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+
+        {/* Travel Reimbursement Modal */}
+        <AnimatePresence>
+          {showTravelModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setShowTravelModal(false)}
+                className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+              />
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                className="relative w-full max-w-2xl bg-white border border-slate-200 rounded-[2.5rem] shadow-2xl overflow-hidden p-8 z-10 my-8"
+                dir="rtl"
+              >
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-sky-50 text-sky-500 flex items-center justify-center">
+                      <FileText className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h3 className="text-base font-black text-slate-900">
+                        הפקת מכתב החזר נסיעות חודשי
+                      </h3>
+                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider font-bold">
+                        מלא או ערוך את פרטי המטופל לפני הפקת המכתב (לא יישמר בדאטהבייס)
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setShowTravelModal(false)}
+                    className="p-2 hover:bg-slate-100 rounded-xl transition-all"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <div className="space-y-4 max-h-[60vh] overflow-y-auto px-1 scrollbar-thin">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">תאריך המכתב:</label>
+                      <input
+                        type="text"
+                        value={travelLetterDate}
+                        onChange={(e) => setTravelLetterDate(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-2.5 text-xs outline-none focus:border-sky-500 transition-all font-bold"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">שם פרטי:</label>
+                      <input
+                        type="text"
+                        value={travelFirstName}
+                        onChange={(e) => setTravelFirstName(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-2.5 text-xs outline-none focus:border-sky-500 transition-all font-bold"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">שם משפחה:</label>
+                      <input
+                        type="text"
+                        value={travelLastName}
+                        onChange={(e) => setTravelLastName(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-2.5 text-xs outline-none focus:border-sky-500 transition-all font-bold"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">תעודת זהות:</label>
+                      <input
+                        type="text"
+                        value={travelIdNumber}
+                        onChange={(e) => setTravelIdNumber(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-2.5 text-xs outline-none focus:border-sky-500 transition-all font-bold"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">אישור הגעה מהתאריך:</label>
+                      <input
+                        type="text"
+                        value={travelApprovalStartDate}
+                        onChange={(e) => setTravelApprovalStartDate(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-2.5 text-xs outline-none focus:border-sky-500 transition-all font-bold"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">שם התוכנית:</label>
+                      <input
+                        type="text"
+                        value={travelProgramName}
+                        onChange={(e) => setTravelProgramName(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-2.5 text-xs outline-none focus:border-sky-500 transition-all font-bold"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">ימי פעילות בחווה:</label>
+                      <input
+                        type="text"
+                        value={travelActivityDays}
+                        onChange={(e) => setTravelActivityDays(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-2.5 text-xs outline-none focus:border-sky-500 transition-all font-bold"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">תאריכי הגעה בחודש:</label>
+                      <input
+                        type="text"
+                        value={travelAttendanceDatesStr}
+                        onChange={(e) => setTravelAttendanceDatesStr(e.target.value)}
+                        placeholder="לדוגמה: 13-15-20-29 אפריל 2026"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-2.5 text-xs outline-none focus:border-sky-500 transition-all font-bold"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="border-t border-slate-100 pt-4 mt-2">
+                    <h4 className="text-[11px] font-black uppercase text-slate-900 mb-2">פרטי חתימה</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      <div className="space-y-1.5">
+                        <label className="text-[9px] font-black text-slate-400">שם מורשה חתימה:</label>
+                        <input
+                          type="text"
+                          value={travelSignatoryName}
+                          onChange={(e) => setTravelSignatoryName(e.target.value)}
+                          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs outline-none focus:border-sky-500 transition-all font-bold"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-[9px] font-black text-slate-400">תפקיד:</label>
+                        <input
+                          type="text"
+                          value={travelSignatoryTitle}
+                          onChange={(e) => setTravelSignatoryTitle(e.target.value)}
+                          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs outline-none focus:border-sky-500 transition-all font-bold"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-[9px] font-black text-slate-400">ארגון:</label>
+                        <input
+                          type="text"
+                          value={travelSignatoryOrg}
+                          onChange={(e) => setTravelSignatoryOrg(e.target.value)}
+                          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs outline-none focus:border-sky-500 transition-all font-bold"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-6 flex gap-3">
+                  <button
+                    onClick={executeTravelPDFGeneration}
+                    className="flex-1 bg-sky-500 hover:bg-sky-600 text-white py-3.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+                  >
+                    הפק אישור נסיעות
+                  </button>
+                  <button
+                    onClick={() => setShowTravelModal(false)}
+                    className="flex-1 bg-slate-50 hover:bg-slate-100 border border-slate-200 py-3.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all"
+                  >
+                    ביטול
+                  </button>
                 </div>
               </motion.div>
             </div>

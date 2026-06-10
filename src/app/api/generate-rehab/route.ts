@@ -55,11 +55,38 @@ export async function POST(req: Request) {
 }
 
 התוכן הגולמי לעיבוד:
-\"\"\"
+"""
 ${rawText}
-\"\"\"`;
+"""`;
 
-    const result = await model.generateContent(prompt);
+    // Call generateContent with exponential backoff retry logic for transient errors
+    let result;
+    let maxRetries = 3;
+    let delay = 1000;
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        result = await model.generateContent(prompt);
+        break; // Success, break out of loop
+      } catch (err: any) {
+        const isTransient = err.status === 503 || err.status === 429 || 
+                            err.message?.includes("503") || err.message?.includes("429") ||
+                            err.message?.includes("Service Unavailable") || err.message?.includes("Too Many Requests") ||
+                            err.message?.includes("high demand");
+        
+        if (isTransient && attempt < maxRetries) {
+          console.warn(`[Generate Rehab API] Attempt ${attempt} failed with transient error: ${err.message}. Retrying in ${delay}ms...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+          delay *= 2; // Exponential backoff
+        } else {
+          throw err;
+        }
+      }
+    }
+
+    if (!result) {
+      throw new Error("Failed to generate content after retries");
+    }
+
     const responseText = result.response.text();
 
     // Parse the JSON output and validate it

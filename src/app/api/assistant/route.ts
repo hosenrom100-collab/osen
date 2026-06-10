@@ -179,7 +179,7 @@ export async function POST(req: Request) {
 
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
     const model = genAI.getGenerativeModel({
-      model: "gemini-flash-latest",
+      model: "gemini-2.5-flash",
       systemInstruction: {
         role: "system",
         parts: [{ text: systemPrompt }],
@@ -198,7 +198,35 @@ export async function POST(req: Request) {
 
     const lastMessage = allMessages[allMessages.length - 1];
     const chat = model.startChat({ history });
-    const result = await chat.sendMessage(lastMessage.content);
+
+    // Send message with exponential backoff retry logic for transient errors
+    let result;
+    let maxRetries = 3;
+    let delay = 1000;
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        result = await chat.sendMessage(lastMessage.content);
+        break; // Success, break out of loop
+      } catch (err: any) {
+        const isTransient = err.status === 503 || err.status === 429 || 
+                            err.message?.includes("503") || err.message?.includes("429") ||
+                            err.message?.includes("Service Unavailable") || err.message?.includes("Too Many Requests") ||
+                            err.message?.includes("high demand");
+        
+        if (isTransient && attempt < maxRetries) {
+          console.warn(`[Assistant API] Attempt ${attempt} failed with transient error: ${err.message}. Retrying in ${delay}ms...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+          delay *= 2; // Exponential backoff
+        } else {
+          throw err;
+        }
+      }
+    }
+
+    if (!result) {
+      throw new Error("Failed to send message after retries");
+    }
+
     const rawText = result.response.text();
 
     const jsonMatch = rawText.match(/\{[\s\S]*\}/);
