@@ -39,12 +39,31 @@ interface Patient {
 type FilterType = "all" | "urgent" | "norehab" | "mine";
 
 function effectiveEndDate(p: Patient): Date | null {
+  if (p.startDate) {
+    try {
+      const start = parseISO(p.startDate);
+      if (isValid(start)) {
+        const standard3m = addMonths(start, 3);
+        const standard6m = addMonths(start, 6);
+        let end = p.extensionReceived ? standard6m : standard3m;
+        
+        if (p.endDate) {
+          const dbEnd = parseISO(p.endDate);
+          if (isValid(dbEnd)) {
+            const dbEndStr = format(dbEnd, "yyyy-MM-dd");
+            const std3mStr = format(standard3m, "yyyy-MM-dd");
+            const std6mStr = format(standard6m, "yyyy-MM-dd");
+            if (dbEndStr !== std3mStr && dbEndStr !== std6mStr) {
+              end = dbEnd;
+            }
+          }
+        }
+        return end;
+      }
+    } catch { return null; }
+  }
   if (p.endDate) {
     try { const d = parseISO(p.endDate); return isValid(d) ? d : null; }
-    catch { return null; }
-  }
-  if (p.startDate) {
-    try { const d = parseISO(p.startDate); return isValid(d) ? addMonths(d, 3) : null; }
     catch { return null; }
   }
   return null;
@@ -195,12 +214,8 @@ export default function PatientTrackingPage() {
   async function markExtensionReceived(patient: Patient) {
     setSaving(patient.id + "_recv");
     try {
-      const currentEnd = patient.endDate
-        ? parseISO(patient.endDate)
-        : patient.startDate
-          ? addMonths(parseISO(patient.startDate), 3)
-          : new Date();
-      const newEnd = addMonths(currentEnd, 3);
+      const start = patient.startDate ? parseISO(patient.startDate) : new Date();
+      const newEnd = addMonths(start, 6);
       const newEndStr = format(newEnd, "yyyy-MM-dd");
       const now = new Date().toISOString();
       await updateDoc(doc(db, "patients", patient.id), {

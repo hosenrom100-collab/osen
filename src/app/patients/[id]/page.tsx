@@ -882,8 +882,30 @@ export default function PatientDetailPage() {
   };
 
   function effectiveEndDate(p: Patient): Date | null {
+    if (p.startDate) {
+      try {
+        const start = parseISO(p.startDate);
+        if (isValid(start)) {
+          const standard3m = addMonths(start, 3);
+          const standard6m = addMonths(start, 6);
+          let end = p.extensionReceived ? standard6m : standard3m;
+          
+          if (p.endDate) {
+            const dbEnd = parseISO(p.endDate);
+            if (isValid(dbEnd)) {
+              const dbEndStr = format(dbEnd, "yyyy-MM-dd");
+              const std3mStr = format(standard3m, "yyyy-MM-dd");
+              const std6mStr = format(standard6m, "yyyy-MM-dd");
+              if (dbEndStr !== std3mStr && dbEndStr !== std6mStr) {
+                end = dbEnd;
+              }
+            }
+          }
+          return end;
+        }
+      } catch { return null; }
+    }
     if (p.endDate) { try { const d = parseISO(p.endDate); return isValid(d) ? d : null; } catch { return null; } }
-    if (p.startDate) { try { const d = parseISO(p.startDate); return isValid(d) ? addMonths(d, 3) : null; } catch { return null; } }
     return null;
   }
 
@@ -902,8 +924,8 @@ export default function PatientDetailPage() {
     if (!patient) return;
     setSavingExt("recv");
     try {
-      const end = effectiveEndDate(patient) ?? new Date();
-      const newEnd = format(addMonths(end, 6), "yyyy-MM-dd");
+      const start = patient.startDate ? parseISO(patient.startDate) : new Date();
+      const newEnd = format(addMonths(start, 6), "yyyy-MM-dd");
       const now = new Date().toISOString();
       await updateDoc(doc(db, "patients", patient.id), {
         extensionReceived: true, extensionReceivedAt: now,
@@ -1058,7 +1080,21 @@ export default function PatientDetailPage() {
       const imgHeight = (canvas.height * imgWidth) / canvas.width;
       pdf.addImage(imgData, "JPEG", 0, 0, imgWidth, imgHeight);
       
-      const fileName = `החזר_נסיעות_${travelLastName}_${travelFirstName}`;
+      const reqMonth = pendingRequest?.month || selectedMonth;
+      const monthNamesHebrew = [
+        "ינואר", "פברואר", "מרץ", "אפריל", "מאי", "יוני",
+        "יולי", "אוגוסט", "ספטמבר", "אוקטובר", "נובמבר", "דצמבר"
+      ];
+      let monthSuffix = "";
+      try {
+        const [year, month] = reqMonth.split("-");
+        const monthName = monthNamesHebrew[parseInt(month, 10) - 1];
+        if (monthName && year) {
+          monthSuffix = `_${monthName}_${year}`;
+        }
+      } catch {}
+      
+      const fileName = `החזר_נסיעות_${travelLastName}_${travelFirstName}${monthSuffix}`;
       pdf.save(`${fileName}.pdf`);
       
       // Update pending request status to completed in Firestore if there is one

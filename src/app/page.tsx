@@ -264,21 +264,33 @@ export default function Home() {
         try {
           if (p.startDate) {
             const start = parseISO(p.startDate);
-            const end3m = addMonths(start, 3);
-            let end6m = p.endDate ? parseISO(p.endDate) : addMonths(start, 6);
+            const standard3m = addMonths(start, 3);
+            const standard6m = addMonths(start, 6);
+            let effectiveEnd = p.extensionReceived ? standard6m : standard3m;
+
+            if (p.endDate) {
+              const dbEnd = parseISO(p.endDate);
+              if (isValid(dbEnd)) {
+                const dbEndStr = format(dbEnd, "yyyy-MM-dd");
+                const std3mStr = format(standard3m, "yyyy-MM-dd");
+                const std6mStr = format(standard6m, "yyyy-MM-dd");
+                if (dbEndStr !== std3mStr && dbEndStr !== std6mStr) {
+                  effectiveEnd = dbEnd;
+                }
+              }
+            }
 
             const today = new Date();
             today.setHours(0, 0, 0, 0);
 
-            const diffDays3m = differenceInDays(end3m, today);
-            const diffDays6m = differenceInDays(end6m, today);
+            const diffDays = differenceInDays(effectiveEnd, today);
 
             if (p.extensionReceived) {
-              if (diffDays6m <= 14) {
+              if (diffDays <= 14) {
                 expiring6m++;
               }
             } else {
-              if (diffDays3m <= 14) {
+              if (diffDays <= 14) {
                 expiring3m++;
               }
             }

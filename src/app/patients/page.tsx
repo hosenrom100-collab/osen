@@ -426,19 +426,40 @@ export default function PatientsPage() {
     fetchData();
   }, []);
 
-  const getDaysRemaining = (p: Patient) => {
-    let end: Date | null = null;
-    if (p.endDate) {
-      try {
-        end = new Date(p.endDate);
-      } catch {}
-    } else if (p.startDate) {
+  const getEffectiveEndDateStr = (p: Patient): string => {
+    if (p.startDate) {
       try {
         const start = new Date(p.startDate);
-        end = new Date(start.setMonth(start.getMonth() + 3));
+        const standard3m = new Date(start.getTime());
+        standard3m.setMonth(standard3m.getMonth() + 3);
+        const standard6m = new Date(start.getTime());
+        standard6m.setMonth(standard6m.getMonth() + 6);
+        
+        let end = p.extensionReceived ? standard6m : standard3m;
+        
+        if (p.endDate) {
+          const dbEnd = new Date(p.endDate);
+          if (!isNaN(dbEnd.getTime())) {
+            const dbEndStr = dbEnd.toISOString().split("T")[0];
+            const std3mStr = standard3m.toISOString().split("T")[0];
+            const std6mStr = standard6m.toISOString().split("T")[0];
+            
+            if (dbEndStr !== std3mStr && dbEndStr !== std6mStr) {
+              end = dbEnd;
+            }
+          }
+        }
+        return end.toISOString().split("T")[0];
       } catch {}
     }
-    if (!end || isNaN(end.getTime())) return null;
+    return p.endDate || "";
+  };
+
+  const getDaysRemaining = (p: Patient) => {
+    const endStr = getEffectiveEndDateStr(p);
+    if (!endStr) return null;
+    const end = new Date(endStr);
+    if (isNaN(end.getTime())) return null;
     const diffTime = end.getTime() - Date.now();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     return diffDays;
@@ -463,11 +484,25 @@ export default function PatientsPage() {
     e.stopPropagation();
     try {
       const nextVal = !currentVal;
+      const patient = patients.find(p => p.id === pId);
+      const startDate = patient?.startDate || new Date().toISOString().split("T")[0];
+      
+      let newEndDate = patient?.endDate || "";
+      try {
+        const start = new Date(startDate);
+        const months = nextVal ? 6 : 3;
+        start.setMonth(start.getMonth() + months);
+        newEndDate = start.toISOString().split("T")[0];
+      } catch (err) {
+        console.error("Error calculating end date:", err);
+      }
+
       await updateDoc(doc(db, "patients", pId), {
         extensionReceived: nextVal,
-        extensionReceivedAt: nextVal ? new Date().toISOString() : null
+        extensionReceivedAt: nextVal ? new Date().toISOString() : null,
+        endDate: newEndDate
       });
-      setPatients(prev => prev.map(p => p.id === pId ? { ...p, extensionReceived: nextVal } : p));
+      setPatients(prev => prev.map(p => p.id === pId ? { ...p, extensionReceived: nextVal, endDate: newEndDate } : p));
     } catch (err) {
       console.error("Error toggling extensionReceived:", err);
       alert("שגיאה בעדכון הסטטוס");
@@ -1120,7 +1155,7 @@ export default function PatientsPage() {
                             </span>
                           </td>
                           <td className="px-3 py-3 text-[11px] font-bold opacity-60">{formatDate(p.startDate)}</td>
-                          <td className="px-3 py-3 text-[11px] font-bold opacity-60">{formatDate(p.endDate)}</td>
+                          <td className="px-3 py-3 text-[11px] font-bold opacity-60">{formatDate(getEffectiveEndDateStr(p))}</td>
                           <td className="px-2 py-3 text-center">
                             <div className="flex justify-center">
                               <button
