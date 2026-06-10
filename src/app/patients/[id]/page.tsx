@@ -98,6 +98,20 @@ export default function PatientDetailPage() {
   const [travelSignatoryTitle, setTravelSignatoryTitle] = useState("מנהלת תפעול מרכז חוסן");
   const [travelSignatoryOrg, setTravelSignatoryOrg] = useState("חוות רום");
 
+  // Stay certificate specific states (Transient, not saved to DB)
+  const [showStayModal, setShowStayModal] = useState(false);
+  const [stayLetterDate, setStayLetterDate] = useState("");
+  const [stayRecipient, setStayRecipient] = useState("עו״ס אגף השיקום משרד הביטחון");
+  const [stayFirstName, setStayFirstName] = useState("");
+  const [stayLastName, setStayLastName] = useState("");
+  const [stayIdNumber, setStayIdNumber] = useState("");
+  const [stayStartDate, setStayStartDate] = useState("");
+  const [stayProgramName, setStayProgramName] = useState("חרבות ברזל");
+  const [stayActivityDays, setStayActivityDays] = useState("בימים ב' ג' וד'");
+  const [staySignatoryName, setStaySignatoryName] = useState("מירב סארמילי");
+  const [staySignatoryTitle, setStaySignatoryTitle] = useState("מנהלת תפעול מרכז חוסן");
+  const [staySignatoryOrg, setStaySignatoryOrg] = useState("חוות רום");
+
   const getProgramDaysText = (defaultText: string) => {
     const patientProgram = programs.find(p => p.id === (patient as any)?.programId);
     const activeDays = patientProgram?.activeDays;
@@ -273,14 +287,50 @@ export default function PatientDetailPage() {
     } catch (e) { console.error(e); }
   }
 
+  const initStayFields = () => {
+    const today = new Date();
+    const day = String(today.getDate()).padStart(2, "0");
+    const month = String(today.getMonth() + 1).padStart(2, "0");
+    const year = today.getFullYear();
+    setStayLetterDate(`${day}.${month}.${year}`);
+    
+    setStayRecipient("עו״ס אגף השיקום משרד הביטחון");
+    setStayFirstName(patient?.firstName || "");
+    setStayLastName(patient?.lastName || "");
+    setStayIdNumber(patient?.idNumber || "");
+    
+    if (patient?.startDate) {
+      try {
+        const parsed = parseISO(patient.startDate);
+        if (isValid(parsed)) {
+          setStayStartDate(format(parsed, "dd.MM.yyyy"));
+        } else {
+          setStayStartDate(format(new Date(), "dd.MM.yyyy"));
+        }
+      } catch {
+        setStayStartDate(format(new Date(), "dd.MM.yyyy"));
+      }
+    } else {
+      setStayStartDate(format(new Date(), "dd.MM.yyyy"));
+    }
+    
+    const patientProgram = programs.find(p => p.id === (patient as any)?.programId);
+    setStayProgramName(patientProgram?.name || "חרבות ברזל");
+    setStayActivityDays(getProgramDaysText("בימים ב' ג' וד'"));
+    
+    setStaySignatoryName(authUser?.displayName || "מירב סארמילי");
+    setStaySignatoryTitle(signatureTitle || "מנהלת תפעול מרכז חוסן");
+    setStaySignatoryOrg("חוות רום");
+  };
+
   const handleProcessRequest = async (request: any) => {
     if (!patient) return;
     if (request.type === 'stay') {
       setPendingRequest(request);
       setPendingReportType('stay');
       setActiveReportType('participation');
-      setRecipientText("עו״ס אגף השיקום משרד הביטחון");
-      setShowRecipientModal(true);
+      initStayFields();
+      setShowStayModal(true);
     } else if (request.type === 'travel') {
       setPendingRequest(request);
       setPendingReportType('travel');
@@ -679,8 +729,8 @@ export default function PatientDetailPage() {
       setPendingRequest(null);
       setPendingReportType('participation');
       setActiveReportType('participation');
-      setRecipientText("עו״ס אגף השיקום משרד הביטחון");
-      setShowRecipientModal(true);
+      initStayFields();
+      setShowStayModal(true);
     } else if (type === 'travel') {
       setPendingRequest(null);
       setPendingReportType('travel');
@@ -802,6 +852,46 @@ export default function PatientDetailPage() {
       
       // Update pending request status to completed in Firestore if there is one
       // but do NOT save the document URL or notifications to DB as requested.
+      if (pendingRequest) {
+        await updateDoc(doc(db, "document_requests", pendingRequest.id), {
+          status: "completed",
+          processedAt: serverTimestamp()
+        });
+      }
+      
+      alert("המסמך הופק בהצלחה!");
+      fetchPatientData();
+    } catch (err) {
+      console.error(err);
+      alert("שגיאה בהפקת המסמך");
+    } finally {
+      setReportLoading(false);
+      setPendingRequest(null);
+      setPendingReportType(null);
+    }
+  };
+
+  const executeStayPDFGeneration = async () => {
+    if (!patient || !reportRef.current) return;
+    setShowStayModal(false);
+    setReportLoading(true);
+    try {
+      await new Promise(r => setTimeout(r, 350));
+      const canvas = await html2canvas(reportRef.current, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: "#ffffff"
+      });
+      const imgData = canvas.toDataURL("image/jpeg", 1.0);
+      const pdf = new jsPDF("p", "mm", "a4");
+      const imgWidth = 210;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      pdf.addImage(imgData, "JPEG", 0, 0, imgWidth, imgHeight);
+      
+      const fileName = `אישור_שהייה_${stayLastName}_${stayFirstName}`;
+      pdf.save(`${fileName}.pdf`);
+      
       if (pendingRequest) {
         await updateDoc(doc(db, "document_requests", pendingRequest.id), {
           status: "completed",
@@ -1406,13 +1496,13 @@ export default function PatientDetailPage() {
                 <div>
                   {/* Document Meta */}
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px", fontSize: "14px", color: "#64748b", fontWeight: 700 }}>
-                    <div>תאריך: {format(new Date(), "dd.MM.yyyy")}</div>
+                    <div>תאריך: {stayLetterDate}</div>
                     <div>סימוכין: {patient.id?.slice(-6).toUpperCase()}</div>
                   </div>
 
                   {/* Recipient */}
                   <div style={{ fontSize: "16px", marginBottom: "24px", fontWeight: 700 }}>
-                    עבור: {recipientText}
+                    עבור: {stayRecipient}
                   </div>
 
                   {/* Title */}
@@ -1422,14 +1512,14 @@ export default function PatientDetailPage() {
 
                   {/* Body */}
                   <div style={{ fontSize: "16px", color: "#000000" }}>
-                    <p style={{ marginBottom: "16px" }}>הנדון: <strong>{patientName}</strong></p>
-                    <p style={{ marginBottom: "24px" }}>ת.ז: <strong>{patient.idNumber || "—"}</strong></p>
+                    <p style={{ marginBottom: "16px" }}>הנדון: <strong>{stayFirstName} {stayLastName}</strong></p>
+                    <p style={{ marginBottom: "24px" }}>ת.ז: <strong>{stayIdNumber}</strong></p>
                     
                     <p style={{ marginBottom: "20px", lineHeight: 1.8 }}>
-                      הרינו לאשר כי החל בהגעה לחווה מהתאריך <strong>{patient.startDate ? format(parseISO(patient.startDate), "dd.MM.yyyy") : "—"}</strong>.
+                      הרינו לאשר כי החל בהגעה לחווה מהתאריך <strong>{stayStartDate}</strong>.
                     </p>
                     <p style={{ marginBottom: "20px", lineHeight: 1.8 }}>
-                      הפעילות בחווה בתוכנית חרבות ברזל מתקיימת {getProgramDaysText("בימים ב' ג' וד'")} בין השעות 9:00-15:00.
+                      הפעילות בחווה בתוכנית {stayProgramName} מתקיימת {stayActivityDays} בין השעות 9:00-15:00.
                     </p>
                     <p style={{ marginBottom: "36px", lineHeight: 1.8 }}>
                       הפעילויות השונות המתקיימות בחווה: עבודה חקלאית, גילוף בעץ ומלאכות קדומות, דיקור, יוגה, סדנאות שונות ושיחות קבוצתיות.
@@ -1445,14 +1535,16 @@ export default function PatientDetailPage() {
                           alt="חתימה דיגיטלית" 
                           style={{ maxHeight: "64px", maxWidth: "160px", objectFit: "contain", alignSelf: "flex-start" }} 
                         />
-                        <p style={{ fontWeight: 900, margin: "4px 0 2px 0", fontSize: "14px" }}>{authUser?.displayName || "מורשה חתימה"}</p>
-                        <p style={{ fontSize: "12px", color: "#64748b", margin: 0 }}>{signatureTitle || "עו\"ס בחווה"}</p>
+                        <p style={{ fontWeight: 900, margin: "4px 0 2px 0", fontSize: "14px" }}>{staySignatoryName}</p>
+                        <p style={{ fontSize: "12px", color: "#64748b", margin: 0 }}>{staySignatoryTitle}</p>
+                        <p style={{ fontSize: "12px", color: "#64748b", margin: 0 }}>{staySignatoryOrg}</p>
                       </div>
                     ) : (
                       <div style={{ display: "flex", flexDirection: "column", gap: "2px", marginTop: "4px" }}>
                         <div style={{ height: "48px", borderBottom: "1px dashed #cbd5e1", width: "160px", marginBottom: "8px" }} />
-                        <p style={{ fontWeight: 900, margin: "4px 0 2px 0", fontSize: "14px" }}>{authUser?.displayName || "מורשה חתימה"}</p>
-                        <p style={{ fontSize: "12px", color: "#64748b", margin: 0 }}>{signatureTitle || "עו\"ס בחווה"}</p>
+                        <p style={{ fontWeight: 900, margin: "4px 0 2px 0", fontSize: "14px" }}>{staySignatoryName}</p>
+                        <p style={{ fontSize: "12px", color: "#64748b", margin: 0 }}>{staySignatoryTitle}</p>
+                        <p style={{ fontSize: "12px", color: "#64748b", margin: 0 }}>{staySignatoryOrg}</p>
                       </div>
                     )}
                   </div>
@@ -1872,6 +1964,184 @@ export default function PatientDetailPage() {
                   </button>
                   <button
                     onClick={() => setShowTravelModal(false)}
+                    className="flex-1 bg-slate-50 hover:bg-slate-100 border border-slate-200 py-3.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all"
+                  >
+                    ביטול
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+
+        {/* Stay / Participation Modal */}
+        <AnimatePresence>
+          {showStayModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setShowStayModal(false)}
+                className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+              />
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                className="relative w-full max-w-2xl bg-white border border-slate-200 rounded-[2.5rem] shadow-2xl overflow-hidden p-8 z-10 my-8"
+                dir="rtl"
+              >
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-500 flex items-center justify-center">
+                      <FileText className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h3 className="text-base font-black text-slate-900">
+                        הפקת אישור שהייה בחווה
+                      </h3>
+                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider font-bold">
+                        מלא או ערוך את הפרטים לפני הפקת האישור (לא יישמר בדאטהבייס)
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setShowStayModal(false)}
+                    className="p-2 hover:bg-slate-100 rounded-xl transition-all"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <div className="space-y-4 max-h-[60vh] overflow-y-auto px-1 scrollbar-thin">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">תאריך המכתב:</label>
+                      <input
+                        type="text"
+                        value={stayLetterDate}
+                        onChange={(e) => setStayLetterDate(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-2.5 text-xs outline-none focus:border-emerald-500 transition-all font-bold"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">עבור (נמען):</label>
+                      <input
+                        type="text"
+                        value={stayRecipient}
+                        onChange={(e) => setStayRecipient(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-2.5 text-xs outline-none focus:border-emerald-500 transition-all font-bold"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">שם פרטי:</label>
+                      <input
+                        type="text"
+                        value={stayFirstName}
+                        onChange={(e) => setStayFirstName(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-2.5 text-xs outline-none focus:border-emerald-500 transition-all font-bold"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">שם משפחה:</label>
+                      <input
+                        type="text"
+                        value={stayLastName}
+                        onChange={(e) => setStayLastName(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-2.5 text-xs outline-none focus:border-emerald-500 transition-all font-bold"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">תעודת זהות:</label>
+                      <input
+                        type="text"
+                        value={stayIdNumber}
+                        onChange={(e) => setStayIdNumber(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-2.5 text-xs outline-none focus:border-emerald-500 transition-all font-bold"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">החל מהתאריך (תאריך כניסה):</label>
+                      <input
+                        type="text"
+                        value={stayStartDate}
+                        onChange={(e) => setStayStartDate(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-2.5 text-xs outline-none focus:border-emerald-500 transition-all font-bold"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">שם התוכנית:</label>
+                      <input
+                        type="text"
+                        value={stayProgramName}
+                        onChange={(e) => setStayProgramName(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-2.5 text-xs outline-none focus:border-emerald-500 transition-all font-bold"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">ימי פעילות בחווה:</label>
+                      <input
+                        type="text"
+                        value={stayActivityDays}
+                        onChange={(e) => setStayActivityDays(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-2.5 text-xs outline-none focus:border-emerald-500 transition-all font-bold"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="border-t border-slate-100 pt-4 mt-2">
+                    <h4 className="text-[11px] font-black uppercase text-slate-900 mb-2">פרטי חתימה</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      <div className="space-y-1.5">
+                        <label className="text-[9px] font-black text-slate-400">שם מורשה חתימה:</label>
+                        <input
+                          type="text"
+                          value={staySignatoryName}
+                          onChange={(e) => setStaySignatoryName(e.target.value)}
+                          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs outline-none focus:border-emerald-500 transition-all font-bold"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-[9px] font-black text-slate-400">תפקיד:</label>
+                        <input
+                          type="text"
+                          value={staySignatoryTitle}
+                          onChange={(e) => setStaySignatoryTitle(e.target.value)}
+                          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs outline-none focus:border-emerald-500 transition-all font-bold"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-[9px] font-black text-slate-400">ארגון:</label>
+                        <input
+                          type="text"
+                          value={staySignatoryOrg}
+                          onChange={(e) => setStaySignatoryOrg(e.target.value)}
+                          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs outline-none focus:border-emerald-500 transition-all font-bold"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-6 flex gap-3">
+                  <button
+                    onClick={executeStayPDFGeneration}
+                    className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white py-3.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+                  >
+                    הפק אישור שהייה
+                  </button>
+                  <button
+                    onClick={() => setShowStayModal(false)}
                     className="flex-1 bg-slate-50 hover:bg-slate-100 border border-slate-200 py-3.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all"
                   >
                     ביטול
