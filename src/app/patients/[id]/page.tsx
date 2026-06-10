@@ -1495,9 +1495,8 @@ export default function PatientDetailPage() {
                 /* Stay / Participation Certificate */
                 <div>
                   {/* Document Meta */}
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px", fontSize: "14px", color: "#64748b", fontWeight: 700 }}>
-                    <div>תאריך: {stayLetterDate}</div>
-                    <div>סימוכין: {patient.id?.slice(-6).toUpperCase()}</div>
+                  <div style={{ textAlign: "left", marginBottom: "24px", fontSize: "16px", color: "#000000", fontWeight: "bold" }}>
+                    תאריך: {stayLetterDate}
                   </div>
 
                   {/* Recipient */}
@@ -1525,28 +1524,32 @@ export default function PatientDetailPage() {
                       הפעילויות השונות המתקיימות בחווה: עבודה חקלאית, גילוף בעץ ומלאכות קדומות, דיקור, יוגה, סדנאות שונות ושיחות קבוצתיות.
                     </p>
 
-                    <p style={{ marginTop: "40px", marginBottom: "8px" }}>בברכה,</p>
-                    
-                    {/* Signature Area */}
-                    {signatureImage ? (
-                      <div style={{ display: "flex", flexDirection: "column", gap: "2px", marginTop: "4px" }}>
-                        <img 
-                          src={signatureImage} 
-                          alt="חתימה דיגיטלית" 
-                          style={{ maxHeight: "64px", maxWidth: "160px", objectFit: "contain", alignSelf: "flex-start" }} 
-                        />
-                        <p style={{ fontWeight: 900, margin: "4px 0 2px 0", fontSize: "14px" }}>{staySignatoryName}</p>
-                        <p style={{ fontSize: "12px", color: "#64748b", margin: 0 }}>{staySignatoryTitle}</p>
-                        <p style={{ fontSize: "12px", color: "#64748b", margin: 0 }}>{staySignatoryOrg}</p>
+                    {/* Signature Area on the left */}
+                    <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "40px" }}>
+                      <div style={{ width: "220px", textAlign: "right" }}>
+                        <p style={{ margin: "0 0 8px 0" }}>בברכה,</p>
+                        
+                        {signatureImage ? (
+                          <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                            <img 
+                              src={signatureImage} 
+                              alt="חתימה דיגיטלית" 
+                              style={{ maxHeight: "64px", maxWidth: "160px", objectFit: "contain", marginBottom: "4px" }} 
+                            />
+                            <p style={{ fontWeight: "bold", margin: 0 }}>{staySignatoryName}</p>
+                            <p style={{ margin: 0 }}>{staySignatoryTitle}</p>
+                            <p style={{ margin: 0 }}>{staySignatoryOrg}</p>
+                          </div>
+                        ) : (
+                          <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                            <div style={{ height: "48px", borderBottom: "1px dashed #cbd5e1", width: "160px", marginBottom: "8px" }} />
+                            <p style={{ fontWeight: "bold", margin: 0 }}>{staySignatoryName}</p>
+                            <p style={{ margin: 0 }}>{staySignatoryTitle}</p>
+                            <p style={{ margin: 0 }}>{staySignatoryOrg}</p>
+                          </div>
+                        )}
                       </div>
-                    ) : (
-                      <div style={{ display: "flex", flexDirection: "column", gap: "2px", marginTop: "4px" }}>
-                        <div style={{ height: "48px", borderBottom: "1px dashed #cbd5e1", width: "160px", marginBottom: "8px" }} />
-                        <p style={{ fontWeight: 900, margin: "4px 0 2px 0", fontSize: "14px" }}>{staySignatoryName}</p>
-                        <p style={{ fontSize: "12px", color: "#64748b", margin: 0 }}>{staySignatoryTitle}</p>
-                        <p style={{ fontSize: "12px", color: "#64748b", margin: 0 }}>{staySignatoryOrg}</p>
-                      </div>
-                    )}
+                    </div>
                   </div>
                 </div>
               ) : activeReportType === 'travel' ? (
