@@ -69,53 +69,56 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let unsubscribeUserDoc: (() => void) | undefined;
 
+    const handleUserData = async (data: any, firebaseUser: User) => {
+      const userRole   = data.role as UserRole;
+      const userRoles  = (data.roles as UserRole[]) || (userRole ? [userRole] : []);
+      const userStatus = (data.status as UserStatus) || "pending";
+
+      setStatus(userStatus);
+      setRole(userRole || userRoles[0]);
+      setRoles(userRoles);
+      setAssignedGroups(data.assignedGroups || []);
+      setPrimaryGroupIdState(data.primaryGroupId || null);
+      setPreferredProgramIdsState(data.preferredProgramIds || []);
+      setPreferredGroupIdsState(data.preferredGroupIds || []);
+
+      const approved = userStatus === "approved";
+      setIsWhitelisted(approved);
+      
+      // Check if any role matches admin/manager
+      setIsAdmin(userRoles.includes("admin"));
+      setIsManager(userRoles.includes("manager") || userRoles.includes("admin"));
+      setIsLogistics(userRoles.includes("logistics"));
+      setIsInstructor(userRoles.includes("instructor"));
+      setIsEmployee(userRoles.includes("employee") || userRoles.includes("social_worker"));
+      setIsParticipant(userRoles.includes("participant"));
+      
+      setPhoneNumber(data.phone);
+      setPhotoURL(data.photoURL || firebaseUser.photoURL || undefined);
+      setWorkSchedule(data.workSchedule);
+      setOnboardingComplete(!!data.onboardingComplete);
+      setSignatureTitleState(data.signatureTitle || undefined);
+      setSignatureImageState(data.signatureImage || undefined);
+
+      // Sync profile info if missing or outdated
+      if ((!data.photoURL && firebaseUser.photoURL) || (!data.displayName && firebaseUser.displayName)) {
+        const newName = data.displayName || data.name || firebaseUser.displayName || "";
+        await updateDoc(doc(db, "users", firebaseUser.uid), { 
+          photoURL: data.photoURL || firebaseUser.photoURL || "",
+          displayName: newName,
+          name: newName,
+          email: data.email || firebaseUser.email || ""
+        });
+      }
+    };
+
     const unsubscribeAuth = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         setUser(firebaseUser);
         
         unsubscribeUserDoc = onSnapshot(doc(db, "users", firebaseUser.uid), async (snap) => {
           if (snap.exists()) {
-            const data       = snap.data();
-            const userRole   = data.role as UserRole;
-            const userRoles  = (data.roles as UserRole[]) || (userRole ? [userRole] : []);
-            const userStatus = (data.status as UserStatus) || "pending";
-
-            setStatus(userStatus);
-            setRole(userRole || userRoles[0]);
-            setRoles(userRoles);
-            setAssignedGroups(data.assignedGroups || []);
-            setPrimaryGroupIdState(data.primaryGroupId || null);
-            setPreferredProgramIdsState(data.preferredProgramIds || []);
-            setPreferredGroupIdsState(data.preferredGroupIds || []);
-
-            const approved = userStatus === "approved";
-            setIsWhitelisted(approved);
-            
-            // Check if any role matches admin/manager
-            setIsAdmin(userRoles.includes("admin"));
-            setIsManager(userRoles.includes("manager") || userRoles.includes("admin"));
-            setIsLogistics(userRoles.includes("logistics"));
-            setIsInstructor(userRoles.includes("instructor"));
-            setIsEmployee(userRoles.includes("employee") || userRoles.includes("social_worker"));
-            setIsParticipant(userRoles.includes("participant"));
-            
-            setPhoneNumber(data.phone);
-            setPhotoURL(data.photoURL || firebaseUser.photoURL || undefined);
-            setWorkSchedule(data.workSchedule);
-            setOnboardingComplete(!!data.onboardingComplete);
-            setSignatureTitleState(data.signatureTitle || undefined);
-            setSignatureImageState(data.signatureImage || undefined);
-
-            // Sync profile info if missing or outdated
-            if ((!data.photoURL && firebaseUser.photoURL) || (!data.displayName && firebaseUser.displayName)) {
-              const newName = data.displayName || data.name || firebaseUser.displayName || "";
-              await updateDoc(doc(db, "users", firebaseUser.uid), { 
-                photoURL: data.photoURL || firebaseUser.photoURL || "",
-                displayName: newName,
-                name: newName,
-                email: data.email || firebaseUser.email || ""
-              });
-            }
+            await handleUserData(snap.data(), firebaseUser);
           } else {
             // Snapshot shows document missing — could be a cache miss before server data arrives.
             // Always verify against the server to avoid overwriting an existing approved user's status.
@@ -133,7 +136,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
             if (freshSnap.exists()) {
               // Document exists on the server — this was a cache false-negative.
-              // The next onSnapshot call will fire with the real data; just unblock loading.
+              // Update status and other fields from server data immediately, then unblock loading.
+              await handleUserData(freshSnap.data(), firebaseUser);
               setLoading(false);
               return;
             }

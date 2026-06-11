@@ -41,6 +41,7 @@ export function PatientForm({ patientId, initialData, onSuccess }: PatientFormPr
   const [programs,      setPrograms]      = useState<Program[]>([]);
   const [allGroups,     setAllGroups]     = useState<Group[]>([]);
   const [socialWorkers, setSocialWorkers] = useState<{ id: string; name: string }[]>([]);
+  const [rehabWorkers,  setRehabWorkers]  = useState<{ id: string; name: string }[]>([]);
 
   const [selectedProgramIds, setSelectedProgramIds] = useState<string[]>(
     initialData?.programIds || (initialData?.programId ? [initialData.programId] : [])
@@ -57,6 +58,7 @@ export function PatientForm({ patientId, initialData, onSuccess }: PatientFormPr
     endDate:            initialData?.endDate || autoEndDate(new Date().toISOString().split("T")[0]),
     status:             (initialData?.status || "active") as any,
     assignedWorkerId:   initialData?.assignedWorkerId || "",
+    rehabWorkerId:      initialData?.rehabWorkerId || "",
     rehabPlanCompleted: initialData?.rehabPlanCompleted || false,
   });
 
@@ -140,10 +142,11 @@ export function PatientForm({ patientId, initialData, onSuccess }: PatientFormPr
 
   useEffect(() => {
     const load = async () => {
-      const [progSnap, groupSnap, usersSnap] = await Promise.all([
+      const [progSnap, groupSnap, usersSnap, rehabSnap] = await Promise.all([
         getDocs(query(collection(db, "programs"), orderBy("name"))),
         getDocs(query(collection(db, "groups"),   orderBy("name"))),
         getDocs(collection(db, "users")),
+        getDocs(query(collection(db, "rehab_workers"), orderBy("name"))),
       ]);
       setPrograms(progSnap.docs.map(d => ({ id: d.id, ...d.data() as any })));
       setAllGroups(groupSnap.docs.map(d => ({ id: d.id, ...d.data() as any })));
@@ -157,6 +160,7 @@ export function PatientForm({ patientId, initialData, onSuccess }: PatientFormPr
         }
       });
       setSocialWorkers(workers);
+      setRehabWorkers(rehabSnap.docs.map(d => ({ id: d.id, name: d.data().name })));
     };
     load();
   }, []);
@@ -363,6 +367,22 @@ export function PatientForm({ patientId, initialData, onSuccess }: PatientFormPr
           >
             <option value="">בחר עובד...</option>
             {socialWorkers.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
+          </select>
+        </div>
+
+        <div>
+          <label className={LABEL}><Briefcase className="w-3 h-3 text-teal-500" /> עו״ס שיקום / מרפא בעיסוק מלווה</label>
+          <select 
+            value={formData.rehabWorkerId} 
+            onChange={e => {
+              const val = e.target.value;
+              set({ rehabWorkerId: val });
+              saveImmediately({ rehabWorkerId: val });
+            }} 
+            className={FIELD}
+          >
+            <option value="">בחר עו״ס שיקום...</option>
+            {rehabWorkers.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
           </select>
         </div>
       </div>

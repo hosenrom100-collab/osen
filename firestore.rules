@@ -51,7 +51,11 @@ service cloud.firestore {
     // Users collection
     match /users/{userId} {
       allow read: if isAuthenticated();
-      allow write: if isAuthenticated() && (request.auth.uid == userId || isManager());
+      allow write: if isAuthenticated() && (
+        request.auth.uid == userId || 
+        isManager() ||
+        (resource != null && resource.data.isPreCreated == true && resource.data.email == request.auth.token.email)
+      );
     }
 
     // Personal Tasks
@@ -172,6 +176,10 @@ service cloud.firestore {
       allow write: if isManager();
     }
     match /locations/{docId} {
+      allow read: if isAuthenticated();
+      allow write: if isManager();
+    }
+    match /rehab_workers/{docId} {
       allow read: if isAuthenticated();
       allow write: if isManager();
     }

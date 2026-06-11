@@ -14,7 +14,7 @@ import {
   Edit3, CheckCircle, CheckCircle2,
   AlertCircle, ChevronLeft, Printer, Download, FileText,
   X, Check, Info, History, Send, Bell, MessageCircle, Upload,
-  ClipboardCheck, Plus, Search, Circle, Trash2
+  ClipboardCheck, Plus, Search, Circle, Trash2, Mail, Phone, Briefcase
 } from "lucide-react";
 import { useRouter, useParams, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
@@ -28,6 +28,13 @@ const monthNamesHebrew = [
   "יולי", "אוגוסט", "ספטמבר", "אוקטובר", "נובמבר", "דצמבר"
 ];
 
+interface RehabWorker {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+}
+
 interface Patient {
   id: string;
   firstName: string;
@@ -36,6 +43,7 @@ interface Patient {
   hosenType?: string;
   status: string;
   assignedWorkerId?: string;
+  rehabWorkerId?: string;
   startDate?: string;
   endDate?: string;
   phone?: string;
@@ -93,12 +101,14 @@ export default function PatientDetailPage() {
   const [editingEndDate, setEditingEndDate] = useState(false);
   const [editEndDateVal, setEditEndDateVal] = useState("");
   const [socialWorkers, setSocialWorkers] = useState<{ id: string; name: string }[]>([]);
+  const [rehabWorkers, setRehabWorkers] = useState<RehabWorker[]>([]);
   const [docRequests, setDocRequests] = useState<any[]>([]);
   const [processedDocs, setProcessedDocs] = useState<any[]>([]);
 
   // Recipient and PDF modal states
   const [showRecipientModal, setShowRecipientModal] = useState(false);
   const [recipientText, setRecipientText] = useState("עו״ס אגף השיקום משרד הביטחון");
+  const [travelRecipient, setTravelRecipient] = useState("עבור משרד הביטחון - אגף השיקום");
   const [pendingReportType, setPendingReportType] = useState<'participation' | 'attendance' | 'stay' | 'travel' | null>(null);
   const [pendingRequest, setPendingRequest] = useState<any | null>(null);
   const [activeReportType, setActiveReportType] = useState<'participation' | 'attendance' | 'travel'>('participation');
@@ -199,14 +209,16 @@ export default function PatientDetailPage() {
       if (!patientDoc.exists()) { router.push("/patients"); return; }
       setPatient({ id: patientDoc.id, ...patientDoc.data() } as Patient);
 
-      const [groupsSnap, progsSnap, usersSnap] = await Promise.all([
+      const [groupsSnap, progsSnap, usersSnap, rehabWorkersSnap] = await Promise.all([
         getDocs(collection(db, "groups")),
         getDocs(collection(db, "programs")),
-        getDocs(collection(db, "users"))
+        getDocs(collection(db, "users")),
+        getDocs(collection(db, "rehab_workers"))
       ]);
       setGroups(groupsSnap.docs.map(d => ({ id: d.id, name: d.data().name } as Group)));
       setPrograms(progsSnap.docs.map(d => ({ id: d.id, name: d.data().name, activeDays: d.data().activeDays })));
       setSocialWorkers(usersSnap.docs.map(d => ({ id: d.id, name: d.data().displayName || d.data().name || d.data().email })));
+      setRehabWorkers(rehabWorkersSnap.docs.map(d => ({ id: d.id, ...d.data() } as RehabWorker)));
 
       const attQuery = query(
         collection(db, "attendance"),
@@ -505,7 +517,8 @@ export default function PatientDetailPage() {
     const year = today.getFullYear();
     setStayLetterDate(`${day}.${month}.${year}`);
     
-    setStayRecipient("עו״ס אגף השיקום משרד הביטחון");
+    const assignedRehabWorker = rehabWorkers.find(w => w.id === patient?.rehabWorkerId);
+    setStayRecipient(assignedRehabWorker ? `${assignedRehabWorker.name} - אגף השיקום משרד הביטחון` : "עו״ס אגף השיקום משרד הביטחון");
     setStayFirstName(patient?.firstName || "");
     setStayLastName(patient?.lastName || "");
     setStayIdNumber(patient?.idNumber || "");
@@ -547,6 +560,9 @@ export default function PatientDetailPage() {
       setPendingReportType('travel');
       setActiveReportType('travel');
       
+      const assignedRehabWorker = rehabWorkers.find(w => w.id === patient.rehabWorkerId);
+      setTravelRecipient(assignedRehabWorker ? `${assignedRehabWorker.name} - אגף השיקום משרד הביטחון` : "עבור משרד הביטחון - אגף השיקום");
+
       const today = new Date();
       const hebrewDaysOfWeek = ["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת"];
       const dayName = hebrewDaysOfWeek[today.getDay()];
@@ -969,6 +985,9 @@ export default function PatientDetailPage() {
       setPendingReportType('travel');
       setActiveReportType('travel');
       
+      const assignedRehabWorker = rehabWorkers.find(w => w.id === patient.rehabWorkerId);
+      setTravelRecipient(assignedRehabWorker ? `${assignedRehabWorker.name} - אגף השיקום משרד הביטחון` : "עבור משרד הביטחון - אגף השיקום");
+
       const today = new Date();
       const hebrewDaysOfWeek = ["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת"];
       const dayName = hebrewDaysOfWeek[today.getDay()];
@@ -1425,6 +1444,52 @@ export default function PatientDetailPage() {
                         {patient.rehabPlanCompleted ? 'הושלמה בהצלחה' : 'ממתין לביצוע'}
                       </p>
                     </div>
+
+                    {/* ── Rehab Worker Info Card ── */}
+                    {(() => {
+                      const assignedRehabWorker = rehabWorkers.find(w => w.id === patient.rehabWorkerId);
+                      return (
+                        <div className="bg-white border border-slate-200/60 rounded-[2.5rem] p-8 shadow-sm">
+                          <div className="flex items-center gap-3 mb-6">
+                            <div className="w-10 h-10 rounded-2xl bg-teal-50 text-teal-500 flex items-center justify-center shrink-0">
+                              <Briefcase className="w-5 h-5" />
+                            </div>
+                            <div>
+                              <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-900">גורם מלווה (שיקום)</h4>
+                              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">עו״ס שיקום / מרפא בעיסוק</p>
+                            </div>
+                          </div>
+                          
+                          {assignedRehabWorker ? (
+                            <div className="space-y-4">
+                              <div>
+                                <p className="text-sm font-black text-slate-800">{assignedRehabWorker.name}</p>
+                                <p className="text-[10px] text-teal-600 font-bold uppercase tracking-widest mt-0.5">אגף השיקום משרד הביטחון</p>
+                              </div>
+                              <div className="space-y-2 text-xs text-[var(--foreground)]/70">
+                                {assignedRehabWorker.email && (
+                                  <a href={`mailto:${assignedRehabWorker.email}`} className="flex items-center gap-2 hover:text-teal-500 transition-colors">
+                                    <Mail className="w-3.5 h-3.5 text-[var(--foreground)]/30 shrink-0" />
+                                    <span className="font-mono text-left block" dir="ltr">{assignedRehabWorker.email}</span>
+                                  </a>
+                                )}
+                                {assignedRehabWorker.phone && (
+                                  <a href={`tel:${assignedRehabWorker.phone}`} className="flex items-center gap-2 hover:text-teal-500 transition-colors">
+                                    <Phone className="w-3.5 h-3.5 text-[var(--foreground)]/30 shrink-0" />
+                                    <span className="font-mono">{assignedRehabWorker.phone}</span>
+                                  </a>
+                                )}
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="text-center py-4 bg-slate-50 border border-dashed border-slate-200 rounded-2xl">
+                              <p className="text-xs font-bold text-slate-400 italic">לא שויך עו״ס שיקום/מרפא בעיסוק</p>
+                              <p className="text-[9px] text-slate-300 font-bold mt-1">ניתן לשייך בטופס העריכה משמאל</p>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
                  </div>
               </motion.div>
             )}
@@ -2179,7 +2244,7 @@ export default function PatientDetailPage() {
 
                   {/* Recipient */}
                   <div style={{ fontWeight: "bold", marginBottom: "30px" }}>
-                    עבור משרד הביטחון - אגף השיקום
+                    עבור: {travelRecipient}
                   </div>
 
                   {/* Subject */}
@@ -2445,6 +2510,18 @@ export default function PatientDetailPage() {
                       />
                     </div>
                     <div className="space-y-1.5">
+                      <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">עבור (נמען):</label>
+                      <input
+                        type="text"
+                        value={travelRecipient}
+                        onChange={(e) => setTravelRecipient(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-2.5 text-xs outline-none focus:border-sky-500 transition-all font-bold"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
                       <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">שם פרטי:</label>
                       <input
                         type="text"
@@ -2453,9 +2530,6 @@ export default function PatientDetailPage() {
                         className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-2.5 text-xs outline-none focus:border-sky-500 transition-all font-bold"
                       />
                     </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-1.5">
                       <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">שם משפחה:</label>
                       <input
