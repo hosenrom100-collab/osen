@@ -1456,7 +1456,7 @@ export default function PatientDetailPage() {
                             </div>
                             <div>
                               <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-900">גורם מלווה (שיקום)</h4>
-                              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">עו״ס שיקום / מרפא בעיסוק</p>
+                              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">עו״ס שיקום משרד הביטחון</p>
                             </div>
                           </div>
                           
@@ -1483,7 +1483,7 @@ export default function PatientDetailPage() {
                             </div>
                           ) : (
                             <div className="text-center py-4 bg-slate-50 border border-dashed border-slate-200 rounded-2xl">
-                              <p className="text-xs font-bold text-slate-400 italic">לא שויך עו״ס שיקום/מרפא בעיסוק</p>
+                              <p className="text-xs font-bold text-slate-400 italic">לא שויך עו״ס שיקום משרד הביטחון</p>
                               <p className="text-[9px] text-slate-300 font-bold mt-1">ניתן לשייך בטופס העריכה משמאל</p>
                             </div>
                           )}

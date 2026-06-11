@@ -371,7 +371,7 @@ export function PatientForm({ patientId, initialData, onSuccess }: PatientFormPr
         </div>
 
         <div>
-          <label className={LABEL}><Briefcase className="w-3 h-3 text-teal-500" /> עו״ס שיקום / מרפא בעיסוק מלווה</label>
+          <label className={LABEL}><Briefcase className="w-3 h-3 text-teal-500" /> עו״ס שיקום משרד הביטחון מלווה</label>
           <select 
             value={formData.rehabWorkerId} 
             onChange={e => {
