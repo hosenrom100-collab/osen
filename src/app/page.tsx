@@ -525,35 +525,10 @@ export default function Home() {
           <div className="max-w-6xl mx-auto">
             <div className="flex items-center gap-2 mb-3">
               <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
-              <h2 className="text-[10px] font-black uppercase tracking-widest text-[var(--foreground)]/50">תובנות חכמות וסדר יום</h2>
+              <h2 className="text-[10px] font-black uppercase tracking-widest text-[var(--foreground)]/50">תובנות והתראות מערכת</h2>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-              {(isAdmin || isManager) && pendingAbsences > 0 && (
-                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-                  className="bg-amber-500/5 border border-amber-500/10 rounded-2xl p-3 flex gap-3 items-center cursor-pointer hover:bg-amber-500/10 transition-all group"
-                  onClick={() => router.push("/admin/staff-attendance")}>
-                  <div className="w-9 h-9 rounded-xl bg-amber-500/10 flex items-center justify-center shrink-0 border border-amber-500/20 group-hover:bg-amber-500/20 transition-all">
-                    <Clock className="w-4 h-4 text-amber-400" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-[11px] font-black text-[var(--foreground)]">אישור היעדרויות</p>
-                    <p className="text-[10px] text-[var(--foreground)]/40 font-bold truncate">{pendingAbsences} בקשות ממתינות לאישור</p>
-                  </div>
-                </motion.div>
-              )}
-              {userAbsence.length > 0 && (
-                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-                  className="bg-indigo-500/5 border border-indigo-500/10 rounded-2xl p-3 flex gap-3 items-center cursor-pointer hover:bg-indigo-500/10 transition-all group"
-                  onClick={() => router.push("/profile")}>
-                  <div className="w-9 h-9 rounded-xl bg-indigo-500/10 flex items-center justify-center shrink-0 border border-indigo-500/20 group-hover:bg-indigo-500/20 transition-all">
-                    <Calendar className="w-4 h-4 text-indigo-400" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-[11px] font-black text-[var(--foreground)]">ההיעדרויות שלי</p>
-                    <p className="text-[10px] text-[var(--foreground)]/40 font-bold truncate">{userAbsence.length} בקשות בטיפול</p>
-                  </div>
-                </motion.div>
-              )}
+
               {(expiring3mCount > 0 || expiring6mCount > 0) && (
                 <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
                   className="bg-blue-500/5 border border-blue-500/10 rounded-2xl p-3 flex gap-3 items-center cursor-pointer hover:bg-blue-500/10 transition-all group"
@@ -580,19 +555,7 @@ export default function Home() {
                   </div>
                 </motion.div>
               )}
-              {unreadNotifCount > 0 && (
-                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
-                  className="bg-emerald-500/5 border border-emerald-500/10 rounded-2xl p-3 flex gap-3 items-center cursor-pointer hover:bg-emerald-500/10 transition-all group"
-                  onClick={() => router.push("/notifications")}>
-                  <div className="w-9 h-9 rounded-xl bg-emerald-500/10 flex items-center justify-center shrink-0 border border-emerald-500/20 group-hover:bg-emerald-500/20 transition-all">
-                    <Bell className="w-4 h-4 text-emerald-500" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-[11px] font-black text-[var(--foreground)]">הודעות חדשות</p>
-                    <p className="text-[10px] text-[var(--foreground)]/40 font-bold truncate">{unreadNotifCount} עדכונים שלא נקראו</p>
-                  </div>
-                </motion.div>
-              )}
+
               {shoppingCount > 0 && (
                 <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
                   className="bg-rose-500/5 border border-rose-500/10 rounded-2xl p-3 flex gap-3 items-center cursor-pointer hover:bg-rose-500/10 transition-all group"
@@ -615,161 +578,8 @@ export default function Home() {
       <main className="px-4 md:px-6 py-5 pb-24">
         <div className="grid md:grid-cols-[1fr_300px] lg:grid-cols-[1fr_320px] gap-5 max-w-6xl mx-auto">
 
-          {/* ── Schedule — PRIMARY column ── */}
+          {/* ── Attendance by group — PRIMARY column ── */}
           <section className="md:order-1">
-            <div className="border border-[var(--border)] rounded-xl overflow-hidden bg-[var(--card-bg,var(--surface))]">
-
-              {/* Section header */}
-              <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border)]">
-                <div className="flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-[var(--primary)]" />
-                  <h2 className="text-sm font-semibold">לוז היום</h2>
-                  <span className="text-[10px] text-[var(--muted)] hidden sm:inline">
-                    {format(new Date(), "EEEE", { locale: he })}
-                  </span>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  {/* Duty instructor */}
-                  {(isAdmin || isManager) && isEditingDuty ? (
-                    <div className="flex items-center gap-1.5">
-                      <select 
-                        autoFocus 
-                        value={dutyId}
-                        onChange={e => updateDuty(e.target.value)}
-                        className="bg-[var(--surface-raised)] border border-[var(--border)] text-[var(--foreground)] rounded-lg px-2 py-1 text-xs outline-none focus:border-[var(--primary)] cursor-pointer"
-                      >
-                        <option value="">ללא מדריך תורן</option>
-                        {allStaff.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                      </select>
-                      <button 
-                        onClick={() => setIsEditingDuty(false)}
-                        className="p-1 rounded-md hover:bg-[var(--foreground)]/5 text-[var(--muted)] hover:text-rose-500 transition-colors"
-                        title="ביטול"
-                      >
-                        <X className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      disabled={!(isAdmin || isManager)}
-                      onClick={() => (isAdmin || isManager) && setIsEditingDuty(true)}
-                      className={`flex items-center gap-1.5 text-[10px] font-black rounded-lg border px-2.5 py-1 transition-all ${
-                        dutyName 
-                          ? 'text-rose-500 bg-rose-500/10 border-rose-500/20 active:scale-[0.98]'
-                          : 'text-[var(--muted)] bg-[var(--foreground)]/[0.03] border-[var(--border)] hover:text-rose-500 hover:border-rose-500/20 transition-colors'
-                      } ${!(isAdmin || isManager) ? 'cursor-default' : 'active:scale-[0.98]'}`}
-                    >
-                      <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${dutyName ? 'bg-rose-500' : 'bg-[var(--muted)]/40'}`} />
-                      תורן: {dutyName || "טרם נקבע"}
-                    </button>
-                  )}
-
-                  <Link href="/calendar"
-                    className="p-1.5 rounded-lg text-[var(--muted)] hover:text-[var(--foreground)] hover:bg-[var(--foreground)]/5 transition-colors">
-                    <ChevronLeft className="w-4 h-4" />
-                  </Link>
-                </div>
-              </div>
-
-              {/* Active Alerts */}
-              {(isAdmin || isManager) && conflicts.length > 0 && (
-                <div className="space-y-2 px-4 pt-4">
-                  {conflicts.map((c, i) => (
-                    <motion.div 
-                      initial={{ x: -20, opacity: 0 }}
-                      animate={{ x: 0, opacity: 1 }}
-                      key={i}
-                      className="bg-rose-500/5 border border-rose-500/15 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
-                    >
-                      <div className="flex items-center gap-3 min-w-0 flex-1">
-                        <div className="w-10 h-10 rounded-xl bg-rose-500/10 flex items-center justify-center text-rose-500 border border-rose-500/20 shrink-0">
-                          <AlertTriangle className="w-5 h-5" />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="text-[10px] font-black text-rose-500 uppercase tracking-widest">התראת כוח אדם</p>
-                          <p className="text-xs font-bold text-rose-500/80 break-words">{c.userName} משובץ ל{c.type === 'duty' ? 'מדריך תורן' : 'פעילות'} אך רשום כנעדר</p>
-                        </div>
-                      </div>
-                      <Link href="/admin/staff-attendance" className="px-3 py-1.5 rounded-lg bg-rose-500 text-white text-[9px] font-black uppercase tracking-widest text-center self-stretch sm:self-auto shrink-0">נהל</Link>
-                    </motion.div>
-                  ))}
-                </div>
-              )}
-
-              {/* Current activity highlight */}
-              {currentAct && (
-                <div className="flex items-center gap-3 px-4 py-2.5 bg-emerald-500/6 border-b border-emerald-500/12">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
-                  <span className="text-xs font-semibold text-emerald-500 truncate">{currentAct.title}</span>
-                  <span className="text-[10px] text-emerald-600 shrink-0 mr-auto">{currentAct.startTime}–{currentAct.endTime}</span>
-                </div>
-              )}
-
-              {/* Activities list */}
-              <div className="px-4 py-2">
-                {!dataLoaded ? (
-                  <div className="flex justify-center py-10">
-                    <div className="w-5 h-5 border-2 border-[var(--border)] border-t-[var(--primary)] rounded-full animate-spin" />
-                  </div>
-                ) : visibleActs.length === 0 ? (
-                  <div className="py-10 text-center text-[var(--muted)] text-sm">
-                    <Clock className="w-8 h-8 mx-auto mb-2 opacity-20" />
-                    אין פעילויות רשומות להיום
-                  </div>
-                ) : (
-                  <div>
-                    {visibleActs.map(act => (
-                      <TimelineRow key={act.id} act={act} groups={groups} programs={programs} now={now} />
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Next up */}
-              {nextAct && (
-                <div className="flex items-center gap-2 px-4 py-2.5 border-t border-[var(--border)] text-xs">
-                  <span className="text-[var(--muted)]">הבא:</span>
-                  <span className="font-medium truncate">{nextAct.title}</span>
-                  <span className="text-[var(--primary)] font-semibold shrink-0 mr-auto">{nextAct.startTime}</span>
-                </div>
-              )}
-            </div>
-          </section>
-
-          {/* ── Sidebar — attendance + actions ── */}
-          <aside className="space-y-4 md:order-2">
-
-            {/* Recent Notifications */}
-            <div className="border border-[var(--border)] rounded-xl overflow-hidden bg-[var(--card-bg,var(--surface))]">
-              <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border)]">
-                <div className="flex items-center gap-2">
-                  <Bell className="w-4 h-4 text-emerald-500" />
-                  <h2 className="text-sm font-semibold">עדכונים אחרונים</h2>
-                </div>
-                <button onClick={() => router.push("/notifications")} className="text-[10px] font-medium text-[var(--primary)] hover:underline">הכל</button>
-              </div>
-              <div className="p-3 space-y-2">
-                {recentNotifications.length === 0 ? (
-                  <p className="text-[10px] text-[var(--muted)] text-center py-4 opacity-40 italic">אין עדכונים חדשים</p>
-                ) : (
-                  recentNotifications.map(n => {
-                    const isRead = n.readBy?.includes(user?.uid);
-                    return (
-                      <div key={n.id} className={`p-3 rounded-xl border transition-all ${isRead ? "bg-[var(--foreground)]/2 border-transparent opacity-60" : "bg-emerald-500/5 border-emerald-500/10"}`}>
-                        <div className="flex items-center gap-2 mb-1">
-                          {!isRead && <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-lg shadow-emerald-500/30" />}
-                          <p className="text-[11px] font-black truncate">{n.title}</p>
-                        </div>
-                        <p className="text-[10px] text-[var(--muted)] line-clamp-2 leading-relaxed">{n.body}</p>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-            </div>
-
-            {/* Attendance by group */}
             <div className="border border-[var(--border)] rounded-xl overflow-hidden bg-[var(--card-bg,var(--surface))]">
               <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border)]">
                 <div className="flex items-center gap-2">
@@ -778,27 +588,27 @@ export default function Home() {
                 </div>
                 <Link href="/attendance"
                   className="text-[10px] font-medium text-[var(--primary)] hover:underline flex items-center gap-0.5">
-                  סמן <ChevronLeft className="w-3 h-3" />
+                  סמן נוכחות <ChevronLeft className="w-3 h-3" />
                 </Link>
               </div>
 
-              <div className="p-3">
+              <div className="p-4">
                 {!dataLoaded ? (
-                  <div className="py-6 flex justify-center">
-                    <div className="w-4 h-4 border-2 border-[var(--border)] border-t-[var(--primary)] rounded-full animate-spin" />
+                  <div className="py-10 flex justify-center">
+                    <div className="w-5 h-5 border-2 border-[var(--border)] border-t-[var(--primary)] rounded-full animate-spin" />
                   </div>
                 ) : visibleStats.length === 0 ? (
                   <p className="text-xs text-[var(--muted)] text-center py-5">
                     {showAll || primaryGroupId ? "טוען..." : "בחר קבוצה למעלה"}
                   </p>
                 ) : (
-                  <div className="space-y-3">
+                  <div className="space-y-4">
                     {visibleStats.map(g => {
                       const pct = g.total > 0 ? Math.round((g.present / g.total) * 100) : 0;
                       return (
-                        <div key={g.id}>
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="text-xs font-medium truncate">
+                        <div key={g.id} className="p-3 bg-[var(--surface-raised)] border border-[var(--border)] rounded-xl">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-xs font-semibold truncate text-[var(--foreground)]">
                               {(() => {
                                 const prog = programs.find(p => p.id === (g as any).programId)?.name;
                                 let display = "";
@@ -810,8 +620,8 @@ export default function Home() {
                                 return display;
                               })()}
                             </span>
-                            <span className={`text-[10px] font-semibold ${pct === 100 ? "text-emerald-500" : "text-[var(--muted)]"}`}>
-                              {g.present}/{g.total}
+                            <span className={`text-xs font-bold ${pct === 100 ? "text-emerald-500" : "text-[var(--muted)]"}`}>
+                              {g.present} מתוך {g.total} נוכחים
                             </span>
                           </div>
                           <Bar pct={pct} />
@@ -822,30 +632,33 @@ export default function Home() {
                 )}
               </div>
             </div>
+          </section>
 
-            {/* Quick actions — only show links not in sidebar already */}
-            <nav className="grid grid-cols-2 gap-2" aria-label="פעולות מהירות">
-              {[
-                { href: "/attendance", icon: ClipboardList, label: "נוכחות", color: "text-emerald-500 bg-emerald-500/10 border-emerald-500/20" },
-                { href: "/patients",   icon: Users,         label: "משתתפים", color: "text-blue-500 bg-blue-500/10 border-blue-500/20" },
-                { href: "/shopping",   icon: ShoppingCart,  label: "קניות",   color: "text-amber-500 bg-amber-500/10 border-amber-500/20" },
-                ...(isAdmin || isManager ? [{ href: "/admin", icon: Shield, label: "ניהול", color: "text-[var(--muted)] bg-[var(--foreground)]/5 border-[var(--border)]" }] : [
-                  { href: "/calendar", icon: Calendar, label: "לוח שנה", color: "text-rose-500 bg-rose-500/10 border-rose-500/20" },
-                ]),
-              ].map(({ href, icon: Icon, label, color }) => (
-                <Link key={href} href={href}
-                  className={`flex items-center gap-2 px-3 py-3 rounded-2xl border text-xs font-black transition-all active:scale-[0.98] ${color}`}>
-                  <Icon className={`w-4 h-4 shrink-0`} />
-                  {label}
-                  {href === "/shopping" && shoppingCount > 0 && (
-                    <span className="mr-auto text-[10px] font-black text-amber-500 bg-amber-500/10 px-1.5 py-0.5 rounded-lg border border-amber-500/20">{shoppingCount}</span>
-                  )}
-                  {href === "/attendance" && totalMissing > 0 && (
-                    <span className="mr-auto text-[10px] font-black text-emerald-500 bg-emerald-500/10 px-1.5 py-0.5 rounded-lg border border-emerald-500/20">{totalMissing}</span>
-                  )}
-                </Link>
-              ))}
-            </nav>
+          {/* ── Sidebar — Quick actions ── */}
+          <aside className="space-y-4 md:order-2">
+            <div className="border border-[var(--border)] rounded-xl overflow-hidden bg-[var(--card-bg,var(--surface))] p-4 space-y-4">
+              <h3 className="text-xs font-black uppercase tracking-widest text-[var(--foreground)]/40">פעולות מהירות</h3>
+              <nav className="grid grid-cols-1 gap-2" aria-label="פעולות מהירות">
+                {[
+                  { href: "/attendance", icon: ClipboardList, label: "נוכחות", color: "text-emerald-500 bg-emerald-500/10 border-emerald-500/20" },
+                  { href: "/patients",   icon: Users,         label: "משתתפים ותיקים", color: "text-blue-500 bg-blue-500/10 border-blue-500/20" },
+                  { href: "/shopping",   icon: ShoppingCart,  label: "ניהול קניות ורכש",   color: "text-amber-500 bg-amber-500/10 border-amber-500/20" },
+                  ...(isAdmin || isManager ? [{ href: "/admin", icon: Shield, label: "ממשק ניהול ובקרה", color: "text-slate-400 bg-[var(--foreground)]/5 border-[var(--border)]" }] : []),
+                ].map(({ href, icon: Icon, label, color }) => (
+                  <Link key={href} href={href}
+                    className={`flex items-center gap-3 px-4 py-3.5 rounded-2xl border text-xs font-black transition-all active:scale-[0.98] ${color}`}>
+                    <Icon className={`w-4.5 h-4.5 shrink-0`} />
+                    <span>{label}</span>
+                    {href === "/shopping" && shoppingCount > 0 && (
+                      <span className="mr-auto text-[10px] font-black text-amber-500 bg-amber-500/10 px-1.5 py-0.5 rounded-lg border border-amber-500/20">{shoppingCount}</span>
+                    )}
+                    {href === "/attendance" && totalMissing > 0 && (
+                      <span className="mr-auto text-[10px] font-black text-emerald-500 bg-emerald-500/10 px-1.5 py-0.5 rounded-lg border border-emerald-500/20">{totalMissing}</span>
+                    )}
+                  </Link>
+                ))}
+              </nav>
+            </div>
           </aside>
         </div>
       </main>

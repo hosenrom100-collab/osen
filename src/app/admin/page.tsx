@@ -33,8 +33,6 @@ const CATEGORIES = [
     color: "text-violet-500",
     modules: [
       { title: "ניהול צוות",      desc: "אישור עובדים והרשאות",       icon: ShieldCheck,   path: "/admin/users",              color: "text-violet-500 bg-violet-500/10",  roles: ["admin","manager"] },
-      { title: "נוכחות צוות",     desc: "מעקב שעות ונוכחות",          icon: Users,         path: "/admin/staff-attendance",   color: "text-orange-500 bg-orange-500/10",  roles: ["admin","manager"] },
-      { title: "בקשות היעדרות",   desc: "אישור ודחיית בקשות",         icon: AlertCircle,   path: "/admin/leaves",             color: "text-rose-500 bg-rose-500/10",      roles: ["admin","manager"] },
     ],
   },
   {
@@ -42,8 +40,6 @@ const CATEGORIES = [
     color: "text-blue-500",
     modules: [
       { title: "תוכניות וקבוצות", desc: "ניהול תוכניות ולוחות זמנים", icon: Layers,        path: "/admin/programs",           color: "text-blue-500 bg-blue-500/10",      roles: ["admin","manager"] },
-      { title: "ניהול לוז יומי",  desc: "שיבוץ מדריכים ופעילויות",   icon: Calendar,      path: "/admin/schedule",           color: "text-rose-500 bg-rose-500/10",      roles: ["admin","manager"] },
-      { title: "מיקומי פעילות",   desc: "הגדרת מיקומי סדנאות",       icon: MapPin,        path: "/admin/locations",          color: "text-amber-500 bg-amber-500/10",    roles: ["admin","manager"] },
     ],
   },
   {
@@ -51,8 +47,6 @@ const CATEGORIES = [
     color: "text-cyan-500",
     modules: [
       { title: "דוחות",           desc: "ייצוא נתונים וסיכומים",      icon: BarChart3,     path: "/reports",                  color: "text-cyan-500 bg-cyan-500/10",      roles: ["admin","manager"] },
-      { title: "תיבת הודעות",     desc: "צ'אט עם משתתפים",           icon: MessageCircle, path: "/admin/inbox",                color: "text-indigo-500 bg-indigo-500/10",  roles: ["admin","manager","social_worker","instructor"] },
-      { title: "הודעות לצוות",    desc: "שליחת התראות push",          icon: Bell,          path: "/admin/notifications",      color: "text-pink-500 bg-pink-500/10",      roles: ["admin","manager"] },
       { title: "לוגיסטיקה ורכש", desc: "ניהול מלאי וציוד",           icon: Package,       path: "/admin/resources",          color: "text-amber-500 bg-amber-500/10",    roles: ["admin","manager","logistics"] },
     ],
   },

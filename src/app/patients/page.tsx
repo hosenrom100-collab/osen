@@ -8,7 +8,7 @@ import { collection, getDocs, doc, deleteDoc, updateDoc } from "firebase/firesto
 import { 
   Users, Search, Plus, Filter, MoreHorizontal, 
   Trash2, User, ChevronLeft, LayoutGrid, List,
-  Loader2, ExternalLink, Calendar, Shield, Phone,
+  Loader2, ExternalLink, Calendar, Shield, Phone, Mail,
   Briefcase, CalendarDays, Check, ChevronDown, X,
   AlertCircle, Upload, Download, FileSpreadsheet,
   CheckCircle2, AlertTriangle, RefreshCw
@@ -27,6 +27,7 @@ interface Patient {
   hosenType: string;
   status: string;
   assignedWorkerId?: string;
+  rehabWorkerId?: string;
   startDate?: string;
   endDate?: string;
   phone?: string;
@@ -53,11 +54,19 @@ interface Staff {
   name: string;
 }
 
+interface RehabWorker {
+  id: string;
+  name: string;
+  email?: string;
+  phone?: string;
+}
+
 export default function PatientsPage() {
   const { user } = useAuth();
   const [patients, setPatients] = useState<Patient[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
   const [programs, setPrograms] = useState<{ id: string; name: string }[]>([]);
+  const [rehabWorkers, setRehabWorkers] = useState<Record<string, RehabWorker>>({});
   const [staff, setStaff] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
@@ -392,13 +401,14 @@ export default function PatientsPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [pSnap, gSnap, prSnap, uSnap] = await Promise.all([
+        const [pSnap, gSnap, prSnap, uSnap, rwSnap] = await Promise.all([
           getDocs(collection(db, "patients")),
           getDocs(collection(db, "groups")),
           getDocs(collection(db, "programs")),
-          getDocs(collection(db, "users"))
+          getDocs(collection(db, "users")),
+          getDocs(collection(db, "rehab_workers"))
         ]);
-        
+
         const pts = pSnap.docs.map(d => ({ id: d.id, ...d.data() } as Patient));
         pts.sort((a, b) => {
           const lnA = a.lastName || "";
@@ -410,7 +420,14 @@ export default function PatientsPage() {
         setPatients(pts);
         setGroups(gSnap.docs.map(d => ({ id: d.id, ...d.data() } as any)));
         setPrograms(prSnap.docs.map(d => ({ id: d.id, name: d.data().name })));
-        
+
+        const rehabMap: Record<string, RehabWorker> = {};
+        rwSnap.forEach(d => {
+          const data = d.data();
+          rehabMap[d.id] = { id: d.id, name: data.name, email: data.email, phone: data.phone };
+        });
+        setRehabWorkers(rehabMap);
+
         const staffMap: Record<string, string> = {};
         uSnap.forEach(d => {
           const data = d.data();
@@ -675,6 +692,15 @@ export default function PatientsPage() {
       }
     });
   }, [patients, user?.uid]);
+
+  const goToPatient = (patientId: string) => {
+    try {
+      localStorage.setItem("hosen_patients_nav_list", JSON.stringify(
+        filtered.map(p => ({ id: p.id, firstName: p.firstName, lastName: p.lastName, status: p.status }))
+      ));
+    } catch {}
+    router.push(`/patients/${patientId}`);
+  };
 
   const handleDelete = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -1027,7 +1053,7 @@ export default function PatientsPage() {
                         <span className="text-[10px] text-[var(--muted)]">התחיל ב-{formatDate(p.startDate)}</span>
                       </div>
                       <button 
-                        onClick={() => router.push(`/patients/${p.id}`)}
+                        onClick={() => goToPatient(p.id)}
                         className="text-[10px] font-black text-indigo-500 hover:underline flex items-center gap-1"
                       >
                         מעבר לתיק המטופל
@@ -1056,8 +1082,8 @@ export default function PatientsPage() {
                   <thead>
                     <tr className="border-b border-[var(--border)]">
                       <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-3 py-3 text-[9px] font-black uppercase tracking-widest text-[var(--muted)] z-10 shadow-[inset_0_-1px_0_var(--border)]">משתתף</th>
-                      <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-3 py-3 text-[9px] font-black uppercase tracking-widest text-[var(--muted)] z-10 shadow-[inset_0_-1px_0_var(--border)]">תעודת זהות</th>
                       <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-3 py-3 text-[9px] font-black uppercase tracking-widest text-[var(--muted)] z-10 shadow-[inset_0_-1px_0_var(--border)]">עו"ס מלווה</th>
+                      <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-3 py-3 text-[9px] font-black uppercase tracking-widest text-[var(--muted)] z-10 shadow-[inset_0_-1px_0_var(--border)]">עו"ס שיקום (משרד הביטחון)</th>
                       <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-3 py-3 text-[9px] font-black uppercase tracking-widest text-[var(--muted)] z-10 shadow-[inset_0_-1px_0_var(--border)]">תוכנית</th>
                       <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-3 py-3 text-[9px] font-black uppercase tracking-widest text-[var(--muted)] z-10 shadow-[inset_0_-1px_0_var(--border)]">תאריך התחלה</th>
                       <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-3 py-3 text-[9px] font-black uppercase tracking-widest text-[var(--muted)] z-10 shadow-[inset_0_-1px_0_var(--border)]">תאריך סיום</th>
@@ -1078,7 +1104,7 @@ export default function PatientsPage() {
                       return (
                         <tr 
                           key={p.id} 
-                          onClick={() => router.push(`/patients/${p.id}`)}
+                          onClick={() => goToPatient(p.id)}
                           className={`transition-colors cursor-pointer group ${
                             isExpiring6m 
                               ? 'bg-rose-500/5 hover:bg-rose-500/10 border-r-4 border-r-rose-500'
@@ -1115,12 +1141,36 @@ export default function PatientsPage() {
                               </div>
                             </div>
                           </td>
-                          <td className="px-3 py-3 text-[11px] font-bold font-mono opacity-60">{p.idNumber}</td>
                           <td className="px-3 py-3">
                             <div className="flex items-center gap-1.5">
                                <Briefcase className="w-3.5 h-3.5 text-emerald-500/40" />
                                <span className="text-[11px] font-bold">{staff[p.assignedWorkerId || ""] || "לא שובץ"}</span>
                             </div>
+                          </td>
+                          <td className="px-3 py-3">
+                            {(() => {
+                              const rw = p.rehabWorkerId ? rehabWorkers[p.rehabWorkerId] : undefined;
+                              if (!rw) return <span className="text-[11px] font-bold opacity-30">לא שויך</span>;
+                              return (
+                                <div className="flex items-center justify-between gap-2">
+                                  <span className="text-[11px] font-bold truncate">{rw.name}</span>
+                                  <div className="flex items-center gap-1 shrink-0">
+                                    {rw.email && (
+                                      <a href={`mailto:${rw.email}`} onClick={(e) => e.stopPropagation()} title={rw.email}
+                                        className="w-6 h-6 rounded-lg bg-[var(--foreground)]/5 border border-[var(--border)] flex items-center justify-center text-[var(--muted)]/50 hover:text-teal-500 hover:border-teal-300 transition-colors">
+                                        <Mail className="w-3 h-3" />
+                                      </a>
+                                    )}
+                                    {rw.phone && (
+                                      <a href={`tel:${rw.phone}`} onClick={(e) => e.stopPropagation()} title={rw.phone}
+                                        className="w-6 h-6 rounded-lg bg-[var(--foreground)]/5 border border-[var(--border)] flex items-center justify-center text-[var(--muted)]/50 hover:text-teal-500 hover:border-teal-300 transition-colors">
+                                        <Phone className="w-3 h-3" />
+                                      </a>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })()}
                           </td>
                           <td className="px-3 py-3">
                             <span className="px-2 py-0.5 rounded-full bg-[var(--foreground)]/5 border border-[var(--border)] text-[9px] font-black">
@@ -1161,9 +1211,9 @@ export default function PatientsPage() {
                               <button
                                 onClick={(e) => handleToggleRehabPlanCompleted(p.id, !!p.rehabPlanCompleted, e)}
                                 className={`w-5 h-5 rounded border flex items-center justify-center transition-all ${
-                                  p.rehabPlanCompleted 
-                                    ? 'bg-indigo-500 border-indigo-600 text-white' 
-                                    : 'border-[var(--border)] hover:border-indigo-500 bg-[var(--surface)] hover:scale-105'
+                                  p.rehabPlanCompleted
+                                    ? 'bg-emerald-500 border-emerald-600 text-white'
+                                    : 'border-[var(--border)] hover:border-emerald-500 bg-[var(--surface)] hover:scale-105'
                                 }`}
                               >
                                 {p.rehabPlanCompleted && <Check className="w-3.5 h-3.5 stroke-[4]" />}
@@ -1175,9 +1225,9 @@ export default function PatientsPage() {
                               <button
                                 onClick={(e) => handleToggleExtensionSent(p.id, !!p.extensionSent, e)}
                                 className={`w-5 h-5 rounded border flex items-center justify-center transition-all ${
-                                  p.extensionSent 
-                                    ? 'bg-amber-500 border-amber-600 text-white' 
-                                    : 'border-[var(--border)] hover:border-amber-500 bg-[var(--surface)] hover:scale-105'
+                                  p.extensionSent
+                                    ? 'bg-emerald-500 border-emerald-600 text-white'
+                                    : 'border-[var(--border)] hover:border-emerald-500 bg-[var(--surface)] hover:scale-105'
                                 }`}
                               >
                                 {p.extensionSent && <Check className="w-3.5 h-3.5 stroke-[4]" />}
@@ -1203,9 +1253,9 @@ export default function PatientsPage() {
                               <button
                                 onClick={(e) => handleToggleSummaryReportCompleted(p.id, !!p.summaryReportCompleted, e)}
                                 className={`w-5 h-5 rounded border flex items-center justify-center transition-all ${
-                                  p.summaryReportCompleted 
-                                    ? 'bg-blue-600 border-blue-700 text-white' 
-                                    : 'border-[var(--border)] hover:border-blue-600 bg-[var(--surface)] hover:scale-105'
+                                  p.summaryReportCompleted
+                                    ? 'bg-emerald-500 border-emerald-600 text-white'
+                                    : 'border-[var(--border)] hover:border-emerald-500 bg-[var(--surface)] hover:scale-105'
                                 }`}
                               >
                                 {p.summaryReportCompleted && <Check className="w-3.5 h-3.5 stroke-[4]" />}
@@ -1245,7 +1295,7 @@ export default function PatientsPage() {
                   <motion.div 
                     key={p.id}
                     layout
-                    onClick={() => router.push(`/patients/${p.id}`)}
+                    onClick={() => goToPatient(p.id)}
                     className={`border rounded-2xl p-4 flex flex-col gap-3 active:bg-[var(--foreground)]/5 transition-all group ${
                       isExpiring6m
                         ? 'bg-rose-500/5 border-rose-500/30 shadow-lg shadow-rose-500/5'
@@ -1343,12 +1393,12 @@ export default function PatientsPage() {
                       <div className="flex flex-wrap items-center gap-4">
                         <button
                           onClick={(e) => handleToggleRehabPlanCompleted(p.id, !!p.rehabPlanCompleted, e)}
-                          className="flex items-center gap-2 text-[10px] font-bold text-[var(--muted)] hover:text-indigo-500 transition-colors"
+                          className="flex items-center gap-2 text-[10px] font-bold text-[var(--muted)] hover:text-emerald-500 transition-colors"
                         >
                           <div className={`w-4 h-4 rounded border flex items-center justify-center transition-all ${
-                            p.rehabPlanCompleted 
-                              ? 'bg-indigo-500 border-indigo-600 text-white' 
-                              : 'border-[var(--border)] hover:border-indigo-500 bg-[var(--surface)]'
+                            p.rehabPlanCompleted
+                              ? 'bg-emerald-500 border-emerald-600 text-white'
+                              : 'border-[var(--border)] hover:border-emerald-500 bg-[var(--surface)]'
                           }`}>
                             {p.rehabPlanCompleted && <Check className="w-3 h-3 stroke-[4]" />}
                           </div>
@@ -1357,12 +1407,12 @@ export default function PatientsPage() {
 
                          <button
                           onClick={(e) => handleToggleExtensionSent(p.id, !!p.extensionSent, e)}
-                          className="flex items-center gap-2 text-[10px] font-bold text-[var(--muted)] hover:text-amber-500 transition-colors"
+                          className="flex items-center gap-2 text-[10px] font-bold text-[var(--muted)] hover:text-emerald-500 transition-colors"
                         >
                           <div className={`w-4 h-4 rounded border flex items-center justify-center transition-all ${
-                            p.extensionSent 
-                              ? 'bg-amber-500 border-amber-600 text-white' 
-                              : 'border-[var(--border)] hover:border-amber-500 bg-[var(--surface)]'
+                            p.extensionSent
+                              ? 'bg-emerald-500 border-emerald-600 text-white'
+                              : 'border-[var(--border)] hover:border-emerald-500 bg-[var(--surface)]'
                           }`}>
                             {p.extensionSent && <Check className="w-3 h-3 stroke-[4]" />}
                           </div>
@@ -1385,12 +1435,12 @@ export default function PatientsPage() {
 
                         <button
                           onClick={(e) => handleToggleSummaryReportCompleted(p.id, !!p.summaryReportCompleted, e)}
-                          className="flex items-center gap-2 text-[10px] font-bold text-[var(--muted)] hover:text-blue-500 transition-colors"
+                          className="flex items-center gap-2 text-[10px] font-bold text-[var(--muted)] hover:text-emerald-500 transition-colors"
                         >
                           <div className={`w-4 h-4 rounded border flex items-center justify-center transition-all ${
-                            p.summaryReportCompleted 
-                              ? 'bg-blue-600 border-blue-700 text-white' 
-                              : 'border-[var(--border)] hover:border-blue-600 bg-[var(--surface)]'
+                            p.summaryReportCompleted
+                              ? 'bg-emerald-500 border-emerald-600 text-white'
+                              : 'border-[var(--border)] hover:border-emerald-500 bg-[var(--surface)]'
                           }`}>
                             {p.summaryReportCompleted && <Check className="w-3 h-3 stroke-[4]" />}
                           </div>

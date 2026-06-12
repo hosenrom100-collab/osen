@@ -10,24 +10,18 @@ import {
 import { useAuth } from "@/context/AuthContext";
 import { useSettings } from "@/context/SettingsContext";
 import { motion } from "framer-motion";
-import { NotificationCenter } from "../notifications/NotificationCenter";
 
 const NAV = [
   { href: "/",           icon: Home,          label: "בית",           color: "text-indigo-400" },
   { href: "/tasks",      icon: CheckSquare,   label: "משימות ותזכורות",color: "text-indigo-400" },
-  { href: "/admin/inbox",icon: MessageSquare, label: "תיבת הודעות",    color: "text-blue-400" },
   { href: "/attendance", icon: ClipboardList, label: "נוכחות",        color: "text-emerald-400" },
   { href: "/patients",   icon: Users,         label: "משתתפים",       color: "text-sky-400" },
   { href: "/shopping",   icon: ShoppingCart,  label: "קניות",         color: "text-orange-400" },
   { href: "/reports",    icon: BarChart3,     label: "דוחות",         color: "text-rose-400" },
-  { href: "/calendar",   icon: ClipboardList, label: "לוח שנה",       color: "text-violet-400" },
 ];
 
 const ADMIN_NAV = [
   { href: "/admin",                 icon: Settings,      label: "ניהול",        color: "text-slate-400" },
-  { href: "/admin/staff-attendance", icon: Clock,         label: "נוכחות צוות",   color: "text-amber-400" },
-  { href: "/admin/notifications",    icon: MessageSquare, label: "הודעות",        color: "text-pink-400" },
-  { href: "/admin/schedule",        icon: Calendar,      label: "עריכת לו״ז",    color: "text-cyan-400" },
 ];
 
 const ROLE_HE: Record<string, string> = {
@@ -41,10 +35,10 @@ const ROLE_HE: Record<string, string> = {
 
 export function DesktopSidebar() {
   const pathname = usePathname();
-  const { user, roles, role, isManager, photoURL, isParticipant } = useAuth();
+  const { user, roles, role, isManager, photoURL } = useAuth();
   const { theme, setTheme } = useSettings();
 
-  if (pathname === "/login" || pathname.startsWith("/portal") || isParticipant) return null;
+  if (pathname === "/login") return null;
 
   const initials = (user?.displayName || user?.email || "?").charAt(0).toUpperCase();
   const displayRole = role || roles[0] || "";
@@ -159,7 +153,6 @@ export function DesktopSidebar() {
           >
             {theme === 'dark' ? <Sun className="w-4 h-4 text-amber-500 animate-pulse" /> : <Moon className="w-4 h-4 text-indigo-500" />}
           </button>
-          <NotificationCenter />
         </div>
       </div>
     </aside>

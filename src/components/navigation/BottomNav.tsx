@@ -15,7 +15,7 @@ import { motion, AnimatePresence } from "framer-motion";
 export function BottomNav() {
   const pathname = usePathname();
   const router = useRouter();
-  const { isParticipant, logout, user } = useAuth();
+  const { logout, user } = useAuth();
   const { theme, setTheme } = useSettings();
 
   // Dialog overlay state
@@ -25,53 +25,14 @@ export function BottomNav() {
   const isVisible = true;
 
   // If not logged in, or on public/onboarding pages, do not show BottomNav
-  if (!user || pathname === "/portal/join" || pathname === "/login") return null;
+  if (!user || pathname === "/login") return null;
 
   // Handle logout
   const handleLogout = async () => {
     setActiveOverlay(null);
     await logout();
-    router.push("/portal/join");
+    router.push("/login");
   };
-
-  // Participant Navigation Items
-  const participantItems = [
-    {
-      key: "home",
-      label: "דף הבית",
-      icon: Home,
-      href: "/portal",
-      isActive: pathname === "/portal"
-    },
-    {
-      key: "schedule",
-      label: "פעילויות",
-      icon: Calendar,
-      href: "/portal/schedule",
-      isActive: pathname === "/portal/schedule"
-    },
-    {
-      key: "attendance",
-      label: "נוכחות",
-      icon: ClipboardList,
-      href: "/portal/attendance",
-      isActive: pathname === "/portal/attendance"
-    },
-    {
-      key: "docs",
-      label: "מסמכים",
-      icon: FileText,
-      href: "/portal/docs",
-      isActive: pathname === "/portal/docs"
-    },
-    {
-      key: "menu",
-      label: "תפריט",
-      icon: MoreHorizontal,
-      href: "#menu",
-      isActive: activeOverlay === "menu"
-    }
-  ];
 
   // Staff / Admin Navigation Items
   const staffItems = [
@@ -97,13 +58,6 @@ export function BottomNav() {
       isActive: pathname.startsWith("/patients")
     },
     {
-      key: "inbox",
-      label: "הודעות",
-      icon: MessageSquare,
-      href: "/admin/inbox",
-      isActive: pathname.startsWith("/admin/inbox")
-    },
-    {
       key: "menu",
       label: "תפריט",
       icon: MoreHorizontal,
@@ -112,7 +66,7 @@ export function BottomNav() {
     }
   ];
 
-  const items = isParticipant ? participantItems : staffItems;
+  const items = staffItems;
 
   return (
     <>
@@ -234,43 +188,39 @@ export function BottomNav() {
                 <ChevronLeft className="w-4 h-4 text-[var(--text-secondary)]" />
               </button>
 
-              {/* Personal Tasks & Reminders Button (Only for Staff/Admin) */}
-              {!isParticipant && (
-                <button 
-                  onClick={() => {
-                    setActiveOverlay(null);
-                    router.push("/tasks");
-                  }}
-                  className="w-full flex items-center justify-between p-4 rounded-2xl bg-[var(--foreground)]/5 hover:bg-[var(--foreground)]/10 border border-[var(--border)] transition-all text-right cursor-pointer"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-xl bg-[var(--surface)] border border-[var(--border)] flex items-center justify-center text-indigo-500 shadow-sm">
-                      <ClipboardCheck className="w-4 h-4" />
-                    </div>
-                    <span className="font-black text-xs text-[var(--foreground)]">משימות ותזכורות אישיות</span>
+              {/* Personal Tasks & Reminders Button */}
+              <button 
+                onClick={() => {
+                  setActiveOverlay(null);
+                  router.push("/tasks");
+                }}
+                className="w-full flex items-center justify-between p-4 rounded-2xl bg-[var(--foreground)]/5 hover:bg-[var(--foreground)]/10 border border-[var(--border)] transition-all text-right cursor-pointer"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-[var(--surface)] border border-[var(--border)] flex items-center justify-center text-indigo-500 shadow-sm">
+                    <ClipboardCheck className="w-4 h-4" />
                   </div>
-                  <ChevronLeft className="w-4 h-4 text-[var(--text-secondary)]" />
-                </button>
-              )}
+                  <span className="font-black text-xs text-[var(--foreground)]">משימות ותזכורות אישיות</span>
+                </div>
+                <ChevronLeft className="w-4 h-4 text-[var(--text-secondary)]" />
+              </button>
 
-              {/* Administrative Console Button (Only for Staff/Admin) */}
-              {!isParticipant && (
-                <button 
-                  onClick={() => {
-                    setActiveOverlay(null);
-                    router.push("/admin");
-                  }}
-                  className="w-full flex items-center justify-between p-4 rounded-2xl bg-[var(--foreground)]/5 hover:bg-[var(--foreground)]/10 border border-[var(--border)] transition-all text-right cursor-pointer"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-xl bg-[var(--surface)] border border-[var(--border)] flex items-center justify-center text-teal-500 shadow-sm">
-                      <Shield className="w-4 h-4" />
-                    </div>
-                    <span className="font-black text-xs text-[var(--foreground)]">ממשק ניהול ובקרה</span>
+              {/* Administrative Console Button */}
+              <button 
+                onClick={() => {
+                  setActiveOverlay(null);
+                  router.push("/admin");
+                }}
+                className="w-full flex items-center justify-between p-4 rounded-2xl bg-[var(--foreground)]/5 hover:bg-[var(--foreground)]/10 border border-[var(--border)] transition-all text-right cursor-pointer"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-[var(--surface)] border border-[var(--border)] flex items-center justify-center text-teal-500 shadow-sm">
+                    <Shield className="w-4 h-4" />
                   </div>
-                  <ChevronLeft className="w-4 h-4 text-[var(--text-secondary)]" />
-                </button>
-              )}
+                  <span className="font-black text-xs text-[var(--foreground)]">ממשק ניהול ובקרה</span>
+                </div>
+                <ChevronLeft className="w-4 h-4 text-[var(--text-secondary)]" />
+              </button>
 
               {/* Logout Button */}
               <button 
