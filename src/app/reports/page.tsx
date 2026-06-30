@@ -11,6 +11,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
+import { generateRehabPlanWord, downloadDocx } from "@/lib/word-generator";
 
 interface RehabPlanData {
   areasOfImprovement: string[];
@@ -103,6 +104,7 @@ export default function ReportsPage() {
   // PDF Generation Ref & Loading
   const pdfTemplateRef = useRef<HTMLDivElement>(null);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const [isGeneratingWord, setIsGeneratingWord] = useState(false);
 
   // Initialize Hebrew Date Format: "DD/MM/YYYY" or "D/MM/YYYY"
   useEffect(() => {
@@ -228,6 +230,31 @@ export default function ReportsPage() {
       alert("שגיאה בהפקת קובץ ה-PDF. אנא נסה שוב.");
     } finally {
       setIsGeneratingPdf(false);
+    }
+  };
+
+  // Word Download Trigger
+  const handleDownloadWord = async () => {
+    setIsGeneratingWord(true);
+    try {
+      const doc = generateRehabPlanWord(planData, {
+        date: planDate,
+        patientName,
+        patientId,
+        therapistName,
+        therapistTitle,
+        districtWorker
+      });
+      const fileName = `תוכנית_שיקום_${patientName ? patientName.replace(/\s+/g, "_") : "אישית"}.docx`;
+      await downloadDocx(doc, fileName);
+      
+      // Close modal on success
+      setShowEditModal(false);
+    } catch (err) {
+      console.error("Word Generation Error:", err);
+      alert("שגיאה בהפקת קובץ ה-Word. אנא נסה שוב.");
+    } finally {
+      setIsGeneratingWord(false);
     }
   };
 
@@ -568,10 +595,10 @@ export default function ReportsPage() {
               </div>
 
               {/* Modal Footer */}
-              <div className="p-6 md:p-8 border-t border-[var(--border)] bg-[var(--surface-raised)] shrink-0 flex gap-4">
+              <div className="p-6 md:p-8 border-t border-[var(--border)] bg-[var(--surface-raised)] shrink-0 flex flex-col md:flex-row gap-4">
                 <button
                   onClick={handleDownloadPdf}
-                  disabled={isGeneratingPdf || !patientName}
+                  disabled={isGeneratingPdf || isGeneratingWord || !patientName}
                   className="flex-1 bg-teal-500 hover:bg-teal-600 disabled:opacity-50 text-white py-4 rounded-2xl text-xs font-black uppercase tracking-widest transition-all active:scale-[0.98] flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-teal-500/20"
                 >
                   {isGeneratingPdf ? (
@@ -583,6 +610,23 @@ export default function ReportsPage() {
                     <>
                       <Download className="w-4 h-4" />
                       הורד תוכנית שיקום (PDF)
+                    </>
+                  )}
+                </button>
+                <button
+                  onClick={handleDownloadWord}
+                  disabled={isGeneratingPdf || isGeneratingWord || !patientName}
+                  className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white py-4 rounded-2xl text-xs font-black uppercase tracking-widest transition-all active:scale-[0.98] flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-blue-600/20"
+                >
+                  {isGeneratingWord ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      מייצר Word ומוריד...
+                    </>
+                  ) : (
+                    <>
+                      <Download className="w-4 h-4" />
+                      הורד תוכנית שיקום (Word)
                     </>
                   )}
                 </button>

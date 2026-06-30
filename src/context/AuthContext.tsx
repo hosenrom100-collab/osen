@@ -67,6 +67,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
 
   useEffect(() => {
+    // Dev login bypass
+    if (typeof window !== "undefined" && window.location.hostname === "localhost" && (window.location.search.includes("mockUser=true") || localStorage.getItem("mockUser") === "true")) {
+      localStorage.setItem("mockUser", "true");
+      const mockFirebaseUser = {
+        uid: "mock-uid-admin",
+        displayName: "מלווה טיפולי בדיקה",
+        email: "test@example.com",
+        photoURL: null,
+      } as any;
+      
+      setUser(mockFirebaseUser);
+      setRole("admin");
+      setRoles(["admin"]);
+      setStatus("approved");
+      setIsWhitelisted(true);
+      setIsAdmin(true);
+      setIsManager(true);
+      setLoading(false);
+      return;
+    }
+
     let unsubscribeUserDoc: (() => void) | undefined;
 
     const handleUserData = async (data: any, firebaseUser: User) => {
@@ -263,6 +284,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const logout = async () => {
+    localStorage.removeItem("mockUser");
     await signOut(auth);
     router.push("/login");
   };
