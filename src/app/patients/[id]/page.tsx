@@ -99,7 +99,14 @@ export default function PatientDetailPage() {
   const [activeTab, setActiveTab] = useState<"overview" | "attendance" | "reports" | "tasks">(initialTab);
   const [participantUid, setParticipantUid] = useState<string | null>(null);
   const [groups, setGroups] = useState<Group[]>([]);
-  const [programs, setPrograms] = useState<{ id: string; name: string; activeDays?: number[] }[]>([]);
+  const [programs, setPrograms] = useState<{ 
+    id: string; 
+    name: string; 
+    activeDays?: number[]; 
+    activityHours?: string;
+    participationActivityDetail?: string;
+    travelActivityDetail?: string;
+  }[]>([]);
   const [reportLoading, setReportLoading] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState(format(new Date(), "yyyy-MM"));
   const [showEditModal, setShowEditModal] = useState(false);
@@ -287,7 +294,9 @@ export default function PatientDetailPage() {
         id: d.id, 
         name: d.data().name, 
         activeDays: d.data().activeDays,
-        activityHours: d.data().activityHours
+        activityHours: d.data().activityHours,
+        participationActivityDetail: d.data().participationActivityDetail,
+        travelActivityDetail: d.data().travelActivityDetail,
       })));
       setSocialWorkers(usersSnap.docs.map(d => ({ id: d.id, name: d.data().displayName || d.data().name || d.data().email })));
       setRehabWorkers(rehabWorkersSnap.docs.map(d => ({ id: d.id, ...d.data() } as RehabWorker)));
@@ -526,6 +535,7 @@ export default function PatientDetailPage() {
     const patientProgram = programs.find(p => p.id === (patient as any)?.programId);
     setStayProgramName(patientProgram?.name || "חרבות ברזל");
     setStayActivityDays(getProgramDaysText("בימים ב' ג' וד'"));
+    setStayActivityHours(patientProgram?.activityHours || "9:00-15:00");
     
     setStaySignatoryName(authUser?.displayName || "מירב סארמילי");
     setStaySignatoryTitle(signatureTitle || "מנהלת תפעול מרכז חוסן");
@@ -866,10 +876,10 @@ export default function PatientDetailPage() {
   };
 
   const fetchLogoData = async () => {
-    let logoHeaderData: ArrayBuffer | undefined = undefined;
-    let logoFooterData: ArrayBuffer | undefined = undefined;
-    let headerUrl = reportSettings?.logoHeaderUrl || "/image2.png";
-    let footerUrl = reportSettings?.logoFooterUrl || "/image1.png";
+    let logoHeaderData: Uint8Array | undefined = undefined;
+    let logoFooterData: Uint8Array | undefined = undefined;
+    let headerUrl = reportSettings?.logoHeaderUrl || "/logoup.png";
+    let footerUrl = reportSettings?.logoFooterUrl || "/logodown.png";
 
     if (headerUrl.startsWith("/")) {
       headerUrl = window.location.origin + headerUrl;
@@ -883,8 +893,14 @@ export default function PatientDetailPage() {
         fetch(headerUrl),
         fetch(footerUrl)
       ]);
-      if (headerRes.ok) logoHeaderData = await headerRes.arrayBuffer();
-      if (footerRes.ok) logoFooterData = await footerRes.arrayBuffer();
+      if (headerRes.ok) {
+        const buf = await headerRes.arrayBuffer();
+        logoHeaderData = new Uint8Array(buf);
+      }
+      if (footerRes.ok) {
+        const buf = await footerRes.arrayBuffer();
+        logoFooterData = new Uint8Array(buf);
+      }
     } catch (err) {
       console.warn("Error fetching logo buffers:", err);
     }
@@ -999,6 +1015,7 @@ export default function PatientDetailPage() {
     setReportLoading(true);
     try {
       const logos = await fetchLogoData();
+      const patientProgram = programs.find(p => p.id === (patient as any)?.programId);
       const doc = generateTravelReimbursementWord({
         date: travelLetterDate,
         recipient: travelRecipient,
@@ -1012,7 +1029,7 @@ export default function PatientDetailPage() {
         signatoryName: travelSignatoryName,
         signatoryTitle: travelSignatoryTitle,
         signatoryOrg: travelSignatoryOrg,
-        activityDetailText: reportSettings?.travelActivityDetail,
+        activityDetailText: patientProgram?.travelActivityDetail || reportSettings?.travelActivityDetail,
         logoHeaderData: logos.logoHeaderData,
         logoFooterData: logos.logoFooterData
       });
@@ -1104,6 +1121,7 @@ export default function PatientDetailPage() {
     setReportLoading(true);
     try {
       const logos = await fetchLogoData();
+      const patientProgram = programs.find(p => p.id === (patient as any)?.programId);
       const doc = generateStayCertificateWord({
         date: stayLetterDate,
         recipient: stayRecipient,
@@ -1114,7 +1132,7 @@ export default function PatientDetailPage() {
         programName: stayProgramName,
         activityDays: stayActivityDays,
         activityHours: stayActivityHours,
-        activityDetailText: reportSettings?.participationActivityDetail,
+        activityDetailText: patientProgram?.participationActivityDetail || reportSettings?.participationActivityDetail,
         signatoryName: staySignatoryName,
         signatoryTitle: staySignatoryTitle,
         signatoryOrg: staySignatoryOrg,
@@ -1375,12 +1393,16 @@ export default function PatientDetailPage() {
         <main className="max-w-7xl mx-auto p-4 md:p-8">
           
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
-             {[
-               { label: "נוכחות החודש", value: `${attendance.filter(a => a.status === 'present').length}`, icon: CheckCircle, color: "text-emerald-500", bg: "bg-emerald-50" },
-               { label: "ימי היעדרות", value: `${attendance.filter(a => a.status === 'absent').length}`, icon: AlertCircle, color: "text-rose-500", bg: "bg-rose-50" },
-               { label: "תאריך הצטרפות", value: patient.startDate ? format(new Date(patient.startDate), "dd/MM/yy") : "—", icon: Calendar, color: "text-indigo-500", bg: "bg-indigo-50" },
-               { label: "סטטוס שיקומי", value: patient.rehabPlanCompleted ? "בתהליך" : "התחלתי", icon: Shield, color: "text-blue-500", bg: "bg-blue-50" },
-             ].map((stat, i) => (
+             {(() => {
+               const [selYear, selMonth] = selectedMonth.split("-");
+               const monthLabel = format(new Date(parseInt(selYear), parseInt(selMonth) - 1, 1), "MMMM yyyy", { locale: he });
+               return [
+                 { label: `נוכחות (${monthLabel})`, value: `${attendance.filter(a => a.status === 'present').length}`, icon: CheckCircle, color: "text-emerald-500", bg: "bg-emerald-50" },
+                 { label: `היעדרויות (${monthLabel})`, value: `${attendance.filter(a => a.status === 'absent').length}`, icon: AlertCircle, color: "text-rose-500", bg: "bg-rose-50" },
+                 { label: "תאריך הצטרפות", value: patient.startDate ? format(new Date(patient.startDate), "dd/MM/yy") : "—", icon: Calendar, color: "text-indigo-500", bg: "bg-indigo-50" },
+                 { label: "סטטוס שיקומי", value: patient.rehabPlanCompleted ? "בתהליך" : "התחלתי", icon: Shield, color: "text-blue-500", bg: "bg-blue-50" },
+               ];
+             })().map((stat, i) => (
                <div key={i} className="bg-[var(--card-bg)] border border-[var(--border)] p-3 rounded-xl hover:border-[var(--foreground)]/20 transition-all group shadow-sm flex items-center gap-3">
                  <div className={`w-8 h-8 rounded-lg ${stat.bg} ${stat.color} flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform`}>
                     <stat.icon className="w-4 h-4" />
@@ -2195,7 +2217,7 @@ export default function PatientDetailPage() {
                       הפעילות בחווה בתוכנית {stayProgramName} מתקיימת {stayActivityDays} בין השעות {stayActivityHours}.
                     </p>
                     <p style={{ marginBottom: "36px", lineHeight: 1.8 }}>
-                      {reportSettings?.participationActivityDetail || "הפעילויות השונות המתקיימות בחווה: עבודה חקלאית, גילוף בעץ ומלאכות קדומות, דיקור, יוגה, סדנאות שונות ושיחות קבוצתיות."}
+                      {programs.find(p => p.id === (patient as any)?.programId)?.participationActivityDetail || reportSettings?.participationActivityDetail || "הפעילויות השונות המתקיימות בחווה: עבודה חקלאית, גילוף בעץ ומלאכות קדומות, דיקור, יוגה, סדנאות שונות ושיחות קבוצתיות."}
                     </p>
 
                     {/* Signature Area on the left */}
@@ -2284,7 +2306,7 @@ export default function PatientDetailPage() {
                   </p>
 
                    <p style={{ marginBottom: "24px" }}>
-                    {reportSettings?.travelActivityDetail || "הפעילויות השונות המתקיימות בחווה: עבודה חקלאית, גילוף בעץ ומלאכות קדומות, דיקור, יוגה, סדנאות שונות ושיחות קבוצתיות."}
+                    {programs.find(p => p.id === (patient as any)?.programId)?.travelActivityDetail || reportSettings?.travelActivityDetail || "הפעילויות השונות המתקיימות בחווה: עבודה חקלאית, גילוף בעץ ומלאכות קדומות, דיקור, יוגה, סדנאות שונות ושיחות קבוצתיות."}
                   </p>
 
                   <p style={{ marginBottom: "50px" }}>

@@ -3,7 +3,7 @@
 import { RoleGuard } from "@/components/auth/RoleGuard";
 import { useState, useEffect } from "react";
 import { db } from "@/lib/firebase/config";
-import { doc, getDoc, setDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc, collection, getDocs, updateDoc } from "firebase/firestore";
 import { 
   ArrowRight, Save, Loader2, Settings, FileText, 
   Upload, Image as ImageIcon, Check, AlertCircle 
@@ -15,6 +15,14 @@ interface ReportSettings {
   travelActivityDetail: string;
   logoHeaderUrl?: string;
   logoFooterUrl?: string;
+}
+
+interface ProgramSettings {
+  id: string;
+  name: string;
+  activityHours?: string;
+  participationActivityDetail?: string;
+  travelActivityDetail?: string;
 }
 
 const DEFAULT_ACTIVITY_DETAIL = "הפעילויות השונות המתקיימות בחווה: עבודה חקלאית, גילוף בעץ ומלאכות קדומות, דיקור, יוגה, סדנאות שונות ושיחות קבוצתיות.";
@@ -31,6 +39,7 @@ export default function AdminSettingsPage() {
   const [travelActivityDetail, setTravelActivityDetail] = useState(DEFAULT_ACTIVITY_DETAIL);
   const [logoHeaderUrl, setLogoHeaderUrl] = useState<string>("");
   const [logoFooterUrl, setLogoFooterUrl] = useState<string>("");
+  const [programs, setPrograms] = useState<ProgramSettings[]>([]);
 
   // Logo upload loading states
   const [uploadingHeader, setUploadingHeader] = useState(false);
@@ -51,6 +60,19 @@ export default function AdminSettingsPage() {
         setLogoHeaderUrl(data.logoHeaderUrl || "");
         setLogoFooterUrl(data.logoFooterUrl || "");
       }
+
+      const progsSnap = await getDocs(collection(db, "programs"));
+      const progsList = progsSnap.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          name: data.name,
+          activityHours: data.activityHours || "",
+          participationActivityDetail: data.participationActivityDetail || "",
+          travelActivityDetail: data.travelActivityDetail || "",
+        };
+      });
+      setPrograms(progsList);
     } catch (err) {
       console.error("Error loading settings:", err);
       setError("שגיאה בטעינת ההגדרות");
@@ -116,6 +138,16 @@ export default function AdminSettingsPage() {
         logoFooterUrl,
         updatedAt: new Date()
       }, { merge: true });
+
+      await Promise.all(
+        programs.map(prog => 
+          updateDoc(doc(db, "programs", prog.id), {
+            activityHours: prog.activityHours || "",
+            participationActivityDetail: prog.participationActivityDetail || "",
+            travelActivityDetail: prog.travelActivityDetail || "",
+          })
+        )
+      );
 
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
@@ -207,6 +239,80 @@ export default function AdminSettingsPage() {
                   className="w-full bg-[var(--foreground)]/5 border border-[var(--border)] text-[var(--foreground)] rounded-xl p-3.5 text-xs font-bold focus:border-violet-500 outline-none transition-colors resize-none leading-relaxed"
                 />
               </div>
+            </div>
+          </section>
+
+          {/* 3. Program Specific Settings */}
+          <section className="bg-[var(--card-bg)] border border-[var(--border)] rounded-[2rem] p-6 space-y-6 shadow-sm">
+            <div className="flex items-center gap-2 border-b border-[var(--border-subtle)] pb-3">
+              <Settings className="w-5 h-5 text-violet-500" />
+              <h2 className="text-xs font-black">הגדרות לפי תוכנית (שעות ופירוט פעילות)</h2>
+            </div>
+
+            <div className="space-y-6">
+              {programs.map((prog, idx) => (
+                <div key={prog.id} className="border-b border-[var(--border-subtle)] pb-6 last:border-b-0 last:pb-0 text-right">
+                  <h3 className="text-xs font-black text-slate-800 mb-3 flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-violet-500" />
+                    תוכנית: {prog.name}
+                  </h3>
+
+                  <div className="grid grid-cols-1 gap-4">
+                    <div>
+                      <label className="block text-[9px] font-black text-[var(--foreground)]/40 uppercase tracking-wider mb-1">
+                        שעות פעילות
+                      </label>
+                      <input
+                        type="text"
+                        value={prog.activityHours || ""}
+                        placeholder="למשל: 9:00-15:00"
+                        onChange={e => {
+                          const updated = [...programs];
+                          updated[idx].activityHours = e.target.value;
+                          setPrograms(updated);
+                        }}
+                        className="w-full bg-[var(--foreground)]/5 border border-[var(--border)] text-[var(--foreground)] rounded-xl p-2.5 text-xs font-bold focus:border-violet-500 outline-none transition-colors"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-[9px] font-black text-[var(--foreground)]/40 uppercase tracking-wider mb-1">
+                          פירוט פעילות באישור שהייה (מותאם לתוכנית)
+                        </label>
+                        <textarea
+                          value={prog.participationActivityDetail || ""}
+                          placeholder="השאר ריק לשימוש בפירוט ברירת המחדל"
+                          onChange={e => {
+                            const updated = [...programs];
+                            updated[idx].participationActivityDetail = e.target.value;
+                            setPrograms(updated);
+                          }}
+                          rows={3}
+                          className="w-full bg-[var(--foreground)]/5 border border-[var(--border)] text-[var(--foreground)] rounded-xl p-2.5 text-xs font-bold focus:border-violet-500 outline-none transition-colors resize-none leading-relaxed"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-[9px] font-black text-[var(--foreground)]/40 uppercase tracking-wider mb-1">
+                          פירוט פעילות באישור נסיעות (מותאם לתוכנית)
+                        </label>
+                        <textarea
+                          value={prog.travelActivityDetail || ""}
+                          placeholder="השאר ריק לשימוש בפירוט ברירת המחדל"
+                          onChange={e => {
+                            const updated = [...programs];
+                            updated[idx].travelActivityDetail = e.target.value;
+                            setPrograms(updated);
+                          }}
+                          rows={3}
+                          className="w-full bg-[var(--foreground)]/5 border border-[var(--border)] text-[var(--foreground)] rounded-xl p-2.5 text-xs font-bold focus:border-violet-500 outline-none transition-colors resize-none leading-relaxed"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           </section>
 

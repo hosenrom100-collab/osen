@@ -39,10 +39,23 @@ const tableBorders = {
   insideVertical: { style: BorderStyle.SINGLE, size: 4, color: "000000" },
 };
 
+const detectImageType = (data: Uint8Array): "png" | "jpg" | "gif" => {
+  if (data.length >= 8 && data[0] === 0x89 && data[1] === 0x50 && data[2] === 0x4E && data[3] === 0x47) {
+    return "png";
+  }
+  if (data.length >= 3 && data[0] === 0xFF && data[1] === 0xD8 && data[2] === 0xFF) {
+    return "jpg";
+  }
+  if (data.length >= 4 && data[0] === 0x47 && data[1] === 0x49 && data[2] === 0x46) {
+    return "gif";
+  }
+  return "png"; // default fallback
+};
+
 export const createDocxDocument = (
   children: any[],
-  logoHeaderData?: ArrayBuffer,
-  logoFooterData?: ArrayBuffer
+  logoHeaderData?: Uint8Array,
+  logoFooterData?: Uint8Array
 ): Document => {
   const sectionOptions: any = {
     children
@@ -53,14 +66,14 @@ export const createDocxDocument = (
       default: new Header({
         children: [
           new Paragraph({
-            alignment: AlignmentType.CENTER,
+            alignment: AlignmentType.LEFT,
             children: [
               new ImageRun({
                 data: logoHeaderData,
-                type: "png",
+                type: detectImageType(logoHeaderData),
                 transformation: {
-                  width: 550,
-                  height: 165
+                  width: 120,
+                  height: 97
                 }
               })
             ]
@@ -79,10 +92,10 @@ export const createDocxDocument = (
             children: [
               new ImageRun({
                 data: logoFooterData,
-                type: "png",
+                type: detectImageType(logoFooterData),
                 transformation: {
-                  width: 550,
-                  height: 71
+                  width: 600,
+                  height: 180
                 }
               })
             ]
@@ -93,6 +106,22 @@ export const createDocxDocument = (
   }
 
   return new Document({
+    styles: {
+      default: {
+        document: {
+          run: {
+            rightToLeft: true,
+            font: "Arial",
+            language: {
+              bidirectional: "he-IL"
+            }
+          },
+          paragraph: {
+            alignment: AlignmentType.START,
+          }
+        }
+      }
+    },
     sections: [sectionOptions]
   });
 };
@@ -105,7 +134,7 @@ export const createParagraph = (
   options: { bold?: boolean; size?: number; alignment?: any; spacingAfter?: number } = {}
 ) => {
   return new Paragraph({
-    alignment: options.alignment || AlignmentType.RIGHT,
+    alignment: options.alignment || AlignmentType.START,
     bidirectional: true,
     spacing: { after: options.spacingAfter !== undefined ? options.spacingAfter : 120 }, // 120 = 6pt
     children: [
@@ -129,7 +158,7 @@ export const createLabelValueParagraph = (
   options: { size?: number; spacingAfter?: number } = {}
 ) => {
   return new Paragraph({
-    alignment: AlignmentType.RIGHT,
+    alignment: AlignmentType.START,
     bidirectional: true,
     spacing: { after: options.spacingAfter !== undefined ? options.spacingAfter : 120 },
     children: [
@@ -171,7 +200,7 @@ export const createMultilineParagraph = (
   });
 
   return new Paragraph({
-    alignment: options.alignment || AlignmentType.RIGHT,
+    alignment: options.alignment || AlignmentType.START,
     bidirectional: true,
     spacing: { after: options.spacingAfter !== undefined ? options.spacingAfter : 120 },
     children,
@@ -207,13 +236,13 @@ export const generateRehabPlanWord = (
     therapistName: string;
     therapistTitle: string;
     districtWorker: string;
-    logoHeaderData?: ArrayBuffer;
-    logoFooterData?: ArrayBuffer;
+    logoHeaderData?: Uint8Array;
+    logoFooterData?: Uint8Array;
   }
 ): any => {
   const children: any[] = [
     // Top Date - Aligned Left
-    createParagraph(`תאריך: ${metadata.date}`, { alignment: AlignmentType.LEFT, bold: true }),
+    createParagraph(`תאריך: ${metadata.date}`, { alignment: AlignmentType.END, bold: true }),
     createSpacer(120),
 
     // Header/Title - Aligned Center, Bold, 16pt
@@ -266,7 +295,7 @@ export const generateRehabPlanWord = (
             margins: { top: 120, bottom: 120, left: 120, right: 120 },
             children: [
               new Paragraph({
-                alignment: AlignmentType.RIGHT,
+                alignment: AlignmentType.START,
                 bidirectional: true,
                 children: [
                   new TextRun({
@@ -285,7 +314,7 @@ export const generateRehabPlanWord = (
             margins: { top: 120, bottom: 120, left: 120, right: 120 },
             children: [
               new Paragraph({
-                alignment: AlignmentType.RIGHT,
+                alignment: AlignmentType.START,
                 bidirectional: true,
                 children: [
                   new TextRun({
@@ -348,14 +377,14 @@ export interface StayCertData {
   signatoryName: string;
   signatoryTitle: string;
   signatoryOrg: string;
-  logoHeaderData?: ArrayBuffer;
-  logoFooterData?: ArrayBuffer;
+  logoHeaderData?: Uint8Array;
+  logoFooterData?: Uint8Array;
 }
 
 export const generateStayCertificateWord = (data: StayCertData): any => {
   const children = [
     // Date
-    createParagraph(`תאריך: ${data.date}`, { alignment: AlignmentType.LEFT, bold: true }),
+    createParagraph(`תאריך: ${data.date}`, { alignment: AlignmentType.END, bold: true }),
     createSpacer(120),
 
     // Recipient
@@ -402,14 +431,14 @@ export interface TravelReimbData {
   signatoryName: string;
   signatoryTitle: string;
   signatoryOrg: string;
-  logoHeaderData?: ArrayBuffer;
-  logoFooterData?: ArrayBuffer;
+  logoHeaderData?: Uint8Array;
+  logoFooterData?: Uint8Array;
 }
 
 export const generateTravelReimbursementWord = (data: TravelReimbData): any => {
   const children: any[] = [
     // Date
-    createParagraph(`תאריך: ${data.date}`, { alignment: AlignmentType.LEFT, bold: true }),
+    createParagraph(`תאריך: ${data.date}`, { alignment: AlignmentType.END, bold: true }),
     createSpacer(120),
 
     // Document Title
@@ -428,7 +457,7 @@ export const generateTravelReimbursementWord = (data: TravelReimbData): any => {
     createParagraph(data.activityDetailText || "הפעילויות השונות המתקיימות בחווה: עבודה חקלאית, גילוף בעץ ומלאכות קדומות, דיקור, יוגה, סדנאות שונות ושיחות קבוצתיות.", { spacingAfter: 180 }),
     
     new Paragraph({
-      alignment: AlignmentType.RIGHT,
+      alignment: AlignmentType.START,
       bidirectional: true,
       spacing: { after: 120 },
       children: [
@@ -451,7 +480,7 @@ export const generateTravelReimbursementWord = (data: TravelReimbData): any => {
   dateLines.forEach(line => {
     children.push(
       new Paragraph({
-        alignment: AlignmentType.RIGHT,
+        alignment: AlignmentType.START,
         bidirectional: true,
         spacing: { after: 60 },
         children: [
@@ -494,14 +523,14 @@ export interface AttendanceReportData {
   totalDays: number;
   signatoryName: string;
   signatoryTitle: string;
-  logoHeaderData?: ArrayBuffer;
-  logoFooterData?: ArrayBuffer;
+  logoHeaderData?: Uint8Array;
+  logoFooterData?: Uint8Array;
 }
 
 export const generateAttendanceReportWord = (data: AttendanceReportData): any => {
   const children: any[] = [
     // Date
-    createParagraph(`תאריך: ${data.date}`, { alignment: AlignmentType.LEFT, bold: true }),
+    createParagraph(`תאריך: ${data.date}`, { alignment: AlignmentType.END, bold: true }),
     createSpacer(120),
 
     // Recipient
@@ -559,8 +588,8 @@ export interface PeriodicReportData {
   summaryProcess: string;
   recommendations: string;
   farmSocialWorker: string; // עו"ס בחווה
-  logoHeaderData?: ArrayBuffer;
-  logoFooterData?: ArrayBuffer;
+  logoHeaderData?: Uint8Array;
+  logoFooterData?: Uint8Array;
 }
 
 export const generatePeriodicReportWord = (data: PeriodicReportData): any => {
@@ -624,7 +653,7 @@ export const generatePeriodicReportWord = (data: PeriodicReportData): any => {
   // 4. Participant Info row
   children.push(
     new Paragraph({
-      alignment: AlignmentType.RIGHT,
+      alignment: AlignmentType.START,
       bidirectional: true,
       spacing: { after: 240 },
       children: [
@@ -742,7 +771,7 @@ export const generatePeriodicReportWord = (data: PeriodicReportData): any => {
   // 8. Period Sentence (Split into multiple runs to guarantee correct Right-to-Left order of dates and text)
   children.push(
     new Paragraph({
-      alignment: AlignmentType.RIGHT,
+      alignment: AlignmentType.START,
       bidirectional: true,
       spacing: { after: 240 },
       children: [
@@ -786,7 +815,7 @@ export const generatePeriodicReportWord = (data: PeriodicReportData): any => {
 
   children.push(
     new Paragraph({
-      alignment: AlignmentType.RIGHT,
+      alignment: AlignmentType.START,
       bidirectional: true,
       spacing: { after: 180 },
       children: [
@@ -827,8 +856,8 @@ export const generatePeriodicReportWord = (data: PeriodicReportData): any => {
           new TableCell({
             width: { size: 50, type: WidthType.PERCENTAGE },
             children: [
-              createParagraph("MSW", { bold: true, alignment: AlignmentType.LEFT }),
-              createParagraph("מנהלת מרכז חוסן", { bold: true, alignment: AlignmentType.LEFT })
+              createParagraph("MSW", { bold: true, alignment: AlignmentType.END }),
+              createParagraph("מנהלת מרכז חוסן", { bold: true, alignment: AlignmentType.END })
             ]
           })
         ]

@@ -239,14 +239,14 @@ export default function ReportsPage() {
   const handleDownloadWord = async () => {
     setIsGeneratingWord(true);
     try {
-      let logoHeaderData: ArrayBuffer | undefined = undefined;
-      let logoFooterData: ArrayBuffer | undefined = undefined;
+      let logoHeaderData: Uint8Array | undefined = undefined;
+      let logoFooterData: Uint8Array | undefined = undefined;
       
       try {
         const settingsSnap = await getDoc(doc(db, "settings", "reports"));
         const settings = settingsSnap.exists() ? settingsSnap.data() : null;
-        let headerUrl = settings?.logoHeaderUrl || "/image2.png";
-        let footerUrl = settings?.logoFooterUrl || "/image1.png";
+        let headerUrl = settings?.logoHeaderUrl || "/logoup.png";
+        let footerUrl = settings?.logoFooterUrl || "/logodown.png";
 
         if (headerUrl.startsWith("/")) {
           headerUrl = window.location.origin + headerUrl;
@@ -259,8 +259,14 @@ export default function ReportsPage() {
           fetch(headerUrl),
           fetch(footerUrl)
         ]);
-        if (headerRes.ok) logoHeaderData = await headerRes.arrayBuffer();
-        if (footerRes.ok) logoFooterData = await footerRes.arrayBuffer();
+        if (headerRes.ok) {
+          const buf = await headerRes.arrayBuffer();
+          logoHeaderData = new Uint8Array(buf);
+        }
+        if (footerRes.ok) {
+          const buf = await footerRes.arrayBuffer();
+          logoFooterData = new Uint8Array(buf);
+        }
       } catch (logoErr) {
         console.warn("Could not fetch logo images:", logoErr);
       }

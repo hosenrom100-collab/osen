@@ -22,6 +22,8 @@ interface Program {
   activeDays: number[];
   status: "active" | "archived";
   activityHours?: string;
+  participationActivityDetail?: string;
+  travelActivityDetail?: string;
 }
 
 interface Group {
@@ -52,14 +54,20 @@ export default function ProgramDetailPage() {
   const [editName,   setEditName]   = useState("");
   const [editDays,   setEditDays]   = useState<number[]>([]);
   const [editHours,  setEditHours]  = useState("");
+  const [editParticipationDetail, setEditParticipationDetail] = useState("");
+  const [editTravelDetail,        setEditTravelDetail]        = useState("");
 
   // Refs for the auto-save closure (avoids stale state reads)
   const editNameRef = useRef(editName);
   const editDaysRef = useRef(editDays);
   const editHoursRef = useRef(editHours);
+  const editParticipationDetailRef = useRef(editParticipationDetail);
+  const editTravelDetailRef = useRef(editTravelDetail);
   useEffect(() => { editNameRef.current = editName; }, [editName]);
   useEffect(() => { editDaysRef.current = editDays; }, [editDays]);
   useEffect(() => { editHoursRef.current = editHours; }, [editHours]);
+  useEffect(() => { editParticipationDetailRef.current = editParticipationDetail; }, [editParticipationDetail]);
+  useEffect(() => { editTravelDetailRef.current = editTravelDetail; }, [editTravelDetail]);
 
   const autoSave = useAutoSave(async () => {
     const name = editNameRef.current.trim();
@@ -68,8 +76,17 @@ export default function ProgramDetailPage() {
       name,
       activeDays: editDaysRef.current,
       activityHours: editHoursRef.current.trim(),
+      participationActivityDetail: editParticipationDetailRef.current.trim(),
+      travelActivityDetail: editTravelDetailRef.current.trim(),
     });
-    setProgram(p => p ? { ...p, name, activeDays: editDaysRef.current, activityHours: editHoursRef.current.trim() } : p);
+    setProgram(p => p ? {
+      ...p,
+      name,
+      activeDays: editDaysRef.current,
+      activityHours: editHoursRef.current.trim(),
+      participationActivityDetail: editParticipationDetailRef.current.trim(),
+      travelActivityDetail: editTravelDetailRef.current.trim()
+    } : p);
   }, 1200);
 
   // New group
@@ -100,6 +117,8 @@ export default function ProgramDetailPage() {
       setEditName(prog.name);
       setEditDays(prog.activeDays || []);
       setEditHours(prog.activityHours || "9:00-15:00");
+      setEditParticipationDetail(prog.participationActivityDetail || "");
+      setEditTravelDetail(prog.travelActivityDetail || "");
 
       setGroups(groupsSnap.docs.map(d => ({ id: d.id, ...d.data() } as Group)));
     } finally {
@@ -115,8 +134,17 @@ export default function ProgramDetailPage() {
         name:       editName.trim(),
         activeDays: editDays,
         activityHours: editHours.trim(),
+        participationActivityDetail: editParticipationDetail.trim(),
+        travelActivityDetail: editTravelDetail.trim(),
       });
-      setProgram(p => p ? { ...p, name: editName.trim(), activeDays: editDays, activityHours: editHours.trim() } : p);
+      setProgram(p => p ? {
+        ...p,
+        name: editName.trim(),
+        activeDays: editDays,
+        activityHours: editHours.trim(),
+        participationActivityDetail: editParticipationDetail.trim(),
+        travelActivityDetail: editTravelDetail.trim()
+      } : p);
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     } finally {
@@ -160,7 +188,9 @@ export default function ProgramDetailPage() {
   const isDirty = program && (
     editName !== program.name || 
     JSON.stringify(editDays) !== JSON.stringify(program.activeDays) ||
-    editHours !== (program.activityHours || "9:00-15:00")
+    editHours !== (program.activityHours || "9:00-15:00") ||
+    editParticipationDetail !== (program.participationActivityDetail || "") ||
+    editTravelDetail !== (program.travelActivityDetail || "")
   );
 
   if (loading) {
@@ -254,6 +284,31 @@ export default function ProgramDetailPage() {
                 placeholder="למשל: 9:00-15:00"
                 className="w-full bg-[var(--foreground)]/5 border border-[var(--border)] rounded-xl p-3 text-xs font-bold text-[var(--foreground)] focus:border-[var(--primary)] outline-none transition-colors"
               />
+            </div>
+
+            {/* Activity Details for Reports */}
+            <div className="text-right border-t border-[var(--border-subtle)] pt-4 mt-2 space-y-4">
+              <div>
+                <label className="text-[10px] font-black text-[var(--foreground)]/40 uppercase block mb-1.5">פירוט פעילות באישור שהייה (מותאם לתוכנית)</label>
+                <textarea
+                  value={editParticipationDetail}
+                  onChange={e => { setEditParticipationDetail(e.target.value); autoSave.trigger(); }}
+                  placeholder="השאר ריק לשימוש בפירוט ברירת המחדל"
+                  rows={3}
+                  className="w-full bg-[var(--foreground)]/5 border border-[var(--border)] rounded-xl p-3 text-xs font-bold text-[var(--foreground)] focus:border-[var(--primary)] outline-none transition-colors resize-none leading-relaxed text-right"
+                />
+              </div>
+
+              <div>
+                <label className="text-[10px] font-black text-[var(--foreground)]/40 uppercase block mb-1.5">פירוט פעילות באישור נסיעות (מותאם לתוכנית)</label>
+                <textarea
+                  value={editTravelDetail}
+                  onChange={e => { setEditTravelDetail(e.target.value); autoSave.trigger(); }}
+                  placeholder="השאר ריק לשימוש בפירוט ברירת המחדל"
+                  rows={3}
+                  className="w-full bg-[var(--foreground)]/5 border border-[var(--border)] rounded-xl p-3 text-xs font-bold text-[var(--foreground)] focus:border-[var(--primary)] outline-none transition-colors resize-none leading-relaxed text-right"
+                />
+              </div>
             </div>
           </section>
 
