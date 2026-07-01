@@ -23,7 +23,7 @@ import { format, subMonths, addMonths, differenceInCalendarDays, parseISO, isVal
 import { he } from "date-fns/locale";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
-import { generateStayCertificateWord, generateTravelReimbursementWord, generateAttendanceReportWord, generatePeriodicReportWord, downloadDocx } from "@/lib/word-generator";
+import { generateStayCertificateWord, generateTravelReimbursementWord, generateAttendanceReportWord, generatePeriodicReportWord, downloadDocx, generateDocxWithLetterhead } from "@/lib/word-generator";
 import { Packer } from "docx";
 
 const monthNamesHebrew = [
@@ -923,8 +923,6 @@ export default function PatientDetailPage() {
       ];
       const titleMonth = `${months[parseInt(month) - 1]} ${year}`;
 
-      const logos = await fetchLogoData();
-
       const doc = generateAttendanceReportWord({
         date: format(new Date(), "dd.MM.yyyy"),
         recipient: recipientText,
@@ -937,11 +935,11 @@ export default function PatientDetailPage() {
         totalDays,
         signatoryName: authUser?.displayName || "מורשה חתימה",
         signatoryTitle: signatureTitle || "עו\"ס בחווה",
-        logoHeaderData: logos.logoHeaderData,
-        logoFooterData: logos.logoFooterData
+        logoHeaderData: undefined,
+        logoFooterData: undefined
       });
 
-      await downloadDocx(doc, `דוח_נוכחות_${patient.firstName}_${patient.lastName}_${titleMonth.replace(/\s+/g, "_")}.docx`);
+      await generateDocxWithLetterhead(doc, `דוח_נוכחות_${patient.firstName}_${patient.lastName}_${titleMonth.replace(/\s+/g, "_")}.docx`);
     } catch (err) {
       console.error(err);
       alert("שגיאה בהפקת הדוח");
@@ -1014,7 +1012,6 @@ export default function PatientDetailPage() {
     setShowTravelModal(false);
     setReportLoading(true);
     try {
-      const logos = await fetchLogoData();
       const patientProgram = programs.find(p => p.id === (patient as any)?.programId);
       const doc = generateTravelReimbursementWord({
         date: travelLetterDate,
@@ -1030,8 +1027,8 @@ export default function PatientDetailPage() {
         signatoryTitle: travelSignatoryTitle,
         signatoryOrg: travelSignatoryOrg,
         activityDetailText: patientProgram?.travelActivityDetail || reportSettings?.travelActivityDetail,
-        logoHeaderData: logos.logoHeaderData,
-        logoFooterData: logos.logoFooterData
+        logoHeaderData: undefined,
+        logoFooterData: undefined
       });
 
       const reqMonth = pendingRequest?.month || selectedMonth;
@@ -1054,7 +1051,7 @@ export default function PatientDetailPage() {
       } catch {}
 
       const fileName = `החזר_נסיעות_${travelLastName}_${travelFirstName}${monthSuffix}.docx`;
-      await downloadDocx(doc, fileName);
+      await generateDocxWithLetterhead(doc, fileName);
 
       if (pendingRequest) {
         await updateDoc(doc(db, "document_requests", pendingRequest.id), {
@@ -1120,7 +1117,6 @@ export default function PatientDetailPage() {
     setShowStayModal(false);
     setReportLoading(true);
     try {
-      const logos = await fetchLogoData();
       const patientProgram = programs.find(p => p.id === (patient as any)?.programId);
       const doc = generateStayCertificateWord({
         date: stayLetterDate,
@@ -1136,12 +1132,12 @@ export default function PatientDetailPage() {
         signatoryName: staySignatoryName,
         signatoryTitle: staySignatoryTitle,
         signatoryOrg: staySignatoryOrg,
-        logoHeaderData: logos.logoHeaderData,
-        logoFooterData: logos.logoFooterData
+        logoHeaderData: undefined,
+        logoFooterData: undefined
       });
 
       const fileName = `אישור_שהייה_${stayLastName}_${stayFirstName}.docx`;
-      await downloadDocx(doc, fileName);
+      await generateDocxWithLetterhead(doc, fileName);
 
       if (pendingRequest) {
         await updateDoc(doc(db, "document_requests", pendingRequest.id), {
@@ -1212,10 +1208,6 @@ export default function PatientDetailPage() {
     setShowPeriodicModal(false);
     setReportLoading(true);
     try {
-      const logos = await fetchLogoData();
-      const logoHeaderData = logos.logoHeaderData;
-      const logoFooterData = logos.logoFooterData;
-
       // 2. Generate Docx Document
       const doc = generatePeriodicReportWord({
         date: periodicLetterDate,
@@ -1235,14 +1227,14 @@ export default function PatientDetailPage() {
         summaryProcess: periodicSummaryProcess,
         recommendations: periodicRecommendations,
         farmSocialWorker: periodicFarmSocialWorker,
-        logoHeaderData,
-        logoFooterData
+        logoHeaderData: undefined,
+        logoFooterData: undefined
       });
 
       const fileName = `דו"ח_תקופתי_${patient.lastName}_${patient.firstName}_${periodicReportType.replace(/\//g, "-")}.docx`;
       
       // 3. Download locally
-      await downloadDocx(doc, fileName);
+      await generateDocxWithLetterhead(doc, fileName);
 
       alert("המסמך הופק בהצלחה!");
     } catch (err) {

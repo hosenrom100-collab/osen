@@ -13,6 +13,7 @@ import {
   Header,
   Footer
 } from "docx";
+import PizZip from "pizzip";
 
 /**
  * Trigger client-side download of a docx Document
@@ -27,6 +28,93 @@ export const downloadDocx = async (doc: Document, filename: string) => {
   a.click();
   document.body.removeChild(a);
   window.URL.revokeObjectURL(url);
+};
+
+export const generateDocxWithLetterhead = async (bodyDoc: Document, filename: string) => {
+  try {
+    // 1. Generate the body doc as a blob and get its array buffer
+    const bodyBlob = await Packer.toBlob(bodyDoc);
+    const bodyBuffer = await bodyBlob.arrayBuffer();
+
+    // 2. Fetch the empty letterhead template
+    const templateRes = await fetch("/דף לוגו ריק.docx");
+    if (!templateRes.ok) {
+      throw new Error("Could not load /דף לוגו ריק.docx. Please ensure it exists in the public directory.");
+    }
+    const templateBuffer = await templateRes.arrayBuffer();
+
+    // 3. Load both zip files using PizZip
+    const templateZip = new PizZip(templateBuffer);
+    const bodyZip = new PizZip(bodyBuffer);
+
+    // 4. Extract word/document.xml contents
+    const templateFile = templateZip.file("word/document.xml");
+    const bodyFile = bodyZip.file("word/document.xml");
+    if (!templateFile || !bodyFile) {
+      throw new Error("Invalid docx zip structure: word/document.xml not found.");
+    }
+    const templateXmlText = templateFile.asText();
+    const bodyXmlText = bodyFile.asText();
+
+    // Helper to get everything inside <w:body> except the final <w:sectPr>
+    const getBodyContent = (xml: string) => {
+      const bodyStart = xml.indexOf("<w:body>");
+      const bodyEnd = xml.indexOf("</w:body>");
+      if (bodyStart === -1 || bodyEnd === -1) return "";
+      const bodyInner = xml.substring(bodyStart + 8, bodyEnd);
+      
+      const sectStart = bodyInner.lastIndexOf("<w:sectPr");
+      if (sectStart !== -1) {
+        return bodyInner.substring(0, sectStart);
+      }
+      return bodyInner;
+    };
+
+    // Helper to extract the <w:sectPr> tag from the template
+    const getSectPr = (xml: string) => {
+      const bodyStart = xml.indexOf("<w:body>");
+      const bodyEnd = xml.indexOf("</w:body>");
+      if (bodyStart === -1 || bodyEnd === -1) return "";
+      const bodyInner = xml.substring(bodyStart + 8, bodyEnd);
+      
+      const sectStart = bodyInner.lastIndexOf("<w:sectPr");
+      if (sectStart !== -1) {
+        return bodyInner.substring(sectStart);
+      }
+      return "";
+    };
+
+    const generatedBodyContent = getBodyContent(bodyXmlText);
+    const templateSectPr = getSectPr(templateXmlText);
+
+    // 5. Replace template body content with generated content + template's section properties (header/footer)
+    const newDocumentXml = templateXmlText.replace(
+      /<w:body>([\s\S]*?)<\/w:body>/,
+      `<w:body>${generatedBodyContent}${templateSectPr}</w:body>`
+    );
+
+    templateZip.file("word/document.xml", newDocumentXml);
+
+    // 6. Generate the merged zip file as a blob
+    const outBlob = templateZip.generate({
+      type: "blob",
+      mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    });
+
+    // 7. Download the merged blob
+    const url = window.URL.createObjectURL(outBlob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+  } catch (error) {
+    console.error("Error generating docx with letterhead:", error);
+    // Fallback to normal download if anything fails
+    await downloadDocx(bodyDoc, filename);
+  }
 };
 
 // Thin borders for tables

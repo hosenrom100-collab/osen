@@ -11,7 +11,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
-import { generateRehabPlanWord, downloadDocx } from "@/lib/word-generator";
+import { generateRehabPlanWord, downloadDocx, generateDocxWithLetterhead } from "@/lib/word-generator";
 import { db } from "@/lib/firebase/config";
 import { doc, getDoc } from "firebase/firestore";
 
@@ -239,38 +239,6 @@ export default function ReportsPage() {
   const handleDownloadWord = async () => {
     setIsGeneratingWord(true);
     try {
-      let logoHeaderData: Uint8Array | undefined = undefined;
-      let logoFooterData: Uint8Array | undefined = undefined;
-      
-      try {
-        const settingsSnap = await getDoc(doc(db, "settings", "reports"));
-        const settings = settingsSnap.exists() ? settingsSnap.data() : null;
-        let headerUrl = settings?.logoHeaderUrl || "/logoup.png";
-        let footerUrl = settings?.logoFooterUrl || "/logodown.png";
-
-        if (headerUrl.startsWith("/")) {
-          headerUrl = window.location.origin + headerUrl;
-        }
-        if (footerUrl.startsWith("/")) {
-          footerUrl = window.location.origin + footerUrl;
-        }
-
-        const [headerRes, footerRes] = await Promise.all([
-          fetch(headerUrl),
-          fetch(footerUrl)
-        ]);
-        if (headerRes.ok) {
-          const buf = await headerRes.arrayBuffer();
-          logoHeaderData = new Uint8Array(buf);
-        }
-        if (footerRes.ok) {
-          const buf = await footerRes.arrayBuffer();
-          logoFooterData = new Uint8Array(buf);
-        }
-      } catch (logoErr) {
-        console.warn("Could not fetch logo images:", logoErr);
-      }
-
       const docObj = generateRehabPlanWord(planData, {
         date: planDate,
         patientName,
@@ -278,11 +246,11 @@ export default function ReportsPage() {
         therapistName,
         therapistTitle,
         districtWorker,
-        logoHeaderData,
-        logoFooterData
+        logoHeaderData: undefined,
+        logoFooterData: undefined
       });
       const fileName = `תוכנית_שיקום_${patientName ? patientName.replace(/\s+/g, "_") : "אישית"}.docx`;
-      await downloadDocx(docObj, fileName);
+      await generateDocxWithLetterhead(docObj, fileName);
       
       // Close modal on success
       setShowEditModal(false);
