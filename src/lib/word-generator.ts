@@ -39,6 +39,64 @@ const tableBorders = {
   insideVertical: { style: BorderStyle.SINGLE, size: 4, color: "000000" },
 };
 
+export const createDocxDocument = (
+  children: any[],
+  logoHeaderData?: ArrayBuffer,
+  logoFooterData?: ArrayBuffer
+): Document => {
+  const sectionOptions: any = {
+    children
+  };
+
+  if (logoHeaderData) {
+    sectionOptions.headers = {
+      default: new Header({
+        children: [
+          new Paragraph({
+            alignment: AlignmentType.CENTER,
+            children: [
+              new ImageRun({
+                data: logoHeaderData,
+                type: "png",
+                transformation: {
+                  width: 550,
+                  height: 165
+                }
+              })
+            ]
+          })
+        ]
+      })
+    };
+  }
+
+  if (logoFooterData) {
+    sectionOptions.footers = {
+      default: new Footer({
+        children: [
+          new Paragraph({
+            alignment: AlignmentType.CENTER,
+            children: [
+              new ImageRun({
+                data: logoFooterData,
+                type: "png",
+                transformation: {
+                  width: 550,
+                  height: 71
+                }
+              })
+            ]
+          })
+        ]
+      })
+    };
+  }
+
+  return new Document({
+    sections: [sectionOptions]
+  });
+};
+
 /**
  * Creates a standard RTL paragraph with optional bolding, sizing, alignment, and spacing.
  */
@@ -149,6 +207,8 @@ export const generateRehabPlanWord = (
     therapistName: string;
     therapistTitle: string;
     districtWorker: string;
+    logoHeaderData?: ArrayBuffer;
+    logoFooterData?: ArrayBuffer;
   }
 ): any => {
   const children: any[] = [
@@ -268,14 +328,7 @@ export const generateRehabPlanWord = (
   children.push(createParagraph(metadata.therapistTitle, { spacingAfter: 30 }));
   children.push(createParagraph("צוות טיפולי, חוות רום", { spacingAfter: 30 }));
 
-  return new Document({
-    sections: [
-      {
-        properties: {},
-        children: children
-      }
-    ]
-  });
+  return createDocxDocument(children, metadata.logoHeaderData, metadata.logoFooterData);
 };
 
 /**
@@ -290,46 +343,46 @@ export interface StayCertData {
   startDate: string;
   programName: string;
   activityDays: string;
+  activityHours?: string;
+  activityDetailText?: string;
   signatoryName: string;
   signatoryTitle: string;
   signatoryOrg: string;
+  logoHeaderData?: ArrayBuffer;
+  logoFooterData?: ArrayBuffer;
 }
 
 export const generateStayCertificateWord = (data: StayCertData): any => {
-  return new Document({
-    sections: [
-      {
-        children: [
-          // Date
-          createParagraph(`תאריך: ${data.date}`, { alignment: AlignmentType.LEFT, bold: true }),
-          createSpacer(120),
+  const children = [
+    // Date
+    createParagraph(`תאריך: ${data.date}`, { alignment: AlignmentType.LEFT, bold: true }),
+    createSpacer(120),
 
-          // Recipient
-          createLabelValueParagraph("עבור:", data.recipient, { spacingAfter: 360 }),
+    // Recipient
+    createLabelValueParagraph("עבור:", data.recipient, { spacingAfter: 360 }),
 
-          // Document Title
-          createParagraph("אישור שהייה בחווה שיקומית", { alignment: AlignmentType.CENTER, bold: true, size: 32, spacingAfter: 360 }),
+    // Document Title
+    createParagraph("אישור שהייה בחווה שיקומית", { alignment: AlignmentType.CENTER, bold: true, size: 32, spacingAfter: 360 }),
 
-          // Subject
-          createLabelValueParagraph("הנדון:", `${data.firstName} ${data.lastName}`),
-          createLabelValueParagraph("ת.ז:", data.idNumber, { spacingAfter: 240 }),
+    // Subject
+    createLabelValueParagraph("הנדון:", `${data.firstName} ${data.lastName}`),
+    createLabelValueParagraph("ת.ז:", data.idNumber, { spacingAfter: 240 }),
 
-          // Body text
-          createParagraph(`הרינו לאשר כי הנ"ל החל בהגעה לחווה מהתאריך ${data.startDate}.`, { spacingAfter: 180 }),
-          createParagraph(`הפעילות בחווה בתוכנית "${data.programName}" מתקיימת ${data.activityDays} בין השעות 9:00-15:00.`, { spacingAfter: 180 }),
-          createParagraph("הפעילויות השונות המתקיימות בחווה: עבודה חקלאית, גילוף בעץ ומלאכות קדומות, דיקור, יוגה, סדנאות שונות ושיחות קבוצתיות.", { spacingAfter: 360 }),
+    // Body text
+    createParagraph(`הרינו לאשר כי הנ"ל החל בהגעה לחווה מהתאריך ${data.startDate}.`, { spacingAfter: 180 }),
+    createParagraph(`הפעילות בחווה בתוכנית "${data.programName}" מתקיימת ${data.activityDays} בין השעות ${data.activityHours || "9:00-15:00"}.`, { spacingAfter: 180 }),
+    createParagraph(data.activityDetailText || "הפעילויות השונות המתקיימות בחווה: עבודה חקלאית, גילוף בעץ ומלאכות קדומות, דיקור, יוגה, סדנאות שונות ושיחות קבוצתיות.", { spacingAfter: 360 }),
 
-          createSpacer(240),
+    createSpacer(240),
 
-          // Signature Block
-          createParagraph("בברכה,", { spacingAfter: 60 }),
-          createParagraph(data.signatoryName, { bold: true, spacingAfter: 30 }),
-          createParagraph(data.signatoryTitle, { spacingAfter: 30 }),
-          createParagraph(data.signatoryOrg, { spacingAfter: 30 })
-        ]
-      }
-    ]
-  });
+    // Signature Block
+    createParagraph("בברכה,", { spacingAfter: 60 }),
+    createParagraph(data.signatoryName, { bold: true, spacingAfter: 30 }),
+    createParagraph(data.signatoryTitle, { spacingAfter: 30 }),
+    createParagraph(data.signatoryOrg, { spacingAfter: 30 })
+  ];
+
+  return createDocxDocument(children, data.logoHeaderData, data.logoFooterData);
 };
 
 /**
@@ -344,69 +397,86 @@ export interface TravelReimbData {
   startDate: string;
   programName: string;
   activityDays: string;
+  activityDetailText?: string;
   attendanceDatesStr: string;
   signatoryName: string;
   signatoryTitle: string;
   signatoryOrg: string;
+  logoHeaderData?: ArrayBuffer;
+  logoFooterData?: ArrayBuffer;
 }
 
 export const generateTravelReimbursementWord = (data: TravelReimbData): any => {
-  return new Document({
-    sections: [
-      {
+  const children: any[] = [
+    // Date
+    createParagraph(`תאריך: ${data.date}`, { alignment: AlignmentType.LEFT, bold: true }),
+    createSpacer(120),
+
+    // Document Title
+    createParagraph("החזר נסיעות חודשי", { alignment: AlignmentType.CENTER, bold: true, size: 32, spacingAfter: 360 }),
+
+    // Recipient
+    createLabelValueParagraph("עבור:", data.recipient, { spacingAfter: 240 }),
+
+    // Subject & ID
+    createLabelValueParagraph("הנדון:", `${data.firstName} ${data.lastName}`),
+    createLabelValueParagraph("ת.ז:", data.idNumber, { spacingAfter: 240 }),
+
+    // Body text
+    createParagraph(`הרינו לאשר כי הנ"ל קיבל אישור להגעה לחווה מהתאריך ${data.startDate}.`, { spacingAfter: 180 }),
+    createParagraph(`הפעילות בחווה בתוכנית "${data.programName}" מתקיימת בימי ${data.activityDays}.`, { spacingAfter: 180 }),
+    createParagraph(data.activityDetailText || "הפעילויות השונות המתקיימות בחווה: עבודה חקלאית, גילוף בעץ ומלאכות קדומות, דיקור, יוגה, סדנאות שונות ושיחות קבוצתיות.", { spacingAfter: 180 }),
+    
+    new Paragraph({
+      alignment: AlignmentType.RIGHT,
+      bidirectional: true,
+      spacing: { after: 120 },
+      children: [
+        new TextRun({
+          text: 'הנ"ל מבקש החזר נסיעות עבור ההגעה לחווה בתאריכים:',
+          rightToLeft: true,
+          font: "Arial",
+          size: 24
+        })
+      ]
+    })
+  ];
+
+  // Render each date line as a separate bold, underlined paragraph
+  const dateLines = (data.attendanceDatesStr || "")
+    .split("\n")
+    .map(line => line.trim())
+    .filter(Boolean);
+
+  dateLines.forEach(line => {
+    children.push(
+      new Paragraph({
+        alignment: AlignmentType.RIGHT,
+        bidirectional: true,
+        spacing: { after: 60 },
         children: [
-          // Date
-          createParagraph(`תאריך: ${data.date}`, { alignment: AlignmentType.LEFT, bold: true }),
-          createSpacer(120),
-
-          // Document Title
-          createParagraph("החזר נסיעות חודשי", { alignment: AlignmentType.CENTER, bold: true, size: 32, spacingAfter: 360 }),
-
-          // Recipient
-          createLabelValueParagraph("עבור:", data.recipient, { spacingAfter: 240 }),
-
-          // Subject & ID
-          createLabelValueParagraph("הנדון:", `${data.firstName} ${data.lastName}`),
-          createLabelValueParagraph("ת.ז:", data.idNumber, { spacingAfter: 240 }),
-
-          // Body text
-          createParagraph(`הרינו לאשר כי הנ"ל קיבל אישור להגעה לחווה מהתאריך ${data.startDate}.`, { spacingAfter: 180 }),
-          createParagraph(`הפעילות בחווה בתוכנית "${data.programName}" מתקיימת בימי ${data.activityDays}.`, { spacingAfter: 180 }),
-          createParagraph("הפעילויות השונות המתקיימות בחווה: עבודה חקלאית, גילוף בעץ ומלאכות קדומות, דיקור, יוגה, סדנאות שונות ושיחות קבוצתיות.", { spacingAfter: 180 }),
-          
-          new Paragraph({
-            alignment: AlignmentType.RIGHT,
-            bidirectional: true,
-            spacing: { after: 360 },
-            children: [
-              new TextRun({
-                text: 'הנ"ל מבקש החזר נסיעות עבור ההגעה לחווה בתאריכים: ',
-                rightToLeft: true,
-                font: "Arial",
-                size: 24
-              }),
-              new TextRun({
-                text: data.attendanceDatesStr,
-                bold: true,
-                underline: {},
-                rightToLeft: true,
-                font: "Arial",
-                size: 24
-              })
-            ]
-          }),
-
-          createSpacer(240),
-
-          // Signature Block
-          createParagraph("בברכה,", { spacingAfter: 60 }),
-          createParagraph(data.signatoryName, { bold: true, spacingAfter: 30 }),
-          createParagraph(data.signatoryTitle, { spacingAfter: 30 }),
-          createParagraph(data.signatoryOrg, { spacingAfter: 30 })
+          new TextRun({
+            text: line,
+            bold: true,
+            underline: {},
+            rightToLeft: true,
+            font: "Arial",
+            size: 24
+          })
         ]
-      }
-    ]
+      })
+    );
   });
+
+  children.push(createSpacer(240));
+
+  // Signature Block
+  children.push(createParagraph("בברכה,", { spacingAfter: 60 }));
+  children.push(createParagraph(data.signatoryName, { bold: true, spacingAfter: 30 }));
+  children.push(createParagraph(data.signatoryTitle, { spacingAfter: 30 }));
+  children.push(createParagraph(data.signatoryOrg, { spacingAfter: 30 }));
+
+  return createDocxDocument(children, data.logoHeaderData, data.logoFooterData);
 };
 
 /**
@@ -424,6 +494,8 @@ export interface AttendanceReportData {
   totalDays: number;
   signatoryName: string;
   signatoryTitle: string;
+  logoHeaderData?: ArrayBuffer;
+  logoFooterData?: ArrayBuffer;
 }
 
 export const generateAttendanceReportWord = (data: AttendanceReportData): any => {
@@ -461,15 +533,9 @@ export const generateAttendanceReportWord = (data: AttendanceReportData): any =>
   // Signature Block
   children.push(createParagraph("בברכה,", { spacingAfter: 60 }));
   children.push(createParagraph(data.signatoryName, { bold: true, spacingAfter: 30 }));
-  children.push(createParagraph(data.signatoryTitle, { spacingAfter: 30 }))
+  children.push(createParagraph(data.signatoryTitle, { spacingAfter: 30 }));
 
-  return new Document({
-    sections: [
-      {
-        children
-      }
-    ]
-  });
+  return createDocxDocument(children, data.logoHeaderData, data.logoFooterData);
 };
 
 /**
@@ -771,55 +837,5 @@ export const generatePeriodicReportWord = (data: PeriodicReportData): any => {
   });
   children.push(signatureTable);
 
-  const sectionOptions: any = {
-    children
-  };
-
-  if (data.logoHeaderData) {
-    sectionOptions.headers = {
-      default: new Header({
-        children: [
-          new Paragraph({
-            alignment: AlignmentType.CENTER,
-            children: [
-              new ImageRun({
-                data: data.logoHeaderData,
-                type: "png",
-                transformation: {
-                  width: 550,
-                  height: 165
-                }
-              })
-            ]
-          })
-        ]
-      })
-    };
-  }
-
-  if (data.logoFooterData) {
-    sectionOptions.footers = {
-      default: new Footer({
-        children: [
-          new Paragraph({
-            alignment: AlignmentType.CENTER,
-            children: [
-              new ImageRun({
-                data: data.logoFooterData,
-                type: "png",
-                transformation: {
-                  width: 550,
-                  height: 71
-                }
-              })
-            ]
-          })
-        ]
-      })
-    };
-  }
-
-  return new Document({
-    sections: [sectionOptions]
-  });
+  return createDocxDocument(children, data.logoHeaderData, data.logoFooterData);
 };

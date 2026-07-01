@@ -144,6 +144,7 @@ export default function PatientDetailPage() {
   const [travelSignatoryName, setTravelSignatoryName] = useState("מירב סארמילי");
   const [travelSignatoryTitle, setTravelSignatoryTitle] = useState("מנהלת תפעול מרכז חוסן");
   const [travelSignatoryOrg, setTravelSignatoryOrg] = useState("חוות רום");
+  const [travelSelectedMonths, setTravelSelectedMonths] = useState<string[]>([]);
 
   // Stay certificate specific states (Transient, not saved to DB)
   const [showStayModal, setShowStayModal] = useState(false);
@@ -155,9 +156,17 @@ export default function PatientDetailPage() {
   const [stayStartDate, setStayStartDate] = useState("");
   const [stayProgramName, setStayProgramName] = useState("חרבות ברזל");
   const [stayActivityDays, setStayActivityDays] = useState("בימים ב' ג' וד'");
+  const [stayActivityHours, setStayActivityHours] = useState("9:00-15:00");
   const [staySignatoryName, setStaySignatoryName] = useState("מירב סארמילי");
   const [staySignatoryTitle, setStaySignatoryTitle] = useState("מנהלת תפעול מרכז חוסן");
   const [staySignatoryOrg, setStaySignatoryOrg] = useState("חוות רום");
+
+  const [reportSettings, setReportSettings] = useState<{
+    participationActivityDetail?: string;
+    travelActivityDetail?: string;
+    logoHeaderUrl?: string;
+    logoFooterUrl?: string;
+  } | null>(null);
 
   // Periodic report specific states (Transient, not saved to DB)
   const [showPeriodicModal, setShowPeriodicModal] = useState(false);
@@ -236,6 +245,28 @@ export default function PatientDetailPage() {
     return result.replace(/["'“”‘’\[\]]/g, "");
   };
 
+  const updateTravelAttendanceDates = (monthsList: string[], currentAttendance = attendance) => {
+    if (!monthsList || monthsList.length === 0) {
+      setTravelAttendanceDatesStr("");
+      return;
+    }
+    const sortedMonths = [...monthsList].sort();
+    const lines = sortedMonths.map(mVal => {
+      const monthlyPresence = currentAttendance
+        .filter(h => h.date.startsWith(mVal) && h.status === 'present')
+        .sort((a, b) => a.date.localeCompare(b.date));
+      const dayNumbers = monthlyPresence.map(h => parseInt(h.date.split("-")[2], 10));
+      const [yearStr, monthStr] = mVal.split("-");
+      const monthName = monthNamesHebrew[parseInt(monthStr, 10) - 1];
+      if (dayNumbers.length > 0) {
+        return `${dayNumbers.join(",")} לחודש ${monthName} ${yearStr}`;
+      } else {
+        return `[הכנס תאריכים] לחודש ${monthName} ${yearStr}`;
+      }
+    });
+    setTravelAttendanceDatesStr(lines.join("\n"));
+  };
+
   useEffect(() => { if (id) fetchPatientData(); }, [id]);
 
   const fetchPatientData = async () => {
@@ -244,16 +275,25 @@ export default function PatientDetailPage() {
       if (!patientDoc.exists()) { router.push("/patients"); return; }
       setPatient({ id: patientDoc.id, ...patientDoc.data() } as Patient);
 
-      const [groupsSnap, progsSnap, usersSnap, rehabWorkersSnap] = await Promise.all([
+      const [groupsSnap, progsSnap, usersSnap, rehabWorkersSnap, settingsSnap] = await Promise.all([
         getDocs(collection(db, "groups")),
         getDocs(collection(db, "programs")),
         getDocs(collection(db, "users")),
-        getDocs(collection(db, "rehab_workers"))
+        getDocs(collection(db, "rehab_workers")),
+        getDoc(doc(db, "settings", "reports"))
       ]);
       setGroups(groupsSnap.docs.map(d => ({ id: d.id, name: d.data().name } as Group)));
-      setPrograms(progsSnap.docs.map(d => ({ id: d.id, name: d.data().name, activeDays: d.data().activeDays })));
+      setPrograms(progsSnap.docs.map(d => ({ 
+        id: d.id, 
+        name: d.data().name, 
+        activeDays: d.data().activeDays,
+        activityHours: d.data().activityHours
+      })));
       setSocialWorkers(usersSnap.docs.map(d => ({ id: d.id, name: d.data().displayName || d.data().name || d.data().email })));
       setRehabWorkers(rehabWorkersSnap.docs.map(d => ({ id: d.id, ...d.data() } as RehabWorker)));
+      if (settingsSnap.exists()) {
+        setReportSettings(settingsSnap.data());
+      }
 
       const attQuery = query(
         collection(db, "attendance"),
@@ -771,8 +811,8 @@ export default function PatientDetailPage() {
         setTravelApprovalStartDate("08.09.2025");
       }
       
-      setTravelProgramName("חרבות ברזל");
       const patientProgram = programs.find(p => p.id === (patient as any)?.programId);
+      setTravelProgramName(patientProgram?.name || "חרבות ברזל");
       const activeDays = patientProgram?.activeDays;
       if (activeDays && activeDays.length > 0) {
         const sortedDays = [...activeDays].sort((a, b) => a - b);
@@ -782,16 +822,8 @@ export default function PatientDetailPage() {
         setTravelActivityDays("שני, שלישי, רביעי");
       }
       
-      const monthlyPresence = attendance
-        .filter(h => h.date.startsWith(selectedMonth) && h.status === 'present')
-        .sort((a, b) => a.date.localeCompare(b.date));
-      const dayNumbers = monthlyPresence.map(h => parseInt(h.date.split("-")[2], 10));
-      const [selYear, selMonth] = selectedMonth.split("-");
-      const selMonthName = monthNamesHebrew[parseInt(selMonth, 10) - 1];
-      const attDatesFormatted = dayNumbers.length > 0
-        ? `${dayNumbers.join(",")} לחודש ${selMonthName} ${selYear}`
-        : `[הכנס תאריכים] לחודש ${selMonthName} ${selYear}`;
-      setTravelAttendanceDatesStr(attDatesFormatted);
+      setTravelSelectedMonths([selectedMonth]);
+      updateTravelAttendanceDates([selectedMonth]);
       
       setTravelSignatoryName("מירב סארמילי");
       setTravelSignatoryTitle("מנהלת תפעול מרכז חוסן");
@@ -833,6 +865,24 @@ export default function PatientDetailPage() {
     }
   };
 
+  const fetchLogoData = async () => {
+    let logoHeaderData: ArrayBuffer | undefined = undefined;
+    let logoFooterData: ArrayBuffer | undefined = undefined;
+    const headerUrl = reportSettings?.logoHeaderUrl || "/image2.png";
+    const footerUrl = reportSettings?.logoFooterUrl || "/image1.png";
+    try {
+      const [headerRes, footerRes] = await Promise.all([
+        fetch(headerUrl),
+        fetch(footerUrl)
+      ]);
+      if (headerRes.ok) logoHeaderData = await headerRes.arrayBuffer();
+      if (footerRes.ok) logoFooterData = await footerRes.arrayBuffer();
+    } catch (err) {
+      console.warn("Error fetching logo buffers:", err);
+    }
+    return { logoHeaderData, logoFooterData };
+  };
+
   const executeManualWordGeneration = async (type: 'attendance') => {
     if (!patient) return;
     try {
@@ -849,6 +899,8 @@ export default function PatientDetailPage() {
       ];
       const titleMonth = `${months[parseInt(month) - 1]} ${year}`;
 
+      const logos = await fetchLogoData();
+
       const doc = generateAttendanceReportWord({
         date: format(new Date(), "dd.MM.yyyy"),
         recipient: recipientText,
@@ -860,7 +912,9 @@ export default function PatientDetailPage() {
         arrivedDates,
         totalDays,
         signatoryName: authUser?.displayName || "מורשה חתימה",
-        signatoryTitle: signatureTitle || "עו\"ס בחווה"
+        signatoryTitle: signatureTitle || "עו\"ס בחווה",
+        logoHeaderData: logos.logoHeaderData,
+        logoFooterData: logos.logoFooterData
       });
 
       await downloadDocx(doc, `דוח_נוכחות_${patient.firstName}_${patient.lastName}_${titleMonth.replace(/\s+/g, "_")}.docx`);
@@ -895,10 +949,15 @@ export default function PatientDetailPage() {
       ];
       let monthSuffix = "";
       try {
-        const [year, month] = reqMonth.split("-");
-        const monthName = monthNamesHebrew[parseInt(month, 10) - 1];
-        if (monthName && year) {
-          monthSuffix = `_${monthName}_${year}`;
+        const monthsToUse = travelSelectedMonths.length > 0 ? travelSelectedMonths : [reqMonth];
+        const sortedMonths = [...monthsToUse].sort();
+        const monthNames = sortedMonths.map(m => {
+          const [year, month] = m.split("-");
+          const monthName = monthNamesHebrew[parseInt(month, 10) - 1];
+          return monthName && year ? `${monthName}_${year}` : "";
+        }).filter(Boolean);
+        if (monthNames.length > 0) {
+          monthSuffix = `_${monthNames.join("_")}`;
         }
       } catch {}
       
@@ -931,6 +990,7 @@ export default function PatientDetailPage() {
     setShowTravelModal(false);
     setReportLoading(true);
     try {
+      const logos = await fetchLogoData();
       const doc = generateTravelReimbursementWord({
         date: travelLetterDate,
         recipient: travelRecipient,
@@ -943,7 +1003,10 @@ export default function PatientDetailPage() {
         attendanceDatesStr: travelAttendanceDatesStr,
         signatoryName: travelSignatoryName,
         signatoryTitle: travelSignatoryTitle,
-        signatoryOrg: travelSignatoryOrg
+        signatoryOrg: travelSignatoryOrg,
+        activityDetailText: reportSettings?.travelActivityDetail,
+        logoHeaderData: logos.logoHeaderData,
+        logoFooterData: logos.logoFooterData
       });
 
       const reqMonth = pendingRequest?.month || selectedMonth;
@@ -953,10 +1016,15 @@ export default function PatientDetailPage() {
       ];
       let monthSuffix = "";
       try {
-        const [year, month] = reqMonth.split("-");
-        const monthName = monthNamesHebrew[parseInt(month, 10) - 1];
-        if (monthName && year) {
-          monthSuffix = `_${monthName}_${year}`;
+        const monthsToUse = travelSelectedMonths.length > 0 ? travelSelectedMonths : [reqMonth];
+        const sortedMonths = [...monthsToUse].sort();
+        const monthNames = sortedMonths.map(m => {
+          const [year, month] = m.split("-");
+          const monthName = monthNamesHebrew[parseInt(month, 10) - 1];
+          return monthName && year ? `${monthName}_${year}` : "";
+        }).filter(Boolean);
+        if (monthNames.length > 0) {
+          monthSuffix = `_${monthNames.join("_")}`;
         }
       } catch {}
 
@@ -1027,6 +1095,7 @@ export default function PatientDetailPage() {
     setShowStayModal(false);
     setReportLoading(true);
     try {
+      const logos = await fetchLogoData();
       const doc = generateStayCertificateWord({
         date: stayLetterDate,
         recipient: stayRecipient,
@@ -1036,9 +1105,13 @@ export default function PatientDetailPage() {
         startDate: stayStartDate,
         programName: stayProgramName,
         activityDays: stayActivityDays,
+        activityHours: stayActivityHours,
+        activityDetailText: reportSettings?.participationActivityDetail,
         signatoryName: staySignatoryName,
         signatoryTitle: staySignatoryTitle,
-        signatoryOrg: staySignatoryOrg
+        signatoryOrg: staySignatoryOrg,
+        logoHeaderData: logos.logoHeaderData,
+        logoFooterData: logos.logoFooterData
       });
 
       const fileName = `אישור_שהייה_${stayLastName}_${stayFirstName}.docx`;
@@ -1113,19 +1186,9 @@ export default function PatientDetailPage() {
     setShowPeriodicModal(false);
     setReportLoading(true);
     try {
-      // 1. Fetch logo header and footer images as arrayBuffers in parallel
-      let logoHeaderData: ArrayBuffer | undefined = undefined;
-      let logoFooterData: ArrayBuffer | undefined = undefined;
-      try {
-        const [headerRes, footerRes] = await Promise.all([
-          fetch("/image2.png"),
-          fetch("/image1.png")
-        ]);
-        if (headerRes.ok) logoHeaderData = await headerRes.arrayBuffer();
-        if (footerRes.ok) logoFooterData = await footerRes.arrayBuffer();
-      } catch (logoErr) {
-        console.warn("Could not fetch logo images:", logoErr);
-      }
+      const logos = await fetchLogoData();
+      const logoHeaderData = logos.logoHeaderData;
+      const logoFooterData = logos.logoFooterData;
 
       // 2. Generate Docx Document
       const doc = generatePeriodicReportWord({
@@ -1653,7 +1716,7 @@ export default function PatientDetailPage() {
                         </div>
                       </div>
                       <p className="text-[11px] text-slate-500 leading-relaxed mb-3">
-                        הפקת מכתב מפורט הכולל את רשימת ימי ההגעה המדויקים בפועל של המשתתף בחודש שנבחר.
+                        הפקת מכתב מפורט הכולל את רשימת ימי ההגעה המדויקים בפועל של המשתתף בחודש/ים שנבחרו (ניתן לבחור מספר חודשים).
                       </p>
 
                       <div className="flex items-center gap-2 mt-auto w-full">
@@ -1680,7 +1743,7 @@ export default function PatientDetailPage() {
                           className="flex-1 bg-sky-500 text-white py-2 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all hover:bg-sky-600 shadow-sm active:scale-[0.98] flex items-center justify-center gap-1.5"
                          >
                           {reportLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
-                          הפק אישור
+                          הפק אישור (ניתן לבחור מספר חודשים)
                          </button>
                       </div>
                    </div>
@@ -2121,10 +2184,10 @@ export default function PatientDetailPage() {
                       הרינו לאשר כי החל בהגעה לחווה מהתאריך <strong>{stayStartDate}</strong>.
                     </p>
                     <p style={{ marginBottom: "20px", lineHeight: 1.8 }}>
-                      הפעילות בחווה בתוכנית {stayProgramName} מתקיימת {stayActivityDays} בין השעות 9:00-15:00.
+                      הפעילות בחווה בתוכנית {stayProgramName} מתקיימת {stayActivityDays} בין השעות {stayActivityHours}.
                     </p>
                     <p style={{ marginBottom: "36px", lineHeight: 1.8 }}>
-                      הפעילויות השונות המתקיימות בחווה: עבודה חקלאית, גילוף בעץ ומלאכות קדומות, דיקור, יוגה, סדנאות שונות ושיחות קבוצתיות.
+                      {reportSettings?.participationActivityDetail || "הפעילויות השונות המתקיימות בחווה: עבודה חקלאית, גילוף בעץ ומלאכות קדומות, דיקור, יוגה, סדנאות שונות ושיחות קבוצתיות."}
                     </p>
 
                     {/* Signature Area on the left */}
@@ -2212,14 +2275,17 @@ export default function PatientDetailPage() {
                     הפעילות בחווה בתוכנית <strong style={{ fontWeight: "bold" }}>{travelProgramName}</strong> מתקיימת בימי <strong style={{ fontWeight: "bold" }}>{travelActivityDays}</strong> .
                   </p>
 
-                  <p style={{ marginBottom: "24px" }}>
-                    הפעילויות השונות המתקיימות בחווה: עבודה חקלאית, גילוף בעץ ומלאכות קדומות, דיקור, יוגה, סדנאות שונות ושיחות קבוצתיות.
+                   <p style={{ marginBottom: "24px" }}>
+                    {reportSettings?.travelActivityDetail || "הפעילויות השונות המתקיימות בחווה: עבודה חקלאית, גילוף בעץ ומלאכות קדומות, דיקור, יוגה, סדנאות שונות ושיחות קבוצתיות."}
                   </p>
 
                   <p style={{ marginBottom: "50px" }}>
                     הנ"ל מבקש החזר נסיעות עבור ההגעה לחווה
                     <br />
-                    בתאריכים: <strong style={{ fontWeight: "bold", textDecoration: "underline" }}>{getTravelAttendanceDates()}</strong>
+                    בתאריכים:
+                    <strong style={{ display: "block", fontWeight: "bold", textDecoration: "underline", whiteSpace: "pre-wrap", marginTop: "5px" }}>
+                      {getTravelAttendanceDates()}
+                    </strong>
                   </p>
 
                   {/* Signature */}
@@ -2524,14 +2590,47 @@ export default function PatientDetailPage() {
                         className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-2.5 text-xs outline-none focus:border-sky-500 transition-all font-bold"
                       />
                     </div>
-                    <div className="space-y-1.5">
+                    
+                    <div className="space-y-1.5 md:col-span-2">
+                      <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">בחר חודשים רלוונטיים (ניתן לבחור יותר מחודש אחד):</label>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 bg-slate-50 p-3 rounded-2xl border border-slate-200">
+                        {Array.from({ length: 12 }).map((_, i) => {
+                          const d = subMonths(new Date(), i);
+                          const monthVal = format(d, "yyyy-MM");
+                          const monthLabel = format(d, "MMMM yyyy", { locale: he });
+                          const isChecked = travelSelectedMonths.includes(monthVal);
+                          return (
+                            <label key={i} className="flex items-center gap-2 text-xs font-bold text-slate-700 cursor-pointer p-1 hover:bg-slate-200/50 rounded-lg">
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={(e) => {
+                                  let next;
+                                  if (e.target.checked) {
+                                    next = [...travelSelectedMonths, monthVal];
+                                  } else {
+                                    next = travelSelectedMonths.filter(m => m !== monthVal);
+                                  }
+                                  setTravelSelectedMonths(next);
+                                  updateTravelAttendanceDates(next);
+                                }}
+                                className="rounded text-sky-500 focus:ring-sky-500 border-slate-300"
+                              />
+                              <span>{monthLabel}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5 md:col-span-2">
                       <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">תאריכי הגעה בחודש:</label>
-                      <input
-                        type="text"
+                      <textarea
+                        rows={3}
                         value={travelAttendanceDatesStr}
                         onChange={(e) => setTravelAttendanceDatesStr(e.target.value)}
-                        placeholder="לדוגמה: 13-15-20-29 אפריל 2026"
-                        className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-2.5 text-xs outline-none focus:border-sky-500 transition-all font-bold"
+                        placeholder="תאריכים לכל חודש"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-2.5 text-xs outline-none focus:border-sky-500 transition-all font-bold resize-y text-right"
                       />
                     </div>
                   </div>

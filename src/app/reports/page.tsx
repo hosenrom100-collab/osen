@@ -12,6 +12,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import { generateRehabPlanWord, downloadDocx } from "@/lib/word-generator";
+import { db } from "@/lib/firebase/config";
+import { doc, getDoc } from "firebase/firestore";
 
 interface RehabPlanData {
   areasOfImprovement: string[];
@@ -237,16 +239,37 @@ export default function ReportsPage() {
   const handleDownloadWord = async () => {
     setIsGeneratingWord(true);
     try {
-      const doc = generateRehabPlanWord(planData, {
+      let logoHeaderData: ArrayBuffer | undefined = undefined;
+      let logoFooterData: ArrayBuffer | undefined = undefined;
+      
+      try {
+        const settingsSnap = await getDoc(doc(db, "settings", "reports"));
+        const settings = settingsSnap.exists() ? settingsSnap.data() : null;
+        const headerUrl = settings?.logoHeaderUrl || "/image2.png";
+        const footerUrl = settings?.logoFooterUrl || "/image1.png";
+
+        const [headerRes, footerRes] = await Promise.all([
+          fetch(headerUrl),
+          fetch(footerUrl)
+        ]);
+        if (headerRes.ok) logoHeaderData = await headerRes.arrayBuffer();
+        if (footerRes.ok) logoFooterData = await footerRes.arrayBuffer();
+      } catch (logoErr) {
+        console.warn("Could not fetch logo images:", logoErr);
+      }
+
+      const docObj = generateRehabPlanWord(planData, {
         date: planDate,
         patientName,
         patientId,
         therapistName,
         therapistTitle,
-        districtWorker
+        districtWorker,
+        logoHeaderData,
+        logoFooterData
       });
       const fileName = `תוכנית_שיקום_${patientName ? patientName.replace(/\s+/g, "_") : "אישית"}.docx`;
-      await downloadDocx(doc, fileName);
+      await downloadDocx(docObj, fileName);
       
       // Close modal on success
       setShowEditModal(false);

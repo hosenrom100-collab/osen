@@ -5,7 +5,7 @@ import { RoleGuard } from "@/components/auth/RoleGuard";
 import {
   Users, ShieldCheck, ClipboardList, Package,
   Calendar, BarChart3, AlertCircle, MapPin, Layers,
-  ChevronLeft, Shield, Bell, MessageCircle, Briefcase
+  ChevronLeft, Shield, Bell, MessageCircle, Briefcase, Settings
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -40,6 +40,13 @@ const CATEGORIES = [
     color: "text-blue-500",
     modules: [
       { title: "תוכניות וקבוצות", desc: "ניהול תוכניות ולוחות זמנים", icon: Layers,        path: "/admin/programs",           color: "text-blue-500 bg-blue-500/10",      roles: ["admin","manager"] },
+    ],
+  },
+  {
+    title: "הגדרות מערכת",
+    color: "text-slate-500",
+    modules: [
+      { title: "הגדרות ראשיות",   desc: "עריכת פורמט פעילויות ולוגואים", icon: Settings,    path: "/admin/settings",           color: "text-slate-500 bg-slate-500/10",    roles: ["admin","manager"] },
     ],
   },
   {

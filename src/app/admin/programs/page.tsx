@@ -63,6 +63,7 @@ export default function ProgramsPage() {
     try {
       const ref = await addDoc(collection(db, "programs"), {
         name: newName.trim(), activeDays: newDays,
+        activityHours: "9:00-15:00",
         status: "active", createdAt: serverTimestamp(),
       });
       setShowNew(false); setNewName(""); setNewDays([0,1,2,3,4]);

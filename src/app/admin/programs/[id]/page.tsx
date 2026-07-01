@@ -21,6 +21,7 @@ interface Program {
   name: string;
   activeDays: number[];
   status: "active" | "archived";
+  activityHours?: string;
 }
 
 interface Group {
@@ -50,12 +51,15 @@ export default function ProgramDetailPage() {
   // Editing program fields
   const [editName,   setEditName]   = useState("");
   const [editDays,   setEditDays]   = useState<number[]>([]);
+  const [editHours,  setEditHours]  = useState("");
 
   // Refs for the auto-save closure (avoids stale state reads)
   const editNameRef = useRef(editName);
   const editDaysRef = useRef(editDays);
+  const editHoursRef = useRef(editHours);
   useEffect(() => { editNameRef.current = editName; }, [editName]);
   useEffect(() => { editDaysRef.current = editDays; }, [editDays]);
+  useEffect(() => { editHoursRef.current = editHours; }, [editHours]);
 
   const autoSave = useAutoSave(async () => {
     const name = editNameRef.current.trim();
@@ -63,8 +67,9 @@ export default function ProgramDetailPage() {
     await updateDoc(doc(db, "programs", progId), {
       name,
       activeDays: editDaysRef.current,
+      activityHours: editHoursRef.current.trim(),
     });
-    setProgram(p => p ? { ...p, name, activeDays: editDaysRef.current } : p);
+    setProgram(p => p ? { ...p, name, activeDays: editDaysRef.current, activityHours: editHoursRef.current.trim() } : p);
   }, 1200);
 
   // New group
@@ -94,6 +99,7 @@ export default function ProgramDetailPage() {
       setProgram(prog);
       setEditName(prog.name);
       setEditDays(prog.activeDays || []);
+      setEditHours(prog.activityHours || "9:00-15:00");
 
       setGroups(groupsSnap.docs.map(d => ({ id: d.id, ...d.data() } as Group)));
     } finally {
@@ -108,8 +114,9 @@ export default function ProgramDetailPage() {
       await updateDoc(doc(db, "programs", progId), {
         name:       editName.trim(),
         activeDays: editDays,
+        activityHours: editHours.trim(),
       });
-      setProgram(p => p ? { ...p, name: editName.trim(), activeDays: editDays } : p);
+      setProgram(p => p ? { ...p, name: editName.trim(), activeDays: editDays, activityHours: editHours.trim() } : p);
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     } finally {
@@ -150,7 +157,11 @@ export default function ProgramDetailPage() {
     autoSave.trigger();
   };
 
-  const isDirty = program && (editName !== program.name || JSON.stringify(editDays) !== JSON.stringify(program.activeDays));
+  const isDirty = program && (
+    editName !== program.name || 
+    JSON.stringify(editDays) !== JSON.stringify(program.activeDays) ||
+    editHours !== (program.activityHours || "9:00-15:00")
+  );
 
   if (loading) {
     return (
@@ -232,6 +243,17 @@ export default function ProgramDetailPage() {
                   פעיל בימי {editDays.map(d => DAY_FULL[d]).join(", ")}
                 </p>
               )}
+            </div>
+
+            {/* Activity Hours */}
+            <div className="text-right border-t border-[var(--border-subtle)] pt-4 mt-2">
+              <label className="text-[10px] font-black text-[var(--foreground)]/40 uppercase block mb-1.5">שעות פעילות</label>
+              <input
+                value={editHours}
+                onChange={e => { setEditHours(e.target.value); autoSave.trigger(); }}
+                placeholder="למשל: 9:00-15:00"
+                className="w-full bg-[var(--foreground)]/5 border border-[var(--border)] rounded-xl p-3 text-xs font-bold text-[var(--foreground)] focus:border-[var(--primary)] outline-none transition-colors"
+              />
             </div>
           </section>
 
