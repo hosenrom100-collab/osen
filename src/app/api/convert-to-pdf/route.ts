@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
-import { exec } from "child_process";
+import { execFile } from "child_process";
 import { promisify } from "util";
 
-const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
 export async function POST(request: NextRequest) {
   try {
@@ -29,33 +29,24 @@ export async function POST(request: NextRequest) {
 
     fs.writeFileSync(tempDocxPath, buffer);
 
-    // Run AppleScript to convert DOCX to PDF using Microsoft Word
-    const appleScript = `
-tell application "Microsoft Word"
-  set display alerts to alert none
-  open "${tempDocxPath}"
-  set theActiveDoc to active document
-  save as theActiveDoc file format format PDF file name "${tempPdfPath}"
-  close theActiveDoc saving no
-end tell
-    `;
-
-    const scriptPath = path.join(tempDir, `${fileId}.scpt`);
-    fs.writeFileSync(scriptPath, appleScript);
-
     try {
-      await execAsync(`osascript "${scriptPath}"`);
+      // Run AppleScript directly using osascript inline parameters
+      await execFileAsync("osascript", [
+        "-e", 'tell application "Microsoft Word"',
+        "-e", "set display alerts to alert none",
+        "-e", `open "${tempDocxPath}"`,
+        "-e", `save as active document file name "${tempPdfPath}" file format format PDF`,
+        "-e", "close active document saving no",
+        "-e", "end tell"
+      ]);
     } catch (cmdErr: any) {
       console.error("AppleScript conversion failed:", cmdErr);
-      // Clean up docx and script
       if (fs.existsSync(tempDocxPath)) fs.unlinkSync(tempDocxPath);
-      if (fs.existsSync(scriptPath)) fs.unlinkSync(scriptPath);
       return NextResponse.json({ error: "Failed to convert document: " + cmdErr.message }, { status: 500 });
     }
 
-    // Clean up docx and script
+    // Clean up docx
     if (fs.existsSync(tempDocxPath)) fs.unlinkSync(tempDocxPath);
-    if (fs.existsSync(scriptPath)) fs.unlinkSync(scriptPath);
 
     if (!fs.existsSync(tempPdfPath)) {
       return NextResponse.json({ error: "PDF was not created" }, { status: 500 });
