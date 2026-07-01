@@ -23,7 +23,7 @@ import { format, subMonths, addMonths, differenceInCalendarDays, parseISO, isVal
 import { he } from "date-fns/locale";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
-import { generateStayCertificateWord, generateTravelReimbursementWord, generateAttendanceReportWord, generatePeriodicReportWord, downloadDocx, generateDocxWithLetterhead } from "@/lib/word-generator";
+import { generateStayCertificateWord, generateTravelReimbursementWord, generateAttendanceReportWord, generatePeriodicReportWord, downloadDocx, generateDocxWithLetterhead, downloadPdfFromWord, generateDocxBlobWithLetterhead } from "@/lib/word-generator";
 import { Packer } from "docx";
 
 const monthNamesHebrew = [
@@ -543,64 +543,97 @@ export default function PatientDetailPage() {
   };
 
   const executePDFGeneration = async () => {
-    if (!patient || !reportRef.current) return;
+    if (!patient) return;
     setShowRecipientModal(false);
     setReportLoading(true);
     
     try {
-      // Wait for rendering
-      await new Promise(r => setTimeout(r, 350));
-      
-      const canvas = await html2canvas(reportRef.current, {
-        scale: 2,
-        useCORS: true,
-        logging: false,
-        backgroundColor: "#ffffff"
-      });
-      
-      const imgData = canvas.toDataURL("image/jpeg", 1.0);
-      const pdf = new jsPDF("p", "mm", "a4");
-      const imgWidth = 210;
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
-      pdf.addImage(imgData, "JPEG", 0, 0, imgWidth, imgHeight);
-
+      const patientProgram = programs.find(p => p.id === (patient as any)?.programId);
       const docType = (pendingReportType === 'participation' || pendingReportType === 'stay') ? 'stay' : 'travel';
       const docTitle = docType === 'stay' ? 'אישור שהייה' : 'אישור נוכחות חודשי';
       const fileName = docType === 'stay' ? 'אישור_שהייה' : 'אישור_נוכחות_חודשי';
 
-      // If manual generation (no pending request), download locally
-      if (!pendingRequest) {
-        pdf.save(`${fileName}_${patient.firstName}_${patient.lastName}.pdf`);
+      // 1. Generate Word document dynamically
+      let wordDoc;
+      if (docType === 'stay') {
+        wordDoc = generateStayCertificateWord({
+          date: stayLetterDate,
+          recipient: recipientText || stayRecipient,
+          firstName: stayFirstName,
+          lastName: stayLastName,
+          idNumber: stayIdNumber,
+          startDate: stayStartDate,
+          programName: stayProgramName,
+          activityDays: stayActivityDays,
+          activityHours: stayActivityHours,
+          activityDetailText: patientProgram?.participationActivityDetail || reportSettings?.participationActivityDetail,
+          signatoryName: staySignatoryName,
+          signatoryTitle: staySignatoryTitle,
+          signatoryOrg: staySignatoryOrg,
+          logoHeaderData: undefined,
+          logoFooterData: undefined
+        });
+      } else {
+        wordDoc = generateTravelReimbursementWord({
+          date: travelLetterDate,
+          recipient: recipientText || travelRecipient,
+          firstName: travelFirstName,
+          lastName: travelLastName,
+          idNumber: travelIdNumber,
+          startDate: travelApprovalStartDate,
+          programName: travelProgramName,
+          activityDays: travelActivityDays,
+          attendanceDatesStr: travelAttendanceDatesStr,
+          signatoryName: travelSignatoryName,
+          signatoryTitle: travelSignatoryTitle,
+          signatoryOrg: travelSignatoryOrg,
+          activityDetailText: patientProgram?.travelActivityDetail || reportSettings?.travelActivityDetail,
+          logoHeaderData: undefined,
+          logoFooterData: undefined
+        });
       }
 
-      // In all cases, upload to storage and register in documents collection
+      // 2. Generate Docx Blob with letterhead
+      const docxBlob = await generateDocxBlobWithLetterhead(wordDoc);
+
+      // 3. Convert to PDF using the local MS Word API
+      const formData = new FormData();
+      formData.append("file", docxBlob, `${fileName}.docx`);
+
+      const response = await fetch("/api/convert-to-pdf", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errJson = await response.json();
+        throw new Error(errJson.error || "Server failed to convert document");
+      }
+
+      const pdfBlob = await response.blob();
+
+      // Download locally for the admin
+      const url = window.URL.createObjectURL(pdfBlob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${fileName}_${patient.firstName}_${patient.lastName}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+
+      // 4. Upload PDF to Storage
       let downloadUrl = "";
       try {
-        const pdfBlob = pdf.output("blob");
         const storageRef = ref(storage, `documents/${patient.id}/${Date.now()}_${docType}.pdf`);
         await uploadBytes(storageRef, pdfBlob, { contentType: "application/pdf" });
         downloadUrl = await getDownloadURL(storageRef);
       } catch (storageErr) {
-        console.warn("Storage upload failed, attempting data URL fallback to prevent workflow failure:", storageErr);
-        
-        // If this was a pending request, we download it for the admin locally so they have it immediately
-        if (pendingRequest) {
-          pdf.save(`${fileName}_${patient.firstName}_${patient.lastName}.pdf`);
-          alert("שים לב: העלאה לענן נכשלה עקב שגיאת שרת. הקובץ הורד ישירות למחשבך ויירשם במערכת.");
-        }
-        
-        try {
-          const dataUri = pdf.output("datauristring");
-          if (dataUri.length < 900000) { // Firestore 1MB document limit
-            downloadUrl = dataUri;
-          } else {
-            downloadUrl = "#";
-          }
-        } catch (pdfErr) {
-          downloadUrl = "#";
-        }
+        console.warn("Storage upload failed, fallback to offline link:", storageErr);
+        downloadUrl = "#";
       }
 
+      // 5. Register in Firestore
       try {
         const newDocRef = doc(collection(db, "documents"));
         await setDoc(newDocRef, {
@@ -647,7 +680,7 @@ export default function PatientDetailPage() {
           }).catch(console.error);
         }
       } catch (firestoreErr) {
-        console.error("Failed to register document in Firestore history database:", firestoreErr);
+        console.error("Failed to register document in Firestore:", firestoreErr);
       }
 
       alert("המסמך הופק ונשלח בהצלחה!");
@@ -854,57 +887,46 @@ export default function PatientDetailPage() {
   };
 
   const executeManualGeneration = async (type: 'attendance') => {
-    if (!patient || !reportRef.current) return;
+    if (!patient) return;
+    setReportLoading(true);
     try {
-      await new Promise(r => setTimeout(r, 300));
-      const canvas = await html2canvas(reportRef.current, {
-        scale: 2,
-        useCORS: true,
-        logging: false,
-        backgroundColor: "#ffffff"
+      const arrivedDates = attendance
+        .filter(h => h.date.startsWith(selectedMonth) && h.status === 'present')
+        .sort((a, b) => a.date.localeCompare(b.date))
+        .map(h => format(parseISO(h.date), "dd/MM/yyyy"));
+      const totalDays = arrivedDates.length;
+
+      const [year, month] = selectedMonth.split("-");
+      const months = [
+        "ינואר", "פברואר", "מרץ", "אפריל", "מאי", "יוני",
+        "יולי", "אוגוסט", "ספטמבר", "אוקטובר", "נובמבר", "דצמבר"
+      ];
+      const titleMonth = `${months[parseInt(month) - 1]} ${year}`;
+
+      const doc = generateAttendanceReportWord({
+        date: format(new Date(), "dd.MM.yyyy"),
+        recipient: recipientText,
+        patientName: patientName,
+        idNumber: patient.idNumber || "—",
+        startDate: patient.startDate ? format(parseISO(patient.startDate), "dd.MM.yyyy") : "—",
+        programName: programs.find(p => p.id === (patient as any).programId)?.name || "חוסן",
+        activityDaysText: getProgramDaysText("בימי ראשון"),
+        arrivedDates,
+        totalDays,
+        signatoryName: authUser?.displayName || "מורשה חתימה",
+        signatoryTitle: signatureTitle || "עו\"ס בחווה",
+        logoHeaderData: undefined,
+        logoFooterData: undefined
       });
-      const imgData = canvas.toDataURL("image/jpeg", 1.0);
-      const pdf = new jsPDF("p", "mm", "a4");
-      const imgWidth = 210;
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
-      pdf.addImage(imgData, "JPEG", 0, 0, imgWidth, imgHeight);
-      pdf.save(`דוח_נוכחות_${patient.firstName}_${patient.lastName}.pdf`);
+
+      const fileName = `דוח_נוכחות_${patient.firstName}_${patient.lastName}_${titleMonth.replace(/\s+/g, "_")}.pdf`;
+      await downloadPdfFromWord(doc, fileName);
     } catch (err) {
       console.error(err);
       alert("שגיאה בהפקת הדוח");
+    } finally {
+      setReportLoading(false);
     }
-  };
-
-  const fetchLogoData = async () => {
-    let logoHeaderData: Uint8Array | undefined = undefined;
-    let logoFooterData: Uint8Array | undefined = undefined;
-    let headerUrl = reportSettings?.logoHeaderUrl || "/logoup.png";
-    let footerUrl = reportSettings?.logoFooterUrl || "/logodown.png";
-
-    if (headerUrl.startsWith("/")) {
-      headerUrl = window.location.origin + headerUrl;
-    }
-    if (footerUrl.startsWith("/")) {
-      footerUrl = window.location.origin + footerUrl;
-    }
-
-    try {
-      const [headerRes, footerRes] = await Promise.all([
-        fetch(headerUrl),
-        fetch(footerUrl)
-      ]);
-      if (headerRes.ok) {
-        const buf = await headerRes.arrayBuffer();
-        logoHeaderData = new Uint8Array(buf);
-      }
-      if (footerRes.ok) {
-        const buf = await footerRes.arrayBuffer();
-        logoFooterData = new Uint8Array(buf);
-      }
-    } catch (err) {
-      console.warn("Error fetching logo buffers:", err);
-    }
-    return { logoHeaderData, logoFooterData };
   };
 
   const executeManualWordGeneration = async (type: 'attendance') => {
@@ -947,23 +969,29 @@ export default function PatientDetailPage() {
   };
 
   const executeTravelPDFGeneration = async () => {
-    if (!patient || !reportRef.current) return;
+    if (!patient) return;
     setShowTravelModal(false);
     setReportLoading(true);
     try {
-      await new Promise(r => setTimeout(r, 350));
-      const canvas = await html2canvas(reportRef.current, {
-        scale: 2,
-        useCORS: true,
-        logging: false,
-        backgroundColor: "#ffffff"
+      const patientProgram = programs.find(p => p.id === (patient as any)?.programId);
+      const doc = generateTravelReimbursementWord({
+        date: travelLetterDate,
+        recipient: travelRecipient,
+        firstName: travelFirstName,
+        lastName: travelLastName,
+        idNumber: travelIdNumber,
+        startDate: travelApprovalStartDate,
+        programName: travelProgramName,
+        activityDays: travelActivityDays,
+        attendanceDatesStr: travelAttendanceDatesStr,
+        signatoryName: travelSignatoryName,
+        signatoryTitle: travelSignatoryTitle,
+        signatoryOrg: travelSignatoryOrg,
+        activityDetailText: patientProgram?.travelActivityDetail || reportSettings?.travelActivityDetail,
+        logoHeaderData: undefined,
+        logoFooterData: undefined
       });
-      const imgData = canvas.toDataURL("image/jpeg", 1.0);
-      const pdf = new jsPDF("p", "mm", "a4");
-      const imgWidth = 210;
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
-      pdf.addImage(imgData, "JPEG", 0, 0, imgWidth, imgHeight);
-      
+
       const reqMonth = pendingRequest?.month || selectedMonth;
       const monthNamesHebrew = [
         "ינואר", "פברואר", "מרץ", "אפריל", "מאי", "יוני",
@@ -982,19 +1010,17 @@ export default function PatientDetailPage() {
           monthSuffix = `_${monthNames.join("_")}`;
         }
       } catch {}
-      
-      const fileName = `החזר_נסיעות_${travelLastName}_${travelFirstName}${monthSuffix}`;
-      pdf.save(`${fileName}.pdf`);
-      
-      // Update pending request status to completed in Firestore if there is one
-      // but do NOT save the document URL or notifications to DB as requested.
+
+      const fileName = `החזר_נסיעות_${travelLastName}_${travelFirstName}${monthSuffix}.pdf`;
+      await downloadPdfFromWord(doc, fileName);
+
       if (pendingRequest) {
         await updateDoc(doc(db, "document_requests", pendingRequest.id), {
           status: "completed",
           processedAt: serverTimestamp()
         });
       }
-      
+
       alert("המסמך הופק בהצלחה!");
       fetchPatientData();
     } catch (err) {
@@ -1073,33 +1099,39 @@ export default function PatientDetailPage() {
   };
 
   const executeStayPDFGeneration = async () => {
-    if (!patient || !reportRef.current) return;
+    if (!patient) return;
     setShowStayModal(false);
     setReportLoading(true);
     try {
-      await new Promise(r => setTimeout(r, 350));
-      const canvas = await html2canvas(reportRef.current, {
-        scale: 2,
-        useCORS: true,
-        logging: false,
-        backgroundColor: "#ffffff"
+      const patientProgram = programs.find(p => p.id === (patient as any)?.programId);
+      const doc = generateStayCertificateWord({
+        date: stayLetterDate,
+        recipient: stayRecipient,
+        firstName: stayFirstName,
+        lastName: stayLastName,
+        idNumber: stayIdNumber,
+        startDate: stayStartDate,
+        programName: stayProgramName,
+        activityDays: stayActivityDays,
+        activityHours: stayActivityHours,
+        activityDetailText: patientProgram?.participationActivityDetail || reportSettings?.participationActivityDetail,
+        signatoryName: staySignatoryName,
+        signatoryTitle: staySignatoryTitle,
+        signatoryOrg: staySignatoryOrg,
+        logoHeaderData: undefined,
+        logoFooterData: undefined
       });
-      const imgData = canvas.toDataURL("image/jpeg", 1.0);
-      const pdf = new jsPDF("p", "mm", "a4");
-      const imgWidth = 210;
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
-      pdf.addImage(imgData, "JPEG", 0, 0, imgWidth, imgHeight);
-      
-      const fileName = `אישור_שהייה_${stayLastName}_${stayFirstName}`;
-      pdf.save(`${fileName}.pdf`);
-      
+
+      const fileName = `אישור_שהייה_${stayLastName}_${stayFirstName}.pdf`;
+      await downloadPdfFromWord(doc, fileName);
+
       if (pendingRequest) {
         await updateDoc(doc(db, "document_requests", pendingRequest.id), {
           status: "completed",
           processedAt: serverTimestamp()
         });
       }
-      
+
       alert("המסמך הופק בהצלחה!");
       fetchPatientData();
     } catch (err) {
@@ -1235,6 +1267,45 @@ export default function PatientDetailPage() {
       
       // 3. Download locally
       await generateDocxWithLetterhead(doc, fileName);
+
+      alert("המסמך הופק בהצלחה!");
+    } catch (err) {
+      console.error(err);
+      alert("שגיאה בהפקת המסמך");
+    } finally {
+      setReportLoading(false);
+    }
+  };
+
+  const executePeriodicPDFGeneration = async () => {
+    if (!patient) return;
+    setShowPeriodicModal(false);
+    setReportLoading(true);
+    try {
+      const doc = generatePeriodicReportWord({
+        date: periodicLetterDate,
+        reportType: periodicReportType,
+        recipient: periodicRecipient,
+        rehabDistrict: periodicRehabDistrict,
+        rehabWorker: periodicRehabWorker,
+        patientName: `${patient.firstName} ${patient.lastName}`,
+        patientId: patient.idNumber || "",
+        startDate: patient.startDate ? format(parseISO(patient.startDate), "dd.MM.yyyy") : "—",
+        periodStart: periodicPeriodStart,
+        periodEnd: periodicPeriodEnd,
+        rehabDescription: periodicRehabDescription,
+        placementLocation: periodicPlacementLocation,
+        workDays: periodicWorkDays,
+        workHours: periodicWorkHours,
+        summaryProcess: periodicSummaryProcess,
+        recommendations: periodicRecommendations,
+        farmSocialWorker: periodicFarmSocialWorker,
+        logoHeaderData: undefined,
+        logoFooterData: undefined
+      });
+
+      const fileName = `דו"ח_תקופתי_${patient.lastName}_${patient.firstName}_${periodicReportType.replace(/\//g, "-")}.pdf`;
+      await downloadPdfFromWord(doc, fileName);
 
       alert("המסמך הופק בהצלחה!");
     } catch (err) {
@@ -3097,9 +3168,17 @@ export default function PatientDetailPage() {
 
                 <div className="pt-6 flex flex-col sm:flex-row gap-3">
                   <button
+                    onClick={executePeriodicPDFGeneration}
+                    disabled={reportLoading}
+                    className="flex-1 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white py-3.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+                  >
+                    {reportLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
+                    הורד קובץ PDF
+                  </button>
+                  <button
                     onClick={executePeriodicWordGeneration}
                     disabled={reportLoading}
-                    className="flex-[2] bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white py-3.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+                    className="flex-1 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white py-3.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-[0.98] flex items-center justify-center gap-2"
                   >
                     {reportLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
                     הורד קובץ Word

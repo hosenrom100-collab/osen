@@ -316,65 +316,7 @@ export default function AdminSettingsPage() {
             </div>
           </section>
 
-          {/* 2. Logos for Word Documents */}
-          <section className="bg-[var(--card-bg)] border border-[var(--border)] rounded-[2rem] p-6 space-y-6 shadow-sm">
-            <div className="flex items-center gap-2 border-b border-[var(--border-subtle)] pb-3">
-              <ImageIcon className="w-5 h-5 text-violet-500" />
-              <h2 className="text-xs font-black">לוגו למסמכי Word</h2>
-            </div>
 
-            <p className="text-[10px] text-[var(--foreground)]/50 font-bold leading-relaxed text-right">
-              העלה תמונות לוגו עליונה ותחתונה שיוטמעו באופן אוטומטי בראש ובפתחת כל מסמכי ה-Word המופקים מהמערכת.
-            </p>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-right">
-              {/* Header Logo */}
-              <div className="space-y-3">
-                <label className="block text-[10px] font-black text-[var(--foreground)]/40 uppercase tracking-wider">
-                  לוגו עליון (Header)
-                </label>
-                
-                {logoHeaderUrl && (
-                  <div className="relative aspect-[3/1] bg-slate-100 rounded-xl overflow-hidden border border-[var(--border)] flex items-center justify-center p-2">
-                    <img src={logoHeaderUrl} alt="Header Logo" className="max-h-full max-w-full object-contain" />
-                  </div>
-                )}
-
-                <label className="flex items-center justify-center gap-2 w-full py-3 bg-[var(--foreground)]/5 hover:bg-[var(--foreground)]/10 border border-dashed border-[var(--border)] rounded-xl cursor-pointer text-xs font-bold transition-all">
-                  {uploadingHeader ? (
-                    <Loader2 className="w-4 h-4 animate-spin text-violet-500" />
-                  ) : (
-                    <Upload className="w-4 h-4 text-violet-500" />
-                  )}
-                  <span>{logoHeaderUrl ? "החלף תמונה" : "בחר תמונה"}</span>
-                  <input type="file" accept="image/*" className="hidden" onChange={e => handleLogoUpload(e, "header")} disabled={uploadingHeader} />
-                </label>
-              </div>
-
-              {/* Footer Logo */}
-              <div className="space-y-3">
-                <label className="block text-[10px] font-black text-[var(--foreground)]/40 uppercase tracking-wider">
-                  לוגו תחתון (Footer)
-                </label>
-                
-                {logoFooterUrl && (
-                  <div className="relative aspect-[3/1] bg-slate-100 rounded-xl overflow-hidden border border-[var(--border)] flex items-center justify-center p-2">
-                    <img src={logoFooterUrl} alt="Footer Logo" className="max-h-full max-w-full object-contain" />
-                  </div>
-                )}
-
-                <label className="flex items-center justify-center gap-2 w-full py-3 bg-[var(--foreground)]/5 hover:bg-[var(--foreground)]/10 border border-dashed border-[var(--border)] rounded-xl cursor-pointer text-xs font-bold transition-all">
-                  {uploadingFooter ? (
-                    <Loader2 className="w-4 h-4 animate-spin text-violet-500" />
-                  ) : (
-                    <Upload className="w-4 h-4 text-violet-500" />
-                  )}
-                  <span>{logoFooterUrl ? "החלף תמונה" : "בחר תמונה"}</span>
-                  <input type="file" accept="image/*" className="hidden" onChange={e => handleLogoUpload(e, "footer")} disabled={uploadingFooter} />
-                </label>
-              </div>
-            </div>
-          </section>
         </main>
       </div>
     </RoleGuard>

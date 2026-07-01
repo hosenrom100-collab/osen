@@ -11,7 +11,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
-import { generateRehabPlanWord, downloadDocx, generateDocxWithLetterhead } from "@/lib/word-generator";
+import { generateRehabPlanWord, downloadDocx, generateDocxWithLetterhead, downloadPdfFromWord } from "@/lib/word-generator";
 import { db } from "@/lib/firebase/config";
 import { doc, getDoc } from "firebase/firestore";
 
@@ -202,28 +202,20 @@ export default function ReportsPage() {
 
   // PDF Download Trigger
   const handleDownloadPdf = async () => {
-    if (!pdfTemplateRef.current) return;
-
     setIsGeneratingPdf(true);
     try {
-      // Small pause for rendering engine stabilization
-      await new Promise((resolve) => setTimeout(resolve, 300));
-
-      const canvas = await html2canvas(pdfTemplateRef.current, {
-        scale: 2,
-        useCORS: true,
-        logging: false,
-        backgroundColor: "#ffffff"
+      const docObj = generateRehabPlanWord(planData, {
+        date: planDate,
+        patientName,
+        patientId,
+        therapistName,
+        therapistTitle,
+        districtWorker,
+        logoHeaderData: undefined,
+        logoFooterData: undefined
       });
-
-      const imgData = canvas.toDataURL("image/jpeg", 1.0);
-      const pdf = new jsPDF("p", "mm", "a4");
-      
-      const pdfWidth = 210;
-      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-
-      pdf.addImage(imgData, "JPEG", 0, 0, pdfWidth, pdfHeight);
-      pdf.save(`תוכנית_שיקום_${patientName ? patientName.replace(/\s+/g, "_") : "אישית"}.pdf`);
+      const fileName = `תוכנית_שיקום_${patientName ? patientName.replace(/\s+/g, "_") : "אישית"}.pdf`;
+      await downloadPdfFromWord(docObj, fileName);
       
       // Close modal on success
       setShowEditModal(false);
