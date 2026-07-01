@@ -2,9 +2,8 @@
 
 import { RoleGuard } from "@/components/auth/RoleGuard";
 import { useState, useEffect } from "react";
-import { db, storage } from "@/lib/firebase/config";
+import { db } from "@/lib/firebase/config";
 import { doc, getDoc, setDoc } from "firebase/firestore";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { 
   ArrowRight, Save, Loader2, Settings, FileText, 
   Upload, Image as ImageIcon, Check, AlertCircle 
@@ -74,9 +73,21 @@ export default function AdminSettingsPage() {
     else setUploadingFooter(true);
 
     try {
-      const storageRef = ref(storage, `settings/logo_${type}_${Date.now()}`);
-      await uploadBytes(storageRef, file);
-      const url = await getDownloadURL(storageRef);
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("type", type);
+
+      const res = await fetch("/api/upload-logo", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!res.ok) {
+        throw new Error("Failed to upload image");
+      }
+
+      const data = await res.json();
+      const url = data.url;
 
       if (type === "header") {
         setLogoHeaderUrl(url);

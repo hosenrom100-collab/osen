@@ -245,8 +245,15 @@ export default function ReportsPage() {
       try {
         const settingsSnap = await getDoc(doc(db, "settings", "reports"));
         const settings = settingsSnap.exists() ? settingsSnap.data() : null;
-        const headerUrl = settings?.logoHeaderUrl || "/image2.png";
-        const footerUrl = settings?.logoFooterUrl || "/image1.png";
+        let headerUrl = settings?.logoHeaderUrl || "/image2.png";
+        let footerUrl = settings?.logoFooterUrl || "/image1.png";
+
+        if (headerUrl.startsWith("/")) {
+          headerUrl = window.location.origin + headerUrl;
+        }
+        if (footerUrl.startsWith("/")) {
+          footerUrl = window.location.origin + footerUrl;
+        }
 
         const [headerRes, footerRes] = await Promise.all([
           fetch(headerUrl),

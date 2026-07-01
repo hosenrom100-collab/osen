@@ -868,8 +868,16 @@ export default function PatientDetailPage() {
   const fetchLogoData = async () => {
     let logoHeaderData: ArrayBuffer | undefined = undefined;
     let logoFooterData: ArrayBuffer | undefined = undefined;
-    const headerUrl = reportSettings?.logoHeaderUrl || "/image2.png";
-    const footerUrl = reportSettings?.logoFooterUrl || "/image1.png";
+    let headerUrl = reportSettings?.logoHeaderUrl || "/image2.png";
+    let footerUrl = reportSettings?.logoFooterUrl || "/image1.png";
+
+    if (headerUrl.startsWith("/")) {
+      headerUrl = window.location.origin + headerUrl;
+    }
+    if (footerUrl.startsWith("/")) {
+      footerUrl = window.location.origin + footerUrl;
+    }
+
     try {
       const [headerRes, footerRes] = await Promise.all([
         fetch(headerUrl),
