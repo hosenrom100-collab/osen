@@ -489,19 +489,19 @@ export default function Home() {
               initial={{ opacity: 0, y: 15 }} 
               animate={{ opacity: 1, y: 0 }} 
               transition={{ duration: 0.4, delay: 0.05 }}
-              className="relative p-5 bg-gradient-to-br from-slate-900 to-slate-950 border border-slate-800/80 rounded-3xl overflow-hidden hover:border-blue-500/30 transition-all duration-300 group shadow-lg"
+              className="relative p-5 bg-[var(--card-bg,var(--surface))] border border-[var(--border)] rounded-3xl overflow-hidden hover:border-blue-500/40 transition-all duration-300 group shadow-lg"
             >
               <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 rounded-full blur-3xl pointer-events-none" />
               <div className="flex items-start justify-between">
                 <div className="space-y-1">
-                  <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">משתתפים פעילים</p>
-                  <h3 className="text-3xl font-black text-white tracking-tight">{totalActive}</h3>
+                  <p className="text-[10px] font-black uppercase tracking-wider text-[var(--muted)]">משתתפים פעילים</p>
+                  <h3 className="text-3xl font-black text-[var(--foreground)] tracking-tight">{totalActive}</h3>
                 </div>
                 <div className="w-10 h-10 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400">
                   <Users className="w-5 h-5" />
                 </div>
               </div>
-              <p className="text-[9px] text-slate-500 font-bold mt-4 flex items-center gap-1">
+              <p className="text-[9px] text-[var(--muted)] font-bold mt-4 flex items-center gap-1">
                 <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
                 שיוך קבוצתי ותוכניות שיקום פעילות
               </p>
@@ -512,14 +512,14 @@ export default function Home() {
               initial={{ opacity: 0, y: 15 }} 
               animate={{ opacity: 1, y: 0 }} 
               transition={{ duration: 0.4, delay: 0.1 }}
-              className="relative p-5 bg-gradient-to-br from-slate-900 to-slate-950 border border-slate-800/80 rounded-3xl overflow-hidden hover:border-emerald-500/30 transition-all duration-300 group shadow-lg"
+              className="relative p-5 bg-[var(--card-bg,var(--surface))] border border-[var(--border)] rounded-3xl overflow-hidden hover:border-emerald-500/40 transition-all duration-300 group shadow-lg"
             >
               <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 rounded-full blur-3xl pointer-events-none" />
               <div className="flex items-start justify-between">
                 <div className="space-y-1">
-                  <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">נוכחות היום</p>
-                  <h3 className="text-3xl font-black text-white tracking-tight">
-                    {totalPresent} <span className="text-xs text-slate-500 font-bold">מתוך {totalActive}</span>
+                  <p className="text-[10px] font-black uppercase tracking-wider text-[var(--muted)]">נוכחות היום</p>
+                  <h3 className="text-3xl font-black text-[var(--foreground)] tracking-tight">
+                    {totalPresent} <span className="text-xs text-[var(--muted)] font-bold">מתוך {totalActive}</span>
                   </h3>
                 </div>
                 <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
@@ -528,11 +528,11 @@ export default function Home() {
               </div>
               
               <div className="mt-4 space-y-1">
-                <div className="flex justify-between items-center text-[9px] font-bold text-slate-400">
+                <div className="flex justify-between items-center text-[9px] font-bold text-[var(--muted)]">
                   <span>אחוז התייצבות</span>
                   <span>{overallPct}%</span>
                 </div>
-                <div className="h-1 bg-slate-800 rounded-full overflow-hidden">
+                <div className="h-1 bg-[var(--border)] rounded-full overflow-hidden">
                   <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${overallPct}%` }} />
                 </div>
               </div>
@@ -543,20 +543,20 @@ export default function Home() {
               initial={{ opacity: 0, y: 15 }} 
               animate={{ opacity: 1, y: 0 }} 
               transition={{ duration: 0.4, delay: 0.15 }}
-              className="relative p-5 bg-gradient-to-br from-slate-900 to-slate-950 border border-slate-800/80 rounded-3xl overflow-hidden hover:border-amber-500/30 transition-all duration-300 group shadow-lg"
+              className="relative p-5 bg-[var(--card-bg,var(--surface))] border border-[var(--border)] rounded-3xl overflow-hidden hover:border-amber-500/40 transition-all duration-300 group shadow-lg"
             >
               <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 rounded-full blur-3xl pointer-events-none" />
               <div className="flex items-start justify-between">
                 <div className="space-y-1">
-                  <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">ממתינים לרישום</p>
-                  <h3 className={`text-3xl font-black tracking-tight ${totalMissing > 0 ? "text-amber-400" : "text-slate-400"}`}>
+                  <p className="text-[10px] font-black uppercase tracking-wider text-[var(--muted)]">ממתינים לרישום</p>
+                  <h3 className={`text-3xl font-black tracking-tight ${totalMissing > 0 ? "text-amber-500" : "text-[var(--muted)]"}`}>
                     {totalMissing}
                   </h3>
                 </div>
                 <div className={`w-10 h-10 rounded-2xl flex items-center justify-center transition-all ${
                   totalMissing > 0 
                     ? "bg-amber-500/10 border border-amber-500/20 text-amber-400 animate-pulse" 
-                    : "bg-slate-800/30 border border-slate-800 text-slate-500"
+                    : "bg-[var(--surface-raised)] border border-[var(--border)] text-[var(--muted)]"
                 }`}>
                   <Clock className="w-5 h-5" />
                 </div>
@@ -565,12 +565,12 @@ export default function Home() {
                 {totalMissing > 0 ? (
                   <>
                     <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping" />
-                    <span className="text-amber-500/80">טרם הוזנה נוכחות לכולם היום</span>
+                    <span className="text-amber-500">טרם הוזנה נוכחות לכולם היום</span>
                   </>
                 ) : (
                   <>
-                    <span className="w-1.5 h-1.5 rounded-full bg-slate-500" />
-                    <span className="text-slate-500">הוזנה נוכחות מלאה היום</span>
+                    <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
+                    <span className="text-[var(--muted)]">הוזנה נוכחות מלאה היום</span>
                   </>
                 )}
               </p>
@@ -581,21 +581,21 @@ export default function Home() {
               initial={{ opacity: 0, y: 15 }} 
               animate={{ opacity: 1, y: 0 }} 
               transition={{ duration: 0.4, delay: 0.2 }}
-              className="relative p-5 bg-gradient-to-br from-slate-900 to-slate-950 border border-slate-800/80 rounded-3xl overflow-hidden hover:border-violet-500/30 transition-all duration-300 group shadow-lg"
+              className="relative p-5 bg-[var(--card-bg,var(--surface))] border border-[var(--border)] rounded-3xl overflow-hidden hover:border-violet-500/40 transition-all duration-300 group shadow-lg"
             >
               <div className="absolute top-0 right-0 w-32 h-32 bg-violet-500/5 rounded-full blur-3xl pointer-events-none" />
               <div className="flex items-start justify-between">
                 <div className="space-y-1">
-                  <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">רכש בהמתנה</p>
-                  <h3 className={`text-3xl font-black tracking-tight ${shoppingCount > 0 ? "text-violet-400" : "text-slate-400"}`}>
+                  <p className="text-[10px] font-black uppercase tracking-wider text-[var(--muted)]">רכש בהמתנה</p>
+                  <h3 className={`text-3xl font-black tracking-tight ${shoppingCount > 0 ? "text-violet-500" : "text-[var(--muted)]"}`}>
                     {shoppingCount}
                   </h3>
                 </div>
-                <div className="w-10 h-10 rounded-2xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center text-violet-400">
+                <div className="w-10 h-10 rounded-2xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center text-violet-500">
                   <ShoppingCart className="w-5 h-5" />
                 </div>
               </div>
-              <p className="text-[9px] text-slate-500 font-bold mt-4 flex items-center gap-1">
+              <p className="text-[9px] text-[var(--muted)] font-bold mt-4 flex items-center gap-1">
                 <span className="w-1.5 h-1.5 rounded-full bg-violet-500" />
                 מוצרים הממתינים לאישור תקציב
               </p>
