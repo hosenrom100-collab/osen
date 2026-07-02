@@ -118,43 +118,7 @@ export const generateDocxWithLetterhead = async (bodyDoc: Document, filename: st
   }
 };
 
-export const downloadPdfFromWord = async (bodyDoc: Document, filename: string) => {
-  try {
-    const docxBlob = await generateDocxBlobWithLetterhead(bodyDoc);
-    
-    // Create form data to upload the docx file
-    const formData = new FormData();
-    formData.append("file", docxBlob, filename.replace(/\.pdf$/, ".docx"));
-    
-    // Send to our conversion endpoint
-    const response = await fetch("/api/convert-to-pdf", {
-      method: "POST",
-      body: formData,
-    });
-    
-    if (!response.ok) {
-      const errJson = await response.json();
-      throw new Error(errJson.error || "Server failed to convert document");
-    }
-    
-    const pdfBlob = await response.blob();
-    
-    // Download the PDF
-    const url = window.URL.createObjectURL(pdfBlob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    window.URL.revokeObjectURL(url);
-  } catch (error) {
-    console.error("Error converting docx to pdf:", error);
-    alert("שגיאה בהמרת הקובץ ל-PDF. קובץ ה-Word יורד במקום.");
-    // Fallback to word download
-    await generateDocxWithLetterhead(bodyDoc, filename.replace(/\.pdf$/, ".docx"));
-  }
-};
+
 
 // Thin borders for tables
 const tableBorders = {
@@ -376,7 +340,7 @@ export const generateRehabPlanWord = (
     createParagraph("תוכנית שיקום אישית", { alignment: AlignmentType.CENTER, bold: true, size: 32, spacingAfter: 360 }),
 
     // Administrative Details
-    createLabelValueParagraph("שם המטופל/ת:", metadata.patientName || "—"),
+    createLabelValueParagraph("שם המשתתף/ת:", metadata.patientName || "—"),
     createLabelValueParagraph("ת.ז:", metadata.patientId || "—"),
     createLabelValueParagraph("איש הצוות הטיפולי המלווה בחווה:", metadata.therapistName || "—"),
     createLabelValueParagraph("שם העו\"ס במחוז:", metadata.districtWorker || "—", { spacingAfter: 360 }),
@@ -525,9 +489,9 @@ export const generateStayCertificateWord = (data: StayCertData): any => {
     createLabelValueParagraph("ת.ז:", data.idNumber, { spacingAfter: 240 }),
 
     // Body text
-    createParagraph(`הרינו לאשר כי הנ"ל החל בהגעה לחווה מהתאריך ${data.startDate}.`, { spacingAfter: 180 }),
-    createParagraph(`הפעילות בחווה בתוכנית "${data.programName}" מתקיימת ${data.activityDays} בין השעות ${data.activityHours || "9:00-15:00"}.`, { spacingAfter: 180 }),
-    createParagraph(data.activityDetailText || "הפעילויות השונות המתקיימות בחווה: עבודה חקלאית, גילוף בעץ ומלאכות קדומות, דיקור, יוגה, סדנאות שונות ושיחות קבוצתיות.", { spacingAfter: 360 }),
+    createParagraph(`הרינו לאשר בזאת כי המשתתף/ת החל/ה את תהליך השיקום וההגעה לחווה החל מתאריך ${data.startDate}.`, { spacingAfter: 180 }),
+    createParagraph(`הפעילות בתוכנית "${data.programName}" מתקיימת ב${data.activityDays} בין השעות ${data.activityHours || "9:00-15:00"}.`, { spacingAfter: 180 }),
+    createParagraph(data.activityDetailText || "תחומי העשייה המגוונים במסגרת שהותו בחווה כוללים: עבודה חקלאית בשדות ובחממות, גילוף בעץ ומלאכות קדומות, סדנאות יצירה ואמנות, תרגול יוגה ונשימה בקבוצה וליווי רגשי מתמשך.", { spacingAfter: 360 }),
 
     createSpacer(240),
 
@@ -579,9 +543,9 @@ export const generateTravelReimbursementWord = (data: TravelReimbData): any => {
     createLabelValueParagraph("ת.ז:", data.idNumber, { spacingAfter: 240 }),
 
     // Body text
-    createParagraph(`הרינו לאשר כי הנ"ל קיבל אישור להגעה לחווה מהתאריך ${data.startDate}.`, { spacingAfter: 180 }),
-    createParagraph(`הפעילות בחווה בתוכנית "${data.programName}" מתקיימת בימי ${data.activityDays}.`, { spacingAfter: 180 }),
-    createParagraph(data.activityDetailText || "הפעילויות השונות המתקיימות בחווה: עבודה חקלאית, גילוף בעץ ומלאכות קדומות, דיקור, יוגה, סדנאות שונות ושיחות קבוצתיות.", { spacingAfter: 180 }),
+    createParagraph(`הרינו לאשר בזאת כי המשתתף/ת מאושר/ת להגעה לחווה ומנוי/ה על תוכנית השיקום החל מתאריך ${data.startDate}.`, { spacingAfter: 180 }),
+    createParagraph(`הפעילות בתוכנית "${data.programName}" מתפרסת על פני ${data.activityDays}.`, { spacingAfter: 180 }),
+    createParagraph(data.activityDetailText || "הפעילות השיקומית בחווה מקיפה מגוון תחומים ובהם: עבודה חקלאית יומיומית, מלאכות יד וגילוף, סדנאות יוגה וקבוצות שיח תמיכתיות.", { spacingAfter: 180 }),
     
     new Paragraph({
       alignment: AlignmentType.START,
@@ -992,6 +956,26 @@ export const generatePeriodicReportWord = (data: PeriodicReportData): any => {
     ]
   });
   children.push(signatureTable);
+
+  return createDocxDocument(children, data.logoHeaderData, data.logoFooterData);
+};
+
+/**
+ * 6. Generate Functional Report Word Document
+ */
+export interface FunctionalReportData {
+  paragraphs: string[];
+  logoHeaderData?: Uint8Array;
+  logoFooterData?: Uint8Array;
+}
+
+export const generateFunctionalReportWord = (data: FunctionalReportData): any => {
+  const children = data.paragraphs.flatMap(p => {
+    const lines = p.split("\n");
+    return [
+      createParagraph(lines.join("\n"), { spacingAfter: 180, alignment: AlignmentType.BOTH })
+    ];
+  });
 
   return createDocxDocument(children, data.logoHeaderData, data.logoFooterData);
 };

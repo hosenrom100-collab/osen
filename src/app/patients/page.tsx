@@ -241,15 +241,12 @@ export default function PatientsPage() {
           if (!firstName || !lastName) {
             status = "warning";
             message = "שם פרטי ומשפחה הם חובה";
-          } else if (!idNumber) {
-            status = "warning";
-            message = "תעודת זהות היא חובה";
-          } else if (idNumber.length < 8 || idNumber.length > 9) {
-            status = "warning";
-            message = "תעודת זהות לא תקינה (צריכה להיות 8-9 ספרות)";
           }
           
-          const existing = patients.find(p => p.idNumber === idNumber);
+          const existing = patients.find(p => 
+            (idNumber && p.idNumber === idNumber) || 
+            (p.firstName.toLowerCase() === firstName.toLowerCase() && p.lastName.toLowerCase() === lastName.toLowerCase())
+          );
           if (existing && status === "valid") {
             status = "duplicate";
             message = `משתתף קיים במערכת (${existing.firstName} ${existing.lastName})`;
@@ -309,7 +306,6 @@ export default function PatientsPage() {
         const finalPayload = {
           firstName: row.firstName,
           lastName: row.lastName,
-          idNumber: row.idNumber,
           phone: row.phone || "",
           startDate: row.startDate,
           endDate: autoEndDate(row.startDate),
@@ -1537,7 +1533,7 @@ export default function PatientsPage() {
                         </div>
                         <div className="bg-[var(--surface)] border border-[var(--border)] p-2.5 rounded-xl text-center">
                           <p className="text-xs font-black">תעודת זהות</p>
-                          <p className="text-[9px] text-rose-500 font-bold mt-0.5">עמודת חובה</p>
+                          <p className="text-[9px] text-[var(--muted)] font-bold mt-0.5">אופציונלי</p>
                         </div>
                         <div className="bg-[var(--surface)] border border-[var(--border)] p-2.5 rounded-xl text-center">
                           <p className="text-xs font-black">טלפון</p>

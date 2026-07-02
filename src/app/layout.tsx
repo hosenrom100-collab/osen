@@ -32,6 +32,8 @@ export const metadata: Metadata = {
   },
 };
 
+import HelpButton from "@/components/help/HelpButton";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -50,6 +52,7 @@ export default function RootLayout({
               </div>
             </div>
             <BottomNav />
+            <HelpButton />
           </SettingsProvider>
         </AuthProvider>
       </body>

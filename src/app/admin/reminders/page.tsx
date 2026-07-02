@@ -30,6 +30,8 @@ interface Patient {
   extensionReceived?: boolean;
   extensionReceivedAt?: string;
   rehabPlanCompleted?: boolean;
+  disabilityCommitteeDate?: string;
+  disabilityCommitteePassed?: boolean;
 }
 
 function effectiveEndDate(p: Patient): Date | null {
@@ -122,6 +124,31 @@ export default function RemindersPage() {
 
   const urgent = useMemo(() => upcoming.filter(p => { const d = daysLeft(p); return d !== null && d <= 14 && !p.extensionSent; }), [upcoming]);
 
+  const disabilityReminders = useMemo(() => {
+    let list = isSocialWorker
+      ? active.filter(p => p.assignedWorkerId === user?.uid)
+      : active;
+    return list
+      .filter(p => {
+        if (!p.disabilityCommitteeDate || p.disabilityCommitteePassed) return false;
+        try {
+          const committeeDate = parseISO(p.disabilityCommitteeDate);
+          if (!isValid(committeeDate)) return false;
+          const diff = differenceInDays(committeeDate, new Date());
+          return diff <= 10;
+        } catch { return false; }
+      })
+      .map(p => {
+        const committeeDate = parseISO(p.disabilityCommitteeDate!);
+        const diff = differenceInDays(committeeDate, new Date());
+        return {
+          ...p,
+          daysToCommittee: diff
+        };
+      })
+      .sort((a, b) => a.daysToCommittee - b.daysToCommittee);
+  }, [active, isSocialWorker, user?.uid]);
+
   async function markExtensionSent(patientId: string) {
     setSaving(patientId + "_s");
     try {
@@ -144,6 +171,20 @@ export default function RemindersPage() {
       });
       setPatients(prev => prev.map(p =>
         p.id === patient.id ? { ...p, extensionReceived: true, extensionReceivedAt: now, extensionSent: true, endDate: newEnd } : p
+      ));
+    } catch (e) { console.error(e); }
+    finally { setSaving(null); }
+  }
+
+  async function markDisabilityPassed(patientId: string) {
+    setSaving(patientId + "_d");
+    try {
+      await updateDoc(doc(db, "patients", patientId), {
+        disabilityCommitteePassed: true,
+        disabilityCommitteeDate: ""
+      });
+      setPatients(prev => prev.map(p =>
+        p.id === patientId ? { ...p, disabilityCommitteePassed: true, disabilityCommitteeDate: "" } : p
       ));
     } catch (e) { console.error(e); }
     finally { setSaving(null); }
@@ -233,6 +274,64 @@ export default function RemindersPage() {
                             className="flex items-center gap-1.5 px-3 py-2 text-[10px] font-black bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-xl hover:bg-emerald-500/20 transition-all disabled:opacity-50">
                             {saving === p.id + "_r" ? <Loader2 className="w-3 h-3 animate-spin" /> : <Download className="w-3 h-3" />}
                             הארכה התקבלה (+3 חודשים)
+                          </button>
+                        </div>
+                      </motion.div>
+                    );
+                  })}
+                </div>
+              </motion.section>
+            )}
+          </AnimatePresence>
+
+          {/* ── Disability Committees Section ── */}
+          <AnimatePresence>
+            {disabilityReminders.length > 0 && (
+              <motion.section initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
+                <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-violet-400 flex items-center gap-2 mb-3">
+                  <div className="w-2 h-2 rounded-full bg-violet-400 animate-pulse" />
+                  ועדות נכות מתקרבות — נדרש דו״ח תפקודי ({disabilityReminders.length})
+                </h2>
+                <div className="space-y-2">
+                  {disabilityReminders.map(p => {
+                    const days = p.daysToCommittee;
+                    const isUrgent = days <= 5;
+                    const bgClass = isUrgent ? "bg-violet-500/10 border-violet-500/30" : "bg-violet-500/5 border-violet-500/20";
+                    return (
+                      <motion.div key={p.id}
+                        layout
+                        className={`${bgClass} border rounded-2xl p-4 flex flex-col md:flex-row md:items-center gap-3`}>
+                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                          <div className="w-10 h-10 rounded-xl bg-violet-500/10 flex items-center justify-center text-violet-400 font-black text-sm shrink-0">
+                            {p.firstName?.[0]}{p.lastName?.[0]}
+                          </div>
+                          <div className="min-w-0">
+                            <button onClick={() => router.push(`/patients/${p.id}?tab=reports`)}
+                              className="font-black text-sm hover:text-violet-400 transition-colors text-right block">
+                              {p.firstName} {p.lastName}
+                            </button>
+                            <p className="text-[10px] text-[var(--muted)] mt-0.5">
+                              {workers[p.assignedWorkerId || ""] || "לא שובץ"} • תאריך ועדה: {fmtDate(p.disabilityCommitteeDate)}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          {days < 0 ? (
+                            <span className="px-2.5 py-1 rounded-full text-[10px] font-black bg-rose-500/10 text-rose-400">עברה ({Math.abs(days)} ימים)</span>
+                          ) : days === 0 ? (
+                            <span className="px-2.5 py-1 rounded-full text-[10px] font-black bg-rose-500/15 text-rose-400 animate-pulse">היום!</span>
+                          ) : (
+                            <span className="px-2.5 py-1 rounded-full text-[10px] font-black bg-violet-500/15 text-violet-400">בעוד {days} ימים</span>
+                          )}
+                          <button onClick={() => router.push(`/patients/${p.id}?tab=reports&action=functional`)}
+                            className="flex items-center gap-1.5 px-3 py-2 text-[10px] font-black bg-violet-500/10 text-violet-400 border border-violet-500/20 rounded-xl hover:bg-violet-500/20 transition-all">
+                            <Send className="w-3 h-3" />
+                            הפק דוח תפקודי
+                          </button>
+                          <button onClick={() => markDisabilityPassed(p.id)} disabled={saving === p.id + "_d"}
+                            className="flex items-center gap-1.5 px-3 py-2 text-[10px] font-black bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-xl hover:bg-emerald-500/20 transition-all disabled:opacity-50">
+                            {saving === p.id + "_d" ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
+                            ועדה עברה (X)
                           </button>
                         </div>
                       </motion.div>

@@ -15,8 +15,8 @@ import {
 interface Program { id: string; name: string }
 interface Group   { id: string; name: string; programId?: string }
 
-const FIELD = "w-full bg-[var(--background)] border border-[var(--border)] rounded-xl px-3 py-2 text-xs font-bold outline-none focus:border-emerald-500/50 transition-all text-[var(--foreground)]";
-const LABEL = "text-[9px] font-black uppercase tracking-widest text-[var(--foreground)]/40 mb-1.5 mr-0.5 flex items-center gap-1.5";
+const FIELD = "w-full bg-slate-50/80 border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-bold outline-none focus:border-emerald-500/50 focus:bg-white transition-all text-slate-800 placeholder:text-slate-400";
+const LABEL = "text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1 flex items-center gap-1.5";
 
 function autoEndDate(startDate: string): string {
   if (!startDate) return "";
@@ -60,6 +60,8 @@ export function PatientForm({ patientId, initialData, onSuccess }: PatientFormPr
     assignedWorkerId:   initialData?.assignedWorkerId || "",
     rehabWorkerId:      initialData?.rehabWorkerId || "",
     rehabPlanCompleted: initialData?.rehabPlanCompleted || false,
+    disabilityCommitteeDate: initialData?.disabilityCommitteeDate || "",
+    disabilityCommitteePassed: initialData?.disabilityCommitteePassed || false,
   });
 
   const set = (patch: Partial<typeof formData>) =>
@@ -81,8 +83,9 @@ export function PatientForm({ patientId, initialData, onSuccess }: PatientFormPr
     if (!patientId) return;
     setSaveStatus("saving");
     try {
+      const { idNumber, ...payloadWithoutId } = updatedData;
       const finalPayload = {
-        ...updatedData,
+        ...payloadWithoutId,
         programIds: updatedPrograms,
         groupIds: updatedGroups,
         programId: updatedPrograms[0] || "",
@@ -215,8 +218,9 @@ export function PatientForm({ patientId, initialData, onSuccess }: PatientFormPr
 
     setLoading(true);
     try {
+      const { idNumber, ...payloadWithoutId } = formData;
       const finalPayload = {
-        ...formData,
+        ...payloadWithoutId,
         programIds: selectedProgramIds,
         groupIds: selectedGroupIds,
         programId: selectedProgramIds[0] || "",
@@ -241,8 +245,8 @@ export function PatientForm({ patientId, initialData, onSuccess }: PatientFormPr
     }
   };
 
-  const SECTION = "bg-slate-50/50 border border-[var(--border)] rounded-xl p-4 space-y-4";
-  const SECTION_TITLE = "text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1 flex items-center gap-1.5";
+  const SECTION = "space-y-3 pt-4 border-t border-slate-100 first:border-t-0 first:pt-0";
+  const SECTION_TITLE = "text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2 flex items-center gap-1.5";
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5 pb-6">
@@ -279,20 +283,7 @@ export function PatientForm({ patientId, initialData, onSuccess }: PatientFormPr
               placeholder="ישראלי"
             />
           </div>
-          <div>
-            <label className={LABEL}>מספר תעודת זהות</label>
-            <input
-              required
-              type="text"
-              value={formData.idNumber}
-              onChange={e => {
-                set({ idNumber: e.target.value });
-                saveDebounced();
-              }}
-              className={FIELD}
-              placeholder="000000000"
-            />
-          </div>
+
           <div>
             <label className={LABEL}><Phone className="w-3 h-3" /> מספר טלפון</label>
             <input
@@ -462,6 +453,42 @@ export function PatientForm({ patientId, initialData, onSuccess }: PatientFormPr
               <option value="pending">ממתין</option>
               <option value="inactive">לא פעיל</option>
             </select>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-slate-200/40">
+          <div>
+            <label className={LABEL}><Calendar className="w-3 h-3 text-violet-500" /> תאריך ועדת נכות</label>
+            <input
+              type="date"
+              value={formData.disabilityCommitteeDate}
+              disabled={formData.disabilityCommitteePassed}
+              onChange={e => {
+                const val = e.target.value;
+                set({ disabilityCommitteeDate: val });
+                saveImmediately({ disabilityCommitteeDate: val });
+              }}
+              className={FIELD}
+            />
+          </div>
+          <div className="flex items-center pt-5">
+            <label className="flex items-center gap-1.5 cursor-pointer font-bold text-xs select-none">
+              <input
+                type="checkbox"
+                checked={formData.disabilityCommitteePassed}
+                onChange={e => {
+                  const val = e.target.checked;
+                  const patch: any = { disabilityCommitteePassed: val };
+                  if (val) {
+                    patch.disabilityCommitteeDate = "";
+                  }
+                  set(patch);
+                  saveImmediately(patch);
+                }}
+                className="rounded border-[var(--border)] text-emerald-500 focus:ring-emerald-500 w-3.5 h-3.5 ml-1.5"
+              />
+              ועדת נכות עברה / לא נדרשת (התאריך יתייתר)
+            </label>
           </div>
         </div>
       </div>
