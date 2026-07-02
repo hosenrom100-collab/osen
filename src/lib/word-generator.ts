@@ -910,9 +910,9 @@ export const generatePeriodicReportWord = (data: PeriodicReportData): any => {
       bidirectional: true,
       spacing: { after: 180 },
       children: [
-        new TextRun({ text: "3. ימי עבודה: ", bold: true, rightToLeft: true, font: "Arial", size: 24 }),
+        new TextRun({ text: "3. ימי פעילות: ", bold: true, rightToLeft: true, font: "Arial", size: 24 }),
         new TextRun({ text: (data.workDays || "—") + " ", rightToLeft: true, font: "Arial", size: 24 }),
-        new TextRun({ text: "שעות עבודה: ", bold: true, rightToLeft: true, font: "Arial", size: 24 }),
+        new TextRun({ text: "שעות פעילות: ", bold: true, rightToLeft: true, font: "Arial", size: 24 }),
         new TextRun({ text: data.workHours || "—", rightToLeft: true, font: "Arial", size: 24 }),
       ]
     })

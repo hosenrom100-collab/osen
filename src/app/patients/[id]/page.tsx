@@ -3627,7 +3627,7 @@ export default function PatientDetailPage() {
                           />
                         </div>
                         <div className="space-y-1.5">
-                          <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">שעות עבודה:</label>
+                          <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">שעות פעילות:</label>
                           <input
                             type="text"
                             value={stayActivityHours}
@@ -3991,7 +3991,7 @@ export default function PatientDetailPage() {
                           />
                         </div>
                         <div className="space-y-1.5">
-                          <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">3. ימי עבודה:</label>
+                          <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">3. ימי פעילות:</label>
                           <input
                             type="text"
                             value={periodicWorkDays}
@@ -4000,7 +4000,7 @@ export default function PatientDetailPage() {
                           />
                         </div>
                         <div className="space-y-1.5">
-                          <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">שעות עבודה:</label>
+                          <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">שעות פעילות:</label>
                           <input
                             type="text"
                             value={periodicWorkHours}
@@ -4109,8 +4109,8 @@ export default function PatientDetailPage() {
                               <p className="bg-white border border-slate-100 rounded-xl p-3 mt-1">{periodicPlacementLocation}</p>
                             </div>
                             <div>
-                              <div className="font-black text-slate-900">3. ימי עבודה:</div>
-                              <p className="bg-white border border-slate-100 rounded-xl p-3 mt-1">ימי עבודה: {periodicWorkDays} | שעות עבודה: {periodicWorkHours}</p>
+                              <div className="font-black text-slate-900">3. ימי פעילות:</div>
+                              <p className="bg-white border border-slate-100 rounded-xl p-3 mt-1">ימי פעילות: {periodicWorkDays} | שעות פעילות: {periodicWorkHours}</p>
                             </div>
                             <div>
                               <div className="font-black text-slate-900">4. סיכום תהליך הליווי / השתלבות:</div>
