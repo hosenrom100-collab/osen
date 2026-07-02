@@ -4,7 +4,7 @@ import { useAuth } from "@/context/AuthContext";
 import { RoleGuard } from "@/components/auth/RoleGuard";
 import {
   Users, ShieldCheck, ClipboardList, Package,
-  Calendar, BarChart3, AlertCircle, MapPin, Layers,
+  Calendar, AlertCircle, MapPin, Layers,
   ChevronLeft, Shield, Bell, MessageCircle, Briefcase, Settings
 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -53,7 +53,6 @@ const CATEGORIES = [
     title: "כלים ודוחות",
     color: "text-cyan-500",
     modules: [
-      { title: "דוחות",           desc: "ייצוא נתונים וסיכומים",      icon: BarChart3,     path: "/reports",                  color: "text-cyan-500 bg-cyan-500/10",      roles: ["admin","manager"] },
       { title: "לוגיסטיקה ורכש", desc: "ניהול מלאי וציוד",           icon: Package,       path: "/admin/resources",          color: "text-amber-500 bg-amber-500/10",    roles: ["admin","manager","logistics"] },
     ],
   },

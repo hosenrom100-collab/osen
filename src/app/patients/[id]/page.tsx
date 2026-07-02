@@ -15,7 +15,7 @@ import {
   AlertCircle, ChevronLeft, ChevronRight, Printer, Download, FileText,
   X, Check, Info, History, Users,
   ClipboardCheck, Plus, Search, Circle, Trash2, Mail, Phone,
-  CarFront, CarTaxiFront,
+  CarFront, CarTaxiFront, Sparkles, ArrowLeft,
 } from "lucide-react";
 import { useRouter, useParams, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
@@ -23,8 +23,11 @@ import { format, subMonths, addMonths, differenceInCalendarDays, parseISO, isVal
 import { he } from "date-fns/locale";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
-import { generateStayCertificateWord, generateTravelReimbursementWord, generateAttendanceReportWord, generatePeriodicReportWord, downloadDocx, generateDocxWithLetterhead, downloadPdfFromWord, generateDocxBlobWithLetterhead } from "@/lib/word-generator";
+import { generateStayCertificateWord, generateTravelReimbursementWord, generateAttendanceReportWord, generatePeriodicReportWord, downloadDocx, generateDocxWithLetterhead, generateDocxBlobWithLetterhead, generateFunctionalReportWord, generateRehabPlanWord, RehabPlanData } from "@/lib/word-generator";
 import { Packer } from "docx";
+import { ParticipantProfile, EMPTY_PROFILE } from "@/lib/participantProfile";
+import { composeFunctionalSections, composePeriodicSections, composeRehabPlanSections, PeriodicReportType } from "@/lib/reportContent";
+import { ParticipantSurveyStep } from "@/components/patients/ParticipantSurveyStep";
 
 const monthNamesHebrew = [
   "ינואר", "פברואר", "מרץ", "אפריל", "מאי", "יוני",
@@ -85,6 +88,66 @@ interface PatientTask {
 interface Group { id: string; name: string }
 interface Attendance { id: string; date: string; status: "present" | "absent" | "late" }
 
+const REHAB_PLAN_SECTION_HEADERS = {
+  areas: 'א. באילו תחומים בחייך היית מעוניין לראות שיפור? ציין את התחומים על פי סדר החשיבות:',
+  goal: 'ב. הגדר את המטרה באופן ספציפי וברור:',
+  ways: 'ג. דרכים אפשריות להשגת המטרה (בדגש החווה):',
+  supports: 'ד. מקורות סיוע להשגת המטרה - מה או מי יכול לסייע?',
+};
+
+function serializePlanData(planData: RehabPlanData): string {
+  const areasBlock = planData.areasOfImprovement.length > 0
+    ? planData.areasOfImprovement.map((a, idx) => `${idx + 1}. ${a}`).join("\n")
+    : "";
+  const waysBlock = planData.waysToAchieve.join("\n");
+  const supportsBlock = planData.sourcesOfSupport.join("\n");
+
+  return [
+    REHAB_PLAN_SECTION_HEADERS.areas,
+    areasBlock,
+    "",
+    REHAB_PLAN_SECTION_HEADERS.goal,
+    planData.specificGoal,
+    "",
+    REHAB_PLAN_SECTION_HEADERS.ways,
+    waysBlock,
+    "",
+    REHAB_PLAN_SECTION_HEADERS.supports,
+    supportsBlock,
+  ].join("\n");
+}
+
+function deserializePlanData(text: string): RehabPlanData {
+  const headers = REHAB_PLAN_SECTION_HEADERS;
+  const order: (keyof typeof headers)[] = ["areas", "goal", "ways", "supports"];
+
+  const positions = order.map((key) => ({ key, index: text.indexOf(headers[key]) }));
+
+  const getSection = (key: keyof typeof headers): string => {
+    const pos = positions.find((p) => p.key === key);
+    if (!pos || pos.index === -1) return "";
+    const start = pos.index + headers[key].length;
+    const nextPositions = positions.filter((p) => p.index > pos.index && p.index !== -1);
+    const end = nextPositions.length > 0 ? Math.min(...nextPositions.map((p) => p.index)) : text.length;
+    return text.slice(start, end).trim();
+  };
+
+  const areasRaw = getSection("areas");
+  const areasOfImprovement = areasRaw
+    ? areasRaw.split("\n").map((l) => l.trim().replace(/^\d+\.\s*/, "")).filter(Boolean)
+    : [];
+
+  const specificGoal = getSection("goal");
+
+  const waysRaw = getSection("ways");
+  const waysToAchieve = waysRaw ? waysRaw.split("\n").map((l) => l.trim()).filter(Boolean) : [];
+
+  const supportsRaw = getSection("supports");
+  const sourcesOfSupport = supportsRaw ? supportsRaw.split("\n").map((l) => l.trim()).filter(Boolean) : [];
+
+  return { areasOfImprovement, specificGoal, waysToAchieve, sourcesOfSupport };
+}
+
 export default function PatientDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { isAdmin, isManager, user: authUser, signatureTitle, signatureImage } = useAuth();
@@ -95,8 +158,8 @@ export default function PatientDetailPage() {
   const [patient, setPatient] = useState<Patient | null>(null);
   const [attendance, setAttendance] = useState<Attendance[]>([]);
   const [loading, setLoading] = useState(true);
-  const initialTab = (searchParams.get("tab") as "overview" | "attendance" | "reports" | "tasks") || "overview";
-  const [activeTab, setActiveTab] = useState<"overview" | "attendance" | "reports" | "tasks">(initialTab);
+  const initialTab = (searchParams.get("tab") as "overview" | "attendance" | "certificates" | "reports" | "tasks") || "overview";
+  const [activeTab, setActiveTab] = useState<"overview" | "attendance" | "certificates" | "reports" | "tasks">(initialTab);
   const [participantUid, setParticipantUid] = useState<string | null>(null);
   const [groups, setGroups] = useState<Group[]>([]);
   const [programs, setPrograms] = useState<{ 
@@ -177,6 +240,7 @@ export default function PatientDetailPage() {
 
   // Periodic report specific states (Transient, not saved to DB)
   const [showPeriodicModal, setShowPeriodicModal] = useState(false);
+  const [periodicStep, setPeriodicStep] = useState<"survey" | "form">("survey");
   const [periodicReportType, setPeriodicReportType] = useState<"דו\"ח השמה" | "דו\"ח עזיבה" | "דו\"ח חצי שנתי" | "דו\"ח סיכום תקופה" | "בקשה להארכה">("דו\"ח השמה");
   const [periodicLetterDate, setPeriodicLetterDate] = useState("");
   const [periodicRecipient, setPeriodicRecipient] = useState("אגף שיקום נכים משרד הביטחון");
@@ -191,6 +255,33 @@ export default function PatientDetailPage() {
   const [periodicSummaryProcess, setPeriodicSummaryProcess] = useState("");
   const [periodicRecommendations, setPeriodicRecommendations] = useState("");
   const [periodicFarmSocialWorker, setPeriodicFarmSocialWorker] = useState("");
+
+  // Functional report specific states (Transient, not saved to DB)
+  const [showFunctionalModal, setShowFunctionalModal] = useState(false);
+  const [functionalLetterDate, setFunctionalLetterDate] = useState("");
+  const [functionalRecipient, setFunctionalRecipient] = useState("עבור משרד הביטחון - אגף השיקום");
+  const [functionalSignatoryName, setFunctionalSignatoryName] = useState("מירב סארמילי");
+  const [functionalSignatoryTitle, setFunctionalSignatoryTitle] = useState("מנהלת תפעול מרכז חוסן");
+  const [functionalSignatoryOrg, setFunctionalSignatoryOrg] = useState("חוות רום");
+  const [functionalTextArea, setFunctionalTextArea] = useState("");
+  const [symptomsTextArea, setSymptomsTextArea] = useState("");
+  const [familyTextArea, setFamilyTextArea] = useState("");
+  const [progressTextArea, setProgressTextArea] = useState("");
+  const [recommendationsTextArea, setRecommendationsTextArea] = useState("");
+  const [functionalFreeText, setFunctionalFreeText] = useState("");
+
+  // Pre-evaluation survey step & shared participant profile (reused across functional / periodic / rehab-plan wizards)
+  const [functionalStep, setFunctionalStep] = useState<"survey" | "editor">("survey");
+  const [profile, setProfile] = useState<ParticipantProfile>(EMPTY_PROFILE);
+
+  // Rehab plan specific states (Transient, not saved to DB)
+  const [showRehabPlanModal, setShowRehabPlanModal] = useState(false);
+  const [rehabPlanStep, setRehabPlanStep] = useState<"survey" | "editor">("survey");
+  const [rehabPlanDate, setRehabPlanDate] = useState("");
+  const [rehabPlanTherapistName, setRehabPlanTherapistName] = useState("");
+  const [rehabPlanTherapistTitle, setRehabPlanTherapistTitle] = useState("");
+  const [rehabPlanDistrictWorker, setRehabPlanDistrictWorker] = useState("");
+  const [rehabPlanEditableText, setRehabPlanEditableText] = useState("");
 
   // Task states
   const [tasks, setTasks] = useState<PatientTask[]>([]);
@@ -308,7 +399,7 @@ export default function PatientDetailPage() {
         collection(db, "attendance"),
         where("patientId", "==", id),
         orderBy("date", "desc"),
-        limit(50)
+        limit(1000)
       );
       const attSnap = await getDocs(attQuery);
       const rawAtt = attSnap.docs.map(d => ({ id: d.id, ...d.data() } as Attendance));
@@ -919,8 +1010,8 @@ export default function PatientDetailPage() {
         logoFooterData: undefined
       });
 
-      const fileName = `דוח_נוכחות_${patient.firstName}_${patient.lastName}_${titleMonth.replace(/\s+/g, "_")}.pdf`;
-      await downloadPdfFromWord(doc, fileName);
+      const fileName = `דוח_נוכחות_${patient.firstName}_${patient.lastName}_${titleMonth.replace(/\s+/g, "_")}.docx`;
+      await generateDocxWithLetterhead(doc, fileName);
     } catch (err) {
       console.error(err);
       alert("שגיאה בהפקת הדוח");
@@ -968,70 +1059,7 @@ export default function PatientDetailPage() {
     }
   };
 
-  const executeTravelPDFGeneration = async () => {
-    if (!patient) return;
-    setShowTravelModal(false);
-    setReportLoading(true);
-    try {
-      const patientProgram = programs.find(p => p.id === (patient as any)?.programId);
-      const doc = generateTravelReimbursementWord({
-        date: travelLetterDate,
-        recipient: travelRecipient,
-        firstName: travelFirstName,
-        lastName: travelLastName,
-        idNumber: travelIdNumber,
-        startDate: travelApprovalStartDate,
-        programName: travelProgramName,
-        activityDays: travelActivityDays,
-        attendanceDatesStr: travelAttendanceDatesStr,
-        signatoryName: travelSignatoryName,
-        signatoryTitle: travelSignatoryTitle,
-        signatoryOrg: travelSignatoryOrg,
-        activityDetailText: patientProgram?.travelActivityDetail || reportSettings?.travelActivityDetail,
-        logoHeaderData: undefined,
-        logoFooterData: undefined
-      });
 
-      const reqMonth = pendingRequest?.month || selectedMonth;
-      const monthNamesHebrew = [
-        "ינואר", "פברואר", "מרץ", "אפריל", "מאי", "יוני",
-        "יולי", "אוגוסט", "ספטמבר", "אוקטובר", "נובמבר", "דצמבר"
-      ];
-      let monthSuffix = "";
-      try {
-        const monthsToUse = travelSelectedMonths.length > 0 ? travelSelectedMonths : [reqMonth];
-        const sortedMonths = [...monthsToUse].sort();
-        const monthNames = sortedMonths.map(m => {
-          const [year, month] = m.split("-");
-          const monthName = monthNamesHebrew[parseInt(month, 10) - 1];
-          return monthName && year ? `${monthName}_${year}` : "";
-        }).filter(Boolean);
-        if (monthNames.length > 0) {
-          monthSuffix = `_${monthNames.join("_")}`;
-        }
-      } catch {}
-
-      const fileName = `החזר_נסיעות_${travelLastName}_${travelFirstName}${monthSuffix}.pdf`;
-      await downloadPdfFromWord(doc, fileName);
-
-      if (pendingRequest) {
-        await updateDoc(doc(db, "document_requests", pendingRequest.id), {
-          status: "completed",
-          processedAt: serverTimestamp()
-        });
-      }
-
-      alert("המסמך הופק בהצלחה!");
-      fetchPatientData();
-    } catch (err) {
-      console.error(err);
-      alert("שגיאה בהפקת המסמך");
-    } finally {
-      setReportLoading(false);
-      setPendingRequest(null);
-      setPendingReportType(null);
-    }
-  };
 
   const executeTravelWordGeneration = async () => {
     if (!patient) return;
@@ -1098,51 +1126,7 @@ export default function PatientDetailPage() {
     }
   };
 
-  const executeStayPDFGeneration = async () => {
-    if (!patient) return;
-    setShowStayModal(false);
-    setReportLoading(true);
-    try {
-      const patientProgram = programs.find(p => p.id === (patient as any)?.programId);
-      const doc = generateStayCertificateWord({
-        date: stayLetterDate,
-        recipient: stayRecipient,
-        firstName: stayFirstName,
-        lastName: stayLastName,
-        idNumber: stayIdNumber,
-        startDate: stayStartDate,
-        programName: stayProgramName,
-        activityDays: stayActivityDays,
-        activityHours: stayActivityHours,
-        activityDetailText: patientProgram?.participationActivityDetail || reportSettings?.participationActivityDetail,
-        signatoryName: staySignatoryName,
-        signatoryTitle: staySignatoryTitle,
-        signatoryOrg: staySignatoryOrg,
-        logoHeaderData: undefined,
-        logoFooterData: undefined
-      });
 
-      const fileName = `אישור_שהייה_${stayLastName}_${stayFirstName}.pdf`;
-      await downloadPdfFromWord(doc, fileName);
-
-      if (pendingRequest) {
-        await updateDoc(doc(db, "document_requests", pendingRequest.id), {
-          status: "completed",
-          processedAt: serverTimestamp()
-        });
-      }
-
-      alert("המסמך הופק בהצלחה!");
-      fetchPatientData();
-    } catch (err) {
-      console.error(err);
-      alert("שגיאה בהפקת המסמך");
-    } finally {
-      setReportLoading(false);
-      setPendingRequest(null);
-      setPendingReportType(null);
-    }
-  };
 
   const executeStayWordGeneration = async () => {
     if (!patient) return;
@@ -1190,9 +1174,90 @@ export default function PatientDetailPage() {
     }
   };
 
+  const initFunctionalFields = () => {
+    if (!patient) return;
+    const today = new Date();
+    const day = String(today.getDate()).padStart(2, "0");
+    const month = String(today.getMonth() + 1).padStart(2, "0");
+    const year = today.getFullYear();
+    setFunctionalLetterDate(`${day}.${month}.${year}`);
+    setFunctionalRecipient("אגף שיקום נכים משרד הביטחון");
+    
+    // Signatory
+    const assignedFarmWorker = socialWorkers.find(u => u.id === patient.assignedWorkerId);
+    setFunctionalSignatoryName(assignedFarmWorker ? assignedFarmWorker.name : (authUser?.displayName || authUser?.email || ""));
+    setFunctionalSignatoryTitle(signatureTitle || "עו\"ס בחווה");
+    setFunctionalSignatoryOrg("חוות רום - מרכז חוסן");
+    
+    // Reset Survey step & editor text areas (shared "profile" is intentionally NOT reset here)
+    setFunctionalStep("survey");
+    setFunctionalTextArea("");
+    setSymptomsTextArea("");
+    setFamilyTextArea("");
+    setProgressTextArea("");
+    setRecommendationsTextArea("");
+    setFunctionalFreeText("");
+  };
+
+  const applyFunctionalSurvey = () => {
+    if (!patient) return;
+    const name = patient.firstName || "המשתתף";
+    const sections = composeFunctionalSections(profile, name);
+    setFunctionalTextArea(sections.functionalText);
+    setSymptomsTextArea(sections.symptomsText);
+    setFamilyTextArea(sections.familyText);
+    setProgressTextArea(sections.progressText);
+    setRecommendationsTextArea(sections.recommendationsText);
+    setFunctionalStep("editor");
+  };
+
+  const executeFunctionalWordGeneration = async () => {
+    if (!patient) return;
+    setShowFunctionalModal(false);
+    setReportLoading(true);
+    try {
+      const doc = generateFunctionalReportWord({
+        paragraphs: functionalFreeText.split("\n\n").map(p => p.trim()).filter(Boolean),
+        logoHeaderData: undefined,
+        logoFooterData: undefined
+      });
+
+      const fileName = `דו"ח_תפקודי_${patient.lastName}_${patient.firstName}.docx`;
+      await generateDocxWithLetterhead(doc, fileName);
+
+      alert("המסמך הופק בהצלחה!");
+    } catch (err) {
+      console.error(err);
+      alert("שגיאה בהפקת המסמך");
+    } finally {
+      setReportLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!patient) return;
+
+    const fullReportText = [
+      `עבור: ${functionalRecipient}`,
+      `תאריך: ${functionalLetterDate}`,
+      `הנדון: דו"ח תפקודי מפורט בעניינו של המשתתף ${patient.firstName} ${patient.lastName}`,
+      `אנו כותבים דו"ח זה על מנת לתאר את מצבו התפקודי והתהליך השיקומי של ${patient.firstName} ${patient.lastName} (ת.ז. ${patient.idNumber || ""}) במסגרת פעילותו בחוות רום.`,
+      functionalTextArea,
+      symptomsTextArea,
+      familyTextArea,
+      progressTextArea,
+      recommendationsTextArea,
+      `בברכה,\n${functionalSignatoryName}\n${functionalSignatoryTitle}\n${functionalSignatoryOrg}`
+    ].filter(Boolean).join("\n\n");
+
+    setFunctionalFreeText(fullReportText);
+  }, [patient, functionalTextArea, symptomsTextArea, familyTextArea, progressTextArea, recommendationsTextArea, functionalLetterDate, functionalRecipient, functionalSignatoryName, functionalSignatoryTitle, functionalSignatoryOrg, showFunctionalModal]);
+
   const initPeriodicFields = () => {
     if (!patient) return;
-    
+
+    setPeriodicStep("survey");
+
     // Date: today
     const today = new Date();
     const day = String(today.getDate()).padStart(2, "0");
@@ -1233,6 +1298,16 @@ export default function PatientDetailPage() {
     // Farm Social Worker (therapist / case manager)
     const assignedFarmWorker = socialWorkers.find(u => u.id === patient.assignedWorkerId);
     setPeriodicFarmSocialWorker(assignedFarmWorker ? assignedFarmWorker.name : (authUser?.displayName || authUser?.email || ""));
+  };
+
+  const applyPeriodicSurvey = () => {
+    if (!patient) return;
+    const name = patient.firstName || "המשתתף";
+    const sections = composePeriodicSections(profile, name, periodicReportType as PeriodicReportType);
+    setPeriodicRehabDescription(sections.rehabDescription);
+    setPeriodicSummaryProcess(sections.summaryProcess);
+    setPeriodicRecommendations(sections.recommendations);
+    setPeriodicStep("form");
   };
 
   const executePeriodicWordGeneration = async () => {
@@ -1277,36 +1352,58 @@ export default function PatientDetailPage() {
     }
   };
 
-  const executePeriodicPDFGeneration = async () => {
+  const initRehabPlanFields = () => {
     if (!patient) return;
-    setShowPeriodicModal(false);
+
+    setRehabPlanStep("survey");
+
+    const today = new Date();
+    const day = String(today.getDate()).padStart(2, "0");
+    const month = String(today.getMonth() + 1).padStart(2, "0");
+    const year = today.getFullYear();
+    setRehabPlanDate(`${day}.${month}.${year}`);
+
+    const assignedFarmWorker = socialWorkers.find(u => u.id === patient.assignedWorkerId);
+    setRehabPlanTherapistName(assignedFarmWorker ? assignedFarmWorker.name : (authUser?.displayName || authUser?.email || ""));
+    setRehabPlanTherapistTitle(signatureTitle || "עו\"ס בחווה");
+
+    const assignedRehabWorker = rehabWorkers.find(w => w.id === patient.rehabWorkerId);
+    setRehabPlanDistrictWorker(assignedRehabWorker ? assignedRehabWorker.name : "");
+
+    setRehabPlanEditableText("");
+  };
+
+  const applyRehabPlanSurvey = () => {
+    if (!patient) return;
+    const sections = composeRehabPlanSections(profile, patient.firstName || "המשתתף");
+    const planData: RehabPlanData = {
+      areasOfImprovement: sections.areasOfImprovement,
+      specificGoal: sections.specificGoal,
+      waysToAchieve: sections.waysToAchieve,
+      sourcesOfSupport: sections.sourcesOfSupport,
+    };
+    setRehabPlanEditableText(serializePlanData(planData));
+    setRehabPlanStep("editor");
+  };
+
+  const executeRehabPlanGeneration = async () => {
+    if (!patient) return;
+    setShowRehabPlanModal(false);
     setReportLoading(true);
     try {
-      const doc = generatePeriodicReportWord({
-        date: periodicLetterDate,
-        reportType: periodicReportType,
-        recipient: periodicRecipient,
-        rehabDistrict: periodicRehabDistrict,
-        rehabWorker: periodicRehabWorker,
+      const planData = deserializePlanData(rehabPlanEditableText);
+      const doc = generateRehabPlanWord(planData, {
+        date: rehabPlanDate,
         patientName: `${patient.firstName} ${patient.lastName}`,
         patientId: patient.idNumber || "",
-        startDate: patient.startDate ? format(parseISO(patient.startDate), "dd.MM.yyyy") : "—",
-        periodStart: periodicPeriodStart,
-        periodEnd: periodicPeriodEnd,
-        rehabDescription: periodicRehabDescription,
-        placementLocation: periodicPlacementLocation,
-        workDays: periodicWorkDays,
-        workHours: periodicWorkHours,
-        summaryProcess: periodicSummaryProcess,
-        recommendations: periodicRecommendations,
-        farmSocialWorker: periodicFarmSocialWorker,
+        therapistName: rehabPlanTherapistName,
+        therapistTitle: rehabPlanTherapistTitle,
+        districtWorker: rehabPlanDistrictWorker,
         logoHeaderData: undefined,
         logoFooterData: undefined
       });
-
-      const fileName = `דו"ח_תקופתי_${patient.lastName}_${patient.firstName}_${periodicReportType.replace(/\//g, "-")}.pdf`;
-      await downloadPdfFromWord(doc, fileName);
-
+      const fileName = `תוכנית_שיקום_${patient.lastName}_${patient.firstName}.docx`;
+      await generateDocxWithLetterhead(doc, fileName);
       alert("המסמך הופק בהצלחה!");
     } catch (err) {
       console.error(err);
@@ -1315,6 +1412,8 @@ export default function PatientDetailPage() {
       setReportLoading(false);
     }
   };
+
+
 
   if (loading) return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-[var(--background)] gap-4">
@@ -1460,8 +1559,8 @@ export default function PatientDetailPage() {
                const [selYear, selMonth] = selectedMonth.split("-");
                const monthLabel = format(new Date(parseInt(selYear), parseInt(selMonth) - 1, 1), "MMMM yyyy", { locale: he });
                return [
-                 { label: `נוכחות (${monthLabel})`, value: `${attendance.filter(a => a.status === 'present').length}`, icon: CheckCircle, color: "text-emerald-500", bg: "bg-emerald-50" },
-                 { label: `היעדרויות (${monthLabel})`, value: `${attendance.filter(a => a.status === 'absent').length}`, icon: AlertCircle, color: "text-rose-500", bg: "bg-rose-50" },
+                 { label: `נוכחות (${monthLabel})`, value: `${attendance.filter(a => a.date.startsWith(selectedMonth) && a.status === 'present').length}`, icon: CheckCircle, color: "text-emerald-500", bg: "bg-emerald-50" },
+                 { label: `היעדרויות (${monthLabel})`, value: `${attendance.filter(a => a.date.startsWith(selectedMonth) && a.status === 'absent').length}`, icon: AlertCircle, color: "text-rose-500", bg: "bg-rose-50" },
                  { label: "תאריך הצטרפות", value: patient.startDate ? format(new Date(patient.startDate), "dd/MM/yy") : "—", icon: Calendar, color: "text-indigo-500", bg: "bg-indigo-50" },
                  { label: "סטטוס שיקומי", value: patient.rehabPlanCompleted ? "בתהליך" : "התחלתי", icon: Shield, color: "text-blue-500", bg: "bg-blue-50" },
                ];
@@ -1483,7 +1582,8 @@ export default function PatientDetailPage() {
              {[
                { id: "overview", label: "סקירה", icon: Info },
                { id: "attendance", label: "נוכחות", icon: History },
-               { id: "reports", label: "אישורים", icon: FileText },
+               { id: "certificates", label: "אישורים", icon: Shield },
+               { id: "reports", label: "דוחות", icon: FileText },
              ].map((tab) => (
                <button 
                 key={tab.id}
@@ -1768,11 +1868,11 @@ export default function PatientDetailPage() {
               </motion.div>
             )}
 
-            {activeTab === "reports" && (
-              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} key="reports" className="space-y-3">
+            {activeTab === "certificates" && (
+              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} key="certificates" className="space-y-3">
 
                 {/* Manual Generation Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                    {/* Stay Certificate */}
                    <div className="bg-white border border-slate-200/60 rounded-xl p-4 shadow-sm hover:border-emerald-500/40 transition-all group flex flex-col">
                       <div className="flex items-center gap-2.5 mb-2">
@@ -1836,11 +1936,19 @@ export default function PatientDetailPage() {
                           className="flex-1 bg-sky-500 text-white py-2 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all hover:bg-sky-600 shadow-sm active:scale-[0.98] flex items-center justify-center gap-1.5"
                          >
                           {reportLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
-                          הפק אישור (ניתן לבחור מספר חודשים)
+                          הפק אישור
                          </button>
                       </div>
                    </div>
+                </div>
+              </motion.div>
+            )}
 
+            {activeTab === "reports" && (
+              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} key="reports" className="space-y-3">
+
+                {/* Manual Generation Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                    {/* Periodic Report */}
                    <div className="bg-white border border-slate-200/60 rounded-xl p-4 shadow-sm hover:border-violet-500/40 transition-all group flex flex-col">
                       <div className="flex items-center gap-2.5 mb-2">
@@ -1865,6 +1973,60 @@ export default function PatientDetailPage() {
                       >
                         {reportLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
                         הפק דו״ח תקופתי
+                      </button>
+                   </div>
+
+                   {/* Functional Report */}
+                   <div className="bg-white border border-slate-200/60 rounded-xl p-4 shadow-sm hover:border-violet-500/40 transition-all group flex flex-col">
+                      <div className="flex items-center gap-2.5 mb-2">
+                        <div className="w-8 h-8 rounded-lg bg-violet-50 text-violet-500 flex items-center justify-center group-hover:scale-105 transition-transform shrink-0">
+                           <FileText className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <h4 className="text-xs font-black text-slate-800">הנפקת דו״ח תפקודי</h4>
+                          <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wide">עבור משרד הביטחון - ועדות נכות</p>
+                        </div>
+                      </div>
+                      <p className="text-[11px] text-slate-500 leading-relaxed mb-3">
+                        הפקת דו״ח תפקודי מפורט בפורמט Word המבוסס על שאלון סימפטומים מובנה והתקדמות המשתתף.
+                      </p>
+                      <button
+                        onClick={() => {
+                          initFunctionalFields();
+                          setShowFunctionalModal(true);
+                        }}
+                        disabled={reportLoading}
+                        className="w-full bg-violet-500 text-white py-2 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all hover:bg-violet-600 shadow-sm active:scale-[0.98] flex items-center justify-center gap-1.5 mt-auto"
+                      >
+                        {reportLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
+                        הפק דו״ח תפקודי
+                      </button>
+                   </div>
+
+                   {/* Rehab Plan */}
+                   <div className="bg-white border border-slate-200/60 rounded-xl p-4 shadow-sm hover:border-violet-500/40 transition-all group flex flex-col">
+                      <div className="flex items-center gap-2.5 mb-2">
+                        <div className="w-8 h-8 rounded-lg bg-violet-50 text-violet-500 flex items-center justify-center group-hover:scale-105 transition-transform shrink-0">
+                           <FileText className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <h4 className="text-xs font-black text-slate-800">תוכנית שיקום אישית</h4>
+                          <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wide">מותאמת אישית לפי שאלון קצר</p>
+                        </div>
+                      </div>
+                      <p className="text-[11px] text-slate-500 leading-relaxed mb-3">
+                        בניית תוכנית שיקום אישית מותאמת על בסיס שאלון קצר.
+                      </p>
+                      <button
+                        onClick={() => {
+                          initRehabPlanFields();
+                          setShowRehabPlanModal(true);
+                        }}
+                        disabled={reportLoading}
+                        className="w-full bg-violet-500 text-white py-2 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all hover:bg-violet-600 shadow-sm active:scale-[0.98] flex items-center justify-center gap-1.5 mt-auto"
+                      >
+                        {reportLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
+                        בנה תוכנית שיקום
                       </button>
                    </div>
                 </div>
@@ -2588,7 +2750,7 @@ export default function PatientDetailPage() {
                         הפקת מכתב החזר נסיעות חודשי
                       </h3>
                       <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider font-bold">
-                        מלא או ערוך את פרטי המטופל לפני הפקת המכתב (לא יישמר בדאטהבייס)
+                        מלא או ערוך את פרטי המשתתף לפני הפקת המכתב (לא יישמר בדאטהבייס)
                       </p>
                     </div>
                   </div>
@@ -2763,13 +2925,6 @@ export default function PatientDetailPage() {
                 </div>
 
                 <div className="pt-6 flex flex-col sm:flex-row gap-3">
-                  <button
-                    onClick={executeTravelPDFGeneration}
-                    disabled={reportLoading}
-                    className="flex-1 bg-sky-500 hover:bg-sky-600 disabled:opacity-50 text-white py-3.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-[0.98] flex items-center justify-center gap-2"
-                  >
-                    הורד PDF
-                  </button>
                   <button
                     onClick={executeTravelWordGeneration}
                     disabled={reportLoading}
@@ -2950,13 +3105,6 @@ export default function PatientDetailPage() {
 
                 <div className="pt-6 flex flex-col sm:flex-row gap-3">
                   <button
-                    onClick={executeStayPDFGeneration}
-                    disabled={reportLoading}
-                    className="flex-1 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white py-3.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-[0.98] flex items-center justify-center gap-2"
-                  >
-                    הורד PDF
-                  </button>
-                  <button
                     onClick={executeStayWordGeneration}
                     disabled={reportLoading}
                     className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white py-3.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-[0.98] flex items-center justify-center gap-2"
@@ -3003,16 +3151,27 @@ export default function PatientDetailPage() {
                         הפקת דו״ח תקופתי
                       </h3>
                       <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
-                        בחר את סוג הדו״ח ומלא את הפרטים (הדוח יישמר בתיק המשתתף)
+                        ענה על שאלון קצר, ולאחר מכן ערוך והורד את הדו״ח כקובץ Word (הדו״ח אינו נשמר במערכת)
                       </p>
                     </div>
                   </div>
-                  <button
-                    onClick={() => setShowPeriodicModal(false)}
-                    className="p-2 hover:bg-slate-100 rounded-xl transition-all"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
+                  <div className="flex items-center gap-2">
+                    {periodicStep === "form" && (
+                      <button
+                        onClick={() => setPeriodicStep("survey")}
+                        className="px-3 py-1.5 hover:bg-slate-100 text-violet-600 rounded-xl text-xs font-black transition-all border border-slate-200 flex items-center gap-1 cursor-pointer border-none shrink-0"
+                      >
+                        <ArrowLeft className="w-3.5 h-3.5 rotate-180" />
+                        חזור לשאלון
+                      </button>
+                    )}
+                    <button
+                      onClick={() => setShowPeriodicModal(false)}
+                      className="p-2 hover:bg-slate-100 rounded-xl transition-all"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
                 </div>
 
                 <div className="space-y-4 max-h-[60vh] overflow-y-auto px-1 scrollbar-thin">
@@ -3031,6 +3190,7 @@ export default function PatientDetailPage() {
                         <option value="בקשה להארכה">בקשה להארכה</option>
                       </select>
                     </div>
+                    {periodicStep === "form" && (
                     <div className="space-y-1.5">
                       <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">תאריך המכתב:</label>
                       <input
@@ -3040,8 +3200,18 @@ export default function PatientDetailPage() {
                         className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-2.5 text-xs outline-none focus:border-violet-500 transition-all font-bold"
                       />
                     </div>
+                    )}
                   </div>
 
+                  {periodicStep === "survey" ? (
+                    <ParticipantSurveyStep
+                      profile={profile}
+                      onChange={setProfile}
+                      onSubmit={applyPeriodicSurvey}
+                      onCancel={() => setShowPeriodicModal(false)}
+                    />
+                  ) : (
+                  <>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="space-y-1.5">
                       <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">עבור (נמען):</label>
@@ -3164,17 +3334,12 @@ export default function PatientDetailPage() {
                       className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-2.5 text-xs outline-none focus:border-violet-500 transition-all font-bold"
                     />
                   </div>
+                  </>
+                  )}
                 </div>
 
+                {periodicStep === "form" && (
                 <div className="pt-6 flex flex-col sm:flex-row gap-3">
-                  <button
-                    onClick={executePeriodicPDFGeneration}
-                    disabled={reportLoading}
-                    className="flex-1 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white py-3.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-[0.98] flex items-center justify-center gap-2"
-                  >
-                    {reportLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
-                    הורד קובץ PDF
-                  </button>
                   <button
                     onClick={executePeriodicWordGeneration}
                     disabled={reportLoading}
@@ -3190,6 +3355,390 @@ export default function PatientDetailPage() {
                     ביטול
                   </button>
                 </div>
+                )}
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+
+
+        {/* Functional Report Modal */}
+        <AnimatePresence>
+          {showFunctionalModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setShowFunctionalModal(false)}
+                className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+              />
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                className="relative w-full max-w-6xl bg-white border border-slate-200 rounded-[2.5rem] shadow-2xl overflow-hidden p-6 md:p-8 z-10 my-8 flex flex-col h-[90vh]"
+                dir="rtl"
+              >
+                {/* Modal Header */}
+                <div className="flex items-center justify-between mb-4 shrink-0">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-violet-50 text-violet-500 flex items-center justify-center">
+                      <FileText className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h3 className="text-base font-black text-slate-900">
+                        מחולל דו״ח תפקודי אינטראקטיבי
+                      </h3>
+                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+                        {functionalStep === "survey"
+                          ? "שלב א׳: שאלון הערכה מהיר להתאמת תוכן הדו״ח"
+                          : "שלב ב׳: בחירת היגדים ועריכת הדו״ח הסופי"}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {functionalStep === "editor" && (
+                      <button
+                        onClick={() => setFunctionalStep("survey")}
+                        className="px-3 py-1.5 hover:bg-slate-100 text-violet-600 rounded-xl text-xs font-black transition-all border border-slate-200 flex items-center gap-1 cursor-pointer border-none shrink-0"
+                      >
+                        <ArrowLeft className="w-3.5 h-3.5 rotate-180" />
+                        חזור לשאלון
+                      </button>
+                    )}
+                    <button
+                      onClick={() => setShowFunctionalModal(false)}
+                      className="p-2 hover:bg-slate-100 rounded-xl transition-all cursor-pointer border-none"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Modal Body */}
+                {functionalStep === "survey" ? (
+                  <ParticipantSurveyStep
+                    profile={profile}
+                    onChange={setProfile}
+                    onSubmit={applyFunctionalSurvey}
+                    onCancel={() => setShowFunctionalModal(false)}
+                  />
+                ) : (
+                  <>
+                    <div className="flex-1 overflow-hidden grid grid-cols-1 lg:grid-cols-12 gap-6 min-h-0">
+                      
+                      {/* Right side: Selection steps (lg:col-span-7) */}
+                      <div className="lg:col-span-7 overflow-y-auto space-y-5 px-1 scrollbar-thin">
+                        
+                        {/* Section 1: Letter details */}
+                        <div className="bg-slate-50 border border-slate-200/60 rounded-2xl p-4 space-y-3">
+                          <h4 className="text-xs font-black text-slate-950 flex items-center gap-1.5 font-bold">
+                            <Calendar className="w-3.5 h-3.5 text-violet-500" />
+                            פרטי מכתב וחתימה
+                          </h4>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div className="space-y-1">
+                              <label className="text-[9px] font-black text-slate-400">תאריך המכתב:</label>
+                              <input
+                                type="text"
+                                value={functionalLetterDate}
+                                onChange={e => setFunctionalLetterDate(e.target.value)}
+                                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs outline-none focus:border-violet-500 transition-all font-bold"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-[9px] font-black text-slate-400">עבור (נמען):</label>
+                              <input
+                                type="text"
+                                value={functionalRecipient}
+                                onChange={e => setFunctionalRecipient(e.target.value)}
+                                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs outline-none focus:border-violet-500 transition-all font-bold"
+                              />
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-2">
+                            <div className="space-y-1">
+                              <label className="text-[9px] font-black text-slate-400">שם עו״ס חותם:</label>
+                              <input
+                                type="text"
+                                value={functionalSignatoryName}
+                                onChange={e => setFunctionalSignatoryName(e.target.value)}
+                                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs outline-none focus:border-violet-500 transition-all font-bold"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-[9px] font-black text-slate-400">תפקיד:</label>
+                              <input
+                                type="text"
+                                value={functionalSignatoryTitle}
+                                onChange={e => setFunctionalSignatoryTitle(e.target.value)}
+                                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs outline-none focus:border-violet-500 transition-all font-bold"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-[9px] font-black text-slate-400">ארגון:</label>
+                              <input
+                                type="text"
+                                value={functionalSignatoryOrg}
+                                onChange={e => setFunctionalSignatoryOrg(e.target.value)}
+                                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs outline-none focus:border-violet-500 transition-all font-bold"
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Section 2: Free-text report sections (pre-filled from survey, fully editable) */}
+                        <div className="bg-slate-50 border border-slate-200/60 rounded-2xl p-4 space-y-3">
+                          <h4 className="text-xs font-black text-slate-950 flex items-center gap-1.5 font-bold">
+                            <Info className="w-3.5 h-3.5 text-violet-500" />
+                            מצב תפקודי
+                          </h4>
+                          <textarea
+                            value={functionalTextArea}
+                            onChange={e => setFunctionalTextArea(e.target.value)}
+                            className="w-full bg-white border border-slate-200 rounded-2xl px-4 py-2.5 text-xs outline-none focus:border-violet-500 min-h-[70px]"
+                          />
+                        </div>
+
+                        <div className="bg-slate-50 border border-slate-200/60 rounded-2xl p-4 space-y-3">
+                          <h4 className="text-xs font-black text-slate-950 flex items-center gap-1.5 font-bold">
+                            <AlertCircle className="w-3.5 h-3.5 text-violet-500" />
+                            סימפטומים ומאפיינים
+                          </h4>
+                          <textarea
+                            value={symptomsTextArea}
+                            onChange={e => setSymptomsTextArea(e.target.value)}
+                            className="w-full bg-white border border-slate-200 rounded-2xl px-4 py-2.5 text-xs outline-none focus:border-violet-500 min-h-[70px]"
+                          />
+                        </div>
+
+                        <div className="bg-slate-50 border border-slate-200/60 rounded-2xl p-4 space-y-3">
+                          <h4 className="text-xs font-black text-slate-950 flex items-center gap-1.5 font-bold">
+                            <Users className="w-3.5 h-3.5 text-violet-500" />
+                            מצב משפחתי
+                          </h4>
+                          <textarea
+                            value={familyTextArea}
+                            onChange={e => setFamilyTextArea(e.target.value)}
+                            className="w-full bg-white border border-slate-200 rounded-2xl px-4 py-2.5 text-xs outline-none focus:border-violet-500 min-h-[70px]"
+                          />
+                        </div>
+
+                        <div className="bg-slate-50 border border-slate-200/60 rounded-2xl p-4 space-y-3">
+                          <h4 className="text-xs font-black text-slate-950 flex items-center gap-1.5 font-bold">
+                            <ClipboardCheck className="w-3.5 h-3.5 text-violet-500" />
+                            התקדמות בחווה
+                          </h4>
+                          <textarea
+                            value={progressTextArea}
+                            onChange={e => setProgressTextArea(e.target.value)}
+                            className="w-full bg-white border border-slate-200 rounded-2xl px-4 py-2.5 text-xs outline-none focus:border-violet-500 min-h-[70px]"
+                          />
+                        </div>
+
+                        <div className="bg-slate-50 border border-slate-200/60 rounded-2xl p-4 space-y-3">
+                          <h4 className="text-xs font-black text-slate-950 flex items-center gap-1.5 font-bold">
+                            <Sparkles className="w-3.5 h-3.5 text-violet-500" />
+                            המלצות
+                          </h4>
+                          <textarea
+                            value={recommendationsTextArea}
+                            onChange={e => setRecommendationsTextArea(e.target.value)}
+                            className="w-full bg-white border border-slate-200 rounded-2xl px-4 py-2.5 text-xs outline-none focus:border-violet-500 min-h-[70px]"
+                          />
+                        </div>
+
+                      </div>
+
+                      {/* Left side: Live compiled preview text area (lg:col-span-5) */}
+                      <div className="lg:col-span-5 flex flex-col h-full bg-slate-50 border border-slate-200 rounded-3xl p-4 overflow-hidden">
+                        <div className="flex items-center justify-between mb-2 shrink-0">
+                          <h4 className="text-xs font-black text-slate-950 flex items-center gap-1.5 font-bold">
+                            <Edit3 className="w-3.5 h-3.5 text-violet-500" />
+                            עריכה סופית ותצוגה מקדימה
+                          </h4>
+                        </div>
+                        <textarea
+                          value={functionalFreeText}
+                          onChange={e => setFunctionalFreeText(e.target.value)}
+                          className="flex-1 w-full bg-white border border-slate-200 rounded-2xl p-4 text-xs font-semibold outline-none focus:border-violet-500 transition-all resize-none text-right leading-relaxed overflow-y-auto"
+                          placeholder="הדו״ח יתורגם ויופיע כאן בזמן אמת..."
+                        />
+                      </div>
+
+                    </div>
+
+                    {/* Modal Footer */}
+                    <div className="pt-4 flex flex-col sm:flex-row gap-3 border-t border-slate-100 mt-4 shrink-0">
+                      <button
+                        onClick={executeFunctionalWordGeneration}
+                        disabled={reportLoading || !functionalFreeText.trim()}
+                        className="flex-1 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white py-3.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-[0.98] flex items-center justify-center gap-2 shadow-lg shadow-violet-600/15 cursor-pointer border-none"
+                      >
+                        {reportLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                        הורד קובץ Word
+                      </button>
+                      <button
+                        onClick={() => setShowFunctionalModal(false)}
+                        className="flex-1 bg-slate-50 hover:bg-slate-100 border border-slate-200 py-3.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer border-none"
+                      >
+                        ביטול
+                      </button>
+                    </div>
+                  </>
+                )}
+
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+
+        {/* Rehab Plan Modal */}
+        <AnimatePresence>
+          {showRehabPlanModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setShowRehabPlanModal(false)}
+                className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+              />
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                className="relative w-full max-w-4xl bg-white border border-slate-200 rounded-[2.5rem] shadow-2xl overflow-hidden p-6 md:p-8 z-10 my-8 flex flex-col max-h-[90vh]"
+                dir="rtl"
+              >
+                {/* Modal Header */}
+                <div className="flex items-center justify-between mb-4 shrink-0">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-violet-50 text-violet-500 flex items-center justify-center">
+                      <FileText className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h3 className="text-base font-black text-slate-900">
+                        מחולל תוכנית שיקום אישית
+                      </h3>
+                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+                        {rehabPlanStep === "survey"
+                          ? "שלב א׳: שאלון הערכה מהיר להתאמת תוכן התוכנית"
+                          : "שלב ב׳: עריכת התוכנית הסופית"}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {rehabPlanStep === "editor" && (
+                      <button
+                        onClick={() => setRehabPlanStep("survey")}
+                        className="px-3 py-1.5 hover:bg-slate-100 text-violet-600 rounded-xl text-xs font-black transition-all border border-slate-200 flex items-center gap-1 cursor-pointer border-none shrink-0"
+                      >
+                        <ArrowLeft className="w-3.5 h-3.5 rotate-180" />
+                        חזור לשאלון
+                      </button>
+                    )}
+                    <button
+                      onClick={() => setShowRehabPlanModal(false)}
+                      className="p-2 hover:bg-slate-100 rounded-xl transition-all cursor-pointer border-none"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Modal Body */}
+                {rehabPlanStep === "survey" ? (
+                  <ParticipantSurveyStep
+                    profile={profile}
+                    onChange={setProfile}
+                    onSubmit={applyRehabPlanSurvey}
+                    onCancel={() => setShowRehabPlanModal(false)}
+                  />
+                ) : (
+                  <>
+                    <div className="flex-1 overflow-y-auto space-y-4 px-1 scrollbar-thin">
+                      <div className="bg-slate-50 border border-slate-200/60 rounded-2xl p-4 space-y-3">
+                        <h4 className="text-xs font-black text-slate-950 flex items-center gap-1.5 font-bold">
+                          <Calendar className="w-3.5 h-3.5 text-violet-500" />
+                          פרטי מכתב וחתימה
+                        </h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <div className="space-y-1">
+                            <label className="text-[9px] font-black text-slate-400">תאריך:</label>
+                            <input
+                              type="text"
+                              value={rehabPlanDate}
+                              onChange={e => setRehabPlanDate(e.target.value)}
+                              className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs outline-none focus:border-violet-500 transition-all font-bold"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[9px] font-black text-slate-400">שם העו״ס במחוז:</label>
+                            <input
+                              type="text"
+                              value={rehabPlanDistrictWorker}
+                              onChange={e => setRehabPlanDistrictWorker(e.target.value)}
+                              className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs outline-none focus:border-violet-500 transition-all font-bold"
+                            />
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
+                          <div className="space-y-1">
+                            <label className="text-[9px] font-black text-slate-400">שם איש הצוות הטיפולי בחווה:</label>
+                            <input
+                              type="text"
+                              value={rehabPlanTherapistName}
+                              onChange={e => setRehabPlanTherapistName(e.target.value)}
+                              className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs outline-none focus:border-violet-500 transition-all font-bold"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[9px] font-black text-slate-400">תפקיד:</label>
+                            <input
+                              type="text"
+                              value={rehabPlanTherapistTitle}
+                              onChange={e => setRehabPlanTherapistTitle(e.target.value)}
+                              className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs outline-none focus:border-violet-500 transition-all font-bold"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="bg-slate-50 border border-slate-200/60 rounded-2xl p-4 space-y-3">
+                        <h4 className="text-xs font-black text-slate-950 flex items-center gap-1.5 font-bold">
+                          <Edit3 className="w-3.5 h-3.5 text-violet-500" />
+                          תוכן התוכנית (א. תחומים לשיפור / ב. מטרה ספציפית / ג. דרכים להשגת המטרה / ד. מקורות סיוע)
+                        </h4>
+                        <textarea
+                          value={rehabPlanEditableText}
+                          onChange={e => setRehabPlanEditableText(e.target.value)}
+                          className="w-full bg-white border border-slate-200 rounded-2xl p-4 text-xs font-semibold outline-none focus:border-violet-500 transition-all text-right leading-relaxed min-h-[250px]"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Modal Footer */}
+                    <div className="pt-4 flex flex-col sm:flex-row gap-3 border-t border-slate-100 mt-4 shrink-0">
+                      <button
+                        onClick={executeRehabPlanGeneration}
+                        disabled={reportLoading || !rehabPlanEditableText.trim()}
+                        className="flex-1 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white py-3.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-[0.98] flex items-center justify-center gap-2 shadow-lg shadow-violet-600/15 cursor-pointer border-none"
+                      >
+                        {reportLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                        הורד קובץ Word
+                      </button>
+                      <button
+                        onClick={() => setShowRehabPlanModal(false)}
+                        className="flex-1 bg-slate-50 hover:bg-slate-100 border border-slate-200 py-3.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer border-none"
+                      >
+                        ביטול
+                      </button>
+                    </div>
+                  </>
+                )}
+
               </motion.div>
             </div>
           )}
