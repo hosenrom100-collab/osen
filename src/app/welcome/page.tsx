@@ -193,7 +193,7 @@ export default function WelcomePage() {
             <div className="grid grid-cols-3 p-4 items-center">
               <div className="font-bold text-white">פרטים מזהים של מטופלים</div>
               <div className="text-emerald-400 font-bold">מסד נתונים בענן (Firebase)</div>
-              <div className="text-slate-400">ללא מספרי ת.ז! נשמרים רק שם פרטי, שם משפחה וטלפון.</div>
+              <div className="text-slate-400">ללא ת.ז! נשמרים אך ורק: שם פרטי, אות ראשונה של שם משפחה, שיוך לקבוצה/תוכנית ותאריכי טיפול.</div>
             </div>
 
             <div className="grid grid-cols-3 p-4 items-center">
