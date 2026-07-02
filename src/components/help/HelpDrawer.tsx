@@ -134,7 +134,7 @@ export default function HelpDrawer({ isOpen, onClose }: HelpDrawerProps) {
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id as any)}
                     className={`flex-1 pb-3 flex flex-col items-center gap-1.5 text-[11px] font-black tracking-wider transition-all relative border-none bg-transparent cursor-pointer ${
-                      isActive ? "text-violet-400" : "text-slate-400 hover:text-slate-200"
+                      isActive ? "text-slate-100" : "text-slate-400 hover:text-slate-200"
                     }`}
                   >
                     <Icon className="w-4 h-4" />
@@ -142,7 +142,7 @@ export default function HelpDrawer({ isOpen, onClose }: HelpDrawerProps) {
                     {isActive && (
                       <motion.div
                         layoutId="activeHelpTab"
-                        className="absolute bottom-0 left-0 right-0 h-0.5 bg-violet-400 rounded-full"
+                        className="absolute bottom-0 left-0 right-0 h-0.5 bg-violet-500 rounded-full"
                       />
                     )}
                   </button>
@@ -163,7 +163,7 @@ export default function HelpDrawer({ isOpen, onClose }: HelpDrawerProps) {
                       key={sIdx}
                       className="p-3.5 bg-slate-800/40 border border-slate-800 rounded-2xl space-y-2 hover:border-slate-700/60 transition-all"
                     >
-                      <h4 className="text-[11px] font-black text-violet-300 flex items-center gap-1.5">
+                      <h4 className="text-[11px] font-black text-violet-200 flex items-center gap-1.5">
                         <CheckCircle className="w-3.5 h-3.5 shrink-0" />
                         {section.title}
                       </h4>
@@ -206,7 +206,7 @@ export default function HelpDrawer({ isOpen, onClose }: HelpDrawerProps) {
                     <div className="space-y-3">
                       {searchResults.map((res, idx) => (
                         <div key={idx} className="p-3.5 bg-slate-800/40 border border-slate-800 rounded-2xl space-y-1.5">
-                          <h4 className="text-[11px] font-black text-violet-300 flex items-center gap-1.5">
+                          <h4 className="text-[11px] font-black text-violet-200 flex items-center gap-1.5">
                             <FileText className="w-3.5 h-3.5" />
                             {res.title}
                           </h4>

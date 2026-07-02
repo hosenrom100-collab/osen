@@ -479,95 +479,170 @@ export default function Home() {
         </div>
       </header>
 
-      {/* ── Status bar — single line summary ── */}
-      {dataLoaded && totalActive > 0 && (
-        <div className="border-b border-[var(--border)] px-4 md:px-6">
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 py-2 md:py-0 md:h-9 text-xs">
-            <Link href="/attendance" className="flex items-center gap-1.5 hover:text-emerald-500 transition-colors shrink-0">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-              <span className="font-semibold text-emerald-500">{totalPresent}</span>
-              <span className="text-[var(--muted)]">נוכחים</span>
-            </Link>
-            {totalMissing > 0 && (
-              <Link href="/attendance" className="flex items-center gap-1.5 hover:text-amber-500 transition-colors shrink-0">
-                <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-                <span className="font-semibold text-amber-500">{totalMissing}</span>
-                <span className="text-[var(--muted)] hidden sm:inline">משתתפים ממתינים לבדיקת נוכחות</span>
-                <span className="text-[var(--muted)] sm:hidden">ממתינים לנוכחות</span>
-              </Link>
-            )}
-            {shoppingCount > 0 && (
-              <Link href="/shopping" className="flex items-center gap-1.5 hover:text-[var(--primary)] transition-colors shrink-0">
-                <span className="w-1.5 h-1.5 rounded-full bg-[var(--primary)]" />
-                <span className="font-semibold text-[var(--primary)]">{shoppingCount}</span>
-                <span className="text-[var(--muted)] hidden sm:inline">בקשות רכש</span>
-                <span className="text-[var(--muted)] sm:hidden">רכש</span>
-              </Link>
-            )}
-            <div className="mr-auto hidden md:flex items-center gap-1.5">
-              <div className="h-1.5 w-24 bg-[var(--foreground)]/6 rounded-full overflow-hidden">
-                <motion.div
-                  className={`h-full rounded-full ${overallPct === 100 ? "bg-emerald-500" : "bg-blue-500"}`}
-                  initial={{ width: 0 }}
-                  animate={{ width: `${overallPct}%` }}
-                  transition={{ duration: 0.6 }}
-                />
+      {/* ── Stunning Metrics Dashboard ── */}
+      {dataLoaded && (
+        <div className="px-4 md:px-6 mt-6 max-w-6xl mx-auto">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            
+            {/* Card 1: Active Patients */}
+            <motion.div 
+              initial={{ opacity: 0, y: 15 }} 
+              animate={{ opacity: 1, y: 0 }} 
+              transition={{ duration: 0.4, delay: 0.05 }}
+              className="relative p-5 bg-gradient-to-br from-slate-900 to-slate-950 border border-slate-800/80 rounded-3xl overflow-hidden hover:border-blue-500/30 transition-all duration-300 group shadow-lg"
+            >
+              <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 rounded-full blur-3xl pointer-events-none" />
+              <div className="flex items-start justify-between">
+                <div className="space-y-1">
+                  <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">משתתפים פעילים</p>
+                  <h3 className="text-3xl font-black text-white tracking-tight">{totalActive}</h3>
+                </div>
+                <div className="w-10 h-10 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400">
+                  <Users className="w-5 h-5" />
+                </div>
               </div>
-              <span className="text-[var(--muted)]">{overallPct}%</span>
-            </div>
+              <p className="text-[9px] text-slate-500 font-bold mt-4 flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                שיוך קבוצתי ותוכניות שיקום פעילות
+              </p>
+            </motion.div>
+
+            {/* Card 2: Attendance Today */}
+            <motion.div 
+              initial={{ opacity: 0, y: 15 }} 
+              animate={{ opacity: 1, y: 0 }} 
+              transition={{ duration: 0.4, delay: 0.1 }}
+              className="relative p-5 bg-gradient-to-br from-slate-900 to-slate-950 border border-slate-800/80 rounded-3xl overflow-hidden hover:border-emerald-500/30 transition-all duration-300 group shadow-lg"
+            >
+              <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 rounded-full blur-3xl pointer-events-none" />
+              <div className="flex items-start justify-between">
+                <div className="space-y-1">
+                  <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">נוכחות היום</p>
+                  <h3 className="text-3xl font-black text-white tracking-tight">
+                    {totalPresent} <span className="text-xs text-slate-500 font-bold">מתוך {totalActive}</span>
+                  </h3>
+                </div>
+                <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+                  <CheckCircle className="w-5 h-5" />
+                </div>
+              </div>
+              
+              <div className="mt-4 space-y-1">
+                <div className="flex justify-between items-center text-[9px] font-bold text-slate-400">
+                  <span>אחוז התייצבות</span>
+                  <span>{overallPct}%</span>
+                </div>
+                <div className="h-1 bg-slate-800 rounded-full overflow-hidden">
+                  <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${overallPct}%` }} />
+                </div>
+              </div>
+            </motion.div>
+
+            {/* Card 3: Missing Attendance */}
+            <motion.div 
+              initial={{ opacity: 0, y: 15 }} 
+              animate={{ opacity: 1, y: 0 }} 
+              transition={{ duration: 0.4, delay: 0.15 }}
+              className="relative p-5 bg-gradient-to-br from-slate-900 to-slate-950 border border-slate-800/80 rounded-3xl overflow-hidden hover:border-amber-500/30 transition-all duration-300 group shadow-lg"
+            >
+              <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 rounded-full blur-3xl pointer-events-none" />
+              <div className="flex items-start justify-between">
+                <div className="space-y-1">
+                  <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">ממתינים לרישום</p>
+                  <h3 className={`text-3xl font-black tracking-tight ${totalMissing > 0 ? "text-amber-400" : "text-slate-400"}`}>
+                    {totalMissing}
+                  </h3>
+                </div>
+                <div className={`w-10 h-10 rounded-2xl flex items-center justify-center transition-all ${
+                  totalMissing > 0 
+                    ? "bg-amber-500/10 border border-amber-500/20 text-amber-400 animate-pulse" 
+                    : "bg-slate-800/30 border border-slate-800 text-slate-500"
+                }`}>
+                  <Clock className="w-5 h-5" />
+                </div>
+              </div>
+              <p className="text-[9px] font-bold mt-4 flex items-center gap-1">
+                {totalMissing > 0 ? (
+                  <>
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping" />
+                    <span className="text-amber-500/80">טרם הוזנה נוכחות לכולם היום</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="w-1.5 h-1.5 rounded-full bg-slate-500" />
+                    <span className="text-slate-500">הוזנה נוכחות מלאה היום</span>
+                  </>
+                )}
+              </p>
+            </motion.div>
+
+            {/* Card 4: Purchases / Logistics */}
+            <motion.div 
+              initial={{ opacity: 0, y: 15 }} 
+              animate={{ opacity: 1, y: 0 }} 
+              transition={{ duration: 0.4, delay: 0.2 }}
+              className="relative p-5 bg-gradient-to-br from-slate-900 to-slate-950 border border-slate-800/80 rounded-3xl overflow-hidden hover:border-violet-500/30 transition-all duration-300 group shadow-lg"
+            >
+              <div className="absolute top-0 right-0 w-32 h-32 bg-violet-500/5 rounded-full blur-3xl pointer-events-none" />
+              <div className="flex items-start justify-between">
+                <div className="space-y-1">
+                  <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">רכש בהמתנה</p>
+                  <h3 className={`text-3xl font-black tracking-tight ${shoppingCount > 0 ? "text-violet-400" : "text-slate-400"}`}>
+                    {shoppingCount}
+                  </h3>
+                </div>
+                <div className="w-10 h-10 rounded-2xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center text-violet-400">
+                  <ShoppingCart className="w-5 h-5" />
+                </div>
+              </div>
+              <p className="text-[9px] text-slate-500 font-bold mt-4 flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-violet-500" />
+                מוצרים הממתינים לאישור תקציב
+              </p>
+            </motion.div>
+
           </div>
         </div>
       )}
 
-      {/* ── AI Insights ── */}
-      {dataLoaded && (
-        <div className="px-4 md:px-6 mt-4">
-          <div className="max-w-6xl mx-auto">
-            <div className="flex items-center gap-2 mb-3">
-              <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
-              <h2 className="text-[10px] font-black uppercase tracking-widest text-[var(--foreground)]/50">תובנות והתראות מערכת</h2>
+      {/* ── AI Insights Feed ── */}
+      {dataLoaded && (expiring3mCount > 0 || expiring6mCount > 0) && (
+        <div className="px-4 md:px-6 mt-6 max-w-6xl mx-auto">
+          <div className="p-5 bg-gradient-to-br from-slate-900 via-slate-900/90 to-slate-950 border border-blue-500/15 rounded-3xl shadow-xl relative overflow-hidden">
+            <div className="absolute -top-12 -right-12 w-40 h-40 bg-blue-500/5 rounded-full blur-2xl pointer-events-none" />
+            
+            <div className="flex items-center gap-2 mb-4">
+              <Sparkles className="w-4 h-4 text-blue-400 animate-pulse" />
+              <h2 className="text-[11px] font-black uppercase tracking-widest text-slate-200">תובנות והתראות תקופת טיפול</h2>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-
-              {(expiring3mCount > 0 || expiring6mCount > 0) && (
-                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
-                  className="bg-blue-500/5 border border-blue-500/10 rounded-2xl p-3 flex gap-3 items-center cursor-pointer hover:bg-blue-500/10 transition-all group"
-                  onClick={() => router.push("/patients")}>
-                  <div className="w-9 h-9 rounded-xl bg-blue-500/10 flex items-center justify-center shrink-0 border border-blue-500/20 group-hover:bg-blue-500/20 transition-all">
-                    <Shield className="w-4 h-4 text-blue-400" />
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {expiring3mCount > 0 && (
+                <div className="flex items-start gap-3 p-3 bg-amber-500/5 border border-amber-500/10 rounded-2xl">
+                  <div className="w-8 h-8 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-400 shrink-0">
+                    <Shield className="w-4 h-4" />
                   </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-[11px] font-black text-[var(--foreground)]">הארכת תוכניות</p>
-                    <div className="flex flex-col gap-0.5 mt-0.5 text-[9px] font-bold text-[var(--foreground)]/50">
-                      {expiring3mCount > 0 && (
-                        <span className="flex items-center gap-1 text-amber-500">
-                          <span className="w-1 h-1 rounded-full bg-amber-500 shrink-0" />
-                          מסיים 3 חודשים: {expiring3mCount} משתתפים
-                        </span>
-                      )}
-                      {expiring6mCount > 0 && (
-                        <span className="flex items-center gap-1 text-rose-500">
-                          <span className="w-1 h-1 rounded-full bg-rose-500 shrink-0" />
-                          מסיים חצי שנה (פרידה): {expiring6mCount} משתתפים
-                        </span>
-                      )}
-                    </div>
+                  <div>
+                    <h4 className="text-xs font-black text-white">נדרשת הארכת תוכנית (3 חודשים)</h4>
+                    <p className="text-[10px] text-slate-400 mt-0.5 leading-relaxed">
+                      {expiring3mCount} משתתפים מתקרבים לסיום תקופת הטיפול הראשונית של 3 חודשים. מומלץ להפיק עבורם דו"ח תקופתי לצורך הארכת שהות מול משרד הביטחון.
+                    </p>
                   </div>
-                </motion.div>
+                </div>
               )}
 
-              {shoppingCount > 0 && (
-                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
-                  className="bg-rose-500/5 border border-rose-500/10 rounded-2xl p-3 flex gap-3 items-center cursor-pointer hover:bg-rose-500/10 transition-all group"
-                  onClick={() => router.push("/shopping")}>
-                  <div className="w-9 h-9 rounded-xl bg-rose-500/10 flex items-center justify-center shrink-0 border border-rose-500/20 group-hover:bg-rose-500/20 transition-all">
-                    <ShoppingCart className="w-4 h-4 text-rose-400" />
+              {expiring6mCount > 0 && (
+                <div className="flex items-start gap-3 p-3 bg-rose-500/5 border border-rose-500/10 rounded-2xl">
+                  <div className="w-8 h-8 rounded-xl bg-rose-500/10 flex items-center justify-center text-rose-400 shrink-0">
+                    <AlertTriangle className="w-4 h-4" />
                   </div>
-                  <div className="min-w-0">
-                    <p className="text-[11px] font-black text-[var(--foreground)]">רכש ממתין</p>
-                    <p className="text-[10px] text-[var(--foreground)]/40 font-bold truncate">{shoppingCount} מוצרים ממתינים לאישור</p>
+                  <div>
+                    <h4 className="text-xs font-black text-white">סיום תקופת זכאות (חצי שנה)</h4>
+                    <p className="text-[10px] text-slate-400 mt-0.5 leading-relaxed">
+                      {expiring6mCount} משתתפים לקראת סיום חצי שנת פעילות (תקופת המקסימום). נדרש תהליך עיבוד פרידה או בקשת חריגים מיוחדת.
+                    </p>
                   </div>
-                </motion.div>
+                </div>
               )}
             </div>
           </div>
@@ -576,39 +651,39 @@ export default function Home() {
 
       {/* ── Main content ── */}
       <main className="px-4 md:px-6 py-5 pb-24">
-        <div className="grid md:grid-cols-[1fr_300px] lg:grid-cols-[1fr_320px] gap-5 max-w-6xl mx-auto">
+        <div className="grid md:grid-cols-[1fr_300px] lg:grid-cols-[1fr_320px] gap-6 max-w-6xl mx-auto">
 
           {/* ── Attendance by group — PRIMARY column ── */}
-          <section className="md:order-1">
-            <div className="border border-[var(--border)] rounded-xl overflow-hidden bg-[var(--card-bg,var(--surface))]">
-              <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border)]">
+          <section className="md:order-1 space-y-6">
+            <div className="border border-[var(--border)] rounded-3xl overflow-hidden bg-[var(--card-bg,var(--surface))] shadow-xl">
+              <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border)]">
                 <div className="flex items-center gap-2">
                   <CheckCircle className="w-4 h-4 text-emerald-500" />
-                  <h2 className="text-sm font-semibold">נוכחות היום</h2>
+                  <h2 className="text-sm font-black text-[var(--foreground)]">נוכחות היום לפי תוכניות</h2>
                 </div>
                 <Link href="/attendance"
-                  className="text-[10px] font-medium text-[var(--primary)] hover:underline flex items-center gap-0.5">
+                  className="text-[10px] font-black text-[var(--primary)] hover:underline flex items-center gap-0.5">
                   סמן נוכחות <ChevronLeft className="w-3 h-3" />
                 </Link>
               </div>
 
-              <div className="p-4">
+              <div className="p-5">
                 {!dataLoaded ? (
                   <div className="py-10 flex justify-center">
                     <div className="w-5 h-5 border-2 border-[var(--border)] border-t-[var(--primary)] rounded-full animate-spin" />
                   </div>
                 ) : visibleStats.length === 0 ? (
-                  <p className="text-xs text-[var(--muted)] text-center py-5">
-                    {showAll || primaryGroupId ? "טוען..." : "בחר קבוצה למעלה"}
+                  <p className="text-xs text-[var(--muted)] text-center py-8">
+                    {showAll || primaryGroupId ? "טוען נתונים..." : "בחר קבוצה להצגה"}
                   </p>
                 ) : (
-                  <div className="space-y-4">
+                  <div className="space-y-3.5">
                     {visibleStats.map(g => {
                       const pct = g.total > 0 ? Math.round((g.present / g.total) * 100) : 0;
                       return (
-                        <div key={g.id} className="p-3 bg-[var(--surface-raised)] border border-[var(--border)] rounded-xl">
+                        <div key={g.id} className="p-4 bg-[var(--surface-raised)] border border-[var(--border)] rounded-2xl hover:bg-[var(--foreground)]/2 transition-all duration-200">
                           <div className="flex items-center justify-between mb-2">
-                            <span className="text-xs font-semibold truncate text-[var(--foreground)]">
+                            <span className="text-xs font-black truncate text-[var(--foreground)]">
                               {(() => {
                                 const prog = programs.find(p => p.id === (g as any).programId)?.name;
                                 let display = "";
@@ -620,7 +695,7 @@ export default function Home() {
                                 return display;
                               })()}
                             </span>
-                            <span className={`text-xs font-bold ${pct === 100 ? "text-emerald-500" : "text-[var(--muted)]"}`}>
+                            <span className={`text-[11px] font-bold ${pct === 100 ? "text-emerald-500" : "text-[var(--muted)]"}`}>
                               {g.present} מתוך {g.total} נוכחים
                             </span>
                           </div>
@@ -632,28 +707,65 @@ export default function Home() {
                 )}
               </div>
             </div>
+
+            {/* ── Daily Schedule timeline ── */}
+            {dataLoaded && (
+              <div className="border border-[var(--border)] rounded-3xl overflow-hidden bg-[var(--card-bg,var(--surface))] shadow-xl">
+                <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border)]">
+                  <div className="flex items-center gap-2">
+                    <Calendar className="w-4 h-4 text-violet-500" />
+                    <h2 className="text-sm font-black text-[var(--foreground)]">סדר יום ופעילויות</h2>
+                  </div>
+                  <span className="text-[10px] bg-slate-500/10 text-[var(--muted)] px-2.5 py-1 rounded-full font-bold">
+                    {visibleActs.length} פעילויות מתוכננות
+                  </span>
+                </div>
+                
+                <div className="p-5">
+                  {visibleActs.length === 0 ? (
+                    <div className="text-center py-8 text-slate-500 space-y-2">
+                      <Coffee className="w-8 h-8 mx-auto stroke-1" />
+                      <p className="text-xs font-bold">אין פעילויות מתוזמנות להיום</p>
+                      <p className="text-[10px] text-slate-400 font-bold">יומן הפעילויות ריק או שלא נבחרו קבוצות מתאימות</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-1">
+                      {visibleActs.map((act) => (
+                        <TimelineRow
+                          key={act.id}
+                          act={act}
+                          groups={groups}
+                          programs={programs}
+                          now={now}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </section>
 
           {/* ── Sidebar — Quick actions ── */}
           <aside className="space-y-4 md:order-2">
-            <div className="border border-[var(--border)] rounded-xl overflow-hidden bg-[var(--card-bg,var(--surface))] p-4 space-y-4">
-              <h3 className="text-xs font-black uppercase tracking-widest text-[var(--foreground)]/40">פעולות מהירות</h3>
-              <nav className="grid grid-cols-1 gap-2" aria-label="פעולות מהירות">
+            <div className="border border-[var(--border)] rounded-3xl overflow-hidden bg-[var(--card-bg,var(--surface))] p-5 space-y-4 shadow-xl">
+              <h3 className="text-[10px] font-black uppercase tracking-widest text-[var(--foreground)]/40">פעולות מהירות</h3>
+              <nav className="grid grid-cols-1 gap-2.5" aria-label="פעולות מהירות">
                 {[
-                  { href: "/attendance", icon: ClipboardList, label: "נוכחות", color: "text-emerald-500 bg-emerald-500/10 border-emerald-500/20" },
-                  { href: "/patients",   icon: Users,         label: "משתתפים ותיקים", color: "text-blue-500 bg-blue-500/10 border-blue-500/20" },
-                  { href: "/shopping",   icon: ShoppingCart,  label: "ניהול קניות ורכש",   color: "text-amber-500 bg-amber-500/10 border-amber-500/20" },
-                  ...(isAdmin || isManager ? [{ href: "/admin", icon: Shield, label: "ממשק ניהול ובקרה", color: "text-slate-400 bg-[var(--foreground)]/5 border-[var(--border)]" }] : []),
+                  { href: "/attendance", icon: ClipboardList, label: "נוכחות", color: "text-emerald-500 bg-emerald-500/5 hover:bg-emerald-500/10 border-emerald-500/10 hover:border-emerald-500/20" },
+                  { href: "/patients",   icon: Users,         label: "משתתפים ותיקים", color: "text-blue-500 bg-blue-500/5 hover:bg-blue-500/10 border-blue-500/10 hover:border-blue-500/20" },
+                  { href: "/shopping",   icon: ShoppingCart,  label: "ניהול קניות ורכש",   color: "text-amber-500 bg-amber-500/5 hover:bg-amber-500/10 border-amber-500/10 hover:border-amber-500/20" },
+                  ...(isAdmin || isManager ? [{ href: "/admin", icon: Shield, label: "ממשק ניהול ובקרה", color: "text-slate-300 bg-[var(--foreground)]/5 border-[var(--border)] hover:bg-[var(--foreground)]/8" }] : []),
                 ].map(({ href, icon: Icon, label, color }) => (
                   <Link key={href} href={href}
-                    className={`flex items-center gap-3 px-4 py-3.5 rounded-2xl border text-xs font-black transition-all active:scale-[0.98] ${color}`}>
-                    <Icon className={`w-4.5 h-4.5 shrink-0`} />
+                    className={`flex items-center gap-3 px-4 py-3.5 rounded-2xl border text-xs font-black transition-all transform hover:scale-[1.01] hover:shadow-md active:scale-[0.99] ${color}`}>
+                    <Icon className="w-4.5 h-4.5 shrink-0" />
                     <span>{label}</span>
                     {href === "/shopping" && shoppingCount > 0 && (
-                      <span className="mr-auto text-[10px] font-black text-amber-500 bg-amber-500/10 px-1.5 py-0.5 rounded-lg border border-amber-500/20">{shoppingCount}</span>
+                      <span className="mr-auto text-[10px] font-black text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded-lg border border-amber-500/20">{shoppingCount}</span>
                     )}
                     {href === "/attendance" && totalMissing > 0 && (
-                      <span className="mr-auto text-[10px] font-black text-emerald-500 bg-emerald-500/10 px-1.5 py-0.5 rounded-lg border border-emerald-500/20">{totalMissing}</span>
+                      <span className="mr-auto text-[10px] font-black text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-lg border border-emerald-500/20">{totalMissing}</span>
                     )}
                   </Link>
                 ))}
