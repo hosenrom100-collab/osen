@@ -608,12 +608,12 @@ export default function Home() {
       {/* ── AI Insights Feed ── */}
       {dataLoaded && (expiring3mCount > 0 || expiring6mCount > 0) && (
         <div className="px-4 md:px-6 mt-6 max-w-6xl mx-auto">
-          <div className="p-5 bg-gradient-to-br from-slate-900 via-slate-900/90 to-slate-950 border border-blue-500/15 rounded-3xl shadow-xl relative overflow-hidden">
+          <div className="p-5 bg-[var(--card-bg,var(--surface))] border border-[var(--border)] rounded-3xl shadow-xl relative overflow-hidden">
             <div className="absolute -top-12 -right-12 w-40 h-40 bg-blue-500/5 rounded-full blur-2xl pointer-events-none" />
             
             <div className="flex items-center gap-2 mb-4">
               <Sparkles className="w-4 h-4 text-blue-400 animate-pulse" />
-              <h2 className="text-[11px] font-black uppercase tracking-widest text-slate-200">תובנות והתראות תקופת טיפול</h2>
+              <h2 className="text-[11px] font-black uppercase tracking-widest text-[var(--foreground)]">תובנות והתראות תקופת טיפול</h2>
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -623,8 +623,8 @@ export default function Home() {
                     <Shield className="w-4 h-4" />
                   </div>
                   <div>
-                    <h4 className="text-xs font-black text-white">נדרשת הארכת תוכנית (3 חודשים)</h4>
-                    <p className="text-[10px] text-slate-400 mt-0.5 leading-relaxed">
+                    <h4 className="text-xs font-black text-[var(--foreground)]">נדרשת הארכת תוכנית (3 חודשים)</h4>
+                    <p className="text-[10px] text-[var(--muted)] mt-0.5 leading-relaxed font-bold">
                       {expiring3mCount} משתתפים מתקרבים לסיום תקופת הטיפול הראשונית של 3 חודשים. מומלץ להפיק עבורם דו"ח תקופתי לצורך הארכת שהות מול משרד הביטחון.
                     </p>
                   </div>
@@ -637,8 +637,8 @@ export default function Home() {
                     <AlertTriangle className="w-4 h-4" />
                   </div>
                   <div>
-                    <h4 className="text-xs font-black text-white">סיום תקופת זכאות (חצי שנה)</h4>
-                    <p className="text-[10px] text-slate-400 mt-0.5 leading-relaxed">
+                    <h4 className="text-xs font-black text-[var(--foreground)]">סיום תקופת זכאות (חצי שנה)</h4>
+                    <p className="text-[10px] text-[var(--muted)] mt-0.5 leading-relaxed font-bold">
                       {expiring6mCount} משתתפים לקראת סיום חצי שנת פעילות (תקופת המקסימום). נדרש תהליך עיבוד פרידה או בקשת חריגים מיוחדת.
                     </p>
                   </div>
@@ -723,10 +723,10 @@ export default function Home() {
                 
                 <div className="p-5">
                   {visibleActs.length === 0 ? (
-                    <div className="text-center py-8 text-slate-500 space-y-2">
-                      <Coffee className="w-8 h-8 mx-auto stroke-1" />
-                      <p className="text-xs font-bold">אין פעילויות מתוזמנות להיום</p>
-                      <p className="text-[10px] text-slate-400 font-bold">יומן הפעילויות ריק או שלא נבחרו קבוצות מתאימות</p>
+                    <div className="text-center py-8 text-[var(--muted)] space-y-2">
+                      <Coffee className="w-8 h-8 mx-auto stroke-1 text-[var(--muted)] opacity-60" />
+                      <p className="text-xs font-black text-[var(--foreground)]">אין פעילויות מתוזמנות להיום</p>
+                      <p className="text-[10px] text-[var(--muted)] font-bold">יומן הפעילויות ריק או שלא נבחרו קבוצות מתאימות</p>
                     </div>
                   ) : (
                     <div className="space-y-1">
