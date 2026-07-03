@@ -121,8 +121,8 @@ export default function HelpDrawer({ isOpen, onClose }: HelpDrawerProps) {
             {/* Navigation Tabs */}
             <div className="px-4 mt-4 flex border-b border-slate-800 shrink-0">
               {[
-                { id: "page", label: "העמוד הנוכחי", icon: BookOpen },
-                { id: "search", label: "חיפוש במדריך", icon: Search },
+                { id: "page", label: "מדריך עמוד", icon: BookOpen },
+                { id: "search", label: "חיפוש", icon: Search },
                 { id: "faq", label: "שאלות נפוצות", icon: HelpCircle }
               ].map((tab) => {
                 const Icon = tab.icon;
@@ -131,7 +131,7 @@ export default function HelpDrawer({ isOpen, onClose }: HelpDrawerProps) {
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id as any)}
-                    className={`flex-1 pb-3 flex flex-col items-center gap-1.5 text-[11px] font-black tracking-wider transition-all relative border-none bg-transparent cursor-pointer ${
+                    className={`flex-1 pb-3 flex flex-col items-center gap-1.5 text-[10px] min-[360px]:text-[11px] font-black tracking-wider transition-all relative border-none bg-transparent cursor-pointer ${
                       isActive ? "text-slate-100" : "text-slate-400 hover:text-slate-200"
                     }`}
                   >
@@ -236,7 +236,7 @@ export default function HelpDrawer({ isOpen, onClose }: HelpDrawerProps) {
             </div>
 
             {/* Welcome Page Link */}
-            <div className="p-4 border-t border-slate-800 shrink-0 bg-slate-950/40">
+            <div className="p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] border-t border-slate-800 shrink-0 bg-slate-950/40">
               <a
                 href="/welcome"
                 className="w-full py-3 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all text-center flex items-center justify-center gap-2 cursor-pointer no-underline border-none"
