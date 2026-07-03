@@ -49,13 +49,7 @@ const CATEGORIES = [
       { title: "הגדרות ראשיות",   desc: "עריכת פורמט פעילויות ולוגואים", icon: Settings,    path: "/admin/settings",           color: "text-slate-500 bg-slate-500/10",    roles: ["admin","manager"] },
     ],
   },
-  {
-    title: "כלים ודוחות",
-    color: "text-cyan-500",
-    modules: [
-      { title: "לוגיסטיקה ורכש", desc: "ניהול מלאי וציוד",           icon: Package,       path: "/admin/resources",          color: "text-amber-500 bg-amber-500/10",    roles: ["admin","manager","logistics"] },
-    ],
-  },
+
 ];
 
 export default function AdminDashboard() {

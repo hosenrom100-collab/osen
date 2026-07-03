@@ -6,7 +6,12 @@
       "Bash(node -e ' *)",
       "Bash(npx tsc *)",
       "Bash(npm install *)",
-      "Bash(npm uninstall *)"
+      "Bash(npm uninstall *)",
+      "Bash(rm -rf .next/types)",
+      "Bash(grep -n '{ id: \"overview\", label: \"סקירה\"' \"/Users/amireyal/ hosen-connect/src/app/patients/[id]/page.tsx\")",
+      "Bash(python3 -)",
+      "Bash(echo \"EXIT: $?\")",
+      "Bash(echo \"exit:$?\")"
     ],
     "additionalDirectories": [
       "/Users/amireyal/ hosen-connect/src/app/admin/programs",

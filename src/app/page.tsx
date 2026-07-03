@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  LogOut, Users, Calendar, ShoppingCart, CheckCircle,
+  LogOut, Users, Calendar, CheckCircle,
   Shield, MapPin, Edit3, ChevronLeft, Clock,
   ClipboardList, Layers, X, Check, ChevronDown, Plus,
   AlertTriangle, Sparkles, Bell, Coffee, Utensils, ArrowLeftRight
@@ -146,7 +146,6 @@ export default function Home() {
   const [dutyId,          setDutyId]          = useState("");
   const [allStaff,        setAllStaff]        = useState<{ id: string; name: string }[]>([]);
   const [isEditingDuty,   setIsEditingDuty]   = useState(false);
-  const [shoppingCount,   setShoppingCount]   = useState(0);
   const [conflicts,       setConflicts]       = useState<{userId: string, userName: string, type: 'duty'|'activity'}[]>([]);
   const [expandedGroups,  setExpandedGroups]  = useState<Set<string>>(new Set());
   const [showGroupPicker, setShowGroupPicker] = useState(false);
@@ -302,13 +301,11 @@ export default function Home() {
       setExpiring3mCount(expiring3m);
       setExpiring6mCount(expiring6m);
 
-      // 3. Logistics & Absences
-      const [shopSnap, myAbsSnap, allAbsSnap] = await Promise.all([
-        getDocs(query(collection(db, "shopping_requests"), where("status", "==", "pending"))),
+      // 3. Absences
+      const [myAbsSnap, allAbsSnap] = await Promise.all([
         getDocs(query(collection(db, "absence_requests"), where("userId", "==", user?.uid || ""), where("status", "==", "pending"))),
         isAdmin || isManager ? getDocs(query(collection(db, "absence_requests"), where("status", "==", "pending"))) : Promise.resolve({ size: 0, docs: [] } as any)
       ]);
-      setShoppingCount(shopSnap.size);
       setUserAbsence(myAbsSnap.docs.map((d: any) => ({ id: d.id, ...d.data() })));
       setPendingAbsences(allAbsSnap.size);
 
@@ -482,7 +479,7 @@ export default function Home() {
       {/* ── Stunning Metrics Dashboard ── */}
       {dataLoaded && (
         <div className="px-4 md:px-6 mt-6 max-w-6xl mx-auto">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             
             {/* Card 1: Active Patients */}
             <motion.div 
@@ -573,31 +570,6 @@ export default function Home() {
                     <span className="text-[var(--muted)]">הוזנה נוכחות מלאה היום</span>
                   </>
                 )}
-              </p>
-            </motion.div>
-
-            {/* Card 4: Purchases / Logistics */}
-            <motion.div 
-              initial={{ opacity: 0, y: 15 }} 
-              animate={{ opacity: 1, y: 0 }} 
-              transition={{ duration: 0.4, delay: 0.2 }}
-              className="relative p-5 bg-[var(--card-bg,var(--surface))] border border-[var(--border)] rounded-3xl overflow-hidden hover:border-violet-500/40 transition-all duration-300 group shadow-lg"
-            >
-              <div className="absolute top-0 right-0 w-32 h-32 bg-violet-500/5 rounded-full blur-3xl pointer-events-none" />
-              <div className="flex items-start justify-between">
-                <div className="space-y-1">
-                  <p className="text-[10px] font-black uppercase tracking-wider text-[var(--muted)]">רכש בהמתנה</p>
-                  <h3 className={`text-3xl font-black tracking-tight ${shoppingCount > 0 ? "text-violet-500" : "text-[var(--muted)]"}`}>
-                    {shoppingCount}
-                  </h3>
-                </div>
-                <div className="w-10 h-10 rounded-2xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center text-violet-500">
-                  <ShoppingCart className="w-5 h-5" />
-                </div>
-              </div>
-              <p className="text-[9px] text-[var(--muted)] font-bold mt-4 flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-violet-500" />
-                מוצרים הממתינים לאישור תקציב
               </p>
             </motion.div>
 
@@ -754,16 +726,12 @@ export default function Home() {
                 {[
                   { href: "/attendance", icon: ClipboardList, label: "נוכחות", color: "text-emerald-500 bg-emerald-500/5 hover:bg-emerald-500/10 border-emerald-500/10 hover:border-emerald-500/20" },
                   { href: "/patients",   icon: Users,         label: "משתתפים ותיקים", color: "text-blue-500 bg-blue-500/5 hover:bg-blue-500/10 border-blue-500/10 hover:border-blue-500/20" },
-                  { href: "/shopping",   icon: ShoppingCart,  label: "ניהול קניות ורכש",   color: "text-amber-500 bg-amber-500/5 hover:bg-amber-500/10 border-amber-500/10 hover:border-amber-500/20" },
                   ...(isAdmin || isManager ? [{ href: "/admin", icon: Shield, label: "ממשק ניהול ובקרה", color: "text-slate-300 bg-[var(--foreground)]/5 border-[var(--border)] hover:bg-[var(--foreground)]/8" }] : []),
                 ].map(({ href, icon: Icon, label, color }) => (
                   <Link key={href} href={href}
                     className={`flex items-center gap-3 px-4 py-3.5 rounded-2xl border text-xs font-black transition-all transform hover:scale-[1.01] hover:shadow-md active:scale-[0.99] ${color}`}>
                     <Icon className="w-4.5 h-4.5 shrink-0" />
                     <span>{label}</span>
-                    {href === "/shopping" && shoppingCount > 0 && (
-                      <span className="mr-auto text-[10px] font-black text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded-lg border border-amber-500/20">{shoppingCount}</span>
-                    )}
                     {href === "/attendance" && totalMissing > 0 && (
                       <span className="mr-auto text-[10px] font-black text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-lg border border-emerald-500/20">{totalMissing}</span>
                     )}

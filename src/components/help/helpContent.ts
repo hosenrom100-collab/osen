@@ -121,26 +121,6 @@ export const helpContent: Record<string, PageHelp> = {
       }
     ]
   },
-  shopping: {
-    title: "בקשות רכש וקניות",
-    subtitle: "ניהול רשימת קניות לוגיסטית לחווה",
-    sections: [
-      {
-        title: "הגשת בקשה חדשה",
-        content: [
-          "כל איש צוות יכול להגיש בקשת רכש על ידי לחיצה על כפתור 'בקשה חדשה'.",
-          "יש להזין שם מוצר, כמות, קטגוריה ודחיפות. ניתן להוסיף קישור למוצר או הערה מיוחדת."
-        ]
-      },
-      {
-        title: "מעקב ואישור",
-        content: [
-          "הבקשות מחולקות לפי סטטוסים: ממתין לאישור, מאושר לקנייה, נרכש, או בטיפול.",
-          "מנהלים יכולים לאשר או לדחות בקשות ישירות מהממשק, והמבקש יראה את העדכון מיד."
-        ]
-      }
-    ]
-  },
   admin: {
     title: "ממשק ניהול ובקרה (Admin)",
     subtitle: "הגדרות מערכת, ניהול קבוצות, תוכניות ומשתמשים",
@@ -182,9 +162,6 @@ export function getHelpForPath(pathname: string): PageHelp {
   }
   if (pathname.includes("/attendance")) {
     return helpContent.attendance;
-  }
-  if (pathname.includes("/shopping")) {
-    return helpContent.shopping;
   }
   return helpContent.dashboard;
 }
