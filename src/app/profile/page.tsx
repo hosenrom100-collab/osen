@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { db } from "@/lib/firebase/config";
-import { doc, updateDoc, collection, serverTimestamp, getDocs } from "firebase/firestore";
+import { doc, updateDoc, collection, serverTimestamp, getDocs, query, where, addDoc } from "firebase/firestore";
 import { updateProfile } from "firebase/auth";
 
 export default function ProfilePage() {
@@ -30,6 +30,65 @@ export default function ProfilePage() {
   const [displayName, setDisplayName] = useState(user?.displayName || "");
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+
+  // Work Schedule & Absence Request states
+  const [isEditingSchedule, setIsEditingSchedule] = useState(false);
+  const [editingSchedule, setEditingSchedule] = useState<Record<string, { start: string; end: string }>>({});
+  const [absenceDate, setAbsenceDate] = useState("");
+  const [absenceReason, setAbsenceReason] = useState("");
+  const [absenceRequests, setAbsenceRequests] = useState<any[]>([]);
+  const [submittingAbsence, setSubmittingAbsence] = useState(false);
+  const [loadingAbsences, setLoadingAbsences] = useState(false);
+
+  useEffect(() => {
+    if (user) {
+      fetchAbsences();
+    }
+  }, [user]);
+
+  const fetchAbsences = async () => {
+    if (!user) return;
+    setLoadingAbsences(true);
+    try {
+      const q = query(
+        collection(db, "absence_requests"),
+        where("userId", "==", user.uid)
+      );
+      const snap = await getDocs(q);
+      const list = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as any));
+      list.sort((a, b) => b.date.localeCompare(a.date));
+      setAbsenceRequests(list);
+    } catch (e) {
+      console.error("Error fetching absences:", e);
+    } finally {
+      setLoadingAbsences(false);
+    }
+  };
+
+  const handleReportAbsence = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!absenceDate || !absenceReason.trim() || !user) return;
+    setSubmittingAbsence(true);
+    try {
+      await addDoc(collection(db, "absence_requests"), {
+        userId: user.uid,
+        userName: user.displayName || user.email || "עובד",
+        date: absenceDate,
+        reason: absenceReason,
+        status: "pending",
+        createdAt: serverTimestamp()
+      });
+      setAbsenceDate("");
+      setAbsenceReason("");
+      setMessage({ type: "success", text: "דיווח ההיעדרות נשלח בהצלחה וממתין לאישור מנהלת." });
+      fetchAbsences();
+    } catch (err) {
+      console.error(err);
+      setMessage({ type: "error", text: "שגיאה בשליחת דיווח ההיעדרות." });
+    } finally {
+      setSubmittingAbsence(false);
+    }
+  };
 
   // Digital Signature States
   const [signatureTitle, setLocalSignatureTitle] = useState("");
@@ -309,24 +368,217 @@ export default function ProfilePage() {
 
                 {/* Work Schedule Card */}
                 <div className="bg-[var(--card-bg)] border border-[var(--border)] p-6 md:p-8 rounded-3xl md:rounded-[2.5rem] shadow-sm">
-                  <div className="mb-6 md:mb-8">
-                    <p className="text-base md:text-lg font-black tracking-tight">לו״ז עבודה שבועי</p>
-                    <p className="text-[10px] md:text-xs text-[var(--foreground)]/40 font-bold mt-1">ימי עבודה</p>
+                  <div className="flex items-center justify-between mb-6 md:mb-8">
+                    <div>
+                      <p className="text-base md:text-lg font-black tracking-tight">לו״ז עבודה שבועי</p>
+                      <p className="text-[10px] md:text-xs text-[var(--foreground)]/40 font-bold mt-1">
+                        {isEditingSchedule ? "בחר ימי עבודה והגדר שעות פעילות" : "ימי עבודה קבועים"}
+                      </p>
+                    </div>
+                    {!isEditingSchedule ? (
+                      <button 
+                        onClick={() => {
+                          setEditingSchedule(workSchedule || {});
+                          setIsEditingSchedule(true);
+                        }}
+                        className="px-4 py-2 rounded-xl bg-[var(--foreground)]/5 text-xs font-black hover:bg-[var(--foreground)]/10 transition-all text-right"
+                      >
+                        ערוך לו״ז
+                      </button>
+                    ) : (
+                      <div className="flex gap-2">
+                        <button 
+                          onClick={async () => {
+                            if (!user) return;
+                            setIsSaving(true);
+                            try {
+                              await updateDoc(doc(db, "users", user.uid), { workSchedule: editingSchedule });
+                              setIsEditingSchedule(false);
+                              setMessage({ type: "success", text: "לו״ז העבודה עודכן בהצלחה!" });
+                            } catch (e) {
+                              console.error(e);
+                              setMessage({ type: "error", text: "שגיאה בעדכון לו״ז העבודה" });
+                            } finally {
+                              setIsSaving(false);
+                            }
+                          }}
+                          disabled={isSaving}
+                          className="px-4 py-2 rounded-xl bg-rose-600 text-white text-xs font-black shadow-lg shadow-rose-600/10 active:scale-95 transition-all"
+                        >
+                          שמור
+                        </button>
+                        <button 
+                          onClick={() => setIsEditingSchedule(false)}
+                          className="px-4 py-2 rounded-xl bg-[var(--foreground)]/5 text-xs font-black hover:bg-[var(--foreground)]/10 transition-all"
+                        >
+                          ביטול
+                        </button>
+                      </div>
+                    )}
                   </div>
 
-                  <div className="grid grid-cols-7 gap-1 md:gap-2">
-                    {DAYS.map(d => (
-                      <div key={d.id} className="flex flex-col items-center gap-2 md:gap-3">
-                        <p className="text-[10px] md:text-sm font-black text-[var(--foreground)]/40">{d.abbr}</p>
-                        <div className={`w-full aspect-square rounded-lg md:rounded-2xl border flex items-center justify-center transition-all ${
-                          workSchedule?.[d.id]
-                            ? 'bg-rose-500 border-rose-500 shadow-lg shadow-rose-500/20 text-white'
-                            : 'bg-[var(--foreground)]/[0.03] border-[var(--border)] opacity-20'
-                        }`}>
-                          {workSchedule?.[d.id] && <Check className="w-3 md:w-4 h-3 md:h-4" />}
-                        </div>
+                  {isEditingSchedule ? (
+                    <div className="space-y-4">
+                      {DAYS.map(d => {
+                        const dayActive = !!editingSchedule[d.id];
+                        const scheduleForDay = editingSchedule[d.id] || { start: "08:00", end: "16:00" };
+                        return (
+                          <div key={d.id} className="flex items-center justify-between p-3 rounded-2xl bg-[var(--foreground)]/[0.02] border border-[var(--border)]/55">
+                            <label className="flex items-center gap-3 cursor-pointer select-none">
+                              <input 
+                                type="checkbox"
+                                checked={dayActive}
+                                onChange={() => {
+                                  const copy = { ...editingSchedule };
+                                  if (copy[d.id]) {
+                                    delete copy[d.id];
+                                  } else {
+                                    copy[d.id] = { start: "08:00", end: "16:00" };
+                                  }
+                                  setEditingSchedule(copy);
+                                }}
+                                className="w-5 h-5 rounded-lg border-[var(--border)] text-rose-600 focus:ring-rose-500/20"
+                              />
+                              <span className="text-sm font-bold text-[var(--foreground)]">{d.label}</span>
+                            </label>
+                            {dayActive && (
+                              <div className="flex items-center gap-2">
+                                <span className="text-[10px] text-[var(--foreground)]/40 font-bold">משעה</span>
+                                <input 
+                                  type="time"
+                                  value={scheduleForDay.start}
+                                  onChange={(e) => {
+                                    setEditingSchedule(prev => ({
+                                      ...prev,
+                                      [d.id]: { ...prev[d.id], start: e.target.value }
+                                    }));
+                                  }}
+                                  className="bg-[var(--background)] border border-[var(--border)] rounded-lg px-2 py-1 text-xs font-bold focus:border-rose-500 outline-none"
+                                />
+                                <span className="text-[10px] text-[var(--foreground)]/40 font-bold">עד שעה</span>
+                                <input 
+                                  type="time"
+                                  value={scheduleForDay.end}
+                                  onChange={(e) => {
+                                    setEditingSchedule(prev => ({
+                                      ...prev,
+                                      [d.id]: { ...prev[d.id], end: e.target.value }
+                                    }));
+                                  }}
+                                  className="bg-[var(--background)] border border-[var(--border)] rounded-lg px-2 py-1 text-xs font-bold focus:border-rose-500 outline-none"
+                                />
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-7 gap-1 md:gap-2">
+                        {DAYS.map(d => (
+                          <div key={d.id} className="flex flex-col items-center gap-2 md:gap-3">
+                            <p className="text-[10px] md:text-sm font-black text-[var(--foreground)]/40">{d.abbr}</p>
+                            <div className={`w-full aspect-square rounded-lg md:rounded-2xl border flex items-center justify-center transition-all ${
+                              workSchedule?.[d.id]
+                                ? 'bg-rose-500 border-rose-500 shadow-lg shadow-rose-500/20 text-white'
+                                : 'bg-[var(--foreground)]/[0.03] border-[var(--border)] opacity-20'
+                            }`}>
+                              {workSchedule?.[d.id] && <Check className="w-3 md:w-4 h-3 md:h-4" />}
+                            </div>
+                          </div>
+                        ))}
                       </div>
-                    ))}
+                      <div className="mt-6 pt-6 border-t border-[var(--border)]/40 space-y-2">
+                        <p className="text-xs font-black text-[var(--foreground)]/30 uppercase tracking-widest">שעות עבודה מוגדרות:</p>
+                        {DAYS.filter(d => workSchedule?.[d.id]).map(d => (
+                          <div key={d.id} className="flex justify-between items-center text-xs font-bold bg-[var(--foreground)]/[0.01] p-2 rounded-lg">
+                            <span>יום {d.label}</span>
+                            <span className="text-[var(--muted)]">{workSchedule?.[d.id]?.start} - {workSchedule?.[d.id]?.end}</span>
+                          </div>
+                        ))}
+                        {DAYS.filter(d => workSchedule?.[d.id]).length === 0 && (
+                          <p className="text-xs text-[var(--foreground)]/40 italic">לא הוגדרו ימי עבודה קבועים.</p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Absence Reporting Section */}
+                <div className="bg-[var(--card-bg)] border border-[var(--border)] p-6 md:p-8 rounded-3xl md:rounded-[2.5rem] shadow-sm space-y-6">
+                  <div>
+                    <p className="text-base md:text-lg font-black tracking-tight">דיווח על היעדרות</p>
+                    <p className="text-xs text-[var(--foreground)]/40 font-bold mt-1">דווח על מחלה, יום חופש או היעדרות מתוכננת אחרת. הבקשה תועבר לאישור המנהל/ת ותעדכן אוטומטית את יומן הנוכחות של הצוות.</p>
+                  </div>
+
+                  <form onSubmit={handleReportAbsence} className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-1.5 text-right">
+                        <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-[var(--foreground)]/30 mr-1">תאריך היעדרות</label>
+                        <input 
+                          type="date"
+                          required
+                          value={absenceDate}
+                          onChange={(e) => setAbsenceDate(e.target.value)}
+                          className="w-full bg-[var(--background)] border border-[var(--border)] rounded-2xl px-5 py-4 text-xs font-bold outline-none focus:border-rose-500 transition-all text-right"
+                        />
+                      </div>
+                      <div className="space-y-1.5 text-right">
+                        <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-[var(--foreground)]/30 mr-1">סיבת היעדרות</label>
+                        <input 
+                          type="text"
+                          required
+                          value={absenceReason}
+                          onChange={(e) => setAbsenceReason(e.target.value)}
+                          placeholder="למשל: מחלה, חופשה שנתית, מילואים..."
+                          className="w-full bg-[var(--background)] border border-[var(--border)] rounded-2xl px-5 py-4 text-xs font-bold outline-none focus:border-rose-500 transition-all text-right"
+                        />
+                      </div>
+                    </div>
+                    <button 
+                      type="submit" 
+                      disabled={submittingAbsence}
+                      className="w-full py-4 bg-rose-600 hover:bg-rose-500 text-white font-black text-xs rounded-2xl shadow-lg shadow-rose-600/10 active:scale-95 transition-all flex items-center justify-center gap-2"
+                    >
+                      {submittingAbsence ? <Loader2 className="w-4 h-4 animate-spin text-white" /> : "שלח דיווח היעדרות"}
+                    </button>
+                  </form>
+
+                  {/* History of Absence Requests */}
+                  <div className="pt-6 border-t border-[var(--border)]/40 text-right">
+                    <p className="text-xs font-black text-[var(--foreground)]/30 uppercase tracking-widest mb-4">היסטוריית דיווחי היעדרות</p>
+                    {loadingAbsences ? (
+                      <div className="flex justify-center py-6">
+                        <Loader2 className="w-5 h-5 animate-spin text-rose-500" />
+                      </div>
+                    ) : absenceRequests.length > 0 ? (
+                      <div className="space-y-2.5 max-h-60 overflow-y-auto no-scrollbar">
+                        {absenceRequests.map(req => {
+                          const statusCls = 
+                            req.status === "approved" ? "text-emerald-500 bg-emerald-500/10 border-emerald-500/20" :
+                            req.status === "rejected" ? "text-rose-500 bg-rose-500/10 border-rose-500/20" :
+                            "text-amber-500 bg-amber-500/10 border-amber-500/20";
+                          const statusLabel = 
+                            req.status === "approved" ? "אושר" :
+                            req.status === "rejected" ? "נדחה" :
+                            "ממתין";
+                          return (
+                            <div key={req.id} className="flex items-center justify-between p-3.5 rounded-2xl bg-[var(--foreground)]/[0.01] border border-[var(--border)]/50 text-xs">
+                              <div className="text-right">
+                                <p className="font-black text-[var(--foreground)]">{req.reason}</p>
+                                <p className="text-[10px] text-[var(--foreground)]/30 mt-1 font-bold">
+                                  {req.date.split("-").reverse().join(".")}
+                                </p>
+                              </div>
+                              <span className={`px-2.5 py-1 rounded-full border text-[10px] font-black ${statusCls}`}>{statusLabel}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-[var(--foreground)]/40 italic">לא נמצאו דיווחי היעדרות קודמים.</p>
+                    )}
                   </div>
                 </div>
               </section>

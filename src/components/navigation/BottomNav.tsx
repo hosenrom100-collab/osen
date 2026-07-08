@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { 
   Home, Calendar, ClipboardList, FileText, MoreHorizontal, 
   User, MessageSquare, LogOut, Sun, Moon, Shield, X, ChevronLeft,
-  ClipboardCheck
+  ClipboardCheck, ShoppingCart
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useSettings } from "@/context/SettingsContext";
@@ -184,6 +184,23 @@ export function BottomNav() {
                     <User className="w-4 h-4" />
                   </div>
                   <span className="font-black text-xs text-[var(--foreground)]">איזור אישי</span>
+                </div>
+                <ChevronLeft className="w-4 h-4 text-[var(--text-secondary)]" />
+              </button>
+
+              {/* Shopping List Button */}
+              <button 
+                onClick={() => {
+                  setActiveOverlay(null);
+                  router.push("/shopping");
+                }}
+                className="w-full flex items-center justify-between p-4 rounded-2xl bg-[var(--foreground)]/5 hover:bg-[var(--foreground)]/10 border border-[var(--border)] transition-all text-right cursor-pointer"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-[var(--surface)] border border-[var(--border)] flex items-center justify-center text-indigo-500 shadow-sm">
+                    <ShoppingCart className="w-4 h-4" />
+                  </div>
+                  <span className="font-black text-xs text-[var(--foreground)]">קניות</span>
                 </div>
                 <ChevronLeft className="w-4 h-4 text-[var(--text-secondary)]" />
               </button>

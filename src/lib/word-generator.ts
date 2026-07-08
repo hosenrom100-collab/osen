@@ -468,6 +468,9 @@ export interface StayCertData {
   signatoryName: string;
   signatoryTitle: string;
   signatoryOrg: string;
+  programTrack?: string;
+  fundingSource?: string;
+  specialRemarks?: string;
   logoHeaderData?: Uint8Array;
   logoFooterData?: Uint8Array;
 }
@@ -489,8 +492,10 @@ export const generateStayCertificateWord = (data: StayCertData): any => {
     createLabelValueParagraph("ת.ז:", data.idNumber, { spacingAfter: 240 }),
 
     // Body text
-    createParagraph(`הרינו לאשר בזאת כי המשתתף/ת החל/ה את תהליך השיקום וההגעה לחווה החל מתאריך ${data.startDate}.`, { spacingAfter: 180 }),
-    createParagraph(`הפעילות בתוכנית "${data.programName}" מתקיימת ב${data.activityDays} בין השעות ${data.activityHours || "9:00-15:00"}.`, { spacingAfter: 180 }),
+    createParagraph(`הרינו לאשר בזאת כי ${data.firstName} ${data.lastName} שולב בתהליך השיקום בחוות רום החל מתאריך ${data.startDate}.`, { spacingAfter: 180 }),
+    createParagraph(`הפעילות בתוכנית "${data.programName}"${data.programTrack ? ` (${data.programTrack})` : ""} מתקיימת בימים ${data.activityDays.replace(/^(בימים|ביום)\s+/, "")} בין השעות ${data.activityHours || "9:00-15:00"}.`, { spacingAfter: 180 }),
+    data.fundingSource ? createParagraph(`המימון לפעילות מוסדר באמצעות: ${data.fundingSource}.`, { spacingAfter: 180 }) : null,
+    data.specialRemarks ? createParagraph(`הערות: ${data.specialRemarks}`, { spacingAfter: 180 }) : null,
     createParagraph(data.activityDetailText || "תחומי העשייה המגוונים במסגרת שהותו בחווה כוללים: עבודה חקלאית בשדות ובחממות, גילוף בעץ ומלאכות קדומות, סדנאות יצירה ואמנות, תרגול יוגה ונשימה בקבוצה וליווי רגשי מתמשך.", { spacingAfter: 360 }),
 
     createSpacer(240),
@@ -500,7 +505,7 @@ export const generateStayCertificateWord = (data: StayCertData): any => {
     createParagraph(data.signatoryName, { bold: true, spacingAfter: 30 }),
     createParagraph(data.signatoryTitle, { spacingAfter: 30 }),
     createParagraph(data.signatoryOrg, { spacingAfter: 30 })
-  ];
+  ].filter(Boolean) as any[];
 
   return createDocxDocument(children, data.logoHeaderData, data.logoFooterData);
 };
@@ -517,11 +522,14 @@ export interface TravelReimbData {
   startDate: string;
   programName: string;
   activityDays: string;
+  activityHours?: string;
   activityDetailText?: string;
   attendanceDatesStr: string;
   signatoryName: string;
   signatoryTitle: string;
   signatoryOrg: string;
+  transportationMethod?: string;
+  totalDays?: string;
   logoHeaderData?: Uint8Array;
   logoFooterData?: Uint8Array;
 }
@@ -543,8 +551,10 @@ export const generateTravelReimbursementWord = (data: TravelReimbData): any => {
     createLabelValueParagraph("ת.ז:", data.idNumber, { spacingAfter: 240 }),
 
     // Body text
-    createParagraph(`הרינו לאשר בזאת כי המשתתף/ת מאושר/ת להגעה לחווה ומנוי/ה על תוכנית השיקום החל מתאריך ${data.startDate}.`, { spacingAfter: 180 }),
-    createParagraph(`הפעילות בתוכנית "${data.programName}" מתפרסת על פני ${data.activityDays}.`, { spacingAfter: 180 }),
+    createParagraph(`הרינו לאשר בזאת כי ${data.firstName} ${data.lastName} שולב בתהליך השיקום בחוות רום החל מתאריך ${data.startDate}.`, { spacingAfter: 180 }),
+    createParagraph(`הפעילות בתוכנית "${data.programName}" מתקיימת בימים ${data.activityDays.replace(/^(בימים|ביום)\s+/, "")} בין השעות ${data.activityHours || "9:00-15:00"}.`, { spacingAfter: 180 }),
+    data.transportationMethod ? createParagraph(`אופן ההגעה לחווה: ${data.transportationMethod}.`, { spacingAfter: 180 }) : null,
+    data.totalDays ? createParagraph(`סה"כ ימי הגעה בפועל בחודש זה: ${data.totalDays}.`, { spacingAfter: 180 }) : null,
     createParagraph(data.activityDetailText || "הפעילות השיקומית בחווה מקיפה מגוון תחומים ובהם: עבודה חקלאית יומיומית, מלאכות יד וגילוף, סדנאות יוגה וקבוצות שיח תמיכתיות.", { spacingAfter: 180 }),
     
     new Paragraph({
@@ -560,7 +570,7 @@ export const generateTravelReimbursementWord = (data: TravelReimbData): any => {
         })
       ]
     })
-  ];
+  ].filter(Boolean);
 
   // Render each date line as a separate bold, underlined paragraph
   const dateLines = (data.attendanceDatesStr || "")
@@ -679,6 +689,10 @@ export interface PeriodicReportData {
   summaryProcess: string;
   recommendations: string;
   farmSocialWorker: string; // עו"ס בחווה
+  progressStatus?: string;
+  cooperationLevel?: string;
+  workshopPerformance?: string;
+  nextPeriodGoal?: string;
   logoHeaderData?: Uint8Array;
   logoFooterData?: Uint8Array;
 }
@@ -902,6 +916,16 @@ export const generatePeriodicReportWord = (data: PeriodicReportData): any => {
   children.push(createLabelValueParagraph("1. תיאור תוכנית השיקום:", "", { spacingAfter: 60 }));
   children.push(createMultilineParagraph(data.rehabDescription || "—", { spacingAfter: 180 }));
 
+  if (data.progressStatus) {
+    children.push(createLabelValueParagraph("1א. סטטוס התקדמות כללי:", data.progressStatus, { spacingAfter: 120 }));
+  }
+  if (data.cooperationLevel) {
+    children.push(createLabelValueParagraph("1ב. מידת שיתוף פעולה:", data.cooperationLevel, { spacingAfter: 120 }));
+  }
+  if (data.workshopPerformance) {
+    children.push(createLabelValueParagraph("1ג. תפקוד בסדנאות ועבודה חקלאית:", data.workshopPerformance, { spacingAfter: 120 }));
+  }
+
   children.push(createLabelValueParagraph("2. מקום ההשמה:", data.placementLocation || "חוות רום - מרכז חוסן.", { spacingAfter: 180 }));
 
   children.push(
@@ -923,6 +947,10 @@ export const generatePeriodicReportWord = (data: PeriodicReportData): any => {
 
   children.push(createLabelValueParagraph("5. המלצות להמשך:", "", { spacingAfter: 60 }));
   children.push(createMultilineParagraph(data.recommendations || "—", { spacingAfter: 180 }));
+
+  if (data.nextPeriodGoal) {
+    children.push(createLabelValueParagraph("5א. יעד מרכזי לתקופה הבאה:", data.nextPeriodGoal, { spacingAfter: 120 }));
+  }
 
   children.push(createLabelValueParagraph("6. תאריך:", data.date || "—", { spacingAfter: 240 }));
 

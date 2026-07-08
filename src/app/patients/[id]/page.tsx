@@ -239,6 +239,11 @@ export default function PatientDetailPage() {
   const [travelSignatoryOrg, setTravelSignatoryOrg] = useState("חוות רום");
   const [travelSelectedMonths, setTravelSelectedMonths] = useState<string[]>([]);
 
+  // Enriched parameters for travel reimbursement
+  const [travelTransportationMethod, setTravelTransportationMethod] = useState("רכב פרטי / תחבורה ציבורית");
+  const [travelTotalDays, setTravelTotalDays] = useState("");
+  const [travelActivityHours, setTravelActivityHours] = useState("9:00-15:00");
+
   // Stay certificate specific states (Transient, not saved to DB)
   const [showStayModal, setShowStayModal] = useState(false);
   const [stayLetterDate, setStayLetterDate] = useState("");
@@ -253,6 +258,11 @@ export default function PatientDetailPage() {
   const [staySignatoryName, setStaySignatoryName] = useState("מירב סארמילי");
   const [staySignatoryTitle, setStaySignatoryTitle] = useState("מנהלת תפעול מרכז חוסן");
   const [staySignatoryOrg, setStaySignatoryOrg] = useState("חוות רום");
+
+  // Enriched parameters for stay certificate
+  const [stayProgramTrack, setStayProgramTrack] = useState("שיקום תעסוקתי");
+  const [stayFundingSource, setStayFundingSource] = useState("משרד הביטחון / סל שיקום");
+  const [staySpecialRemarks, setStaySpecialRemarks] = useState("");
 
   const [reportSettings, setReportSettings] = useState<{
     participationActivityDetail?: string;
@@ -279,6 +289,12 @@ export default function PatientDetailPage() {
   const [periodicSummaryProcess, setPeriodicSummaryProcess] = useState("");
   const [periodicRecommendations, setPeriodicRecommendations] = useState("");
   const [periodicFarmSocialWorker, setPeriodicFarmSocialWorker] = useState("");
+
+  // Enriched parameters for periodic report
+  const [periodicProgressStatus, setPeriodicProgressStatus] = useState("התקדמות טובה והשתלבות חיובית");
+  const [periodicCooperationLevel, setPeriodicCooperationLevel] = useState("מלא ורציף");
+  const [periodicWorkshopPerformance, setPeriodicWorkshopPerformance] = useState("עבודה מעשית בחממה ובסדנאות יצירה");
+  const [periodicNextPeriodGoal, setPeriodicNextPeriodGoal] = useState("שיפור מיומנויות תפקוד והתמדה רציפה");
 
   // Functional report specific states (Transient, not saved to DB)
   const [showFunctionalModal, setShowFunctionalModal] = useState(false);
@@ -326,16 +342,16 @@ export default function PatientDetailPage() {
   const [taskSearchTerm, setTaskSearchTerm] = useState("");
 
   const getProgramDaysText = (defaultText: string) => {
-    const patientProgram = programs.find(p => p.id === (patient as any)?.programId);
-    const activeDays = patientProgram?.activeDays;
+    const pIds = patient?.programIds || (patient?.programId ? [patient.programId] : []);
+    const patientProgs = programs.filter(p => pIds.includes(p.id));
+    const allActiveDays = Array.from(new Set(patientProgs.flatMap(p => p.activeDays || []))).sort((a, b) => a - b);
     
-    if (!activeDays || activeDays.length === 0) {
+    if (allActiveDays.length === 0) {
       return defaultText;
     }
 
     const dayNames = ["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת"];
-    const sortedDays = [...activeDays].sort((a, b) => a - b);
-    const mapped = sortedDays.map(d => dayNames[d]);
+    const mapped = allActiveDays.map(d => dayNames[d]);
 
     if (mapped.length === 1) {
       return `ביום ${mapped[0]}`;
@@ -647,14 +663,21 @@ export default function PatientDetailPage() {
       setStayStartDate(format(new Date(), "dd.MM.yyyy"));
     }
     
-    const patientProgram = programs.find(p => p.id === (patient as any)?.programId);
-    setStayProgramName(patientProgram?.name || "חרבות ברזל");
+    const pIds = patient?.programIds || (patient?.programId ? [patient.programId] : []);
+    const patientProgs = programs.filter(p => pIds.includes(p.id));
+    const combinedProgramName = patientProgs.map(p => p.name).join(" ו-") || "חרבות ברזל";
+    const combinedHours = Array.from(new Set(patientProgs.map(p => p.activityHours).filter(Boolean))).join(", ") || "9:00-15:00";
+    
+    setStayProgramName(combinedProgramName);
     setStayActivityDays(getProgramDaysText("בימים ב' ג' וד'"));
-    setStayActivityHours(patientProgram?.activityHours || "9:00-15:00");
+    setStayActivityHours(combinedHours);
     
     setStaySignatoryName(authUser?.displayName || "מירב סארמילי");
     setStaySignatoryTitle(signatureTitle || "מנהלת תפעול מרכז חוסן");
     setStaySignatoryOrg("חוות רום");
+    setStayProgramTrack("");
+    setStayFundingSource("משרד הביטחון / סל שיקום");
+    setStaySpecialRemarks("");
   };
 
   const executePDFGeneration = async () => {
@@ -685,6 +708,9 @@ export default function PatientDetailPage() {
           signatoryName: staySignatoryName,
           signatoryTitle: staySignatoryTitle,
           signatoryOrg: staySignatoryOrg,
+          programTrack: stayProgramTrack,
+          fundingSource: stayFundingSource,
+          specialRemarks: staySpecialRemarks,
           logoHeaderData: undefined,
           logoFooterData: undefined
         });
@@ -698,11 +724,14 @@ export default function PatientDetailPage() {
           startDate: travelApprovalStartDate,
           programName: travelProgramName,
           activityDays: travelActivityDays,
+          activityHours: travelActivityHours,
           attendanceDatesStr: travelAttendanceDatesStr,
           signatoryName: travelSignatoryName,
           signatoryTitle: travelSignatoryTitle,
           signatoryOrg: travelSignatoryOrg,
           activityDetailText: patientProgram?.travelActivityDetail || reportSettings?.travelActivityDetail,
+          transportationMethod: travelTransportationMethod,
+          totalDays: travelTotalDays || undefined,
           logoHeaderData: undefined,
           logoFooterData: undefined
         });
@@ -970,13 +999,21 @@ export default function PatientDetailPage() {
         setTravelApprovalStartDate("08.09.2025");
       }
       
-      const patientProgram = programs.find(p => p.id === (patient as any)?.programId);
-      setTravelProgramName(patientProgram?.name || "חרבות ברזל");
-      const activeDays = patientProgram?.activeDays;
-      if (activeDays && activeDays.length > 0) {
-        const sortedDays = [...activeDays].sort((a, b) => a - b);
+      const pIds = patient.programIds || (patient.programId ? [patient.programId] : []);
+      const patientProgs = programs.filter(p => pIds.includes(p.id));
+      const combinedProgramName = patientProgs.map(p => p.name).join(" ו-") || "חרבות ברזל";
+      setTravelProgramName(combinedProgramName);
+      
+      const allActiveDays = Array.from(new Set(patientProgs.flatMap(p => p.activeDays || []))).sort((a, b) => a - b);
+      if (allActiveDays.length > 0) {
+        const sortedDays = [...allActiveDays].sort((a, b) => a - b);
         const mapped = sortedDays.map(d => hebrewDaysOfWeek[d]);
-        setTravelActivityDays(mapped.join(", "));
+        if (mapped.length === 1) {
+          setTravelActivityDays(mapped[0]);
+        } else {
+          const last = mapped.pop();
+          setTravelActivityDays(`${mapped.join(", ")} ו${last}`);
+        }
       } else {
         setTravelActivityDays("שני, שלישי, רביעי");
       }
@@ -987,6 +1024,13 @@ export default function PatientDetailPage() {
       setTravelSignatoryName("מירב סארמילי");
       setTravelSignatoryTitle("מנהלת תפעול מרכז חוסן");
       setTravelSignatoryOrg("חוות רום");
+      setTravelTransportationMethod("רכב פרטי / תחבורה ציבורית");
+      const combinedHours = Array.from(new Set(patientProgs.map(p => p.activityHours).filter(Boolean))).join(", ") || "9:00-15:00";
+      setTravelActivityHours(combinedHours);
+      
+      // Calculate total presence days for the selected month to pre-populate totalDays
+      const monthlyPresence = attendance.filter(h => h.date.startsWith(selectedMonth) && h.status === 'present');
+      setTravelTotalDays(String(monthlyPresence.length));
       
       setTravelStep("details");
       setShowTravelModal(true);
@@ -1102,11 +1146,14 @@ export default function PatientDetailPage() {
         startDate: travelApprovalStartDate,
         programName: travelProgramName,
         activityDays: travelActivityDays,
+        activityHours: travelActivityHours,
         attendanceDatesStr: travelAttendanceDatesStr,
         signatoryName: travelSignatoryName,
         signatoryTitle: travelSignatoryTitle,
         signatoryOrg: travelSignatoryOrg,
         activityDetailText: patientProgram?.travelActivityDetail || reportSettings?.travelActivityDetail,
+        transportationMethod: travelTransportationMethod,
+        totalDays: travelTotalDays || undefined,
         logoHeaderData: undefined,
         logoFooterData: undefined
       });
@@ -1174,6 +1221,9 @@ export default function PatientDetailPage() {
         signatoryName: staySignatoryName,
         signatoryTitle: staySignatoryTitle,
         signatoryOrg: staySignatoryOrg,
+        programTrack: stayProgramTrack,
+        fundingSource: stayFundingSource,
+        specialRemarks: staySpecialRemarks,
         logoHeaderData: undefined,
         logoFooterData: undefined
       });
@@ -1310,13 +1360,11 @@ export default function PatientDetailPage() {
     // Location, Days, Hours
     setPeriodicPlacementLocation("חוות רום - מרכז חוסן.");
     
-    const patientProgram = programs.find(p => p.id === (patient as any)?.programId);
-    if (patientProgram) {
-      setPeriodicWorkDays(getProgramDaysText("בימים ב' ג' וד'"));
-    } else {
-      setPeriodicWorkDays("בימים ב' ג' וד'");
-    }
-    setPeriodicWorkHours("מ 9:00 עד 15:00");
+    const pIds = patient?.programIds || (patient?.programId ? [patient.programId] : []);
+    const patientProgs = programs.filter(p => pIds.includes(p.id));
+    const combinedHours = Array.from(new Set(patientProgs.map(p => p.activityHours).filter(Boolean))).join(", ") || "9:00-15:00";
+    setPeriodicWorkDays(getProgramDaysText("בימים ב' ג' וד'"));
+    setPeriodicWorkHours(combinedHours.startsWith("מ") ? combinedHours : `מ- ${combinedHours}`);
     
     // Summary, Recommendations
     setPeriodicSummaryProcess("");
@@ -1325,6 +1373,11 @@ export default function PatientDetailPage() {
     // Farm Social Worker (therapist / case manager)
     const assignedFarmWorker = socialWorkers.find(u => u.id === patient.assignedWorkerId);
     setPeriodicFarmSocialWorker(assignedFarmWorker ? assignedFarmWorker.name : (authUser?.displayName || authUser?.email || ""));
+
+    setPeriodicProgressStatus("התקדמות טובה והשתלבות חיובית");
+    setPeriodicCooperationLevel("מלא ורציף");
+    setPeriodicWorkshopPerformance("עבודה מעשית בחממה ובסדנאות יצירה");
+    setPeriodicNextPeriodGoal("שיפור מיומנויות תפקוד והתמדה רציפה");
   };
 
   const applyPeriodicSurvey = () => {
@@ -1370,6 +1423,10 @@ export default function PatientDetailPage() {
         summaryProcess: periodicSummaryProcess,
         recommendations: periodicRecommendations,
         farmSocialWorker: periodicFarmSocialWorker,
+        progressStatus: periodicProgressStatus,
+        cooperationLevel: periodicCooperationLevel,
+        workshopPerformance: periodicWorkshopPerformance,
+        nextPeriodGoal: periodicNextPeriodGoal,
         logoHeaderData: undefined,
         logoFooterData: undefined
       });
@@ -3253,7 +3310,7 @@ export default function PatientDetailPage() {
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                         <div className="space-y-1.5">
                           <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">אישור הגעה מהתאריך:</label>
                           <input
@@ -3278,6 +3335,15 @@ export default function PatientDetailPage() {
                             type="text"
                             value={travelActivityDays}
                             onChange={(e) => setTravelActivityDays(e.target.value)}
+                            className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-2.5 text-xs outline-none focus:border-sky-500 transition-all font-bold"
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">שעות פעילות בחווה:</label>
+                          <input
+                            type="text"
+                            value={travelActivityHours}
+                            onChange={(e) => setTravelActivityHours(e.target.value)}
                             className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-2.5 text-xs outline-none focus:border-sky-500 transition-all font-bold"
                           />
                         </div>
@@ -3324,6 +3390,27 @@ export default function PatientDetailPage() {
                           placeholder="תאריכים לכל חודש"
                           className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-2.5 text-xs outline-none focus:border-sky-500 transition-all font-bold resize-y text-right"
                         />
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">אופן הגעה / אמצעי תחבורה:</label>
+                          <input
+                            type="text"
+                            value={travelTransportationMethod}
+                            onChange={(e) => setTravelTransportationMethod(e.target.value)}
+                            className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-2.5 text-xs outline-none focus:border-sky-500 transition-all font-bold"
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">סה״כ ימי הגעה בפועל בחודש (למשל: 12):</label>
+                          <input
+                            type="text"
+                            value={travelTotalDays}
+                            onChange={(e) => setTravelTotalDays(e.target.value)}
+                            className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-2.5 text-xs outline-none focus:border-sky-500 transition-all font-bold"
+                          />
+                        </div>
                       </div>
                     </div>
                   )}
@@ -3375,8 +3462,10 @@ export default function PatientDetailPage() {
                           <div className="text-center font-black text-sm text-slate-900 underline my-2">אישור נוכחות והחזר נסיעות חודשי</div>
                           <div className="font-bold">הנדון: {travelFirstName} {travelLastName} — ת.ז. {travelIdNumber}</div>
                           <div className="space-y-2 text-slate-700 leading-relaxed">
-                            <p>הרינו לאשר בזאת כי המשתתף/ת מאושר/ת להגעה לחווה ומנוי/ה על תוכנית השיקום החל מתאריך {travelApprovalStartDate}.</p>
-                            <p>הפעילות בתוכנית "{travelProgramName}" מתפרסת על פני {travelActivityDays}.</p>
+                            <p>הרינו לאשר בזאת כי {travelFirstName} {travelLastName} שולב בתהליך השיקום בחוות רום החל מתאריך {travelApprovalStartDate}.</p>
+                            <p>הפעילות בתוכנית "{travelProgramName}" מתקיימת בימים {travelActivityDays.replace(/^(בימים|ביום)\s+/, "")} בין השעות {travelActivityHours}.</p>
+                            {travelTransportationMethod && <p>אופן ההגעה לחווה: {travelTransportationMethod}.</p>}
+                            {travelTotalDays && <p>סה"כ ימי הגעה בפועל בחודש זה: {travelTotalDays}.</p>}
                             <p className="italic text-slate-500 bg-white border border-slate-100 rounded-xl p-3 text-[11px] my-2">
                               {programs.find(p => p.id === (patient as any)?.programId)?.travelActivityDetail || reportSettings?.travelActivityDetail || "הפעילות השיקומית בחווה מקיפה מגוון תחומים ובהם: עבודה חקלאית יומיומית, מלאכות יד וגילוף, סדנאות יוגה וקבוצות שיח תמיכתיות."}
                             </p>
@@ -3636,6 +3725,38 @@ export default function PatientDetailPage() {
                           />
                         </div>
                       </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">מסלול התוכנית (למשל: שיקום תעסוקתי):</label>
+                          <input
+                            type="text"
+                            value={stayProgramTrack}
+                            onChange={(e) => setStayProgramTrack(e.target.value)}
+                            className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-2.5 text-xs outline-none focus:border-emerald-500 transition-all font-bold"
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">גורם מממן:</label>
+                          <input
+                            type="text"
+                            value={stayFundingSource}
+                            onChange={(e) => setStayFundingSource(e.target.value)}
+                            className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-2.5 text-xs outline-none focus:border-emerald-500 transition-all font-bold"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">הערות והנחיות מיוחדות:</label>
+                        <textarea
+                          rows={2}
+                          value={staySpecialRemarks}
+                          onChange={(e) => setStaySpecialRemarks(e.target.value)}
+                          placeholder="למשל: הנחיות מיוחדות..."
+                          className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-2.5 text-xs outline-none focus:border-emerald-500 transition-all font-bold text-right resize-y"
+                        />
+                      </div>
                     </div>
                   )}
 
@@ -3686,8 +3807,10 @@ export default function PatientDetailPage() {
                           <div className="text-center font-black text-sm text-slate-900 underline my-2">אישור שהייה בחווה שיקומית</div>
                           <div className="font-bold">הנדון: {stayFirstName} {stayLastName} — ת.ז. {stayIdNumber}</div>
                           <div className="space-y-2 text-slate-700 leading-relaxed">
-                            <p>הרינו לאשר בזאת כי המשתתף/ת החל/ה את תהליך השיקום וההגעה לחווה החל מתאריך {stayStartDate}.</p>
-                            <p>הפעילות בתוכנית "{stayProgramName}" מתקיימת ב{stayActivityDays} בין השעות {stayActivityHours}.</p>
+                            <p>הרינו לאשר בזאת כי {stayFirstName} {stayLastName} שולב בתהליך השיקום בחוות רום החל מתאריך {stayStartDate}.</p>
+                            <p>הפעילות בתוכנית "{stayProgramName}"{stayProgramTrack ? ` (${stayProgramTrack})` : ""} מתקיימת בימים {stayActivityDays.replace(/^(בימים|ביום)\s+/, "")} בין השעות {stayActivityHours}.</p>
+                            {stayFundingSource && <p>המימון לפעילות מוסדר באמצעות: {stayFundingSource}.</p>}
+                            {staySpecialRemarks && <p>הערות והנחיות מיוחדות: {staySpecialRemarks}</p>}
                             <p className="italic text-slate-500 bg-white border border-slate-100 rounded-xl p-3 text-[11px] my-2">
                               {programs.find(p => p.id === (patient as any)?.programId)?.participationActivityDetail || reportSettings?.participationActivityDetail || "תחומי העשייה המגוונים במסגרת שהותו בחווה כוללים: עבודה חקלאית בשדות ובחממות, גילוף בעץ ומלאכות קדומות, סדנאות יצירה ואמנות, תרגול יוגה ונשימה בקבוצה וליווי רגשי מתמשך."}
                             </p>
@@ -3982,6 +4105,36 @@ export default function PatientDetailPage() {
 
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div className="space-y-1.5">
+                          <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">1א. סטטוס התקדמות כללי:</label>
+                          <input
+                            type="text"
+                            value={periodicProgressStatus}
+                            onChange={(e) => setPeriodicProgressStatus(e.target.value)}
+                            className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-2.5 text-xs outline-none focus:border-violet-500 transition-all font-bold"
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">1ב. מידת שיתוף פעולה:</label>
+                          <input
+                            type="text"
+                            value={periodicCooperationLevel}
+                            onChange={(e) => setPeriodicCooperationLevel(e.target.value)}
+                            className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-2.5 text-xs outline-none focus:border-violet-500 transition-all font-bold"
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">1ג. תפקוד בסדנאות ועבודה חקלאית:</label>
+                          <input
+                            type="text"
+                            value={periodicWorkshopPerformance}
+                            onChange={(e) => setPeriodicWorkshopPerformance(e.target.value)}
+                            className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-2.5 text-xs outline-none focus:border-violet-500 transition-all font-bold"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="space-y-1.5">
                           <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">2. מקום ההשמה:</label>
                           <input
                             type="text"
@@ -4060,6 +4213,16 @@ export default function PatientDetailPage() {
                           onChange={(e) => setPeriodicRecommendations(e.target.value)}
                           placeholder="הזן המלצות להמשך..."
                           className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-2.5 text-xs outline-none focus:border-violet-500 transition-all font-bold min-h-[80px] text-right"
+                        />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">5א. יעד מרכזי לתקופה הבאה:</label>
+                        <textarea
+                          value={periodicNextPeriodGoal}
+                          onChange={(e) => setPeriodicNextPeriodGoal(e.target.value)}
+                          placeholder="הזן יעד מרכזי..."
+                          className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-2.5 text-xs outline-none focus:border-violet-500 transition-all font-bold min-h-[60px] text-right resize-y"
                         />
                       </div>
 

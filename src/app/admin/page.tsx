@@ -33,6 +33,7 @@ const CATEGORIES = [
     color: "text-violet-500",
     modules: [
       { title: "ניהול צוות",      desc: "אישור עובדים והרשאות",       icon: ShieldCheck,   path: "/admin/users",              color: "text-violet-500 bg-violet-500/10",  roles: ["admin","manager"] },
+      { title: "נוכחות צוות",     desc: "בקשות היעדרות ונוכחות יומית", icon: ClipboardList, path: "/admin/staff-attendance",   color: "text-violet-500 bg-violet-500/10",  roles: ["admin","manager"] },
     ],
   },
   {
@@ -47,6 +48,7 @@ const CATEGORIES = [
     color: "text-slate-500",
     modules: [
       { title: "הגדרות ראשיות",   desc: "עריכת פורמט פעילויות ולוגואים", icon: Settings,    path: "/admin/settings",           color: "text-slate-500 bg-slate-500/10",    roles: ["admin","manager"] },
+      { title: "פול מוצרים",      desc: "ניהול מאגר המוצרים לקניות",   icon: Package,     path: "/admin/shopping-pool",      color: "text-slate-500 bg-slate-500/10",    roles: ["admin","manager"] },
     ],
   },
 

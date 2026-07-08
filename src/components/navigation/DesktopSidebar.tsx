@@ -16,6 +16,7 @@ const NAV = [
   { href: "/tasks",      icon: CheckSquare,   label: "משימות ותזכורות",color: "text-indigo-400" },
   { href: "/attendance", icon: ClipboardList, label: "נוכחות",        color: "text-emerald-400" },
   { href: "/patients",   icon: Users,         label: "משתתפים",       color: "text-sky-400" },
+  { href: "/shopping",   icon: ShoppingCart,  label: "קניות",         color: "text-indigo-400" },
 ];
 
 const ADMIN_NAV = [
