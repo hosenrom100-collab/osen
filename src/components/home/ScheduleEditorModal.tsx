@@ -228,6 +228,135 @@ export function ScheduleEditorModal({ isOpen, onClose, onSaved, initialDate }: S
     setActivities(loadedActs.sort((a, b) => a.startTime.localeCompare(b.startTime)));
   };
 
+  const dayNames = ["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת"];
+
+  const getDayName = (dateStr: string) => {
+    const dateObj = new Date(dateStr);
+    const dayOfWeek = dateObj.getDay();
+    return dayNames[dayOfWeek] || "";
+  };
+
+  const handleLoadFromPreviousSameDayOfWeek = async () => {
+    if (activities.length > 0 && !window.confirm("טעינת הלו\"ז משבוע שעבר תמחוק את הפעילויות הנוכחיות ליום זה. להמשיך?")) {
+      return;
+    }
+    setLoading(true);
+    try {
+      const dateObj = new Date(selectedDate);
+      const dayOfWeekName = getDayName(selectedDate);
+      let foundActivities: ActivityItem[] = [];
+
+      // Check up to 5 weeks back
+      for (let i = 1; i <= 5; i++) {
+        const prevDate = new Date(dateObj);
+        prevDate.setDate(prevDate.getDate() - (i * 7));
+        const prevDateStr = prevDate.toISOString().split("T")[0];
+
+        const docSnap = await getDoc(doc(db, "schedules", prevDateStr));
+        if (docSnap.exists() && docSnap.data().activities?.length > 0) {
+          foundActivities = docSnap.data().activities;
+          break;
+        }
+      }
+
+      if (foundActivities.length > 0) {
+        const newActs = foundActivities.map(act => ({
+          ...act,
+          id: Math.random().toString(36).substring(2, 9)
+        }));
+        setActivities(newActs.sort((a, b) => a.startTime.localeCompare(b.startTime)));
+      } else {
+        alert(`לא נמצא לו"ז פעיל ב-5 השבועות האחרונים עבור ימי ${dayOfWeekName}`);
+      }
+    } catch (err) {
+      console.error("Error loading previous same day:", err);
+      alert("שגיאה בטעינת לו\"ז מיום קודם");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLoadFromWeeklySkeleton = async () => {
+    if (activities.length > 0 && !window.confirm("טעינת השלד השבועי תמחוק את הפעילויות הנוכחיות ליום זה. להמשיך?")) {
+      return;
+    }
+    setLoading(true);
+    try {
+      const dateObj = new Date(selectedDate);
+      const dayOfWeek = dateObj.getDay(); // 0-6
+      const dayOfWeekName = getDayName(selectedDate);
+
+      const docSnap = await getDoc(doc(db, "settings", "weekly_skeleton"));
+      if (docSnap.exists()) {
+        const weeklyData = docSnap.data().schedules || {};
+        const dayActivities = weeklyData[dayOfWeek] || [];
+        if (dayActivities.length > 0) {
+          const newActs: ActivityItem[] = dayActivities.map((act: any) => ({
+            id: Math.random().toString(36).substring(2, 9),
+            title: act.title || "",
+            startTime: act.startTime || "09:00",
+            endTime: act.endTime || "10:00",
+            locationId: act.locationId || "",
+            groupId: act.groupId || "all",
+            type: act.type || "activity",
+            staffIds: act.staffIds || []
+          }));
+          setActivities(newActs.sort((a, b) => a.startTime.localeCompare(b.startTime)));
+        } else {
+          alert(`טרם הוגדר שלד קבוע עבור ימי ${dayOfWeekName}. באפשרותך לבנות לו"ז ולשמור אותו כשלד קבוע ליום זה.`);
+        }
+      } else {
+        alert(`טרם הוגדר שלד קבוע עבור ימי ${dayOfWeekName}. באפשרותך לבנות לו"ז ולשמור אותו כשלד קבוע ליום זה.`);
+      }
+    } catch (err) {
+      console.error("Error loading weekly skeleton:", err);
+      alert("שגיאה בטעינת שלד שבועי");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSaveToWeeklySkeleton = async () => {
+    if (activities.length === 0) {
+      alert("אין פעילויות בלו\"ז הנוכחי לשמירה");
+      return;
+    }
+    const dayOfWeekName = getDayName(selectedDate);
+    if (!confirm(`האם אתה בטוח שברצונך לשמור את הלו"ז הנוכחי כברירת המחדל הקבועה עבור ימי ${dayOfWeekName}?`)) return;
+
+    try {
+      const dateObj = new Date(selectedDate);
+      const dayOfWeek = dateObj.getDay(); // 0-6
+
+      const templateActs = activities.map(act => ({
+        title: act.title,
+        startTime: act.startTime,
+        endTime: act.endTime,
+        locationId: act.locationId,
+        groupId: act.groupId,
+        type: act.type,
+        staffIds: act.staffIds
+      }));
+
+      const docSnap = await getDoc(doc(db, "settings", "weekly_skeleton"));
+      let currentSchedules = {};
+      if (docSnap.exists()) {
+        currentSchedules = docSnap.data().schedules || {};
+      }
+
+      const updatedSchedules = {
+        ...currentSchedules,
+        [dayOfWeek]: templateActs
+      };
+
+      await setDoc(doc(db, "settings", "weekly_skeleton"), { schedules: updatedSchedules }, { merge: true });
+      alert(`הלו"ז נשמר בהצלחה כשלד קבוע עבור ימי ${dayOfWeekName}`);
+    } catch (err) {
+      console.error("Error saving weekly skeleton:", err);
+      alert("שגיאה בשמירת שלד שבועי");
+    }
+  };
+
   const handleUpdateActivity = (id: string, updates: Partial<ActivityItem>) => {
     setActivities(prev => {
       const next = prev.map(a => a.id === id ? { ...a, ...updates } : a);
@@ -537,6 +666,29 @@ export function ScheduleEditorModal({ isOpen, onClose, onSaved, initialDate }: S
                       רישום חופשי (ריק)
                     </button>
                   </div>
+                </div>
+
+                {/* Weekly Template / Day-of-week Actions */}
+                <div className="flex flex-wrap items-center justify-start gap-2 bg-violet-500/[0.02] border border-violet-500/10 p-3 rounded-2xl -mt-4">
+                  <span className="text-[10px] font-black text-violet-500 shrink-0 ml-2">ימי {getDayName(selectedDate)}:</span>
+                  <button 
+                    onClick={handleLoadFromWeeklySkeleton}
+                    className="px-2.5 py-1.5 rounded-lg border border-violet-500/10 bg-white hover:bg-violet-50 text-violet-600 text-[10px] font-black transition-all shadow-sm cursor-pointer"
+                  >
+                    טען שלד קבוע ליום {getDayName(selectedDate)}
+                  </button>
+                  <button 
+                    onClick={handleLoadFromPreviousSameDayOfWeek}
+                    className="px-2.5 py-1.5 rounded-lg border border-violet-500/10 bg-white hover:bg-violet-50 text-violet-600 text-[10px] font-black transition-all shadow-sm cursor-pointer"
+                  >
+                    טען מיום {getDayName(selectedDate)} שעבר
+                  </button>
+                  <button 
+                    onClick={handleSaveToWeeklySkeleton}
+                    className="px-2.5 py-1.5 rounded-lg border border-emerald-500/10 bg-emerald-500/5 hover:bg-emerald-500/10 text-emerald-700 text-[10px] font-black transition-all shadow-sm cursor-pointer"
+                  >
+                    שמור לו"ז זה כשלד קבוע ליום {getDayName(selectedDate)}
+                  </button>
                 </div>
 
                 {/* Templates Selector Dropdown */}
