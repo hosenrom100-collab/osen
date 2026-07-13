@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  LogOut, Users, Calendar, CheckCircle,
+  LogOut, Users, User, Calendar, CheckCircle,
   Shield, MapPin, Edit3, ChevronLeft, Clock,
   ClipboardList, Layers, X, Check, ChevronDown, Plus,
   AlertTriangle, Sparkles, Bell, Coffee, Utensils, ArrowLeftRight
@@ -17,6 +17,7 @@ import {
 } from "firebase/firestore";
 import { format, addMonths, differenceInDays, parseISO, isValid } from "date-fns";
 import { he } from "date-fns/locale";
+import { ScheduleEditorModal } from "@/components/home/ScheduleEditorModal";
 
 interface GroupStat   { id: string; name: string; present: number; absent: number; total: number }
 interface PresentPat  { id: string; firstName: string; lastName: string; hosenType?: string }
@@ -145,7 +146,10 @@ export default function Home() {
   const [dutyName,        setDutyName]        = useState("");
   const [dutyId,          setDutyId]          = useState("");
   const [allStaff,        setAllStaff]        = useState<{ id: string; name: string }[]>([]);
+  const [staffMembers,    setStaffMembers]    = useState<any[]>([]);
+  const [staffAttendance, setStaffAttendance] = useState<Record<string, { status: string; reason?: string }>>({});
   const [isEditingDuty,   setIsEditingDuty]   = useState(false);
+  const [isScheduleEditorOpen, setIsScheduleEditorOpen] = useState(false);
   const [conflicts,       setConflicts]       = useState<{userId: string, userName: string, type: 'duty'|'activity'}[]>([]);
   const [expandedGroups,  setExpandedGroups]  = useState<Set<string>>(new Set());
   const [showGroupPicker, setShowGroupPicker] = useState(false);
@@ -309,27 +313,51 @@ export default function Home() {
       setUserAbsence(myAbsSnap.docs.map((d: any) => ({ id: d.id, ...d.data() })));
       setPendingAbsences(allAbsSnap.size);
 
-      // 4. Schedule
-      const [schedSnap, usersSnap, locsSnap] = await Promise.all([
+      // 4. Schedule and Staff Presence
+      const [schedSnap, usersSnap, locsSnap, staffAttSnap] = await Promise.all([
         getDoc(doc(db, "schedules", today)),
         getDocs(collection(db, "users")),
         getDocs(collection(db, "locations")),
+        getDocs(query(collection(db, "staff_attendance"), where("date", "==", today))),
       ]);
       const userMap: Record<string, string> = {};
       const staffList: { id: string; name: string }[] = [];
+      const fullStaffList: any[] = [];
       usersSnap.forEach(d => {
         const udata = d.data();
-        const name = udata.name || udata.email || "צוות";
+        const name = udata.name || udata.displayName || udata.email || "צוות";
         userMap[d.id] = name;
         const roles = udata.roles || (udata.role ? [udata.role] : []);
         const isStaff = !roles.includes("participant") && udata.role !== "participant";
         if (isStaff) {
           staffList.push({ id: d.id, name });
+          fullStaffList.push({
+            id: d.id,
+            name,
+            role: udata.role || (roles.length > 0 ? roles[0] : ""),
+            roles,
+            assignedProgramIds: udata.assignedProgramIds || [],
+            workSchedule: udata.workSchedule || {},
+          });
         }
       });
       setAllStaff(staffList);
+      setStaffMembers(fullStaffList);
+
       const locMap: Record<string, string> = {};
       locsSnap.forEach(d => { locMap[d.id] = d.data().name; });
+
+      // Process staff attendance
+      const attRec: Record<string, { status: string; reason?: string }> = {};
+      const absentStaffIds = new Set<string>();
+      staffAttSnap.forEach(d => {
+        const data = d.data();
+        attRec[data.userId] = { status: data.status, reason: data.reason };
+        if (data.status === 'absent' || data.status === 'leave') {
+          absentStaffIds.add(data.userId);
+        }
+      });
+      setStaffAttendance(attRec);
 
       if (schedSnap.exists()) {
         const data = schedSnap.data();
@@ -350,8 +378,6 @@ export default function Home() {
         setActivities(acts);
 
         if (isAdmin || isManager) {
-          const staffAttSnap = await getDocs(query(collection(db, "staff_attendance"), where("date", "==", today)));
-          const absentStaffIds = new Set(staffAttSnap.docs.filter(d => d.data().status === 'absent' || d.data().status === 'leave').map(d => d.data().userId));
           const newConflicts: {userId: string, userName: string, type: 'duty'|'activity'}[] = [];
           if (duty && absentStaffIds.has(duty)) newConflicts.push({ userId: duty, userName: userMap[duty] || duty, type: 'duty' });
           (data.activities || []).forEach((oa: any) => {
@@ -417,6 +443,54 @@ export default function Home() {
   const currentAct    = visibleActs.find(a => a.startTime <= now && (!a.endTime || a.endTime > now));
   const primaryGroup  = groups.find(g => g.id === primaryGroupId);
   const overallPct    = totalActive > 0 ? Math.round((totalPresent / totalActive) * 100) : 0;
+
+  const dayOfWeekStr = String(new Date().getDay());
+
+  const ROLE_HE: Record<string, string> = {
+    admin: "מנהל מערכת",
+    manager: "מנהל/ת חוסן",
+    social_worker: "עו״ס",
+    instructor: "מדריך/ה",
+    logistics: "לוגיסטיקה",
+    employee: "עובד/ת"
+  };
+
+  // Group staff members by program
+  const staffByProgram = programs.map(prog => {
+    const members = staffMembers.filter(s => s.assignedProgramIds?.includes(prog.id));
+    return {
+      program: prog,
+      members: members.map(m => {
+        const att = staffAttendance[m.id];
+        const hasSched = !!m.workSchedule?.[dayOfWeekStr];
+        const schedTime = hasSched ? `${m.workSchedule[dayOfWeekStr].start} - ${m.workSchedule[dayOfWeekStr].end}` : "";
+        return {
+          ...m,
+          status: att?.status || (hasSched ? "scheduled" : "offline"),
+          reason: att?.reason || "",
+          time: schedTime,
+        };
+      }).filter(m => m.status !== "offline"),
+    };
+  }).filter(p => p.members.length > 0);
+
+  // General staff members (with no program assigned)
+  const unassignedStaffMembers = staffMembers.filter(s => !s.assignedProgramIds || s.assignedProgramIds.length === 0);
+  const generalStaff = {
+    program: { id: "general", name: "צוות כללי / מטה" },
+    members: unassignedStaffMembers.map(m => {
+      const att = staffAttendance[m.id];
+      const hasSched = !!m.workSchedule?.[dayOfWeekStr];
+      const schedTime = hasSched ? `${m.workSchedule[dayOfWeekStr].start} - ${m.workSchedule[dayOfWeekStr].end}` : "";
+      return {
+        ...m,
+        status: att?.status || (hasSched ? "scheduled" : "offline"),
+        reason: att?.reason || "",
+        time: schedTime,
+      };
+    }).filter(m => m.status !== "offline")
+  };
+
 
   if (loading || !user || !isWhitelisted) {
     return (
@@ -688,9 +762,19 @@ export default function Home() {
                     <Calendar className="w-4 h-4 text-violet-500" />
                     <h2 className="text-sm font-black text-[var(--foreground)]">סדר יום ופעילויות</h2>
                   </div>
-                  <span className="text-[10px] bg-slate-500/10 text-[var(--muted)] px-2.5 py-1 rounded-full font-bold">
-                    {visibleActs.length} פעילויות מתוכננות
-                  </span>
+                  <div className="flex items-center gap-2">
+                    {(isAdmin || isManager) && (
+                      <button
+                        onClick={() => setIsScheduleEditorOpen(true)}
+                        className="text-[10px] font-black text-violet-500 hover:underline px-2.5 py-1 rounded-xl bg-violet-500/5 hover:bg-violet-500/10 border border-violet-500/10 transition-all cursor-pointer"
+                      >
+                        ערוך לו״ז
+                      </button>
+                    )}
+                    <span className="text-[10px] bg-slate-500/10 text-[var(--muted)] px-2.5 py-1 rounded-full font-bold">
+                      {visibleActs.length} פעילויות מתוכננות
+                    </span>
+                  </div>
                 </div>
                 
                 <div className="p-5">
@@ -718,8 +802,123 @@ export default function Home() {
             )}
           </section>
 
-          {/* ── Sidebar — Quick actions ── */}
+          {/* ── Sidebar — Duty Counselor, Staff Presence, Quick actions ── */}
           <aside className="space-y-4 md:order-2">
+            {/* ── Duty Counselor ── */}
+            <div className="border border-[var(--border)] rounded-3xl overflow-hidden bg-[var(--card-bg,var(--surface))] p-5 space-y-3.5 shadow-xl">
+              <div className="flex items-center justify-between">
+                <h3 className="text-[10px] font-black uppercase tracking-widest text-[var(--foreground)]/40">מדריך תורן היום</h3>
+                {(isAdmin || isManager) && (
+                  <button 
+                    onClick={() => setIsEditingDuty(!isEditingDuty)}
+                    className="text-[10px] font-black text-violet-500 hover:underline"
+                  >
+                    {isEditingDuty ? "ביטול" : "עריכה"}
+                  </button>
+                )}
+              </div>
+
+              {isEditingDuty ? (
+                <div className="space-y-2">
+                  <select
+                    value={dutyId}
+                    onChange={(e) => updateDuty(e.target.value)}
+                    className="w-full bg-[var(--background)] border border-[var(--border)] text-[var(--foreground)] rounded-xl px-3 py-2 text-xs font-bold focus:outline-none"
+                  >
+                    <option value="">-- בחר מדריך תורן --</option>
+                    {staffMembers.map(s => (
+                      <option key={s.id} value={s.id}>{s.name}</option>
+                    ))}
+                  </select>
+                </div>
+              ) : (
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-violet-500/10 text-violet-500 flex items-center justify-center border border-violet-500/20 shrink-0">
+                    <User className="w-5 h-5" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-black text-sm truncate">{dutyName || "אין מדריך תורן מוגדר"}</p>
+                    <p className="text-[9px] text-[var(--muted)] font-bold mt-0.5">מדריך תורן אחראי לניהול השוטף בחווה</p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* ── Staff Presence ── */}
+            <div className="border border-[var(--border)] rounded-3xl overflow-hidden bg-[var(--card-bg,var(--surface))] p-5 space-y-4 shadow-xl">
+              <div className="flex items-center justify-between">
+                <h3 className="text-[10px] font-black uppercase tracking-widest text-[var(--foreground)]/40">צוות היום לפי מסגרת</h3>
+                <span className="text-[9px] bg-violet-500/10 text-violet-500 px-2 py-0.5 rounded-full font-bold">
+                  {staffMembers.filter(m => staffAttendance[m.id]?.status === "present").length} נוכחים
+                </span>
+              </div>
+
+              <div className="space-y-4 max-h-[350px] overflow-y-auto pr-1 no-scrollbar text-right">
+                {/* Programs with staff */}
+                {staffByProgram.map(p => (
+                  <div key={p.program.id} className="space-y-2">
+                    <h4 className="text-xs font-black text-violet-500 border-b border-[var(--border)]/60 pb-1">{p.program.name}</h4>
+                    <div className="space-y-2">
+                      {p.members.map(m => (
+                        <div key={m.id} className="flex items-center justify-between text-xs">
+                          <div className="flex items-center gap-2">
+                            <div className={`w-2 h-2 rounded-full ${
+                              m.status === "present" ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" :
+                              m.status === "absent" ? "bg-rose-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]" :
+                              m.status === "leave" ? "bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]" :
+                              "bg-slate-400"
+                            }`} />
+                            <span className="font-bold">{m.name}</span>
+                            <span className="text-[9px] text-[var(--muted)]">({ROLE_HE[m.role] || m.role})</span>
+                          </div>
+                          <span className="text-[9px] text-[var(--muted)] font-medium">
+                            {m.status === "present" ? "נוכח" :
+                             m.status === "absent" ? "נעדר" :
+                             m.status === "leave" ? `חופשה ${m.reason ? `(${m.reason})` : ""}` :
+                             m.status === "scheduled" ? `מתוכנן: ${m.time}` : "לא רשום"}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+
+                {/* General staff */}
+                {generalStaff.members.length > 0 && (
+                  <div className="space-y-2">
+                    <h4 className="text-xs font-black text-violet-500 border-b border-[var(--border)]/60 pb-1">{generalStaff.program.name}</h4>
+                    <div className="space-y-2">
+                      {generalStaff.members.map(m => (
+                        <div key={m.id} className="flex items-center justify-between text-xs">
+                          <div className="flex items-center gap-2">
+                            <div className={`w-2 h-2 rounded-full ${
+                              m.status === "present" ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" :
+                              m.status === "absent" ? "bg-rose-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]" :
+                              m.status === "leave" ? "bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]" :
+                              "bg-slate-400"
+                            }`} />
+                            <span className="font-bold">{m.name}</span>
+                            <span className="text-[9px] text-[var(--muted)]">({ROLE_HE[m.role] || m.role})</span>
+                          </div>
+                          <span className="text-[9px] text-[var(--muted)] font-medium">
+                            {m.status === "present" ? "נוכח" :
+                             m.status === "absent" ? "נעדר" :
+                             m.status === "leave" ? `חופשה ${m.reason ? `(${m.reason})` : ""}` :
+                             m.status === "scheduled" ? `מתוכנן: ${m.time}` : "לא רשום"}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {staffByProgram.length === 0 && generalStaff.members.length === 0 && (
+                  <p className="text-[10px] text-[var(--muted)] text-center py-4 italic font-bold">אין אנשי צוות פעילים היום</p>
+                )}
+              </div>
+            </div>
+
+            {/* ── Quick Actions ── */}
             <div className="border border-[var(--border)] rounded-3xl overflow-hidden bg-[var(--card-bg,var(--surface))] p-5 space-y-4 shadow-xl">
               <h3 className="text-[10px] font-black uppercase tracking-widest text-[var(--foreground)]/40">פעולות מהירות</h3>
               <nav className="grid grid-cols-1 gap-2.5" aria-label="פעולות מהירות">
@@ -800,6 +999,13 @@ export default function Home() {
           </div>
         )}
       </AnimatePresence>
+
+      <ScheduleEditorModal
+        isOpen={isScheduleEditorOpen}
+        onClose={() => setIsScheduleEditorOpen(false)}
+        onSaved={fetchAll}
+        initialDate={format(new Date(), "yyyy-MM-dd")}
+      />
     </div>
   );
 }

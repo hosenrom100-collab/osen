@@ -2,6 +2,7 @@
 
 import { Check, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import Link from "next/link";
 
 interface AttendanceItemProps {
   patient: { id: string; firstName: string; lastName: string; phone?: string };
@@ -46,9 +47,11 @@ export function AttendanceItem({ patient, status, onToggle }: AttendanceItemProp
 
       {/* Name + status label */}
       <div className="flex-1 min-w-0">
-        <p className="font-black text-lg text-slate-800 leading-none mb-1">
-          {patient.firstName} {patient.lastName}
-        </p>
+        <Link href={`/patients/${patient.id}`} className="hover:text-emerald-500 hover:underline transition-colors cursor-pointer block">
+          <p className="font-black text-lg text-slate-800 leading-none mb-1">
+            {patient.firstName} {patient.lastName}
+          </p>
+        </Link>
         <p className={`text-[10px] font-bold transition-colors uppercase tracking-widest ${
           isPresent ? "text-emerald-500" :
           isAbsent  ? "text-rose-400" :
