@@ -2,10 +2,10 @@
 
 import React, { useState, useEffect } from "react";
 import { db } from "@/lib/firebase/config";
-import { doc, getDoc, setDoc, collection, getDocs } from "firebase/firestore";
+import { doc, getDoc, setDoc, collection, getDocs, deleteDoc } from "firebase/firestore";
 import { 
   X, Plus, Trash2, Loader2, Save, Calendar, Clock, 
-  FolderHeart, BookOpen, Layers, MapPin, User, ChevronDown, ChevronUp, Sparkles
+  FolderHeart, BookOpen, Layers, MapPin, User, ChevronDown, ChevronUp, Sparkles, Edit3
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -63,10 +63,19 @@ export function ScheduleEditorModal({ isOpen, onClose, onSaved, initialDate }: S
   const [showRepoSelector, setShowRepoSelector] = useState(false);
 
   // Tab or sections management
-  const [activeTab, setActiveTab] = useState<'schedule' | 'templates' | 'skeleton'>('schedule');
+  const [activeTab, setActiveTab] = useState<'schedule' | 'templates' | 'skeleton' | 'locations'>('schedule');
 
   // Expanded staff selector for specific activities
   const [expandedStaffSelect, setExpandedStaffSelect] = useState<string | null>(null);
+
+  // New location management states
+  const [newLocationName, setNewLocationName] = useState("");
+  const [editingLocationId, setEditingLocationId] = useState<string | null>(null);
+  const [editingLocationName, setEditingLocationName] = useState("");
+
+  // Edit template states
+  const [editingTemplateId, setEditingTemplateId] = useState<string | null>(null);
+  const [editingTemplate, setEditingTemplate] = useState<ActivityTemplate | null>(null);
 
   // Template Form State
   const [newTemplate, setNewTemplate] = useState<Omit<ActivityTemplate, "id">>({
@@ -324,6 +333,59 @@ export function ScheduleEditorModal({ isOpen, onClose, onSaved, initialDate }: S
     }
   };
 
+  const handleUpdateTemplateInRepo = async () => {
+    if (!editingTemplate || !editingTemplate.title.trim()) return;
+    const updated = templates.map(t => t.id === editingTemplate.id ? editingTemplate : t);
+    setTemplates(updated);
+    try {
+      await setDoc(doc(db, "settings", "activity_templates"), { templates: updated }, { merge: true });
+      setEditingTemplateId(null);
+      setEditingTemplate(null);
+    } catch (err) {
+      console.error(err);
+      alert("שגיאה בעדכון הפעילות");
+    }
+  };
+
+  const handleAddLocation = async () => {
+    if (!newLocationName.trim()) {
+      alert("נא להזין שם למיקום");
+      return;
+    }
+    try {
+      const newDocRef = doc(collection(db, "locations"));
+      await setDoc(newDocRef, { name: newLocationName.trim() });
+      setNewLocationName("");
+      fetchMetadata();
+    } catch (err) {
+      console.error("Error adding location:", err);
+      alert("שגיאה בהוספת המיקום");
+    }
+  };
+
+  const handleUpdateLocation = async (id: string, name: string) => {
+    if (!name.trim()) return;
+    try {
+      await setDoc(doc(db, "locations", id), { name: name.trim() }, { merge: true });
+      setEditingLocationId(null);
+      fetchMetadata();
+    } catch (err) {
+      console.error("Error updating location:", err);
+      alert("שגיאה בעדכון המיקום");
+    }
+  };
+
+  const handleDeleteLocation = async (id: string) => {
+    if (!confirm("האם למחוק מיקום זה? פעולה זו עלולה להשפיע על פעילויות קיימות.")) return;
+    try {
+      await deleteDoc(doc(db, "locations", id));
+      fetchMetadata();
+    } catch (err) {
+      console.error("Error deleting location:", err);
+      alert("שגיאה במחיקת המיקום");
+    }
+  };
+
   // ── Skeleton Management ──
 
   const handleAddActivityToSkeleton = async () => {
@@ -413,7 +475,8 @@ export function ScheduleEditorModal({ isOpen, onClose, onSaved, initialDate }: S
             {[
               { id: "schedule", name: "לו״ז יומי", icon: Calendar },
               { id: "templates", name: "מאגר פעילויות", icon: BookOpen },
-              { id: "skeleton", name: "שלד קבוע", icon: FolderHeart }
+              { id: "skeleton", name: "שלד קבוע", icon: FolderHeart },
+              { id: "locations", name: "מאגר מיקומים", icon: MapPin }
             ].map(tab => {
               const Icon = tab.icon;
               return (
@@ -728,28 +791,104 @@ export function ScheduleEditorModal({ isOpen, onClose, onSaved, initialDate }: S
                     <p className="text-xs text-[var(--muted)] italic text-center py-10 bg-[var(--foreground)]/2 rounded-2xl border">אין עדיין תבניות במאגר. השתמש בטופס למעלה להוספה.</p>
                   ) : (
                     <div className="border border-[var(--border)] rounded-[2rem] overflow-hidden divide-y divide-[var(--border)] bg-[var(--surface)]">
-                      {templates.map(tmpl => (
-                        <div key={tmpl.id} className="p-4 flex items-center justify-between gap-4 hover:bg-[var(--foreground)]/[0.01]">
-                          <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-500 flex items-center justify-center text-xs font-bold shrink-0">
-                              {ACT_TYPES.find(t => t.id === tmpl.type)?.name.charAt(0) || "פ"}
-                            </div>
-                            <div>
-                              <p className="text-xs font-black text-[var(--foreground)]">{tmpl.title}</p>
-                              <p className="text-[9px] text-[var(--muted)] font-bold mt-0.5">
-                                סוג: {ACT_TYPES.find(t => t.id === tmpl.type)?.name} | מיקום: {locations.find(l => l.id === tmpl.locationId)?.name || "לא הוגדר"}
-                              </p>
-                            </div>
+                      {templates.map(tmpl => {
+                        const isEditing = editingTemplateId === tmpl.id;
+                        return (
+                          <div key={tmpl.id} className="p-4 flex flex-col gap-3 hover:bg-[var(--foreground)]/[0.01]">
+                            {isEditing && editingTemplate ? (
+                              <div className="space-y-3 bg-[var(--foreground)]/[0.02] border border-[var(--border)] p-3 rounded-2xl">
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                  <div>
+                                    <label className="block text-[9px] font-bold text-[var(--muted)] mb-1">שם הפעילות</label>
+                                    <input
+                                      type="text"
+                                      value={editingTemplate.title}
+                                      onChange={(e) => setEditingTemplate(prev => prev ? { ...prev, title: e.target.value } : null)}
+                                      className="w-full bg-[var(--background)] border border-[var(--border)] text-xs font-bold rounded-xl px-2 py-1.5 focus:outline-none"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="block text-[9px] font-bold text-[var(--muted)] mb-1">סוג פעילות</label>
+                                    <select
+                                      value={editingTemplate.type}
+                                      onChange={(e) => setEditingTemplate(prev => prev ? { ...prev, type: e.target.value as any } : null)}
+                                      className="w-full bg-[var(--background)] border border-[var(--border)] text-xs font-bold rounded-xl px-2 py-1.5 focus:outline-none"
+                                    >
+                                      {ACT_TYPES.map(t => (
+                                        <option key={t.id} value={t.id}>{t.name}</option>
+                                      ))}
+                                    </select>
+                                  </div>
+                                  <div>
+                                    <label className="block text-[9px] font-bold text-[var(--muted)] mb-1">מיקום ברירת מחדל</label>
+                                    <select
+                                      value={editingTemplate.locationId}
+                                      onChange={(e) => setEditingTemplate(prev => prev ? { ...prev, locationId: e.target.value } : null)}
+                                      className="w-full bg-[var(--background)] border border-[var(--border)] text-xs font-bold rounded-xl px-2 py-1.5 focus:outline-none"
+                                    >
+                                      <option value="">-- בחר מיקום --</option>
+                                      {locations.map(l => (
+                                        <option key={l.id} value={l.id}>{l.name}</option>
+                                      ))}
+                                    </select>
+                                  </div>
+                                </div>
+                                <div className="flex justify-end gap-2 pt-1">
+                                  <button
+                                    onClick={() => {
+                                      setEditingTemplateId(null);
+                                      setEditingTemplate(null);
+                                    }}
+                                    className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-[10px] font-black transition-all border border-slate-200"
+                                  >
+                                    ביטול
+                                  </button>
+                                  <button
+                                    onClick={handleUpdateTemplateInRepo}
+                                    className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-[10px] font-black transition-all border border-emerald-500 shadow-sm"
+                                  >
+                                    עדכן תבנית
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="flex items-center justify-between gap-4">
+                                <div className="flex items-center gap-3">
+                                  <div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-500 flex items-center justify-center text-xs font-bold shrink-0">
+                                    {ACT_TYPES.find(t => t.id === tmpl.type)?.name.charAt(0) || "פ"}
+                                  </div>
+                                  <div>
+                                    <p className="text-xs font-black text-[var(--foreground)]">{tmpl.title}</p>
+                                    <p className="text-[9px] text-[var(--muted)] font-bold mt-0.5">
+                                      סוג: {ACT_TYPES.find(t => t.id === tmpl.type)?.name} | מיקום: {locations.find(l => l.id === tmpl.locationId)?.name || "לא הוגדר"}
+                                    </p>
+                                  </div>
+                                </div>
+                                
+                                <div className="flex items-center gap-1.5">
+                                  <button
+                                    onClick={() => {
+                                      setEditingTemplateId(tmpl.id);
+                                      setEditingTemplate(tmpl);
+                                    }}
+                                    className="w-8 h-8 rounded-lg bg-violet-500/10 text-violet-500 hover:bg-violet-500/20 flex items-center justify-center border border-violet-500/10 transition-all"
+                                    title="ערוך פעילות"
+                                  >
+                                    <Edit3 className="w-3.5 h-3.5" />
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeleteTemplateFromRepo(tmpl.id)}
+                                    className="w-8 h-8 rounded-lg bg-rose-500/10 text-rose-500 hover:bg-rose-500/20 flex items-center justify-center border border-rose-500/10 transition-all"
+                                    title="מחק פעילות"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              </div>
+                            )}
                           </div>
-                          
-                          <button
-                            onClick={() => handleDeleteTemplateFromRepo(tmpl.id)}
-                            className="w-8 h-8 rounded-lg bg-rose-500/10 text-rose-500 hover:bg-rose-500/20 flex items-center justify-center border border-rose-500/10 transition-all"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                 </div>
@@ -857,6 +996,112 @@ export function ScheduleEditorModal({ isOpen, onClose, onSaved, initialDate }: S
                           </button>
                         </div>
                       ))}
+                    </div>
+                  )}
+                </div>
+
+              </div>
+            )}
+
+            {/* TAB 4: LOCATIONS MANAGEMENT */}
+            {activeTab === "locations" && (
+              <div className="space-y-6">
+                
+                {/* Form to add new location */}
+                <div className="bg-[var(--surface-raised)] border border-[var(--border)] rounded-3xl p-5 space-y-4">
+                  <div className="flex items-center gap-2 text-violet-500">
+                    <MapPin className="w-4 h-4" />
+                    <h3 className="text-xs font-black">הוספת מיקום חדש למאגר</h3>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row items-end gap-4">
+                    <div className="flex-1">
+                      <label className="block text-[10px] font-bold text-[var(--muted)] mb-1">שם המיקום</label>
+                      <input 
+                        type="text"
+                        placeholder="למשל: חדר אוכל, חממה, מרכז למידה"
+                        value={newLocationName}
+                        onChange={(e) => setNewLocationName(e.target.value)}
+                        className="w-full bg-[var(--background)] border border-[var(--border)] text-xs font-bold rounded-2xl px-3 py-2.5 focus:outline-none focus:border-violet-500/50"
+                      />
+                    </div>
+                    <button
+                      onClick={handleAddLocation}
+                      className="flex items-center gap-1.5 px-5 py-2.5 bg-emerald-600 border border-emerald-500 hover:bg-emerald-500 text-white rounded-xl text-xs font-black shadow-md shadow-emerald-600/10 transition-all shrink-0 cursor-pointer"
+                    >
+                      <Plus className="w-4 h-4" />
+                      הוסף מיקום
+                    </button>
+                  </div>
+                </div>
+
+                {/* Locations List */}
+                <div className="space-y-3">
+                  <h3 className="text-xs font-black text-slate-700">מיקומים מוגדרים במערכת:</h3>
+                  {locations.length === 0 ? (
+                    <p className="text-xs text-[var(--muted)] italic text-center py-10 bg-[var(--foreground)]/2 rounded-2xl border">אין עדיין מיקומים במערכת. השתמש בטופס למעלה להוספה.</p>
+                  ) : (
+                    <div className="border border-[var(--border)] rounded-[2rem] overflow-hidden divide-y divide-[var(--border)] bg-[var(--surface)]">
+                      {locations.map(loc => {
+                        const isEditing = editingLocationId === loc.id;
+                        return (
+                          <div key={loc.id} className="p-4 flex items-center justify-between gap-4 hover:bg-[var(--foreground)]/[0.01]">
+                            {isEditing ? (
+                              <div className="flex items-center gap-3 w-full">
+                                <input
+                                  type="text"
+                                  value={editingLocationName}
+                                  onChange={(e) => setEditingLocationName(e.target.value)}
+                                  className="flex-1 bg-[var(--background)] border border-[var(--border)] text-xs font-bold rounded-xl px-2 py-1.5 focus:outline-none"
+                                />
+                                <button
+                                  onClick={() => {
+                                    setEditingLocationId(null);
+                                    setEditingLocationName("");
+                                  }}
+                                  className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-[10px] font-black transition-all border border-slate-200"
+                                >
+                                  ביטול
+                                </button>
+                                <button
+                                  onClick={() => handleUpdateLocation(loc.id, editingLocationName)}
+                                  className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-[10px] font-black transition-all border border-emerald-500 shadow-sm"
+                                >
+                                  שמור
+                                </button>
+                              </div>
+                            ) : (
+                              <>
+                                <div className="flex items-center gap-3">
+                                  <div className="w-8 h-8 rounded-lg bg-violet-500/10 text-violet-500 flex items-center justify-center shrink-0">
+                                    <MapPin className="w-4 h-4" />
+                                  </div>
+                                  <span className="text-xs font-black text-[var(--foreground)]">{loc.name}</span>
+                                </div>
+                                <div className="flex items-center gap-1.5">
+                                  <button
+                                    onClick={() => {
+                                      setEditingLocationId(loc.id);
+                                      setEditingLocationName(loc.name);
+                                    }}
+                                    className="w-8 h-8 rounded-lg bg-violet-500/10 text-violet-500 hover:bg-violet-500/20 flex items-center justify-center border border-violet-500/10 transition-all"
+                                    title="ערוך מיקום"
+                                  >
+                                    <Edit3 className="w-3.5 h-3.5" />
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeleteLocation(loc.id)}
+                                    className="w-8 h-8 rounded-lg bg-rose-500/10 text-rose-500 hover:bg-rose-500/20 flex items-center justify-center border border-rose-500/10 transition-all"
+                                    title="מחק מיקום"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
                 </div>
