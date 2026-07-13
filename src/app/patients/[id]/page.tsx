@@ -1518,8 +1518,14 @@ export default function PatientDetailPage() {
   if (!patient) return null;
   const patientName = patient.firstName && patient.lastName ? `${patient.firstName} ${patient.lastName}` : (patient.fullName || "משתתף ללא שם");
   
-  const progName = programs.find(p => p.id === (patient as any).programId)?.name;
-  const grpName = groups.find(g => g.id === patient.hosenType)?.name || patient.hosenType;
+  const pIds = patient.programIds || ((patient as any).programId ? [(patient as any).programId] : []);
+  const progNames = pIds.map(pid => programs.find(p => p.id === pid)?.name).filter(Boolean);
+  const progName = progNames.join(" + ");
+
+  const gIds = patient.groupIds || (patient.hosenType ? [patient.hosenType] : []);
+  const grpNames = gIds.map(gid => groups.find(g => g.id === gid)?.name || gid).filter(Boolean);
+  const grpName = grpNames.join(" · ");
+
   let rawGroupName = (progName && grpName && progName !== grpName) ? `${progName} - ${grpName}` : (progName || grpName || "כללי");
   const fullGroupName = (rawGroupName && rawGroupName !== "כללי" && !rawGroupName.startsWith("תוכנית")) ? `תוכנית ${rawGroupName}` : rawGroupName;
 
@@ -1553,7 +1559,7 @@ export default function PatientDetailPage() {
                   </span>
                 </div>
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[8px] md:text-[10px] text-slate-400 font-bold uppercase tracking-widest">
-                  <span className="text-emerald-600/80 truncate max-w-[120px] md:max-w-none">{fullGroupName}</span>
+                  <span className="text-emerald-600/80">{fullGroupName}</span>
                   <span className="w-0.5 h-0.5 rounded-full bg-slate-200" />
                   <span className="shrink-0">{patient.idNumber}</span>
                 </div>
