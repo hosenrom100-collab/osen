@@ -21,7 +21,8 @@ export default function ProfilePage() {
   const { 
     user, logout, role, workSchedule, photoURL,
     preferredProgramIds, preferredGroupIds, setPreferredPrograms, setPreferredGroups,
-    signatureTitle: savedSignatureTitle, signatureImage: savedSignatureImage
+    signatureTitle: savedSignatureTitle, signatureImage: savedSignatureImage,
+    assignedProgramIds
   } = useAuth();
   const { theme, setTheme, fontSize, setFontSize } = useSettings();
   const router = useRouter();
@@ -33,7 +34,8 @@ export default function ProfilePage() {
 
   // Work Schedule & Absence Request states
   const [isEditingSchedule, setIsEditingSchedule] = useState(false);
-  const [editingSchedule, setEditingSchedule] = useState<Record<string, { start: string; end: string }>>({});
+  const [editingSchedule, setEditingSchedule] = useState<Record<string, { start: string; end: string; programs?: Record<string, { start: string; end: string }> }>>({});
+  const [programs, setPrograms] = useState<{ id: string; name: string }[]>([]);
   const [absenceDate, setAbsenceDate] = useState("");
   const [absenceReason, setAbsenceReason] = useState("");
   const [absenceRequests, setAbsenceRequests] = useState<any[]>([]);
@@ -45,6 +47,18 @@ export default function ProfilePage() {
       fetchAbsences();
     }
   }, [user]);
+
+  useEffect(() => {
+    const fetchPrograms = async () => {
+      try {
+        const snap = await getDocs(collection(db, "programs"));
+        setPrograms(snap.docs.map(d => ({ id: d.id, name: d.data().name })));
+      } catch (e) {
+        console.error("Error fetching programs:", e);
+      }
+    };
+    fetchPrograms();
+  }, []);
 
   const fetchAbsences = async () => {
     if (!user) return;
@@ -423,50 +437,127 @@ export default function ProfilePage() {
                         const dayActive = !!editingSchedule[d.id];
                         const scheduleForDay = editingSchedule[d.id] || { start: "08:00", end: "16:00" };
                         return (
-                          <div key={d.id} className="flex items-center justify-between p-3 rounded-2xl bg-[var(--foreground)]/[0.02] border border-[var(--border)]/55">
-                            <label className="flex items-center gap-3 cursor-pointer select-none">
-                              <input 
-                                type="checkbox"
-                                checked={dayActive}
-                                onChange={() => {
-                                  const copy = { ...editingSchedule };
-                                  if (copy[d.id]) {
-                                    delete copy[d.id];
-                                  } else {
-                                    copy[d.id] = { start: "08:00", end: "16:00" };
-                                  }
-                                  setEditingSchedule(copy);
-                                }}
-                                className="w-5 h-5 rounded-lg border-[var(--border)] text-rose-600 focus:ring-rose-500/20"
-                              />
-                              <span className="text-sm font-bold text-[var(--foreground)]">{d.label}</span>
-                            </label>
-                            {dayActive && (
-                              <div className="flex items-center gap-2">
-                                <span className="text-[10px] text-[var(--foreground)]/40 font-bold">משעה</span>
+                          <div key={d.id} className="flex flex-col p-4 rounded-2xl bg-[var(--foreground)]/[0.02] border border-[var(--border)]/55 gap-3">
+                            <div className="flex items-center justify-between">
+                              <label className="flex items-center gap-3 cursor-pointer select-none">
                                 <input 
-                                  type="time"
-                                  value={scheduleForDay.start}
-                                  onChange={(e) => {
-                                    setEditingSchedule(prev => ({
-                                      ...prev,
-                                      [d.id]: { ...prev[d.id], start: e.target.value }
-                                    }));
+                                  type="checkbox"
+                                  checked={dayActive}
+                                  onChange={() => {
+                                    const copy = { ...editingSchedule };
+                                    if (copy[d.id]) {
+                                      delete copy[d.id];
+                                    } else {
+                                      copy[d.id] = { start: "08:00", end: "16:00" };
+                                    }
+                                    setEditingSchedule(copy);
                                   }}
-                                  className="bg-[var(--background)] border border-[var(--border)] rounded-lg px-2 py-1 text-xs font-bold focus:border-rose-500 outline-none"
+                                  className="w-5 h-5 rounded-lg border-[var(--border)] text-rose-600 focus:ring-rose-500/20"
                                 />
-                                <span className="text-[10px] text-[var(--foreground)]/40 font-bold">עד שעה</span>
-                                <input 
-                                  type="time"
-                                  value={scheduleForDay.end}
-                                  onChange={(e) => {
-                                    setEditingSchedule(prev => ({
-                                      ...prev,
-                                      [d.id]: { ...prev[d.id], end: e.target.value }
-                                    }));
-                                  }}
-                                  className="bg-[var(--background)] border border-[var(--border)] rounded-lg px-2 py-1 text-xs font-bold focus:border-rose-500 outline-none"
-                                />
+                                <span className="text-sm font-bold text-[var(--foreground)]">{d.label}</span>
+                              </label>
+                              
+                              {dayActive && (
+                                <div className="flex items-center gap-2">
+                                  <span className="text-[10px] text-[var(--foreground)]/40 font-bold">משעה</span>
+                                  <input 
+                                    type="time"
+                                    value={scheduleForDay.start}
+                                    onChange={(e) => {
+                                      setEditingSchedule(prev => ({
+                                        ...prev,
+                                        [d.id]: { ...prev[d.id], start: e.target.value }
+                                      }));
+                                    }}
+                                    className="bg-[var(--background)] border border-[var(--border)] rounded-lg px-2 py-1 text-xs font-bold focus:border-rose-500 outline-none"
+                                  />
+                                  <span className="text-[10px] text-[var(--foreground)]/40 font-bold">עד שעה</span>
+                                  <input 
+                                    type="time"
+                                    value={scheduleForDay.end}
+                                    onChange={(e) => {
+                                      setEditingSchedule(prev => ({
+                                        ...prev,
+                                        [d.id]: { ...prev[d.id], end: e.target.value }
+                                      }));
+                                    }}
+                                    className="bg-[var(--background)] border border-[var(--border)] rounded-lg px-2 py-1 text-xs font-bold focus:border-rose-500 outline-none"
+                                  />
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Program specific schedule */}
+                            {dayActive && assignedProgramIds && assignedProgramIds.length > 0 && (
+                              <div className="mt-2 border-t border-[var(--border)]/30 pt-3 space-y-2 pr-4 border-r-2 border-violet-500/20 mr-4">
+                                <p className="text-[10px] font-black text-violet-500 uppercase tracking-wider mb-1">שעות ספציפיות לפי מסגרת (אופציונלי):</p>
+                                {assignedProgramIds.map(progId => {
+                                  const progName = programs.find(p => p.id === progId)?.name || progId;
+                                  const progSched = scheduleForDay.programs?.[progId];
+                                  const isProgActive = !!progSched;
+                                  const progStart = progSched?.start || "08:00";
+                                  const progEnd = progSched?.end || "16:00";
+
+                                  return (
+                                    <div key={progId} className="flex items-center justify-between text-xs py-1.5 border-b border-[var(--border)]/10 last:border-0 text-right">
+                                      <label className="flex items-center gap-2 cursor-pointer select-none">
+                                        <input 
+                                          type="checkbox"
+                                          checked={isProgActive}
+                                          onChange={() => {
+                                            setEditingSchedule(prev => {
+                                              const dayCopy = { ...prev[d.id] };
+                                              const progCopy = { ...dayCopy.programs };
+                                              if (isProgActive) {
+                                                delete progCopy[progId];
+                                              } else {
+                                                progCopy[progId] = { start: "08:00", end: "16:00" };
+                                              }
+                                              dayCopy.programs = progCopy;
+                                              return { ...prev, [d.id]: dayCopy };
+                                            });
+                                          }}
+                                          className="w-4 h-4 rounded border-[var(--border)] text-violet-500 focus:ring-violet-500/20"
+                                        />
+                                        <span className="font-bold text-[var(--foreground)]">{progName}</span>
+                                      </label>
+                                      {isProgActive && (
+                                        <div className="flex items-center gap-1.5">
+                                          <span className="text-[9px] text-[var(--foreground)]/40">מ-</span>
+                                          <input 
+                                            type="time"
+                                            value={progStart}
+                                            onChange={(e) => {
+                                              setEditingSchedule(prev => {
+                                                const dayCopy = { ...prev[d.id] };
+                                                const progCopy = { ...dayCopy.programs };
+                                                progCopy[progId] = { ...progCopy[progId], start: e.target.value };
+                                                dayCopy.programs = progCopy;
+                                                return { ...prev, [d.id]: dayCopy };
+                                              });
+                                            }}
+                                            className="bg-[var(--background)] border border-[var(--border)] rounded-md px-1.5 py-0.5 text-[10px] font-bold focus:border-violet-500 outline-none"
+                                          />
+                                          <span className="text-[9px] text-[var(--foreground)]/40">עד-</span>
+                                          <input 
+                                            type="time"
+                                            value={progEnd}
+                                            onChange={(e) => {
+                                              setEditingSchedule(prev => {
+                                                const dayCopy = { ...prev[d.id] };
+                                                const progCopy = { ...dayCopy.programs };
+                                                progCopy[progId] = { ...progCopy[progId], end: e.target.value };
+                                                dayCopy.programs = progCopy;
+                                                return { ...prev, [d.id]: dayCopy };
+                                              });
+                                            }}
+                                            className="bg-[var(--background)] border border-[var(--border)] rounded-md px-1.5 py-0.5 text-[10px] font-bold focus:border-violet-500 outline-none"
+                                          />
+                                        </div>
+                                      )}
+                                    </div>
+                                  );
+                                })}
                               </div>
                             )}
                           </div>
@@ -491,12 +582,30 @@ export default function ProfilePage() {
                       </div>
                       <div className="mt-6 pt-6 border-t border-[var(--border)]/40 space-y-2">
                         <p className="text-xs font-black text-[var(--foreground)]/30 uppercase tracking-widest">שעות עבודה מוגדרות:</p>
-                        {DAYS.filter(d => workSchedule?.[d.id]).map(d => (
-                          <div key={d.id} className="flex justify-between items-center text-xs font-bold bg-[var(--foreground)]/[0.01] p-2 rounded-lg">
-                            <span>יום {d.label}</span>
-                            <span className="text-[var(--muted)]">{workSchedule?.[d.id]?.start} - {workSchedule?.[d.id]?.end}</span>
-                          </div>
-                        ))}
+                        {DAYS.filter(d => workSchedule?.[d.id]).map(d => {
+                          const sched = workSchedule?.[d.id];
+                          return (
+                            <div key={d.id} className="flex flex-col gap-1.5 bg-[var(--foreground)]/[0.01] p-3 rounded-xl border border-[var(--border)]/20 text-right">
+                              <div className="flex justify-between items-center text-xs font-bold">
+                                <span>יום {d.label}</span>
+                                <span className="text-[var(--muted)]">{sched?.start} - {sched?.end}</span>
+                              </div>
+                              {sched?.programs && Object.keys(sched.programs).length > 0 && (
+                                <div className="space-y-1.5 mt-2 pr-3 border-r-2 border-violet-500/10 mr-3 text-[10px] text-slate-500 font-bold">
+                                  {Object.entries(sched.programs).map(([progId, pSched]) => {
+                                    const progName = programs.find(p => p.id === progId)?.name || progId;
+                                    return (
+                                      <div key={progId} className="flex justify-between items-center">
+                                        <span>{progName}:</span>
+                                        <span>{pSched.start} - {pSched.end}</span>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
                         {DAYS.filter(d => workSchedule?.[d.id]).length === 0 && (
                           <p className="text-xs text-[var(--foreground)]/40 italic">לא הוגדרו ימי עבודה קבועים.</p>
                         )}

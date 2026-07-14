@@ -31,7 +31,8 @@ interface AuthContextType {
   isWhitelisted:   boolean;
   photoURL?:       string;
   phoneNumber?:    string;
-  workSchedule?:   Record<string, { start: string, end: string }>;
+  workSchedule?:   Record<string, { start: string, end: string, programs?: Record<string, { start: string, end: string }> }>;
+  assignedProgramIds: string[];
   onboardingComplete?: boolean;
   signatureTitle?: string;
   signatureImage?: string;
@@ -60,7 +61,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isWhitelisted,  setIsWhitelisted]  = useState(false);
   const [phoneNumber,    setPhoneNumber]    = useState<string | undefined>();
   const [photoURL,       setPhotoURL]       = useState<string | undefined>();
-  const [workSchedule,   setWorkSchedule]   = useState<Record<string, { start: string, end: string }> | undefined>();
+  const [workSchedule,   setWorkSchedule]   = useState<Record<string, { start: string, end: string, programs?: Record<string, { start: string, end: string }> }> | undefined>();
+  const [assignedProgramIds, setAssignedProgramIds] = useState<string[]>([]);
   const [onboardingComplete, setOnboardingComplete] = useState<boolean>(false);
   const [signatureTitle, setSignatureTitleState] = useState<string | undefined>();
   const [signatureImage, setSignatureImageState] = useState<string | undefined>();
@@ -117,6 +119,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setPhoneNumber(data.phone);
       setPhotoURL(data.photoURL || firebaseUser.photoURL || undefined);
       setWorkSchedule(data.workSchedule);
+      setAssignedProgramIds(data.assignedProgramIds || []);
       setOnboardingComplete(!!data.onboardingComplete);
       setSignatureTitleState(data.signatureTitle || undefined);
       setSignatureImageState(data.signatureImage || undefined);
@@ -297,6 +300,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       isAdmin, isManager, isLogistics, isInstructor, isEmployee, isParticipant, isWhitelisted,
       phoneNumber, photoURL, workSchedule, onboardingComplete,
       signatureTitle, signatureImage,
+      assignedProgramIds,
       login, logout
     }}>
       {children}

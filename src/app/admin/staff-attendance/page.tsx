@@ -60,6 +60,7 @@ export default function StaffAttendancePage() {
   const [staff, setStaff] = useState<StaffProfile[]>([]);
   const [absences, setAbsences] = useState<AbsenceRequest[]>([]);
   const [attendance, setAttendance] = useState<Record<string, StaffAttendanceRecord>>({});
+  const [programs, setPrograms] = useState<{ id: string; name: string }[]>([]);
   
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
@@ -104,6 +105,10 @@ export default function StaffAttendancePage() {
         attRecord[data.userId] = { id: d.id, ...data } as StaffAttendanceRecord;
       });
       setAttendance(attRecord);
+
+      // 4. Fetch programs catalog
+      const progSnap = await getDocs(collection(db, "programs"));
+      setPrograms(progSnap.docs.map(d => ({ id: d.id, name: d.data().name })));
     } catch (err) {
       console.error("Error loading staff attendance data:", err);
     } finally {
@@ -368,9 +373,24 @@ export default function StaffAttendancePage() {
                             <span className="text-[10px] font-black text-violet-500 bg-violet-500/5 px-2 py-0.5 rounded-md">
                               {ROLE_HE[member.role || ""] || member.role || "עובד"}
                             </span>
-                            <span className="text-[10px] font-bold text-[var(--muted)]">
-                              {hasSchedule ? `לו״ז: ${schedule.start} - ${schedule.end}` : "לא מתוכנן לעבוד היום"}
-                            </span>
+                            <div className="flex flex-col gap-0.5">
+                              <span className="text-[10px] font-bold text-[var(--muted)]">
+                                {hasSchedule ? `לו״ז כללי: ${schedule.start} - ${schedule.end}` : "לא מתוכנן לעבוד היום"}
+                              </span>
+                              {hasSchedule && (schedule as any).programs && Object.keys((schedule as any).programs).length > 0 && (
+                                <div className="flex items-center gap-1.5 flex-wrap text-[9px] text-violet-500 font-bold mt-0.5">
+                                  <span>פירוט מסגרות:</span>
+                                  {Object.entries((schedule as any).programs).map(([progId, pSched]: any) => {
+                                    const progName = programs.find(p => p.id === progId)?.name || progId;
+                                    return (
+                                      <span key={progId} className="bg-violet-500/5 px-1.5 py-0.5 rounded">
+                                        {progName}: {pSched.start} - {pSched.end}
+                                      </span>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
                           </div>
                         </div>
                       </div>

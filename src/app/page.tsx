@@ -462,11 +462,28 @@ export default function Home() {
       program: prog,
       members: members.map(m => {
         const att = staffAttendance[m.id];
-        const hasSched = !!m.workSchedule?.[dayOfWeekStr];
-        const schedTime = hasSched ? `${m.workSchedule[dayOfWeekStr].start} - ${m.workSchedule[dayOfWeekStr].end}` : "";
+        const daySched = m.workSchedule?.[dayOfWeekStr];
+        const hasSched = !!daySched;
+        let schedTime = "";
+        let isScheduledForProg = hasSched;
+
+        if (hasSched) {
+          const hasSpecificProgs = daySched.programs && Object.keys(daySched.programs).length > 0;
+          if (hasSpecificProgs) {
+            const progSched = daySched.programs[prog.id];
+            if (progSched) {
+              schedTime = `${progSched.start} - ${progSched.end}`;
+            } else {
+              isScheduledForProg = false;
+            }
+          } else {
+            schedTime = `${daySched.start} - ${daySched.end}`;
+          }
+        }
+
         return {
           ...m,
-          status: att?.status || (hasSched ? "scheduled" : "offline"),
+          status: att?.status || (isScheduledForProg ? "scheduled" : "offline"),
           reason: att?.reason || "",
           time: schedTime,
         };
