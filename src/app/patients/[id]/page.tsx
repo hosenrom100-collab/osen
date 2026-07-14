@@ -155,7 +155,7 @@ function deserializePlanData(text: string): RehabPlanData {
 
 export default function PatientDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const { isAdmin, isManager, user: authUser, signatureTitle, signatureImage } = useAuth();
+  const { isAdmin, isManager, user: authUser, signatureTitle, signatureImage, role } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   const reportRef = useRef<HTMLDivElement>(null);
@@ -215,6 +215,12 @@ export default function PatientDetailPage() {
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
+
+  useEffect(() => {
+    if (role === "logistics" && activeTab !== "attendance" && activeTab !== "certificates") {
+      setActiveTab("certificates");
+    }
+  }, [role, activeTab]);
 
   // Recipient and PDF modal states
   const [showRecipientModal, setShowRecipientModal] = useState(false);
@@ -1537,7 +1543,7 @@ export default function PatientDetailPage() {
   };
 
   return (
-    <RoleGuard allowedRoles={["admin", "manager", "instructor", "social_worker"]} redirectTo="/login">
+    <RoleGuard allowedRoles={["admin", "manager", "social_worker", "logistics"]} redirectTo="/login">
       <div dir="rtl" className="min-h-screen bg-[var(--background)] text-[var(--foreground)]">
         
         <header className="sticky top-0 z-40 bg-[var(--background)]/70 backdrop-blur-2xl border-b border-[var(--border)]">
@@ -1683,7 +1689,7 @@ export default function PatientDetailPage() {
                { id: "attendance", label: "נוכחות", icon: History },
                { id: "certificates", label: "אישורים", icon: Shield },
                { id: "reports", label: "דוחות", icon: FileText },
-             ].map((tab) => (
+             ].filter(tab => !(role === "logistics" && (tab.id === "overview" || tab.id === "reports"))).map((tab) => (
                <button 
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as any)}
@@ -1700,7 +1706,7 @@ export default function PatientDetailPage() {
           </div>
 
           <AnimatePresence mode="wait">
-            {activeTab === "overview" && (
+            {activeTab === "overview" && role !== "logistics" && (
               <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} key="overview" className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
 
                  {/* Left Column: Personal & Contact Details */}
@@ -2389,7 +2395,7 @@ export default function PatientDetailPage() {
               </motion.div>
             )}
  
-            {activeTab === "reports" && (
+            {activeTab === "reports" && role !== "logistics" && (
               <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} key="reports" className="space-y-6">
                 
                 {/* Visual Header */}

@@ -15,7 +15,7 @@ import { motion, AnimatePresence } from "framer-motion";
 export function BottomNav() {
   const pathname = usePathname();
   const router = useRouter();
-  const { logout, user } = useAuth();
+  const { logout, user, role } = useAuth();
   const { theme, setTheme } = useSettings();
 
   // Dialog overlay state
@@ -51,12 +51,19 @@ export function BottomNav() {
       isActive: pathname === "/attendance" || pathname.startsWith("/admin/patient-attendance")
     },
     {
+      key: "shopping",
+      label: "קניות",
+      icon: ShoppingCart,
+      href: "/shopping",
+      isActive: pathname.startsWith("/shopping")
+    },
+    ...(role !== "instructor" ? [{
       key: "patients",
       label: "משתתפים",
       icon: User,
       href: "/patients",
       isActive: pathname.startsWith("/patients")
-    },
+    }] : []),
     {
       key: "menu",
       label: "תפריט",

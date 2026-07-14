@@ -63,7 +63,7 @@ export function DesktopSidebar() {
         <div>
           <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--foreground)]/30 px-4 mb-4">מרחב עבודה</p>
           <div className="space-y-1">
-            {NAV.map(({ href, icon: Icon, label }) => {
+            {NAV.filter(item => !(item.href === "/patients" && role === "instructor")).map(({ href, icon: Icon, label }) => {
               const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
               return (
                 <Link key={href} href={href}

@@ -18,6 +18,8 @@ import { motion, AnimatePresence, LayoutGroup } from "framer-motion";
 import { useRouter } from "next/navigation";
 import * as XLSX from "xlsx";
 import { sendPush } from "@/lib/notify";
+import { generateShoppingListWord, generateDocxWithLetterhead } from "@/lib/word-generator";
+import { format } from "date-fns";
 
 interface ShoppingRequest {
   id: string;
@@ -73,6 +75,18 @@ export default function ShoppingPage() {
   const [overlayOpen, setOverlayOpen] = useState(false);
   const [addUrgent, setAddUrgent]   = useState(false);
   const [justAdded, setJustAdded]   = useState<string | null>(null);
+  const [toast, setToast] = useState<{ message: string; type: "success" | "warning" } | null>(null);
+
+  const showToast = (message: string, type: "success" | "warning") => {
+    setToast({ message, type });
+  };
+
+  useEffect(() => {
+    if (toast) {
+      const timer = setTimeout(() => setToast(null), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [toast]);
 
   // Quick edit modal state
   const [editItem, setEditItem]     = useState<ShoppingRequest | null>(null);
@@ -224,7 +238,11 @@ export default function ShoppingPage() {
 
   const addProduct = async (name: string, category = "כללי", priority: "normal" | "urgent" = "normal") => {
     const dup = requests.some((r) => r.name === name && r.status !== "archived");
-    if (dup) { flash(pool.find((p) => p.name === name)?.id ?? "dup"); return; }
+    if (dup) {
+      showToast("המוצר כבר הוזמן לרשימה הנוכחית! במידת הצורך, ניתן להגדיל את הכמות שלו ברשימה.", "warning");
+      flash(pool.find((p) => p.name === name)?.id ?? "dup");
+      return;
+    }
     const docId = name.replace(/\//g, "-");
     try { await setDoc(doc(db, "product_pool", docId), { name, category }, { merge: true }); } catch { /* ignore pool write fail for non-managers */ }
     await addDoc(collection(db, "shopping_requests"), {
@@ -240,6 +258,7 @@ export default function ShoppingPage() {
         link: "/shopping",
       });
     }
+    showToast("המוצר הוזמן בהצלחה! ניתן להגדיל את הכמות שלו ברשימה במידת הצורך.", "success");
     flash(docId);
     if (!pool.some((p) => p.name === name)) fetchPool();
   };
@@ -301,6 +320,31 @@ export default function ShoppingPage() {
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "ארכיון רכש");
     XLSX.writeFile(wb, `ארכיון_רכש_${new Date().toLocaleDateString("he-IL").replace(/\//g, "-")}.xlsx`);
+  };
+
+  const exportWord = async () => {
+    try {
+      const activeSession = requests.filter((r) => r.status !== "archived");
+      const sortedItems = [...activeSession].sort((a, b) => a.category.localeCompare(b.category));
+
+      const itemsToExport = sortedItems.map(r => ({
+        name: r.name,
+        category: r.category,
+        quantity: r.quantity || "1",
+        notes: r.notes || "",
+        requestedByName: r.requestedByName || ""
+      }));
+
+      const dateStr = format(new Date(), "dd/MM/yyyy");
+      const doc = generateShoppingListWord(itemsToExport, {
+        date: dateStr
+      });
+
+      const fileName = `רשימת_קניות_${format(new Date(), "yyyy-MM-dd")}.docx`;
+      await generateDocxWithLetterhead(doc, fileName);
+    } catch (e) {
+      console.error("Failed to generate Word document", e);
+    }
   };
 
   const activeRequests = requests.filter((r) => r.status === "approved" || r.status === "pending");
@@ -387,7 +431,15 @@ export default function ShoppingPage() {
              <button onClick={() => setView(view === "list" ? "archive" : "list")} className="px-6 py-2.5 rounded-2xl bg-[var(--foreground)]/5 border border-[var(--border)] text-xs font-black hover:bg-[var(--foreground)]/10 transition-all">
                 {view === "list" ? "ארכיון קניות" : "רשימה פעילה"}
              </button>
-             {isAdmin && <button onClick={exportXlsx} title="ייצוא לאקסל" className="p-2.5 rounded-2xl bg-[var(--foreground)]/5 border border-[var(--border)] hover:bg-[var(--foreground)]/10 transition-all"><Download className="w-5 h-5 text-[var(--muted)]" /></button>}
+             <button 
+               onClick={exportWord} 
+               title="ייצוא לוורד רשמי" 
+               className="px-4 py-2.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-700 hover:bg-emerald-100 transition-all flex items-center gap-1.5 text-xs font-bold cursor-pointer"
+             >
+               <Download className="w-4 h-4 text-emerald-600" />
+               <span>הורדת טופס וורד</span>
+             </button>
+             {isAdmin && <button onClick={exportXlsx} title="ייצוא לאקסל" className="p-2.5 rounded-2xl bg-[var(--foreground)]/5 border border-[var(--border)] hover:bg-[var(--foreground)]/10 transition-all cursor-pointer"><Download className="w-5 h-5 text-[var(--muted)]" /></button>}
           </div>
         </header>
 
@@ -805,6 +857,28 @@ export default function ShoppingPage() {
                      </div>
                   </motion.div>
                </div>
+            )}
+          </AnimatePresence>
+
+          <AnimatePresence>
+            {toast && (
+              <motion.div
+                initial={{ opacity: 0, y: 50, scale: 0.9 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 20, scale: 0.9 }}
+                className={`fixed bottom-24 left-1/2 -translate-x-1/2 z-50 px-6 py-4 rounded-2xl shadow-xl flex items-center gap-3 max-w-md w-[90%] border backdrop-blur-md ${
+                  toast.type === "success"
+                    ? "bg-emerald-50 border-emerald-200 text-emerald-800"
+                    : "bg-amber-50 border-amber-200 text-amber-800"
+                }`}
+              >
+                {toast.type === "success" ? (
+                  <CheckCircle2 className="w-5 h-5 shrink-0 text-emerald-600" />
+                ) : (
+                  <Flame className="w-5 h-5 shrink-0 text-amber-600 animate-pulse" />
+                )}
+                <span className="text-xs font-black leading-relaxed">{toast.message}</span>
+              </motion.div>
             )}
           </AnimatePresence>
       </div>

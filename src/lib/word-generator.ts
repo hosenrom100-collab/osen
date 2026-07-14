@@ -1007,3 +1007,123 @@ export const generateFunctionalReportWord = (data: FunctionalReportData): any =>
 
   return createDocxDocument(children, data.logoHeaderData, data.logoFooterData);
 };
+
+export interface ShoppingListExportData {
+  name: string;
+  category: string;
+  quantity: string;
+  notes?: string;
+  requestedByName?: string;
+}
+
+export const generateShoppingListWord = (
+  items: ShoppingListExportData[],
+  metadata: {
+    date: string;
+    logoHeaderData?: Uint8Array;
+    logoFooterData?: Uint8Array;
+  }
+): any => {
+  const children: any[] = [
+    createParagraph(`תאריך: ${metadata.date}`, { alignment: AlignmentType.END, bold: true }),
+    createSpacer(120),
+    createParagraph("רשימת קניות - חוות רום", { alignment: AlignmentType.CENTER, bold: true, size: 30, spacingAfter: 240 }),
+  ];
+
+  const tableRows = [
+    new TableRow({
+      children: [
+        new TableCell({
+          width: { size: 30, type: WidthType.PERCENTAGE },
+          margins: { top: 80, bottom: 80, left: 80, right: 80 },
+          children: [createParagraph("מוצר", { bold: true, alignment: AlignmentType.CENTER })]
+        }),
+        new TableCell({
+          width: { size: 20, type: WidthType.PERCENTAGE },
+          margins: { top: 80, bottom: 80, left: 80, right: 80 },
+          children: [createParagraph("קטגוריה", { bold: true, alignment: AlignmentType.CENTER })]
+        }),
+        new TableCell({
+          width: { size: 10, type: WidthType.PERCENTAGE },
+          margins: { top: 80, bottom: 80, left: 80, right: 80 },
+          children: [createParagraph("כמות", { bold: true, alignment: AlignmentType.CENTER })]
+        }),
+        new TableCell({
+          width: { size: 25, type: WidthType.PERCENTAGE },
+          margins: { top: 80, bottom: 80, left: 80, right: 80 },
+          children: [createParagraph("הערות", { bold: true, alignment: AlignmentType.CENTER })]
+        }),
+        new TableCell({
+          width: { size: 15, type: WidthType.PERCENTAGE },
+          margins: { top: 80, bottom: 80, left: 80, right: 80 },
+          children: [createParagraph("מזמין", { bold: true, alignment: AlignmentType.CENTER })]
+        }),
+      ]
+    })
+  ];
+
+  if (items.length > 0) {
+    items.forEach((item) => {
+      tableRows.push(
+        new TableRow({
+          children: [
+            new TableCell({
+              width: { size: 30, type: WidthType.PERCENTAGE },
+              margins: { top: 60, bottom: 60, left: 60, right: 60 },
+              children: [createParagraph(item.name || "—", { alignment: AlignmentType.START })]
+            }),
+            new TableCell({
+              width: { size: 20, type: WidthType.PERCENTAGE },
+              margins: { top: 60, bottom: 60, left: 60, right: 60 },
+              children: [createParagraph(item.category || "—", { alignment: AlignmentType.CENTER })]
+            }),
+            new TableCell({
+              width: { size: 10, type: WidthType.PERCENTAGE },
+              margins: { top: 60, bottom: 60, left: 60, right: 60 },
+              children: [createParagraph(item.quantity || "1", { alignment: AlignmentType.CENTER })]
+            }),
+            new TableCell({
+              width: { size: 25, type: WidthType.PERCENTAGE },
+              margins: { top: 60, bottom: 60, left: 60, right: 60 },
+              children: [createParagraph(item.notes || "—", { alignment: AlignmentType.START })]
+            }),
+            new TableCell({
+              width: { size: 15, type: WidthType.PERCENTAGE },
+              margins: { top: 60, bottom: 60, left: 60, right: 60 },
+              children: [createParagraph(item.requestedByName || "—", { alignment: AlignmentType.CENTER })]
+            }),
+          ]
+        })
+      );
+    });
+  } else {
+    tableRows.push(
+      new TableRow({
+        children: [
+          new TableCell({
+            columnSpan: 5,
+            width: { size: 100, type: WidthType.PERCENTAGE },
+            margins: { top: 120, bottom: 120 },
+            children: [createParagraph("אין פריטים ברשימת הקניות הנוכחית", { alignment: AlignmentType.CENTER })]
+          })
+        ]
+      })
+    );
+  }
+
+  const table = new Table({
+    visuallyRightToLeft: true,
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    borders: tableBorders,
+    rows: tableRows
+  });
+
+  children.push(table);
+  children.push(createSpacer(180));
+
+  children.push(createParagraph("בברכה,", { spacingAfter: 60 }));
+  children.push(createParagraph("מירב סארמילי", { bold: true, spacingAfter: 30 }));
+  children.push(createParagraph("מנהלת תפעול, חוות רום", { spacingAfter: 30 }));
+
+  return createDocxDocument(children, metadata.logoHeaderData, metadata.logoFooterData);
+};

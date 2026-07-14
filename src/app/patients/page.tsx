@@ -724,7 +724,7 @@ export default function PatientsPage() {
     ((selectedFilters.statuses && (selectedFilters.statuses.length !== 1 || selectedFilters.statuses[0] !== "active")) ? 1 : 0);
 
   return (
-    <RoleGuard allowedRoles={["admin", "manager", "instructor", "social_worker", "employee"]} redirectTo="/">
+    <RoleGuard allowedRoles={["admin", "manager", "social_worker", "employee", "logistics"]} redirectTo="/">
       <main className="min-h-screen bg-[var(--background)] text-[var(--foreground)] p-4 md:p-8">
         
         {/* Page Header */}
