@@ -53,6 +53,62 @@ const CAT_COLOR: Record<string, string> = {
   "כללי":                 "text-slate-400 bg-slate-400/10 border border-slate-400/20",
 };
 
+const getLevenshteinDistance = (a: string, b: string): number => {
+  const matrix = [];
+  for (let i = 0; i <= b.length; i++) matrix[i] = [i];
+  for (let j = 0; j <= a.length; j++) matrix[0][j] = j;
+  for (let i = 1; i <= b.length; i++) {
+    for (let j = 1; j <= a.length; j++) {
+      if (b.charAt(i - 1) === a.charAt(j - 1)) {
+        matrix[i][j] = matrix[i - 1][j - 1];
+      } else {
+        matrix[i][j] = Math.min(
+          matrix[i - 1][j - 1] + 1, // substitution
+          matrix[i][j - 1] + 1,     // insertion
+          matrix[i - 1][j] + 1      // deletion
+        );
+      }
+    }
+  }
+  return matrix[b.length][a.length];
+};
+
+const normalizeHebrewString = (str: string): string => {
+  return str
+    .trim()
+    .replace(/["'׳״\-]/g, "") // remove quotes, hyphens, apostrophes
+    .replace(/\s+/g, " ")    // collapse multiple spaces
+    .toLowerCase()
+    .split(" ")
+    .map(word => {
+      if (word.startsWith("ה") && word.length > 3) {
+        return word.substring(1);
+      }
+      return word;
+    })
+    .join(" ");
+};
+
+const findSimilarRequest = (name: string, activeRequestsList: { name: string }[]): string | null => {
+  const normName = normalizeHebrewString(name);
+  if (!normName) return null;
+
+  for (const r of activeRequestsList) {
+    const normActive = normalizeHebrewString(r.name);
+    if (normName === normActive) return r.name;
+
+    const distance = getLevenshteinDistance(normName, normActive);
+    const minLength = Math.min(normName.length, normActive.length);
+
+    const maxAllowedDistance = minLength >= 6 ? 2 : (minLength >= 4 ? 1 : 0);
+
+    if (distance <= maxAllowedDistance && minLength > 2) {
+      return r.name;
+    }
+  }
+  return null;
+};
+
 function CatBadge({ cat }: { cat: string }) {
   const cls = CAT_COLOR[cat] ?? CAT_COLOR["כללי"];
   return (
@@ -237,10 +293,12 @@ export default function ShoppingPage() {
   };
 
   const addProduct = async (name: string, category = "כללי", priority: "normal" | "urgent" = "normal") => {
-    const dup = requests.some((r) => r.name === name && r.status !== "archived");
-    if (dup) {
-      showToast("המוצר כבר הוזמן לרשימה הנוכחית! במידת הצורך, ניתן להגדיל את הכמות שלו ברשימה.", "warning");
-      flash(pool.find((p) => p.name === name)?.id ?? "dup");
+    const activeRequestsList = requests.filter((r) => r.status !== "archived");
+    const similarName = findSimilarRequest(name, activeRequestsList);
+    if (similarName) {
+      showToast(`המוצר כבר הוזמן לרשימה בשם דומה: "${similarName}"! ניתן להגדיל את הכמות שלו ברשימה.`, "warning");
+      const match = pool.find((p) => p.name === similarName || p.name === name);
+      flash(match?.id ?? "dup");
       return;
     }
     const docId = name.replace(/\//g, "-");
