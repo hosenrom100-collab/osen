@@ -134,7 +134,7 @@ function TimelineRow({
 export default function Home() {
   const {
     user, loading, isWhitelisted, logout, photoURL,
-    isAdmin, isManager, role, assignedGroups, primaryGroupId, setPrimaryGroupId,
+    isAdmin, isManager, role, roles, assignedGroups, primaryGroupId, setPrimaryGroupId,
     preferredProgramIds, preferredGroupIds,
   } = useAuth();
   const router = useRouter();
@@ -164,6 +164,7 @@ export default function Home() {
   const [activeShoppingCount, setActiveShoppingCount] = useState(0);
 
   const showAll = isAdmin || isManager;
+  const isStrictAdmin = isAdmin && !(roles || []).some(r => r === "social_worker" || r === "instructor" || r === "employee" || r === "logistics");
 
   useEffect(() => {
     if (!loading && (!user || !isWhitelisted)) router.push("/login");
@@ -539,7 +540,7 @@ export default function Home() {
   const firstName  = user.displayName?.split(" ")[0] ?? "שלום";
   const todayLabel = format(new Date(), "EEEE, d בMMMM", { locale: he });
 
-  const quickActions = isAdmin
+  const quickActions = isStrictAdmin
     ? [
         { href: "/admin/staff-attendance", icon: ClipboardList, label: "אישורי היעדרות", color: "text-amber-500 bg-amber-500/5 hover:bg-amber-500/10 border-amber-500/10 hover:border-amber-500/20" },
         { href: "/shopping",               icon: ShoppingCart,  label: "קניות",          color: "text-indigo-500 bg-indigo-500/5 hover:bg-indigo-500/10 border-indigo-500/10 hover:border-indigo-500/20" },
@@ -548,7 +549,7 @@ export default function Home() {
     : [
         { href: "/attendance", icon: ClipboardList, label: "נוכחות", color: "text-emerald-500 bg-emerald-500/5 hover:bg-emerald-500/10 border-emerald-500/10 hover:border-emerald-500/20" },
         { href: "/patients",   icon: Users,         label: "משתתפים ותיקים", color: "text-blue-500 bg-blue-500/5 hover:bg-blue-500/10 border-blue-500/10 hover:border-blue-500/20" },
-        ...(isManager ? [{ href: "/admin", icon: Shield, label: "ממשק ניהול ובקרה", color: "text-slate-300 bg-[var(--foreground)]/5 border-[var(--border)] hover:bg-[var(--foreground)]/8" }] : []),
+        ...((isAdmin || isManager) ? [{ href: "/admin", icon: Shield, label: "ממשק ניהול ובקרה", color: "text-slate-300 bg-[var(--foreground)]/5 border-[var(--border)] hover:bg-[var(--foreground)]/8" }] : []),
       ];
 
   return (
@@ -749,7 +750,7 @@ export default function Home() {
 
           {/* ── Attendance by group — PRIMARY column ── */}
           <section className="md:order-1 space-y-6">
-            {isAdmin ? (
+            {isStrictAdmin ? (
               <>
                 {/* ── Absence Approvals Summary ── */}
                 <div className="border border-[var(--border)] rounded-3xl overflow-hidden bg-[var(--card-bg,var(--surface))] shadow-xl">
@@ -937,7 +938,7 @@ export default function Home() {
 
           {/* ── Sidebar — Duty Counselor, Staff Presence, Quick actions ── */}
           <aside className="space-y-4 md:order-2">
-            {!isAdmin && (
+            {!isStrictAdmin && (
               <>
                 {/* ── Duty Counselor ── */}
                 <div className="border border-[var(--border)] rounded-3xl overflow-hidden bg-[var(--card-bg,var(--surface))] p-5 space-y-3.5 shadow-xl">
