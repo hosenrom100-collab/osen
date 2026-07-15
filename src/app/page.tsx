@@ -116,7 +116,7 @@ function TimelineRow({
               <MapPin className="w-2.5 h-2.5" />{act.locationName}
             </span>
           )}
-          {act.staffNames.length > 0 && (
+          {isCurrent && act.staffNames.length > 0 && (
             <span className="text-[10px] text-[var(--muted)] truncate max-w-[160px]">{act.staffNames.join(", ")}</span>
           )}
         </div>
@@ -453,7 +453,11 @@ export default function Home() {
   const totalMissing  = visibleStats.reduce((n, s) => n + Math.max(0, s.total - s.present - s.absent), 0);
   const totalActive   = visibleStats.reduce((n, s) => n + s.total, 0);
   const now           = format(new Date(), "HH:mm");
-  const visibleActs   = activities.filter(a => isGroupVisible(a.groupId) || a.groupId === "all");
+  const visibleActs   = activities.filter(a => {
+    const isPast = (a.endTime ?? a.startTime) < now;
+    if (isPast) return false;
+    return isGroupVisible(a.groupId) || a.groupId === "all";
+  });
   const nextAct       = visibleActs.find(a => a.startTime > now);
   const currentAct    = visibleActs.find(a => a.startTime <= now && (!a.endTime || a.endTime > now));
   const primaryGroup  = groups.find(g => g.id === primaryGroupId);

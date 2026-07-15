@@ -52,7 +52,7 @@ const ROLE_COLORS: Record<UserRole, string> = {
 };
 
 export default function UserManagementPage() {
-  const { user } = useAuth();
+  const { user: currentUser, isAdmin } = useAuth();
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [submittingAbsenceId, setSubmittingAbsenceId] = useState<string | null>(null);
   const [absenceDates, setAbsenceDates] = useState<Record<string, string>>({});
@@ -128,6 +128,25 @@ export default function UserManagementPage() {
     } catch (err) {
       console.error("Error deleting pre-created user:", err);
       alert("שגיאה במחיקת עובד");
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  const handleDeleteRegisteredUser = async (userId: string, userName: string) => {
+    if (userId === currentUser?.uid) {
+      alert("אינך יכול למחוק את המשתמש של עצמך");
+      return;
+    }
+    if (!confirm(`האם אתה בטוח שברצונך למחוק לחלוטין את העובד "${userName}" מהמערכת? פעולה זו תמחק אותו לצמיתות.`)) return;
+    setUpdatingId(userId);
+    try {
+      await deleteDoc(doc(db, "users", userId));
+      setUsers(prev => prev.filter(u => u.id !== userId));
+      alert("המשתמש נמחק בהצלחה");
+    } catch (err) {
+      console.error("Error deleting registered user:", err);
+      alert("שגיאה במחיקת המשתמש");
     } finally {
       setUpdatingId(null);
     }
@@ -252,8 +271,8 @@ export default function UserManagementPage() {
         reason,
         status: "approved", // Pre-approved when entered by manager/admin
         createdAt: new Date().toISOString(),
-        createdBy: user?.uid || "admin",
-        createdByName: user?.displayName || user?.email || "מנהל"
+        createdBy: currentUser?.uid || "admin",
+        createdByName: currentUser?.displayName || currentUser?.email || "מנהל"
       });
       setAbsenceDates(prev => ({ ...prev, [targetUser.id]: "" }));
       setAbsenceReasons(prev => ({ ...prev, [targetUser.id]: "" }));
@@ -551,27 +570,53 @@ export default function UserManagementPage() {
                                     מחק
                                   </button>
                                 ) : user.status === "pending" ? (
-                                  <button
-                                    onClick={() => setShowConfirmModal({ open: true, type: "approve", user })}
-                                    className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-[10px] font-black transition-colors"
-                                  >
-                                    אשר גישה
-                                  </button>
+                                  <>
+                                    <button
+                                      onClick={() => setShowConfirmModal({ open: true, type: "approve", user })}
+                                      className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-[10px] font-black transition-colors"
+                                    >
+                                      אשר גישה
+                                    </button>
+                                    {isAdmin && user.id !== currentUser?.uid && (
+                                      <button
+                                        type="button"
+                                        onClick={() => handleDeleteRegisteredUser(user.id, user.name)}
+                                        className="p-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 border border-rose-500/20 rounded-lg transition-all shrink-0 cursor-pointer flex items-center gap-1 text-[10px] font-black"
+                                        title="מחק משתמש לצמיתות"
+                                      >
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                        מחק
+                                      </button>
+                                    )}
+                                  </>
                                 ) : (
-                                  <button
-                                    onClick={() => setShowConfirmModal({ 
-                                      open: true, 
-                                      type: user.status === "blocked" ? "unblock" : "block", 
-                                      user 
-                                    })}
-                                    className={`px-3 py-1.5 rounded-lg text-[10px] font-black border transition-colors ${
-                                      user.status === "blocked"
-                                        ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-500 hover:bg-emerald-500/20"
-                                        : "bg-rose-500/10 border-rose-500/20 text-rose-500 hover:bg-rose-500/20"
-                                    }`}
-                                  >
-                                    {user.status === "blocked" ? "שחרר חסימה" : "חסום גישה"}
-                                  </button>
+                                  <>
+                                    <button
+                                      onClick={() => setShowConfirmModal({ 
+                                        open: true, 
+                                        type: user.status === "blocked" ? "unblock" : "block", 
+                                        user 
+                                      })}
+                                      className={`px-3 py-1.5 rounded-lg text-[10px] font-black border transition-colors ${
+                                        user.status === "blocked"
+                                          ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-500 hover:bg-emerald-500/20"
+                                          : "bg-rose-500/10 border-rose-500/20 text-rose-500 hover:bg-rose-500/20"
+                                      }`}
+                                    >
+                                      {user.status === "blocked" ? "שחרר חסימה" : "חסום גישה"}
+                                    </button>
+                                    {isAdmin && user.id !== currentUser?.uid && (
+                                      <button
+                                        type="button"
+                                        onClick={() => handleDeleteRegisteredUser(user.id, user.name)}
+                                        className="p-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 border border-rose-500/20 rounded-lg transition-all shrink-0 cursor-pointer flex items-center gap-1 text-[10px] font-black"
+                                        title="מחק משתמש לצמיתות"
+                                      >
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                        מחק
+                                      </button>
+                                    )}
+                                  </>
                                 )}
                               </div>
                             </td>

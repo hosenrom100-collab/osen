@@ -632,63 +632,70 @@ export function ScheduleEditorModal({ isOpen, onClose, onSaved, initialDate }: S
             {activeTab === "schedule" && (
               <div className="space-y-6">
                 
-                {/* Date Selection and Top Actions */}
-                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-[var(--foreground)]/5 border border-[var(--border)] p-4 rounded-3xl">
-                  <div className="flex items-center gap-3">
-                    <span className="text-xs font-black text-[var(--muted)] shrink-0">תאריך לעריכה:</span>
-                    <input 
-                      type="date" 
-                      value={selectedDate} 
-                      onChange={(e) => setSelectedDate(e.target.value)}
-                      className="bg-[var(--surface)] border border-[var(--border)] text-xs font-black rounded-xl px-3 py-2 focus:outline-none cursor-pointer"
-                    />
+                {/* Control Panel: Date and Quick Actions */}
+                <div className="bg-[var(--surface-raised)] border border-[var(--border)] rounded-[2rem] p-5 space-y-4 shadow-sm">
+                  <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                    {/* Date Picker */}
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs font-black text-[var(--muted)]">תאריך:</span>
+                      <input 
+                        type="date" 
+                        value={selectedDate} 
+                        onChange={(e) => setSelectedDate(e.target.value)}
+                        className="bg-[var(--surface)] border border-[var(--border)] text-xs font-black rounded-xl px-3 py-2.5 focus:outline-none cursor-pointer text-[var(--foreground)]"
+                      />
+                      <span className="text-xs font-bold text-violet-500 bg-violet-500/10 px-3 py-1.5 rounded-xl">
+                        יום {getDayName(selectedDate)}
+                      </span>
+                    </div>
+
+                    {/* Primary Add Actions */}
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <button 
+                        onClick={handleAddFreeText}
+                        className="px-4 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white text-xs font-black transition-all flex items-center gap-1.5 shadow-md shadow-violet-600/10 active:scale-95 border-none cursor-pointer"
+                      >
+                        <Plus className="w-4 h-4 text-white" />
+                        פעילות חדשה
+                      </button>
+                      <button 
+                        onClick={() => setShowRepoSelector(!showRepoSelector)}
+                        className="px-4 py-2.5 rounded-xl border border-emerald-500/20 bg-emerald-500/5 text-emerald-500 hover:bg-emerald-500/10 text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer"
+                      >
+                        <Plus className="w-4 h-4" />
+                        הוסף ממאגר פעילויות
+                      </button>
+                    </div>
                   </div>
 
-                  <div className="flex items-center gap-2 flex-wrap">
+                  {/* Quick Load & Templates Toolbar */}
+                  <div className="border-t border-[var(--border)]/40 pt-4 flex flex-wrap items-center gap-2">
+                    <span className="text-[10px] font-black text-[var(--muted)] uppercase tracking-wider ml-2">טעינה ושכפול:</span>
                     <button 
                       onClick={handleLoadSkeleton}
-                      className="px-3.5 py-2 rounded-xl border border-violet-500/20 bg-violet-500/5 text-violet-500 hover:bg-violet-500/10 text-xs font-black transition-all"
+                      className="px-3 py-2 rounded-xl bg-[var(--foreground)]/5 border border-[var(--border)] text-[var(--muted)] hover:bg-[var(--foreground)]/10 text-[10px] font-bold transition-all cursor-pointer"
                     >
-                      טען שלד קבוע
+                      שלד קבוע (כללי)
                     </button>
                     <button 
-                      onClick={() => setShowRepoSelector(!showRepoSelector)}
-                      className="px-3.5 py-2 rounded-xl border border-emerald-500/20 bg-emerald-500/5 text-emerald-500 hover:bg-emerald-500/10 text-xs font-black transition-all flex items-center gap-1"
+                      onClick={handleLoadFromWeeklySkeleton}
+                      className="px-3 py-2 rounded-xl bg-[var(--foreground)]/5 border border-[var(--border)] text-[var(--muted)] hover:bg-[var(--foreground)]/10 text-[10px] font-bold transition-all cursor-pointer"
                     >
-                      <Plus className="w-3.5 h-3.5" />
-                      הוסף ממאגר פעילויות
+                      שלד של יום {getDayName(selectedDate)}
                     </button>
                     <button 
-                      onClick={handleAddFreeText}
-                      className="px-3.5 py-2 rounded-xl border border-[var(--border)] bg-[var(--surface-raised)] hover:bg-[var(--foreground)]/5 text-xs font-black transition-all flex items-center gap-1"
+                      onClick={handleLoadFromPreviousSameDayOfWeek}
+                      className="px-3 py-2 rounded-xl bg-[var(--foreground)]/5 border border-[var(--border)] text-[var(--muted)] hover:bg-[var(--foreground)]/10 text-[10px] font-bold transition-all cursor-pointer"
                     >
-                      <Plus className="w-3.5 h-3.5 text-slate-400" />
-                      רישום חופשי (ריק)
+                      שבוע שעבר (יום {getDayName(selectedDate)})
+                    </button>
+                    <button 
+                      onClick={handleSaveToWeeklySkeleton}
+                      className="px-3 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 hover:bg-emerald-500/15 text-[10px] font-black transition-all cursor-pointer mr-auto"
+                    >
+                      שמור כשלד קבוע ליום {getDayName(selectedDate)}
                     </button>
                   </div>
-                </div>
-
-                {/* Weekly Template / Day-of-week Actions */}
-                <div className="flex flex-wrap items-center justify-start gap-2 bg-violet-500/[0.02] border border-violet-500/10 p-3 rounded-2xl -mt-4">
-                  <span className="text-[10px] font-black text-violet-500 shrink-0 ml-2">ימי {getDayName(selectedDate)}:</span>
-                  <button 
-                    onClick={handleLoadFromWeeklySkeleton}
-                    className="px-2.5 py-1.5 rounded-lg border border-violet-500/10 bg-white hover:bg-violet-50 text-violet-600 text-[10px] font-black transition-all shadow-sm cursor-pointer"
-                  >
-                    טען שלד קבוע ליום {getDayName(selectedDate)}
-                  </button>
-                  <button 
-                    onClick={handleLoadFromPreviousSameDayOfWeek}
-                    className="px-2.5 py-1.5 rounded-lg border border-violet-500/10 bg-white hover:bg-violet-50 text-violet-600 text-[10px] font-black transition-all shadow-sm cursor-pointer"
-                  >
-                    טען מיום {getDayName(selectedDate)} שעבר
-                  </button>
-                  <button 
-                    onClick={handleSaveToWeeklySkeleton}
-                    className="px-2.5 py-1.5 rounded-lg border border-emerald-500/10 bg-emerald-500/5 hover:bg-emerald-500/10 text-emerald-700 text-[10px] font-black transition-all shadow-sm cursor-pointer"
-                  >
-                    שמור לו"ז זה כשלד קבוע ליום {getDayName(selectedDate)}
-                  </button>
                 </div>
 
                 {/* Templates Selector Dropdown */}
@@ -723,140 +730,150 @@ export function ScheduleEditorModal({ isOpen, onClose, onSaved, initialDate }: S
                 {/* Activities List */}
                 <div className="space-y-4">
                   {loading ? (
-                    <div className="py-20 flex flex-col items-center gap-2 opacity-55">
-                      <Loader2 className="w-7 h-7 text-violet-500 animate-spin" />
-                      <span className="text-xs font-bold">טוען את נתוני הלו״ז...</span>
-                    </div>
+                     <div className="py-20 flex flex-col items-center gap-2 opacity-55">
+                       <Loader2 className="w-7 h-7 text-violet-500 animate-spin" />
+                       <span className="text-xs font-bold">טוען את נתוני הלו״ז...</span>
+                     </div>
                   ) : activities.length === 0 ? (
-                    <div className="py-16 text-center border border-dashed border-[var(--border)] rounded-[2.5rem] bg-[var(--surface-raised)] space-y-3">
-                      <Calendar className="w-10 h-10 text-[var(--muted)] mx-auto opacity-30 stroke-1" />
-                      <p className="text-xs font-black">אין פעילויות מוגדרות ליום זה</p>
-                      <p className="text-[10px] text-[var(--muted)] font-bold">לחץ על כפתור טעינת שלד קבוע או הוסף פעילות חדשה למעלה</p>
-                    </div>
+                     <div className="py-16 text-center border border-dashed border-[var(--border)] rounded-[2.5rem] bg-[var(--surface-raised)] space-y-3">
+                       <Calendar className="w-10 h-10 text-[var(--muted)] mx-auto opacity-30 stroke-1" />
+                       <p className="text-xs font-black">אין פעילויות מוגדרות ליום זה</p>
+                       <p className="text-[10px] text-[var(--muted)] font-bold">לחץ על כפתור טעינת שלד קבוע או הוסף פעילות חדשה למעלה</p>
+                     </div>
                   ) : (
-                    <div className="space-y-3">
-                      {activities.map((act) => (
-                        <div 
-                          key={act.id}
-                          className="bg-[var(--surface-raised)] border border-[var(--border)] rounded-3xl p-5 relative group/item hover:border-violet-500/20 transition-all shadow-sm"
-                        >
-                          <div className="grid grid-cols-1 md:grid-cols-[120px_1fr_120px_120px_1fr_40px] gap-4 items-center">
-                            
-                            {/* Times */}
-                            <div className="flex items-center gap-1 bg-[var(--background)] border border-[var(--border)] rounded-2xl px-2 py-1">
-                              <input 
-                                type="text"
-                                placeholder="00:00"
-                                value={act.startTime}
-                                onChange={(e) => handleUpdateActivity(act.id, { startTime: e.target.value })}
-                                className="w-12 text-center bg-transparent border-none text-xs font-black outline-none focus:text-violet-500"
-                              />
-                              <span className="text-[10px] text-[var(--muted)] font-bold">-</span>
-                              <input 
-                                type="text"
-                                placeholder="00:00"
-                                value={act.endTime}
-                                onChange={(e) => handleUpdateActivity(act.id, { endTime: e.target.value })}
-                                className="w-12 text-center bg-transparent border-none text-xs font-black outline-none focus:text-violet-500"
-                              />
-                            </div>
+                     <div className="space-y-4">
+                       {activities.map((act) => (
+                         <div 
+                           key={act.id}
+                           className="bg-[var(--surface-raised)] border border-[var(--border)] rounded-[2rem] p-5 relative hover:shadow-md hover:border-violet-500/25 transition-all space-y-4 text-right"
+                         >
+                           {/* Card Header: Times, Type, and Delete */}
+                           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border)]/40 pb-3">
+                             <div className="flex items-center gap-3">
+                               {/* Times Inputs */}
+                               <div className="flex items-center gap-1 bg-[var(--background)] border border-[var(--border)] rounded-xl px-2.5 py-1.5 shadow-inner">
+                                 <Clock className="w-3.5 h-3.5 text-violet-500" />
+                                 <input 
+                                   type="text"
+                                   placeholder="09:00"
+                                   value={act.startTime}
+                                   onChange={(e) => handleUpdateActivity(act.id, { startTime: e.target.value })}
+                                   className="w-12 text-center bg-transparent border-none text-xs font-black outline-none focus:text-violet-500 p-0 text-[var(--foreground)]"
+                                 />
+                                 <span className="text-[10px] text-[var(--muted)] font-black">-</span>
+                                 <input 
+                                   type="text"
+                                   placeholder="10:00"
+                                   value={act.endTime}
+                                   onChange={(e) => handleUpdateActivity(act.id, { endTime: e.target.value })}
+                                   className="w-12 text-center bg-transparent border-none text-xs font-black outline-none focus:text-violet-500 p-0 text-[var(--foreground)]"
+                                 />
+                               </div>
 
-                            {/* Title */}
-                            <div>
-                              <input 
-                                type="text"
-                                placeholder="שם הפעילות..."
-                                value={act.title}
-                                onChange={(e) => handleUpdateActivity(act.id, { title: e.target.value })}
-                                className="w-full bg-[var(--background)] border border-[var(--border)] text-xs font-bold rounded-2xl px-3 py-2 focus:outline-none focus:border-violet-500/50"
-                              />
-                            </div>
+                               {/* Activity Type Dropdown */}
+                               <div className="relative">
+                                 <select
+                                   value={act.type}
+                                   onChange={(e) => handleUpdateActivity(act.id, { type: e.target.value as any })}
+                                   className={`appearance-none text-xs font-black rounded-xl px-3 py-1.5 pr-8 border outline-none cursor-pointer ${
+                                     ACT_TYPES.find(t => t.id === act.type)?.color || "bg-[var(--background)] border-[var(--border)] text-[var(--foreground)]"
+                                   }`}
+                                 >
+                                   {ACT_TYPES.map(t => (
+                                     <option key={t.id} value={t.id} className="bg-[var(--surface)] text-[var(--foreground)] font-bold">{t.name}</option>
+                                   ))}
+                                 </select>
+                                 <ChevronDown className="w-3 h-3 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none opacity-50" />
+                               </div>
+                             </div>
 
-                            {/* Type */}
-                            <div>
-                              <select
-                                value={act.type}
-                                onChange={(e) => handleUpdateActivity(act.id, { type: e.target.value as any })}
-                                className="w-full bg-[var(--background)] border border-[var(--border)] text-xs font-bold rounded-2xl px-3 py-2 focus:outline-none focus:border-violet-500/50"
-                              >
-                                {ACT_TYPES.map(t => (
-                                  <option key={t.id} value={t.id}>{t.name}</option>
-                                ))}
-                              </select>
-                            </div>
+                             {/* Delete Button */}
+                             <button 
+                               onClick={() => handleDeleteActivity(act.id)}
+                               className="w-9 h-9 rounded-xl bg-rose-500/5 hover:bg-rose-500/10 text-rose-500 border border-rose-500/10 hover:border-rose-500/20 flex items-center justify-center transition-all active:scale-90 cursor-pointer"
+                               title="מחק פעילות"
+                             >
+                               <Trash2 className="w-4 h-4" />
+                             </button>
+                           </div>
 
-                            {/* Location */}
-                            <div>
-                              <select
-                                value={act.locationId}
-                                onChange={(e) => handleUpdateActivity(act.id, { locationId: e.target.value })}
-                                className="w-full bg-[var(--background)] border border-[var(--border)] text-xs font-bold rounded-2xl px-3 py-2 focus:outline-none focus:border-violet-500/50"
-                              >
-                                <option value="">-- מיקום --</option>
-                                {locations.map(l => (
-                                  <option key={l.id} value={l.id}>{l.name}</option>
-                                ))}
-                              </select>
-                            </div>
+                           {/* Card Body: Title input, Location & Group select */}
+                           <div className="space-y-3">
+                             <input 
+                               type="text"
+                               placeholder="מהי הפעילות? (למשל: ריכוז בוקר, טיפול בגינה, שיחת צוות...)"
+                               value={act.title}
+                               onChange={(e) => handleUpdateActivity(act.id, { title: e.target.value })}
+                               className="w-full bg-[var(--background)] border border-[var(--border)] text-xs font-bold rounded-2xl px-4 py-3 focus:outline-none focus:border-violet-500/50 text-[var(--foreground)] shadow-sm"
+                             />
 
-                            {/* Group */}
-                            <div>
-                              <select
-                                value={act.groupId}
-                                onChange={(e) => handleUpdateActivity(act.id, { groupId: e.target.value })}
-                                className="w-full bg-[var(--background)] border border-[var(--border)] text-xs font-bold rounded-2xl px-3 py-2 focus:outline-none focus:border-violet-500/50"
-                              >
-                                <option value="all">כלל המשתתפים</option>
-                                <option value="staff_only">צוות בלבד</option>
-                                {groups.map(g => (
-                                  <option key={g.id} value={g.id}>{g.name}</option>
-                                ))}
-                              </select>
-                            </div>
+                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                               {/* Location Selector */}
+                               <div className="relative">
+                                 <select
+                                   value={act.locationId}
+                                   onChange={(e) => handleUpdateActivity(act.id, { locationId: e.target.value })}
+                                   className="w-full bg-[var(--background)] border border-[var(--border)] text-xs font-bold rounded-2xl px-4 py-2.5 pr-8 focus:outline-none focus:border-violet-500/50 appearance-none cursor-pointer text-[var(--foreground)] shadow-sm"
+                                 >
+                                   <option value="" className="text-[var(--muted)]">-- בחר מיקום --</option>
+                                   {locations.map(l => (
+                                     <option key={l.id} value={l.id}>{l.name}</option>
+                                   ))}
+                                 </select>
+                                 <MapPin className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400" />
+                               </div>
 
-                            {/* Delete */}
-                            <div className="flex justify-center">
-                              <button 
-                                onClick={() => handleDeleteActivity(act.id)}
-                                className="w-10 h-10 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 flex items-center justify-center transition-all active:scale-90 shadow-sm border border-rose-500/10"
-                                title="מחק פעילות"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            </div>
+                               {/* Group Selector */}
+                               <div className="relative">
+                                 <select
+                                   value={act.groupId}
+                                   onChange={(e) => handleUpdateActivity(act.id, { groupId: e.target.value })}
+                                   className="w-full bg-[var(--background)] border border-[var(--border)] text-xs font-bold rounded-2xl px-4 py-2.5 pr-8 focus:outline-none focus:border-violet-500/50 appearance-none cursor-pointer text-[var(--foreground)] shadow-sm"
+                                 >
+                                   <option value="all">כלל המשתתפים</option>
+                                   <option value="staff_only">צוות בלבד</option>
+                                   {groups.map(g => (
+                                     <option key={g.id} value={g.id}>{g.name}</option>
+                                   ))}
+                                 </select>
+                                 <Layers className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400" />
+                               </div>
+                             </div>
+                           </div>
 
-                          </div>
+                           {/* Card Footer: Assigned Staff */}
+                           <div className="border-t border-[var(--border)]/40 pt-3 flex flex-col sm:flex-row sm:items-center gap-3">
+                             <span className="text-[10px] font-black text-[var(--muted)] flex items-center gap-1 shrink-0">
+                               <User className="w-3.5 h-3.5 text-violet-500" />
+                               אנשי צוות משויכים:
+                             </span>
 
-                          {/* Staff selection inline */}
-                          <div className="mt-3 pt-3 border-t border-[var(--border)]/40 flex flex-wrap items-center gap-2">
-                            <span className="text-[10px] font-black text-[var(--muted)] flex items-center gap-1 shrink-0">
-                              <User className="w-3 h-3" />
-                              צוות משויך:
-                            </span>
-
-                            <div className="flex items-center gap-1.5 flex-wrap">
-                              {staff.map(member => {
-                                const isAssigned = act.staffIds?.includes(member.id);
-                                return (
-                                  <button
-                                    key={member.id}
-                                    onClick={() => toggleStaffInActivity(act.id, member.id)}
-                                    className={`px-3 py-1 rounded-xl text-[10px] font-bold border transition-all active:scale-95 ${
-                                      isAssigned
-                                        ? "bg-violet-600 text-white border-violet-500 shadow-md shadow-violet-600/10"
-                                        : "bg-[var(--surface)] text-[var(--muted)] border-[var(--border)] hover:bg-[var(--foreground)]/5"
-                                    }`}
-                                  >
-                                    {member.name}
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          </div>
-
-                        </div>
-                      ))}
-                    </div>
+                             <div className="flex items-center gap-1.5 flex-wrap">
+                               {staff.length === 0 ? (
+                                 <span className="text-[10px] text-[var(--muted)] italic">אין אנשי צוות זמינים</span>
+                               ) : (
+                                 staff.map(member => {
+                                   const isAssigned = act.staffIds?.includes(member.id);
+                                   return (
+                                     <button
+                                       key={member.id}
+                                       onClick={() => toggleStaffInActivity(act.id, member.id)}
+                                       className={`px-3 py-1.5 rounded-xl text-[10px] font-bold border transition-all active:scale-95 cursor-pointer ${
+                                         isAssigned
+                                           ? "bg-violet-600 text-white border-violet-500 shadow-md shadow-violet-600/10 font-black"
+                                           : "bg-[var(--surface)] text-[var(--muted)] border-[var(--border)] hover:bg-[var(--foreground)]/5"
+                                       }`}
+                                     >
+                                       {member.name}
+                                     </button>
+                                   );
+                                 })
+                               )}
+                             </div>
+                           </div>
+                         </div>
+                       ))}
+                     </div>
                   )}
                 </div>
 

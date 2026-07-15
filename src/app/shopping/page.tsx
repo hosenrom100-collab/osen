@@ -160,6 +160,8 @@ export default function ShoppingPage() {
 
   const [newCatName, setNewCatName] = useState("");
   const [isAddingCat, setIsAddingCat] = useState(false);
+  const [editingCatName, setEditingCatName] = useState<string | null>(null);
+  const [editingCatNewValue, setEditingCatNewValue] = useState("");
 
   // Category Filter State
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
@@ -406,10 +408,75 @@ export default function ShoppingPage() {
     const next = [...categories, name];
     setCategories(next);
     setNewCatName("");
-    setIsAddingCat(false);
     try {
       await setDoc(doc(db, "settings", "shopping"), { categories: next }, { merge: true });
-    } catch (e) { console.error(e); }
+      showToast("קטגוריה נוספה בהצלחה!", "success");
+    } catch (e) {
+      console.error(e);
+      showToast("שגיאה בהוספת קטגוריה", "warning");
+    }
+  };
+
+  const handleRenameCategory = async (oldName: string, newName: string) => {
+    const trimmedNew = newName.trim();
+    if (!trimmedNew || trimmedNew === oldName || categories.includes(trimmedNew)) {
+      setEditingCatName(null);
+      return;
+    }
+    const next = categories.map(c => c === oldName ? trimmedNew : c);
+    setCategories(next);
+    setEditingCatName(null);
+    try {
+      await setDoc(doc(db, "settings", "shopping"), { categories: next }, { merge: true });
+      
+      // Update existing active and purchased requests' category
+      const activeToUpdate = requests.filter(r => r.category === oldName);
+      await Promise.all(activeToUpdate.map(r => 
+        updateDoc(doc(db, "shopping_requests", r.id), { category: trimmedNew })
+      ));
+      
+      // Update existing product pool categories
+      const poolToUpdate = pool.filter(p => p.category === oldName);
+      await Promise.all(poolToUpdate.map(p => 
+        updateDoc(doc(db, "product_pool", p.id), { category: trimmedNew })
+      ));
+      
+      showToast("הקטגוריה עודכנה בהצלחה!", "success");
+    } catch (e) {
+      console.error(e);
+      showToast("שגיאה בעדכון הקטגוריה", "warning");
+    }
+  };
+
+  const handleDeleteCategory = async (catName: string) => {
+    if (categories.length <= 1) {
+      alert("חייבת להיות לפחות קטגוריה אחת במערכת");
+      return;
+    }
+    if (!confirm(`האם אתה בטוח שברצונך למחוק את הקטגוריה "${catName}"? מוצרים המשויכים אליה יועברו לקטגוריה "כללי".`)) return;
+    
+    const next = categories.filter(c => c !== catName);
+    setCategories(next);
+    try {
+      await setDoc(doc(db, "settings", "shopping"), { categories: next }, { merge: true });
+      
+      // Update requests
+      const activeToUpdate = requests.filter(r => r.category === catName);
+      await Promise.all(activeToUpdate.map(r => 
+        updateDoc(doc(db, "shopping_requests", r.id), { category: "כללי" })
+      ));
+      
+      // Update product pool
+      const poolToUpdate = pool.filter(p => p.category === catName);
+      await Promise.all(poolToUpdate.map(p => 
+        updateDoc(doc(db, "product_pool", p.id), { category: "כללי" })
+      ));
+      
+      showToast("הקטגוריה נמחקה בהצלחה!", "success");
+    } catch (e) {
+      console.error(e);
+      showToast("שגיאה במחיקת הקטגוריה", "warning");
+    }
   };
 
   const handleUpdateItem = async () => {
@@ -970,25 +1037,118 @@ export default function ShoppingPage() {
           )}
         </AnimatePresence>
 
-        {/* Category Add Dialog */}
+        {/* Category Management Dialog */}
         <AnimatePresence>
           {isAddingCat && (
              <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsAddingCat(false)} className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
-                <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="relative bg-[var(--surface)] border border-[var(--border)] rounded-[2rem] w-full max-w-sm p-8 shadow-2xl text-right" dir="rtl">
-                   <h3 className="text-xl font-black mb-6">קטגוריה חדשה</h3>
-                   <input 
-                      autoFocus
-                      type="text" 
-                      value={newCatName} 
-                      onChange={e => setNewCatName(e.target.value)}
-                      placeholder="שם הקטגוריה..."
-                      className="w-full bg-[var(--background)] border border-[var(--border)] rounded-xl py-4 px-4 text-sm font-bold focus:border-indigo-500 outline-none mb-6"
-                   />
-                   <div className="flex gap-3">
-                      <button onClick={handleAddCategory} className="flex-1 py-4 bg-indigo-600 !text-white rounded-2xl font-black text-sm shadow-lg shadow-indigo-600/20 active:scale-95 transition-all">הוסף קטגוריה</button>
-                      <button onClick={() => setIsAddingCat(false)} className="flex-1 py-4 bg-[var(--foreground)]/5 text-[var(--muted)] rounded-2xl font-black text-sm active:scale-95 transition-all">ביטול</button>
+                <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} 
+                  className="relative bg-[var(--surface)] border border-[var(--border)] rounded-[2.5rem] w-full max-w-md p-8 shadow-2xl text-right flex flex-col max-h-[85vh] overflow-hidden" dir="rtl">
+                   
+                   <div className="flex items-center justify-between mb-6 shrink-0">
+                      <h3 className="text-xl font-black flex items-center gap-2">
+                        <Edit3 className="w-5 h-5 text-indigo-500" />
+                        ניהול קטגוריות רכש
+                      </h3>
+                      <button onClick={() => setIsAddingCat(false)} className="p-2 rounded-full hover:bg-[var(--foreground)]/5 text-[var(--muted)]">
+                        <X className="w-5 h-5" />
+                      </button>
                    </div>
+
+                   {/* Add new category form */}
+                   <div className="mb-6 shrink-0">
+                      <label className="text-[10px] font-black text-[var(--muted)] uppercase tracking-widest mb-1.5 block">הוסף קטגוריה חדשה</label>
+                      <div className="flex gap-2">
+                         <input 
+                            type="text" 
+                            value={newCatName} 
+                            onChange={e => setNewCatName(e.target.value)}
+                            onKeyDown={e => e.key === "Enter" && handleAddCategory()}
+                            placeholder="שם הקטגוריה..."
+                            className="flex-grow bg-[var(--background)] border border-[var(--border)] rounded-xl py-3 px-4 text-xs font-bold focus:border-indigo-500 outline-none text-[var(--foreground)]"
+                         />
+                         <button 
+                            onClick={handleAddCategory}
+                            className="px-5 py-3 bg-indigo-600 hover:bg-indigo-500 !text-white rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1 shrink-0 shadow-md shadow-indigo-600/10 active:scale-95 border-none"
+                         >
+                            <Plus className="w-4 h-4 text-white" />
+                            <span>הוסף</span>
+                         </button>
+                      </div>
+                   </div>
+
+                   {/* List of current categories */}
+                   <div className="flex-grow overflow-y-auto divide-y divide-[var(--border)]/60 pr-1 no-scrollbar mb-6">
+                      <span className="text-[10px] font-black text-[var(--muted)] uppercase tracking-widest mb-2 block shrink-0">קטגוריות קיימות:</span>
+                      <div className="space-y-1">
+                         {categories.map(cat => {
+                            const isEditing = editingCatName === cat;
+                            return (
+                              <div key={cat} className="py-2.5 flex items-center justify-between gap-3">
+                                 {isEditing ? (
+                                   <div className="flex items-center gap-2 flex-grow">
+                                      <input
+                                        type="text"
+                                        value={editingCatNewValue}
+                                        onChange={e => setEditingCatNewValue(e.target.value)}
+                                        className="flex-grow bg-[var(--background)] border border-[var(--border)] rounded-lg px-2 py-1.5 text-xs font-bold focus:outline-none focus:border-indigo-500/50 text-[var(--foreground)]"
+                                        autoFocus
+                                        onKeyDown={(e) => {
+                                          if (e.key === "Enter") handleRenameCategory(cat, editingCatNewValue);
+                                          else if (e.key === "Escape") setEditingCatName(null);
+                                        }}
+                                      />
+                                      <button
+                                        onClick={() => handleRenameCategory(cat, editingCatNewValue)}
+                                        className="p-1.5 bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 border border-emerald-500/10 rounded-lg transition-colors cursor-pointer"
+                                        title="שמור שם"
+                                      >
+                                        <Check className="w-4 h-4" />
+                                      </button>
+                                      <button
+                                        onClick={() => setEditingCatName(null)}
+                                        className="p-1.5 bg-[var(--foreground)]/5 text-[var(--muted)] hover:bg-[var(--foreground)]/10 border border-[var(--border)] rounded-lg transition-colors cursor-pointer"
+                                        title="ביטול"
+                                      >
+                                        <X className="w-4 h-4" />
+                                      </button>
+                                   </div>
+                                 ) : (
+                                   <>
+                                      <span className="text-xs font-bold text-[var(--foreground)]">{cat}</span>
+                                      <div className="flex items-center gap-1 shrink-0">
+                                         <button
+                                           onClick={() => {
+                                             setEditingCatName(cat);
+                                             setEditingCatNewValue(cat);
+                                           }}
+                                           className="p-1.5 bg-[var(--foreground)]/5 hover:bg-[var(--foreground)]/10 text-[var(--muted)] hover:text-indigo-500 border border-[var(--border)] rounded-lg transition-all cursor-pointer"
+                                           title="ערוך קטגוריה"
+                                         >
+                                           <Edit3 className="w-3.5 h-3.5" />
+                                         </button>
+                                         <button
+                                           onClick={() => handleDeleteCategory(cat)}
+                                           className="p-1.5 bg-rose-500/5 hover:bg-rose-500/10 text-rose-500 border border-rose-500/10 rounded-lg transition-all cursor-pointer"
+                                           title="מחק קטגוריה"
+                                         >
+                                           <Trash2 className="w-3.5 h-3.5" />
+                                         </button>
+                                      </div>
+                                   </>
+                                 )}
+                              </div>
+                            );
+                         })}
+                      </div>
+                   </div>
+
+                   <button
+                     onClick={() => setIsAddingCat(false)}
+                     className="w-full py-4 bg-indigo-600 hover:bg-indigo-500 !text-white text-sm font-black rounded-2xl shadow-lg transition-all active:scale-[0.98] shrink-0 cursor-pointer border-none"
+                   >
+                     סגור
+                   </button>
                 </motion.div>
              </div>
           )}
