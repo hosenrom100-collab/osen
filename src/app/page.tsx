@@ -163,8 +163,9 @@ export default function Home() {
   const [unreadNotifCount, setUnreadNotifCount] = useState(0);
   const [activeShoppingCount, setActiveShoppingCount] = useState(0);
 
-  const showAll = isAdmin || isManager;
   const isStrictAdmin = isAdmin && !(roles || []).some(r => r === "social_worker" || r === "instructor" || r === "employee" || r === "logistics");
+  const isStrictManager = isManager && !(roles || []).some(r => r === "social_worker" || r === "instructor" || r === "employee" || r === "logistics");
+  const showAll = isStrictAdmin || isStrictManager;
 
   useEffect(() => {
     if (!loading && (!user || !isWhitelisted)) router.push("/login");
