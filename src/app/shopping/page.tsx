@@ -11,7 +11,7 @@ import {
   ShoppingCart, Plus, Minus, Check, X, Clock, User, Search, Loader2, 
   ArrowRight, Trash2, CheckCircle2, Download, Flame, ChevronRight, 
   Edit3, RotateCcw, Package, ShoppingBag, Filter,
-  ChevronDown
+  ChevronDown, Settings
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { motion, AnimatePresence, LayoutGroup } from "framer-motion";
@@ -32,12 +32,15 @@ interface ShoppingRequest {
   createdAt: any;
   notes?: string;
   priority?: "low" | "normal" | "urgent";
+  listType?: "supermarket" | "large";
 }
 
 interface Product { 
   id: string; 
   name: string; 
   category: string; 
+  isRecurring?: boolean;
+  recurringQuantity?: string;
 }
 
 const CAT_COLOR: Record<string, string> = {
@@ -125,6 +128,9 @@ export default function ShoppingPage() {
   const [loading, setLoading]       = useState(true);
   const [view, setView]             = useState<"list" | "archive">("list");
   const [showArchivePrompt, setShowArchivePrompt] = useState(false);
+  const [listType, setListType]     = useState<"supermarket" | "large">("supermarket");
+  const [isEditingRecurring, setIsEditingRecurring] = useState(false);
+  const [recurringSearchVal, setRecurringSearchVal] = useState("");
 
   // Add-bar state
   const [inputVal, setInputVal]     = useState("");
@@ -207,6 +213,73 @@ export default function ShoppingPage() {
     setPool(list);
   };
 
+  const toggleRecurring = async (productId: string, name: string, category: string, shouldBeRecurring: boolean) => {
+    try {
+      await setDoc(doc(db, "product_pool", productId), {
+        name,
+        category,
+        isRecurring: shouldBeRecurring,
+        recurringQuantity: shouldBeRecurring ? "1" : ""
+      }, { merge: true });
+      await fetchPool();
+    } catch (e) {
+      console.error("Error toggling recurring product:", e);
+    }
+  };
+
+  const updateRecurringQuantity = async (productId: string, currentQtyStr: string, increment: number) => {
+    const currentVal = parseFloat(currentQtyStr) || 1;
+    const nextVal = Math.max(1, currentVal + increment);
+    const nextQty = String(nextVal);
+    try {
+      await updateDoc(doc(db, "product_pool", productId), {
+        recurringQuantity: nextQty
+      });
+      await fetchPool();
+    } catch (e) {
+      console.error("Error updating recurring quantity:", e);
+    }
+  };
+
+  const generateRecurringList = async () => {
+    const recurringItems = pool.filter(p => p.isRecurring);
+    if (recurringItems.length === 0) {
+      showToast("לא הוגדרו מוצרים ברשימה הקבועה. לחץ על 'עריכת רשימה קבועה' כדי להוסיף.", "warning");
+      return;
+    }
+    
+    setLoading(true);
+    let addedCount = 0;
+    try {
+      const activeRequestsList = requests.filter((r) => r.status !== "archived");
+      
+      for (const item of recurringItems) {
+        const similarName = findSimilarRequest(item.name, activeRequestsList);
+        if (!similarName) {
+          await addDoc(collection(db, "shopping_requests"), {
+            name: item.name,
+            category: item.category || "כללי",
+            quantity: item.recurringQuantity || "1",
+            notes: "",
+            priority: "normal",
+            status: "approved",
+            requestedBy: user?.uid,
+            requestedByName: user?.displayName || user?.email || "משתמש",
+            createdAt: new Date(),
+            listType: "supermarket",
+          });
+          addedCount++;
+        }
+      }
+      showToast(`הופקה רשימה קבועה: נוספו ${addedCount} מוצרים חדשים לרשימה.`, "success");
+    } catch (e) {
+      console.error(e);
+      showToast("שגיאה בהפקת הרשימה הקבועה.", "warning");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const changeStatus = useCallback(async (
     id: string,
     next: "pending" | "approved" | "purchased" | "archived" | "deleted",
@@ -271,7 +344,7 @@ export default function ShoppingPage() {
   };
 
   const archiveCurrentSession = async () => {
-    const sessionPurchased = requests.filter((r) => r.status === "purchased");
+    const sessionPurchased = requests.filter((r) => r.status === "purchased" && (listType === "large" ? r.listType === "large" : r.listType !== "large"));
     if (sessionPurchased.length === 0) return;
     try {
       setLoading(true);
@@ -307,6 +380,7 @@ export default function ShoppingPage() {
       name, category, quantity: "1", notes: "", priority, status: "approved",
       requestedBy: user?.uid, requestedByName: user?.displayName || user?.email || "משתמש",
       createdAt: new Date(),
+      listType,
     });
     if (priority === "urgent") {
       sendPush({
@@ -382,7 +456,7 @@ export default function ShoppingPage() {
 
   const exportWord = async () => {
     try {
-      const activeSession = requests.filter((r) => r.status !== "archived");
+      const activeSession = requests.filter((r) => r.status !== "archived" && (listType === "large" ? r.listType === "large" : r.listType !== "large"));
       const sortedItems = [...activeSession].sort((a, b) => a.category.localeCompare(b.category));
 
       const itemsToExport = sortedItems.map(r => ({
@@ -395,19 +469,22 @@ export default function ShoppingPage() {
 
       const dateStr = format(new Date(), "dd/MM/yyyy");
       const doc = generateShoppingListWord(itemsToExport, {
-        date: dateStr
+        date: dateStr,
+        title: listType === "large" ? "רשימת מוצרים גדולים וציוד - חוות רום" : "רשימת קניות סופר - חוות רום"
       });
 
-      const fileName = `רשימת_קניות_${format(new Date(), "yyyy-MM-dd")}.docx`;
+      const fileName = listType === "large"
+        ? `רשימת_קניות_גדולות_${format(new Date(), "yyyy-MM-dd")}.docx`
+        : `רשימת_קניות_סופר_${format(new Date(), "yyyy-MM-dd")}.docx`;
       await generateDocxWithLetterhead(doc, fileName);
     } catch (e) {
       console.error("Failed to generate Word document", e);
     }
   };
 
-  const activeRequests = requests.filter((r) => r.status === "approved" || r.status === "pending");
-  const sessionPurchased = requests.filter((r) => r.status === "purchased");
-  const archived = requests.filter((r) => r.status === "archived");
+  const activeRequests = requests.filter((r) => (r.status === "approved" || r.status === "pending") && (listType === "large" ? r.listType === "large" : r.listType !== "large"));
+  const sessionPurchased = requests.filter((r) => r.status === "purchased" && (listType === "large" ? r.listType === "large" : r.listType !== "large"));
+  const archived = requests.filter((r) => r.status === "archived" && (listType === "large" ? r.listType === "large" : r.listType !== "large"));
 
   const suggestions = pool.filter((p) =>
     inputVal.trim() &&
@@ -500,6 +577,58 @@ export default function ShoppingPage() {
              {isAdmin && <button onClick={exportXlsx} title="ייצוא לאקסל" className="p-2.5 rounded-2xl bg-[var(--foreground)]/5 border border-[var(--border)] hover:bg-[var(--foreground)]/10 transition-all cursor-pointer"><Download className="w-5 h-5 text-[var(--muted)]" /></button>}
           </div>
         </header>
+
+        {/* ── List Type Tabs (Supermarket vs Large Products) ── */}
+        {view === "list" && !loading && (
+          <div className="flex items-center justify-between px-4 py-3 bg-[var(--surface)] border-b border-[var(--border)] shrink-0 gap-4 flex-wrap">
+            {/* Sliding tabs control */}
+            <div className="flex bg-[var(--background)] p-1 rounded-2xl border border-[var(--border)] relative shrink-0">
+              <button
+                onClick={() => { setListType("supermarket"); setActiveCategory(null); }}
+                className={`px-5 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 select-none ${
+                  listType === "supermarket"
+                    ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/10"
+                    : "text-[var(--muted)] hover:text-[var(--foreground)]"
+                }`}
+              >
+                <ShoppingCart className="w-4 h-4" />
+                <span>קניות סופרמרקט</span>
+              </button>
+              <button
+                onClick={() => { setListType("large"); setActiveCategory(null); }}
+                className={`px-5 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 select-none ${
+                  listType === "large"
+                    ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/10"
+                    : "text-[var(--muted)] hover:text-[var(--foreground)]"
+                }`}
+              >
+                <Package className="w-4 h-4" />
+                <span>מוצרים גדולים / ציוד</span>
+              </button>
+            </div>
+
+            {/* Action buttons (Only for Supermarket tab) */}
+            {listType === "supermarket" && (
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setIsEditingRecurring(true)}
+                  className="px-4 py-2.5 rounded-xl bg-[var(--foreground)]/5 hover:bg-[var(--foreground)]/10 border border-[var(--border)] text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Settings className="w-4 h-4 text-[var(--muted)]" />
+                  <span>עריכת רשימה קבועה</span>
+                </button>
+                <button
+                  onClick={generateRecurringList}
+                  className="px-4 py-2.5 rounded-xl bg-indigo-600/10 hover:bg-indigo-600/20 text-indigo-500 border border-indigo-500/20 text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer"
+                  title="שכפול מוצרי הרשימה הקבועה לרשימה הפעילה"
+                >
+                  <RotateCcw className="w-4 h-4 text-indigo-500" />
+                  <span>הפקת רשימה קבועה</span>
+                </button>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* ── Category Scrolling Filters Bar (Visible in list view) ── */}
         {view === "list" && !loading && (
@@ -864,6 +993,139 @@ export default function ShoppingPage() {
              </div>
           )}
          </AnimatePresence>
+
+        {/* Recurring List Edit Modal */}
+        <AnimatePresence>
+          {isEditingRecurring && (
+             <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsEditingRecurring(false)} className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm" />
+                <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
+                  className="relative bg-[var(--surface)] border border-[var(--border)] rounded-[2.5rem] w-full max-w-lg p-8 shadow-2xl text-right flex flex-col max-h-[90vh] overflow-hidden" dir="rtl">
+                   
+                   <div className="flex items-center justify-between mb-6">
+                      <h3 className="text-xl font-black flex items-center gap-2">
+                        <Settings className="w-5 h-5 text-indigo-500" />
+                        עריכת רשימה קבועה (שבועית)
+                      </h3>
+                      <button onClick={() => setIsEditingRecurring(false)} className="p-2 rounded-full hover:bg-[var(--foreground)]/5 text-[var(--muted)]">
+                        <X className="w-5 h-5" />
+                      </button>
+                   </div>
+
+                   {/* Add product to recurring list section */}
+                   <div className="mb-6 relative shrink-0">
+                      <label className="text-[10px] font-black text-[var(--muted)] uppercase tracking-widest mb-1.5 block">הוסף מוצר לרשימה הקבועה</label>
+                      <div className="relative">
+                         <Search className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--muted)]" />
+                         <input
+                            type="text"
+                            value={recurringSearchVal}
+                            onChange={e => setRecurringSearchVal(e.target.value)}
+                            placeholder="חיפוש או הוספת מוצר..."
+                            className="w-full bg-[var(--background)] border border-[var(--border)] rounded-2xl py-3 pr-11 pl-4 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                         />
+                      </div>
+
+                      {/* Suggestions list */}
+                      {recurringSearchVal.trim() && (
+                        <div className="absolute z-20 left-0 right-0 mt-2 bg-[var(--surface)] border border-[var(--border)] rounded-2xl shadow-xl max-h-48 overflow-y-auto divide-y divide-[var(--border)]">
+                          {(() => {
+                            const term = recurringSearchVal.trim().toLowerCase();
+                            const matches = pool.filter(p => p.name.toLowerCase().includes(term) && !p.isRecurring);
+                            const hasExact = pool.some(p => p.name === recurringSearchVal.trim());
+                            
+                            return (
+                              <>
+                                {matches.map(p => (
+                                  <button
+                                    key={p.id}
+                                    onClick={() => {
+                                      toggleRecurring(p.id, p.name, p.category, true);
+                                      setRecurringSearchVal("");
+                                    }}
+                                    className="w-full text-right px-4 py-3 text-xs font-bold hover:bg-[var(--foreground)]/5 flex items-center justify-between"
+                                  >
+                                    <span>{p.name}</span>
+                                    <span className="text-[9px] text-[var(--muted)]">{p.category}</span>
+                                  </button>
+                                ))}
+                                {!hasExact && (
+                                  <button
+                                    onClick={() => {
+                                      const name = recurringSearchVal.trim();
+                                      const docId = name.replace(/\//g, "-");
+                                      toggleRecurring(docId, name, "כללי", true);
+                                      setRecurringSearchVal("");
+                                    }}
+                                    className="w-full text-right px-4 py-3 text-xs font-black text-indigo-500 hover:bg-[var(--foreground)]/5 flex items-center gap-1 cursor-pointer"
+                                  >
+                                    <Plus className="w-3.5 h-3.5 text-indigo-500" />
+                                    <span>צור והוסף מוצר חדש: "{recurringSearchVal.trim()}"</span>
+                                  </button>
+                                )}
+                              </>
+                            );
+                          })()}
+                        </div>
+                      )}
+                   </div>
+
+                   {/* List of current recurring products */}
+                   <div className="flex-1 overflow-y-auto divide-y divide-[var(--border)]/60 pr-1 no-scrollbar mb-6">
+                      {pool.filter(p => p.isRecurring).length === 0 ? (
+                        <div className="py-12 text-center opacity-40">
+                           <ShoppingBag className="w-10 h-10 mx-auto mb-2 text-[var(--muted)]" />
+                           <p className="text-xs font-black">אין מוצרים קבועים ברשימה</p>
+                        </div>
+                      ) : (
+                        pool.filter(p => p.isRecurring).map(p => (
+                          <div key={p.id} className="py-3 flex items-center justify-between gap-4">
+                            <div className="min-w-0 flex-1">
+                              <span className="text-sm font-bold text-[var(--foreground)]">{p.name}</span>
+                              <span className="mr-2 text-[9px] font-black bg-[var(--foreground)]/5 text-[var(--muted)] px-1.5 py-0.5 rounded-md">{p.category}</span>
+                            </div>
+
+                            {/* Stepper & Trash */}
+                            <div className="flex items-center gap-3 shrink-0">
+                               <div className="flex items-center gap-1 bg-[var(--foreground)]/5 border border-[var(--border)] rounded-xl p-0.5 shadow-sm">
+                                 <button
+                                   onClick={() => updateRecurringQuantity(p.id, p.recurringQuantity || "1", -1)}
+                                   className="w-6 h-6 rounded-lg flex items-center justify-center hover:bg-[var(--foreground)]/10 text-[var(--muted)] hover:text-[var(--foreground)] transition-all"
+                                 >
+                                   <Minus className="w-3 h-3 stroke-[2.5]" />
+                                 </button>
+                                 <span className="text-xs font-black min-w-[20px] text-center">{p.recurringQuantity || "1"}</span>
+                                 <button
+                                   onClick={() => updateRecurringQuantity(p.id, p.recurringQuantity || "1", 1)}
+                                   className="w-6 h-6 rounded-lg flex items-center justify-center hover:bg-[var(--foreground)]/10 text-[var(--muted)] hover:text-[var(--foreground)] transition-all"
+                                 >
+                                   <Plus className="w-3 h-3 stroke-[2.5]" />
+                                 </button>
+                               </div>
+
+                               <button
+                                 onClick={() => toggleRecurring(p.id, p.name, p.category, false)}
+                                 className="w-8 h-8 rounded-xl bg-rose-500/5 hover:bg-rose-500/10 text-rose-500 flex items-center justify-center border border-rose-500/10 transition-all cursor-pointer"
+                                 title="הסר מהרשימה הקבועה"
+                               >
+                                 <Trash2 className="w-4 h-4" />
+                               </button>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                   </div>
+
+                   <button
+                     onClick={() => setIsEditingRecurring(false)}
+                     className="w-full py-4 bg-indigo-600 hover:bg-indigo-500 !text-white text-sm font-black rounded-2xl shadow-lg transition-all active:scale-[0.98] shrink-0 cursor-pointer"
+                   >
+                     סגור
+                   </button>
+                </motion.div>
+             </div>
+          )}
+        </AnimatePresence>
 
          {/* Archive Current Session Prompt Dialog */}
          <AnimatePresence>

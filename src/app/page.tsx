@@ -8,7 +8,8 @@ import {
   LogOut, Users, User, Calendar, CheckCircle,
   Shield, MapPin, Edit3, ChevronLeft, Clock,
   ClipboardList, Layers, X, Check, ChevronDown, Plus,
-  AlertTriangle, Sparkles, Bell, Coffee, Utensils, ArrowLeftRight
+  AlertTriangle, Sparkles, Bell, Coffee, Utensils, ArrowLeftRight,
+  ShoppingCart
 } from "lucide-react";
 import Link from "next/link";
 import { db } from "@/lib/firebase/config";
@@ -160,6 +161,7 @@ export default function Home() {
   const [pendingAbsences, setPendingAbsences] = useState<number>(0);
   const [recentNotifications, setRecentNotifications] = useState<any[]>([]);
   const [unreadNotifCount, setUnreadNotifCount] = useState(0);
+  const [activeShoppingCount, setActiveShoppingCount] = useState(0);
 
   const showAll = isAdmin || isManager;
 
@@ -403,6 +405,19 @@ export default function Home() {
       const nList = nSnap.docs.map(d => ({ id: d.id, ...d.data() }));
       setRecentNotifications(nList);
       setUnreadNotifCount(nList.filter((n: any) => !n.readBy?.includes(user?.uid)).length);
+
+      // 6. Shopping Count (for admins and managers)
+      if (isAdmin || isManager) {
+        try {
+          const shoppingSnap = await getDocs(query(
+            collection(db, "shopping_requests"),
+            where("status", "in", ["approved", "pending"])
+          ));
+          setActiveShoppingCount(shoppingSnap.size);
+        } catch (err) {
+          console.error("Error fetching shopping count:", err);
+        }
+      }
     } catch (err) { console.error(err); }
     finally { setDataLoaded(true); }
   };
@@ -519,6 +534,18 @@ export default function Home() {
 
   const firstName  = user.displayName?.split(" ")[0] ?? "שלום";
   const todayLabel = format(new Date(), "EEEE, d בMMMM", { locale: he });
+
+  const quickActions = isAdmin
+    ? [
+        { href: "/admin/staff-attendance", icon: ClipboardList, label: "אישורי היעדרות", color: "text-amber-500 bg-amber-500/5 hover:bg-amber-500/10 border-amber-500/10 hover:border-amber-500/20" },
+        { href: "/shopping",               icon: ShoppingCart,  label: "קניות",          color: "text-indigo-500 bg-indigo-500/5 hover:bg-indigo-500/10 border-indigo-500/10 hover:border-indigo-500/20" },
+        { href: "/admin",                  icon: Shield,        label: "ממשק ניהול ובקרה", color: "text-slate-300 bg-[var(--foreground)]/5 border-[var(--border)] hover:bg-[var(--foreground)]/8" },
+      ]
+    : [
+        { href: "/attendance", icon: ClipboardList, label: "נוכחות", color: "text-emerald-500 bg-emerald-500/5 hover:bg-emerald-500/10 border-emerald-500/10 hover:border-emerald-500/20" },
+        { href: "/patients",   icon: Users,         label: "משתתפים ותיקים", color: "text-blue-500 bg-blue-500/5 hover:bg-blue-500/10 border-blue-500/10 hover:border-blue-500/20" },
+        ...(isManager ? [{ href: "/admin", icon: Shield, label: "ממשק ניהול ובקרה", color: "text-slate-300 bg-[var(--foreground)]/5 border-[var(--border)] hover:bg-[var(--foreground)]/8" }] : []),
+      ];
 
   return (
     <div dir="rtl" className="min-h-screen bg-[var(--background)] text-[var(--foreground)]">
@@ -718,238 +745,329 @@ export default function Home() {
 
           {/* ── Attendance by group — PRIMARY column ── */}
           <section className="md:order-1 space-y-6">
-            <div className="border border-[var(--border)] rounded-3xl overflow-hidden bg-[var(--card-bg,var(--surface))] shadow-xl">
-              <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border)]">
-                <div className="flex items-center gap-2">
-                  <CheckCircle className="w-4 h-4 text-emerald-500" />
-                  <h2 className="text-sm font-black text-[var(--foreground)]">נוכחות היום לפי תוכניות</h2>
-                </div>
-                <Link href="/attendance"
-                  className="text-[10px] font-black text-[var(--primary)] hover:underline flex items-center gap-0.5">
-                  סמן נוכחות <ChevronLeft className="w-3 h-3" />
-                </Link>
-              </div>
-
-              <div className="p-5">
-                {!dataLoaded ? (
-                  <div className="py-10 flex justify-center">
-                    <div className="w-5 h-5 border-2 border-[var(--border)] border-t-[var(--primary)] rounded-full animate-spin" />
+            {isAdmin ? (
+              <>
+                {/* ── Absence Approvals Summary ── */}
+                <div className="border border-[var(--border)] rounded-3xl overflow-hidden bg-[var(--card-bg,var(--surface))] shadow-xl">
+                  <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border)]">
+                    <div className="flex items-center gap-2">
+                      <Clock className="w-4 h-4 text-amber-500" />
+                      <h2 className="text-sm font-black text-[var(--foreground)]">אישורי היעדרות ממתינים (צוות)</h2>
+                    </div>
+                    <Link href="/admin/staff-attendance"
+                      className="text-[10px] font-black text-amber-500 hover:underline flex items-center gap-0.5">
+                      לניהול היעדרויות <ChevronLeft className="w-3 h-3" />
+                    </Link>
                   </div>
-                ) : visibleStats.length === 0 ? (
-                  <p className="text-xs text-[var(--muted)] text-center py-8">
-                    {showAll || primaryGroupId ? "טוען נתונים..." : "בחר קבוצה להצגה"}
-                  </p>
-                ) : (
-                  <div className="space-y-3.5">
-                    {visibleStats.map(g => {
-                      const pct = g.total > 0 ? Math.round((g.present / g.total) * 100) : 0;
-                      return (
-                        <div key={g.id} className="p-4 bg-[var(--surface-raised)] border border-[var(--border)] rounded-2xl hover:bg-[var(--foreground)]/2 transition-all duration-200">
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="text-xs font-black truncate text-[var(--foreground)]">
-                              {(() => {
-                                const prog = programs.find(p => p.id === (g as any).programId)?.name;
-                                let display = "";
-                                if (prog && g.name && prog !== g.name) display = `${prog} - ${g.name}`;
-                                else display = prog || g.name;
-                                if (display && display !== "כללי" && !display.startsWith("תוכנית")) {
-                                  return `תוכנית ${display}`;
-                                }
-                                return display;
-                              })()}
-                            </span>
-                            <span className={`text-[11px] font-bold ${pct === 100 ? "text-emerald-500" : "text-[var(--muted)]"}`}>
-                              {g.present} מתוך {g.total} נוכחים
-                            </span>
+                  <div className="p-5">
+                    {pendingAbsences === 0 ? (
+                      <div className="text-center py-8 text-[var(--muted)] space-y-2">
+                        <CheckCircle className="w-8 h-8 mx-auto stroke-1 text-emerald-500 opacity-60" />
+                        <p className="text-xs font-black text-[var(--foreground)]">אין בקשות היעדרות ממתינות</p>
+                        <p className="text-[10px] text-[var(--muted)] font-bold">כל בקשות ההיעדרות של הצוות טופלו בהצלחה</p>
+                      </div>
+                    ) : (
+                      <div className="p-4 bg-amber-500/5 border border-amber-500/10 rounded-2xl flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-500 shrink-0">
+                            <AlertTriangle className="w-5 h-5 animate-pulse" />
                           </div>
-                          <Bar pct={pct} />
+                          <div>
+                            <p className="text-sm font-black text-[var(--foreground)]">{pendingAbsences} בקשות ממתינות לאישור</p>
+                            <p className="text-[10px] text-[var(--muted)] font-bold">נדרשת סקירה ואישור של בקשות היעדרות עובדים</p>
+                          </div>
                         </div>
-                      );
-                    })}
+                        <Link href="/admin/staff-attendance"
+                          className="px-4 py-2 bg-amber-500 hover:bg-amber-600 !text-white text-xs font-black rounded-xl shadow-md transition-all">
+                          בדוק כעת
+                        </Link>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* ── Active Shopping Summary ── */}
+                <div className="border border-[var(--border)] rounded-3xl overflow-hidden bg-[var(--card-bg,var(--surface))] shadow-xl">
+                  <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border)]">
+                    <div className="flex items-center gap-2">
+                      <ShoppingCart className="w-4 h-4 text-indigo-500" />
+                      <h2 className="text-sm font-black text-[var(--foreground)]">רשימת קניות פעילה</h2>
+                    </div>
+                    <Link href="/shopping"
+                      className="text-[10px] font-black text-indigo-500 hover:underline flex items-center gap-0.5">
+                      לרשימת הקניות <ChevronLeft className="w-3 h-3" />
+                    </Link>
+                  </div>
+                  <div className="p-5">
+                    {activeShoppingCount === 0 ? (
+                      <div className="text-center py-8 text-[var(--muted)] space-y-2">
+                        <CheckCircle className="w-8 h-8 mx-auto stroke-1 text-emerald-500 opacity-60" />
+                        <p className="text-xs font-black text-[var(--foreground)]">אין פריטים לקנייה</p>
+                        <p className="text-[10px] text-[var(--muted)] font-bold">רשימת הקניות ריקה או שכל הפריטים כבר נקנו</p>
+                      </div>
+                    ) : (
+                      <div className="p-4 bg-indigo-500/5 border border-indigo-500/10 rounded-2xl flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-500 shrink-0">
+                            <ShoppingCart className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <p className="text-sm font-black text-[var(--foreground)]">{activeShoppingCount} מוצרים ברשימת הקניות</p>
+                            <p className="text-[10px] text-[var(--muted)] font-bold">ישנם מוצרים הממתינים לרכישה בסופרמרקט או כציוד גדול</p>
+                          </div>
+                        </div>
+                        <Link href="/shopping"
+                          className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 !text-white text-xs font-black rounded-xl shadow-md transition-all">
+                          לרשימת הקניות
+                        </Link>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                {/* ── Attendance by group — PRIMARY column ── */}
+                <div className="border border-[var(--border)] rounded-3xl overflow-hidden bg-[var(--card-bg,var(--surface))] shadow-xl">
+                  <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border)]">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle className="w-4 h-4 text-emerald-500" />
+                      <h2 className="text-sm font-black text-[var(--foreground)]">נוכחות היום לפי תוכניות</h2>
+                    </div>
+                    <Link href="/attendance"
+                      className="text-[10px] font-black text-[var(--primary)] hover:underline flex items-center gap-0.5">
+                      סמן נוכחות <ChevronLeft className="w-3 h-3" />
+                    </Link>
+                  </div>
+
+                  <div className="p-5">
+                    {!dataLoaded ? (
+                      <div className="py-10 flex justify-center">
+                        <div className="w-5 h-5 border-2 border-[var(--border)] border-t-[var(--primary)] rounded-full animate-spin" />
+                      </div>
+                    ) : visibleStats.length === 0 ? (
+                      <p className="text-xs text-[var(--muted)] text-center py-8">
+                        {showAll || primaryGroupId ? "טוען נתונים..." : "בחר קבוצה להצגה"}
+                      </p>
+                    ) : (
+                      <div className="space-y-3.5">
+                        {visibleStats.map(g => {
+                          const pct = g.total > 0 ? Math.round((g.present / g.total) * 100) : 0;
+                          return (
+                            <div key={g.id} className="p-4 bg-[var(--surface-raised)] border border-[var(--border)] rounded-2xl hover:bg-[var(--foreground)]/2 transition-all duration-200">
+                              <div className="flex items-center justify-between mb-2">
+                                <span className="text-xs font-black truncate text-[var(--foreground)]">
+                                  {(() => {
+                                    const prog = programs.find(p => p.id === (g as any).programId)?.name;
+                                    let display = "";
+                                    if (prog && g.name && prog !== g.name) display = `${prog} - ${g.name}`;
+                                    else display = prog || g.name;
+                                    if (display && display !== "כללי" && !display.startsWith("תוכנית")) {
+                                      return `תוכנית ${display}`;
+                                    }
+                                    return display;
+                                  })()}
+                                </span>
+                                <span className={`text-[11px] font-bold ${pct === 100 ? "text-emerald-500" : "text-[var(--muted)]"}`}>
+                                  {g.present} מתוך {g.total} נוכחים
+                                </span>
+                              </div>
+                              <Bar pct={pct} />
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* ── Daily Schedule timeline ── */}
+                {dataLoaded && (
+                  <div className="border border-[var(--border)] rounded-3xl overflow-hidden bg-[var(--card-bg,var(--surface))] shadow-xl">
+                    <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border)]">
+                      <div className="flex items-center gap-2">
+                        <Calendar className="w-4 h-4 text-violet-500" />
+                        <h2 className="text-sm font-black text-[var(--foreground)]">סדר יום ופעילויות</h2>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {(isAdmin || isManager) && (
+                          <button
+                            onClick={() => setIsScheduleEditorOpen(true)}
+                            className="text-[10px] font-black text-violet-500 hover:underline px-2.5 py-1 rounded-xl bg-violet-500/5 hover:bg-violet-500/10 border border-violet-500/10 transition-all cursor-pointer"
+                          >
+                            ערוך לו״ז
+                          </button>
+                        )}
+                        <span className="text-[10px] bg-slate-500/10 text-[var(--muted)] px-2.5 py-1 rounded-full font-bold">
+                          {visibleActs.length} פעילויות מתוכננות
+                        </span>
+                      </div>
+                    </div>
+                    
+                    <div className="p-5">
+                      {visibleActs.length === 0 ? (
+                        <div className="text-center py-8 text-[var(--muted)] space-y-2">
+                          <Coffee className="w-8 h-8 mx-auto stroke-1 text-[var(--muted)] opacity-60" />
+                          <p className="text-xs font-black text-[var(--foreground)]">אין פעילויות מתוזמנות להיום</p>
+                          <p className="text-[10px] text-[var(--muted)] font-bold">יומן הפעילויות ריק או שלא נבחרו קבוצות מתאימות</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-1">
+                          {visibleActs.map((act) => (
+                            <TimelineRow
+                              key={act.id}
+                              act={act}
+                              groups={groups}
+                              programs={programs}
+                              now={now}
+                            />
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
-              </div>
-            </div>
-
-            {/* ── Daily Schedule timeline ── */}
-            {dataLoaded && (
-              <div className="border border-[var(--border)] rounded-3xl overflow-hidden bg-[var(--card-bg,var(--surface))] shadow-xl">
-                <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border)]">
-                  <div className="flex items-center gap-2">
-                    <Calendar className="w-4 h-4 text-violet-500" />
-                    <h2 className="text-sm font-black text-[var(--foreground)]">סדר יום ופעילויות</h2>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {(isAdmin || isManager) && (
-                      <button
-                        onClick={() => setIsScheduleEditorOpen(true)}
-                        className="text-[10px] font-black text-violet-500 hover:underline px-2.5 py-1 rounded-xl bg-violet-500/5 hover:bg-violet-500/10 border border-violet-500/10 transition-all cursor-pointer"
-                      >
-                        ערוך לו״ז
-                      </button>
-                    )}
-                    <span className="text-[10px] bg-slate-500/10 text-[var(--muted)] px-2.5 py-1 rounded-full font-bold">
-                      {visibleActs.length} פעילויות מתוכננות
-                    </span>
-                  </div>
-                </div>
-                
-                <div className="p-5">
-                  {visibleActs.length === 0 ? (
-                    <div className="text-center py-8 text-[var(--muted)] space-y-2">
-                      <Coffee className="w-8 h-8 mx-auto stroke-1 text-[var(--muted)] opacity-60" />
-                      <p className="text-xs font-black text-[var(--foreground)]">אין פעילויות מתוזמנות להיום</p>
-                      <p className="text-[10px] text-[var(--muted)] font-bold">יומן הפעילויות ריק או שלא נבחרו קבוצות מתאימות</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-1">
-                      {visibleActs.map((act) => (
-                        <TimelineRow
-                          key={act.id}
-                          act={act}
-                          groups={groups}
-                          programs={programs}
-                          now={now}
-                        />
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
+              </>
             )}
           </section>
 
           {/* ── Sidebar — Duty Counselor, Staff Presence, Quick actions ── */}
           <aside className="space-y-4 md:order-2">
-            {/* ── Duty Counselor ── */}
-            <div className="border border-[var(--border)] rounded-3xl overflow-hidden bg-[var(--card-bg,var(--surface))] p-5 space-y-3.5 shadow-xl">
-              <div className="flex items-center justify-between">
-                <h3 className="text-[10px] font-black uppercase tracking-widest text-[var(--foreground)]/40">מדריך תורן היום</h3>
-                {(isAdmin || isManager) && (
-                  <button 
-                    onClick={() => setIsEditingDuty(!isEditingDuty)}
-                    className="text-[10px] font-black text-violet-500 hover:underline"
-                  >
-                    {isEditingDuty ? "ביטול" : "עריכה"}
-                  </button>
-                )}
-              </div>
+            {!isAdmin && (
+              <>
+                {/* ── Duty Counselor ── */}
+                <div className="border border-[var(--border)] rounded-3xl overflow-hidden bg-[var(--card-bg,var(--surface))] p-5 space-y-3.5 shadow-xl">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-[10px] font-black uppercase tracking-widest text-[var(--foreground)]/40">מדריך תורן היום</h3>
+                    {(isAdmin || isManager) && (
+                      <button 
+                        onClick={() => setIsEditingDuty(!isEditingDuty)}
+                        className="text-[10px] font-black text-violet-500 hover:underline"
+                      >
+                        {isEditingDuty ? "ביטול" : "עריכה"}
+                      </button>
+                    )}
+                  </div>
 
-              {isEditingDuty ? (
-                <div className="space-y-2">
-                  <select
-                    value={dutyId}
-                    onChange={(e) => updateDuty(e.target.value)}
-                    className="w-full bg-[var(--background)] border border-[var(--border)] text-[var(--foreground)] rounded-xl px-3 py-2 text-xs font-bold focus:outline-none"
-                  >
-                    <option value="">-- בחר מדריך תורן --</option>
-                    {staffMembers.map(s => (
-                      <option key={s.id} value={s.id}>{s.name}</option>
+                  {isEditingDuty ? (
+                    <div className="space-y-2">
+                      <select
+                        value={dutyId}
+                        onChange={(e) => updateDuty(e.target.value)}
+                        className="w-full bg-[var(--background)] border border-[var(--border)] text-[var(--foreground)] rounded-xl px-3 py-2 text-xs font-bold focus:outline-none"
+                      >
+                        <option value="">-- בחר מדריך תורן --</option>
+                        {staffMembers.map(s => (
+                          <option key={s.id} value={s.id}>{s.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-violet-500/10 text-violet-500 flex items-center justify-center border border-violet-500/20 shrink-0">
+                        <User className="w-5 h-5" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-black text-sm truncate">{dutyName || "אין מדריך תורן מוגדר"}</p>
+                        <p className="text-[9px] text-[var(--muted)] font-bold mt-0.5">מדריך תורן אחראי לניהול השוטף בחווה</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* ── Staff Presence ── */}
+                <div className="border border-[var(--border)] rounded-3xl overflow-hidden bg-[var(--card-bg,var(--surface))] p-5 space-y-4 shadow-xl">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-[10px] font-black uppercase tracking-widest text-[var(--foreground)]/40">צוות היום לפי מסגרת</h3>
+                    <span className="text-[9px] bg-violet-500/10 text-violet-500 px-2 py-0.5 rounded-full font-bold">
+                      {staffMembers.filter(m => staffAttendance[m.id]?.status === "present").length} נוכחים
+                    </span>
+                  </div>
+
+                  <div className="space-y-4 max-h-[350px] overflow-y-auto pr-1 no-scrollbar text-right">
+                    {/* Programs with staff */}
+                    {staffByProgram.map(p => (
+                      <div key={p.program.id} className="space-y-2">
+                        <h4 className="text-xs font-black text-violet-500 border-b border-[var(--border)]/60 pb-1">{p.program.name}</h4>
+                        <div className="space-y-2">
+                          {p.members.map(m => (
+                            <div key={m.id} className="flex items-center justify-between text-xs">
+                              <div className="flex items-center gap-2">
+                                <div className={`w-2 h-2 rounded-full ${
+                                  m.status === "present" ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" :
+                                  m.status === "absent" ? "bg-rose-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]" :
+                                  m.status === "leave" ? "bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]" :
+                                  "bg-slate-400"
+                                }`} />
+                                <span className="font-bold">{m.name}</span>
+                                <span className="text-[9px] text-[var(--muted)]">({ROLE_HE[m.role] || m.role})</span>
+                              </div>
+                              <span className="text-[9px] text-[var(--muted)] font-medium">
+                                {m.status === "present" ? "נוכח" :
+                                 m.status === "absent" ? "נעדר" :
+                                 m.status === "leave" ? `חופשה ${m.reason ? `(${m.reason})` : ""}` :
+                                 m.status === "scheduled" ? `מתוכנן: ${m.time}` : "לא רשום"}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
                     ))}
-                  </select>
-                </div>
-              ) : (
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-violet-500/10 text-violet-500 flex items-center justify-center border border-violet-500/20 shrink-0">
-                    <User className="w-5 h-5" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-black text-sm truncate">{dutyName || "אין מדריך תורן מוגדר"}</p>
-                    <p className="text-[9px] text-[var(--muted)] font-bold mt-0.5">מדריך תורן אחראי לניהול השוטף בחווה</p>
-                  </div>
-                </div>
-              )}
-            </div>
 
-            {/* ── Staff Presence ── */}
-            <div className="border border-[var(--border)] rounded-3xl overflow-hidden bg-[var(--card-bg,var(--surface))] p-5 space-y-4 shadow-xl">
-              <div className="flex items-center justify-between">
-                <h3 className="text-[10px] font-black uppercase tracking-widest text-[var(--foreground)]/40">צוות היום לפי מסגרת</h3>
-                <span className="text-[9px] bg-violet-500/10 text-violet-500 px-2 py-0.5 rounded-full font-bold">
-                  {staffMembers.filter(m => staffAttendance[m.id]?.status === "present").length} נוכחים
-                </span>
-              </div>
-
-              <div className="space-y-4 max-h-[350px] overflow-y-auto pr-1 no-scrollbar text-right">
-                {/* Programs with staff */}
-                {staffByProgram.map(p => (
-                  <div key={p.program.id} className="space-y-2">
-                    <h4 className="text-xs font-black text-violet-500 border-b border-[var(--border)]/60 pb-1">{p.program.name}</h4>
-                    <div className="space-y-2">
-                      {p.members.map(m => (
-                        <div key={m.id} className="flex items-center justify-between text-xs">
-                          <div className="flex items-center gap-2">
-                            <div className={`w-2 h-2 rounded-full ${
-                              m.status === "present" ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" :
-                              m.status === "absent" ? "bg-rose-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]" :
-                              m.status === "leave" ? "bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]" :
-                              "bg-slate-400"
-                            }`} />
-                            <span className="font-bold">{m.name}</span>
-                            <span className="text-[9px] text-[var(--muted)]">({ROLE_HE[m.role] || m.role})</span>
-                          </div>
-                          <span className="text-[9px] text-[var(--muted)] font-medium">
-                            {m.status === "present" ? "נוכח" :
-                             m.status === "absent" ? "נעדר" :
-                             m.status === "leave" ? `חופשה ${m.reason ? `(${m.reason})` : ""}` :
-                             m.status === "scheduled" ? `מתוכנן: ${m.time}` : "לא רשום"}
-                          </span>
+                    {/* General staff */}
+                    {generalStaff.members.length > 0 && (
+                      <div className="space-y-2">
+                        <h4 className="text-xs font-black text-violet-500 border-b border-[var(--border)]/60 pb-1">{generalStaff.program.name}</h4>
+                        <div className="space-y-2">
+                          {generalStaff.members.map(m => (
+                            <div key={m.id} className="flex items-center justify-between text-xs">
+                              <div className="flex items-center gap-2">
+                                <div className={`w-2 h-2 rounded-full ${
+                                  m.status === "present" ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" :
+                                  m.status === "absent" ? "bg-rose-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]" :
+                                  m.status === "leave" ? "bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]" :
+                                  "bg-slate-400"
+                                }`} />
+                                <span className="font-bold">{m.name}</span>
+                                <span className="text-[9px] text-[var(--muted)]">({ROLE_HE[m.role] || m.role})</span>
+                              </div>
+                              <span className="text-[9px] text-[var(--muted)] font-medium">
+                                {m.status === "present" ? "נוכח" :
+                                 m.status === "absent" ? "נעדר" :
+                                 m.status === "leave" ? `חופשה ${m.reason ? `(${m.reason})` : ""}` :
+                                 m.status === "scheduled" ? `מתוכנן: ${m.time}` : "לא רשום"}
+                              </span>
+                            </div>
+                          ))}
                         </div>
-                      ))}
-                    </div>
-                  </div>
-                ))}
+                      </div>
+                    )}
 
-                {/* General staff */}
-                {generalStaff.members.length > 0 && (
-                  <div className="space-y-2">
-                    <h4 className="text-xs font-black text-violet-500 border-b border-[var(--border)]/60 pb-1">{generalStaff.program.name}</h4>
-                    <div className="space-y-2">
-                      {generalStaff.members.map(m => (
-                        <div key={m.id} className="flex items-center justify-between text-xs">
-                          <div className="flex items-center gap-2">
-                            <div className={`w-2 h-2 rounded-full ${
-                              m.status === "present" ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" :
-                              m.status === "absent" ? "bg-rose-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]" :
-                              m.status === "leave" ? "bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]" :
-                              "bg-slate-400"
-                            }`} />
-                            <span className="font-bold">{m.name}</span>
-                            <span className="text-[9px] text-[var(--muted)]">({ROLE_HE[m.role] || m.role})</span>
-                          </div>
-                          <span className="text-[9px] text-[var(--muted)] font-medium">
-                            {m.status === "present" ? "נוכח" :
-                             m.status === "absent" ? "נעדר" :
-                             m.status === "leave" ? `חופשה ${m.reason ? `(${m.reason})` : ""}` :
-                             m.status === "scheduled" ? `מתוכנן: ${m.time}` : "לא רשום"}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
+                    {staffByProgram.length === 0 && generalStaff.members.length === 0 && (
+                      <p className="text-[10px] text-[var(--muted)] text-center py-4 italic font-bold">אין אנשי צוות פעילים היום</p>
+                    )}
                   </div>
-                )}
-
-                {staffByProgram.length === 0 && generalStaff.members.length === 0 && (
-                  <p className="text-[10px] text-[var(--muted)] text-center py-4 italic font-bold">אין אנשי צוות פעילים היום</p>
-                )}
-              </div>
-            </div>
+                </div>
+              </>
+            )}
 
             {/* ── Quick Actions ── */}
             <div className="border border-[var(--border)] rounded-3xl overflow-hidden bg-[var(--card-bg,var(--surface))] p-5 space-y-4 shadow-xl">
               <h3 className="text-[10px] font-black uppercase tracking-widest text-[var(--foreground)]/40">פעולות מהירות</h3>
               <nav className="grid grid-cols-1 gap-2.5" aria-label="פעולות מהירות">
-                {[
-                  { href: "/attendance", icon: ClipboardList, label: "נוכחות", color: "text-emerald-500 bg-emerald-500/5 hover:bg-emerald-500/10 border-emerald-500/10 hover:border-emerald-500/20" },
-                  { href: "/patients",   icon: Users,         label: "משתתפים ותיקים", color: "text-blue-500 bg-blue-500/5 hover:bg-blue-500/10 border-blue-500/10 hover:border-blue-500/20" },
-                  ...(isAdmin || isManager ? [{ href: "/admin", icon: Shield, label: "ממשק ניהול ובקרה", color: "text-slate-300 bg-[var(--foreground)]/5 border-[var(--border)] hover:bg-[var(--foreground)]/8" }] : []),
-                ].map(({ href, icon: Icon, label, color }) => (
+                {quickActions.map(({ href, icon: Icon, label, color }) => (
                   <Link key={href} href={href}
                     className={`flex items-center gap-3 px-4 py-3.5 rounded-2xl border text-xs font-black transition-all transform hover:scale-[1.01] hover:shadow-md active:scale-[0.99] ${color}`}>
                     <Icon className="w-4.5 h-4.5 shrink-0" />
                     <span>{label}</span>
                     {href === "/attendance" && totalMissing > 0 && (
                       <span className="mr-auto text-[10px] font-black text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-lg border border-emerald-500/20">{totalMissing}</span>
+                    )}
+                    {href === "/admin/staff-attendance" && pendingAbsences > 0 && (
+                      <span className="mr-auto text-[10px] font-black text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded-lg border border-amber-500/20">{pendingAbsences}</span>
+                    )}
+                    {href === "/shopping" && activeShoppingCount > 0 && (
+                      <span className="mr-auto text-[10px] font-black text-indigo-500 bg-indigo-500/10 px-2 py-0.5 rounded-lg border border-indigo-500/20">{activeShoppingCount}</span>
                     )}
                   </Link>
                 ))}

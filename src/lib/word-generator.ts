@@ -1020,6 +1020,7 @@ export const generateShoppingListWord = (
   items: ShoppingListExportData[],
   metadata: {
     date: string;
+    title?: string;
     logoHeaderData?: Uint8Array;
     logoFooterData?: Uint8Array;
   }
@@ -1027,7 +1028,7 @@ export const generateShoppingListWord = (
   const children: any[] = [
     createParagraph(`תאריך: ${metadata.date}`, { alignment: AlignmentType.END, bold: true }),
     createSpacer(120),
-    createParagraph("רשימת קניות - חוות רום", { alignment: AlignmentType.CENTER, bold: true, size: 30, spacingAfter: 240 }),
+    createParagraph(metadata.title || "רשימת קניות - חוות רום", { alignment: AlignmentType.CENTER, bold: true, size: 30, spacingAfter: 240 }),
   ];
 
   const tableRows = [
