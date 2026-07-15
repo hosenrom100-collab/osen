@@ -4,10 +4,11 @@ import React, { useState, useEffect } from "react";
 import { useAuth, UserRole, UserStatus } from "@/context/AuthContext";
 import { RoleGuard } from "@/components/auth/RoleGuard";
 import { db } from "@/lib/firebase/config";
-import { collection, getDocs, doc, updateDoc, query, orderBy, addDoc, deleteDoc } from "firebase/firestore";
+import { collection, getDocs, doc, updateDoc, query, orderBy, addDoc, deleteDoc, where } from "firebase/firestore";
 import { 
   Shield, UserPlus, ArrowRight, Search, Loader2, 
-  ChevronDown, ChevronUp, Check, X, ShieldAlert, Users, Layers, Edit3, Trash2
+  ChevronDown, ChevronUp, Check, X, ShieldAlert, Users, Layers, Edit3, Trash2,
+  Calendar, Clock, Plus, AlertCircle
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { StatusBadge } from "@/components/admin/users/StatusBadge";
@@ -23,6 +24,8 @@ export interface UserProfile {
   assignedProgramIds: string[];
   assignedGroupIds: string[];
   isPreCreated?: boolean;
+  workingDays?: string[];
+  assignedComplex?: string;
 }
 
 export interface Program { id: string; name: string }
@@ -49,7 +52,12 @@ const ROLE_COLORS: Record<UserRole, string> = {
 };
 
 export default function UserManagementPage() {
+  const { user } = useAuth();
   const [users, setUsers] = useState<UserProfile[]>([]);
+  const [submittingAbsenceId, setSubmittingAbsenceId] = useState<string | null>(null);
+  const [absenceDates, setAbsenceDates] = useState<Record<string, string>>({});
+  const [absenceReasons, setAbsenceReasons] = useState<Record<string, string>>({});
+  const [userAbsences, setUserAbsences] = useState<Record<string, any[]>>({});
   const [programs, setPrograms] = useState<Program[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
   const [loading, setLoading] = useState(true);
@@ -163,7 +171,9 @@ export default function UserManagementPage() {
             status: data.status || "pending",
             assignedProgramIds: data.assignedProgramIds || [],
             assignedGroupIds: data.assignedGroupIds || data.assignedGroups || [],
-            isPreCreated: !!data.isPreCreated
+            isPreCreated: !!data.isPreCreated,
+            workingDays: data.workingDays || [],
+            assignedComplex: data.assignedComplex || "lower"
           };
         });
       setUsers(userList);
@@ -194,6 +204,76 @@ export default function UserManagementPage() {
   const toggleItem = async (list: string[], item: string, field: keyof UserProfile, userId: string) => {
     const newList = list.includes(item) ? list.filter(i => i !== item) : [...list, item];
     await updateUser(userId, { [field]: newList });
+  };
+
+  const toggleUserDay = async (userId: string, currentDays: string[] | undefined, dayId: string) => {
+    const days = currentDays || [];
+    const nextDays = days.includes(dayId)
+      ? days.filter(d => d !== dayId)
+      : [...days, dayId];
+    await updateUser(userId, { workingDays: nextDays });
+  };
+
+  const updateUserComplex = async (userId: string, complex: string) => {
+    await updateUser(userId, { assignedComplex: complex });
+  };
+
+  const fetchUserAbsences = async (userId: string) => {
+    try {
+      const q = query(
+        collection(db, "absence_requests"),
+        where("userId", "==", userId),
+        orderBy("date", "desc")
+      );
+      const querySnapshot = await getDocs(q);
+      const list: any[] = [];
+      querySnapshot.forEach(doc => {
+        list.push({ id: doc.id, ...doc.data() });
+      });
+      setUserAbsences(prev => ({ ...prev, [userId]: list.slice(0, 5) }));
+    } catch (error) {
+      console.error("Error fetching absences for user:", error);
+    }
+  };
+
+  const handleAddAbsence = async (targetUser: UserProfile) => {
+    const date = absenceDates[targetUser.id];
+    const reason = absenceReasons[targetUser.id] || "";
+    if (!date) {
+      alert("נא לבחור תאריך היעדרות");
+      return;
+    }
+    setSubmittingAbsenceId(targetUser.id);
+    try {
+      await addDoc(collection(db, "absence_requests"), {
+        userId: targetUser.id,
+        userName: targetUser.name,
+        date,
+        reason,
+        status: "approved", // Pre-approved when entered by manager/admin
+        createdAt: new Date().toISOString(),
+        createdBy: user?.uid || "admin",
+        createdByName: user?.displayName || user?.email || "מנהל"
+      });
+      setAbsenceDates(prev => ({ ...prev, [targetUser.id]: "" }));
+      setAbsenceReasons(prev => ({ ...prev, [targetUser.id]: "" }));
+      alert(`ההיעדרות עבור ${targetUser.name} הוזנה ואושרה בהצלחה!`);
+      await fetchUserAbsences(targetUser.id);
+    } catch (error) {
+      console.error("Error adding user absence:", error);
+      alert("שגיאה בהזנת היעדרות");
+    } finally {
+      setSubmittingAbsenceId(null);
+    }
+  };
+
+  const handleToggleExpand = (userId: string) => {
+    if (expandedUserId === userId) {
+      setExpandedUserId(null);
+    } else {
+      setExpandedUserId(userId);
+      fetchUserAbsences(userId);
+    }
   };
 
   const handleStatusChange = async () => {
@@ -443,14 +523,14 @@ export default function UserManagementPage() {
                             {/* Program/Group assignments trigger button */}
                             <td className="py-3.5 px-4 text-center">
                               <button
-                                onClick={() => setExpandedUserId(expandedUserId === user.id ? null : user.id)}
+                                onClick={() => handleToggleExpand(user.id)}
                                 className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-[10px] font-black transition-all ${
                                   expandedUserId === user.id
                                     ? "bg-[var(--foreground)] text-[var(--background)] border-transparent"
                                     : "bg-[var(--foreground)]/5 border-[var(--border)] hover:bg-[var(--foreground)]/10 text-[var(--foreground)]"
                                 }`}
                               >
-                                {expandedUserId === user.id ? "סגור שיוכים" : `שיוכים (${(user.assignedProgramIds?.length || 0) + (user.assignedGroupIds?.length || 0)})`}
+                                {expandedUserId === user.id ? "סגור הגדרות" : "הגדרות מתקדמות"}
                                 {expandedUserId === user.id ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
                               </button>
                             </td>
@@ -497,75 +577,206 @@ export default function UserManagementPage() {
                             </td>
                           </tr>
 
-                          {/* Expanded assignments drawer inside row */}
-                          {expandedUserId === user.id && (
-                            <tr className="bg-[var(--foreground)]/[0.01]">
-                              <td colSpan={6} className="py-4 px-6 border-b border-[var(--border)]">
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                  
-                                  {/* Programs */}
-                                  <div className="space-y-2">
-                                    <div className="flex items-center gap-1.5 text-[10px] font-black text-[var(--muted)] mr-1">
-                                      <Layers className="w-3.5 h-3.5 text-emerald-500" />
-                                      שיוך לתוכניות
-                                    </div>
-                                    <div className="flex flex-wrap gap-1.5">
-                                      {programs.map(p => {
-                                        const isSelected = user.assignedProgramIds?.includes(p.id);
-                                        return (
-                                          <button
-                                            key={p.id}
-                                            disabled={isUpdating}
-                                            onClick={() => toggleItem(user.assignedProgramIds || [], p.id, 'assignedProgramIds', user.id)}
-                                            className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-all active:scale-95 ${
-                                              isSelected 
-                                                ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600 font-extrabold' 
-                                                : 'bg-transparent border-[var(--border)] opacity-50 hover:opacity-100'
-                                            }`}
-                                          >
-                                            {p.name}
-                                          </button>
-                                        );
-                                      })}
-                                    </div>
-                                  </div>
+                           {/* Expanded assignments drawer inside row */}
+                           {expandedUserId === user.id && (
+                             <tr className="bg-[var(--foreground)]/[0.01]">
+                               <td colSpan={6} className="py-5 px-6 border-b border-[var(--border)]">
+                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 text-right" dir="rtl">
+                                   
+                                   {/* Programs */}
+                                   <div className="space-y-2">
+                                     <div className="flex items-center gap-1.5 text-[10px] font-black text-[var(--muted)] mr-1">
+                                       <Layers className="w-3.5 h-3.5 text-emerald-500" />
+                                       שיוך לתוכניות
+                                     </div>
+                                     <div className="flex flex-wrap gap-1.5">
+                                       {programs.map(p => {
+                                         const isSelected = user.assignedProgramIds?.includes(p.id);
+                                         return (
+                                           <button
+                                             key={p.id}
+                                             disabled={isUpdating}
+                                             onClick={() => toggleItem(user.assignedProgramIds || [], p.id, 'assignedProgramIds', user.id)}
+                                             className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-all active:scale-95 cursor-pointer ${
+                                               isSelected 
+                                                 ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600 font-extrabold' 
+                                                 : 'bg-transparent border-[var(--border)] opacity-50 hover:opacity-100 text-[var(--foreground)]'
+                                             }`}
+                                           >
+                                             {p.name}
+                                           </button>
+                                         );
+                                       })}
+                                     </div>
+                                   </div>
+ 
+                                   {/* Groups */}
+                                   <div className="space-y-2">
+                                     <div className="flex items-center gap-1.5 text-[10px] font-black text-[var(--muted)] mr-1">
+                                       <Users className="w-3.5 h-3.5 text-rose-500" />
+                                       שיוך לקבוצות
+                                     </div>
+                                     <div className="flex flex-wrap gap-1.5">
+                                       {groups.map(g => {
+                                         const isSelected = user.assignedGroupIds?.includes(g.id);
+                                         return (
+                                           <button
+                                             key={g.id}
+                                             disabled={isUpdating}
+                                             onClick={() => toggleItem(user.assignedGroupIds || [], g.id, 'assignedGroupIds', user.id)}
+                                             className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-all active:scale-95 cursor-pointer ${
+                                               isSelected 
+                                                 ? 'bg-rose-500/10 border-rose-500/30 text-rose-600 font-extrabold' 
+                                                 : 'bg-transparent border-[var(--border)] opacity-50 hover:opacity-100 text-[var(--foreground)]'
+                                             }`}
+                                           >
+                                             {g.name}
+                                             {g.programId && (
+                                               <span className="mr-1 opacity-40 font-medium">
+                                                 ({programs.find(p => p.id === g.programId)?.name})
+                                               </span>
+                                             )}
+                                           </button>
+                                         );
+                                       })}
+                                     </div>
+                                   </div>
 
-                                  {/* Groups */}
-                                  <div className="space-y-2">
-                                    <div className="flex items-center gap-1.5 text-[10px] font-black text-[var(--muted)] mr-1">
-                                      <Users className="w-3.5 h-3.5 text-rose-500" />
-                                      שיוך לקבוצות
-                                    </div>
-                                    <div className="flex flex-wrap gap-1.5">
-                                      {groups.map(g => {
-                                        const isSelected = user.assignedGroupIds?.includes(g.id);
-                                        return (
-                                          <button
-                                            key={g.id}
-                                            disabled={isUpdating}
-                                            onClick={() => toggleItem(user.assignedGroupIds || [], g.id, 'assignedGroupIds', user.id)}
-                                            className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-all active:scale-95 ${
-                                              isSelected 
-                                                ? 'bg-rose-500/10 border-rose-500/30 text-rose-600 font-extrabold' 
-                                                : 'bg-transparent border-[var(--border)] opacity-50 hover:opacity-100'
-                                            }`}
-                                          >
-                                            {g.name}
-                                            {g.programId && (
-                                              <span className="mr-1 opacity-40 font-medium">
-                                                ({programs.find(p => p.id === g.programId)?.name})
+                                   {/* Regular work schedule settings */}
+                                   <div className="space-y-4">
+                                     <div className="flex items-center gap-1.5 text-[10px] font-black text-[var(--muted)] mr-1">
+                                       <Calendar className="w-3.5 h-3.5 text-orange-500" />
+                                       הגדרות ימי עבודה
+                                     </div>
+
+                                     {/* Assigned Complex */}
+                                     <div className="space-y-1.5">
+                                       <span className="text-[10px] text-[var(--muted)] block">מתחם עבודה עיקרי:</span>
+                                       <div className="flex gap-2 bg-[var(--background)] p-1 rounded-xl border border-[var(--border)] w-fit">
+                                         {[
+                                           { id: "upper", label: "עליון" },
+                                           { id: "lower", label: "תחתון" }
+                                         ].map(comp => (
+                                           <button
+                                             key={comp.id}
+                                             type="button"
+                                             disabled={isUpdating}
+                                             onClick={() => updateUserComplex(user.id, comp.id)}
+                                             className={`px-3 py-1.5 rounded-lg text-[10px] font-black transition-all cursor-pointer ${
+                                               user.assignedComplex === comp.id
+                                                 ? "bg-orange-500 text-white font-extrabold shadow-sm"
+                                                 : "text-[var(--muted)] hover:text-[var(--foreground)]"
+                                             }`}
+                                           >
+                                             {comp.label}
+                                           </button>
+                                         ))}
+                                       </div>
+                                     </div>
+
+                                     {/* Working Days */}
+                                     <div className="space-y-1.5">
+                                       <span className="text-[10px] text-[var(--muted)] block">ימי עבודה קבועים:</span>
+                                       <div className="grid grid-cols-3 gap-1 w-full max-w-[200px]">
+                                         {[
+                                           { id: "sunday", label: "א" },
+                                           { id: "monday", label: "ב" },
+                                           { id: "tuesday", label: "ג" },
+                                           { id: "wednesday", label: "ד" },
+                                           { id: "thursday", label: "ה" },
+                                           { id: "friday", label: "ו" }
+                                         ].map(day => {
+                                           const isWorking = user.workingDays?.includes(day.id);
+                                           return (
+                                             <button
+                                               key={day.id}
+                                               type="button"
+                                               disabled={isUpdating}
+                                               onClick={() => toggleUserDay(user.id, user.workingDays, day.id)}
+                                               className={`py-1.5 rounded-lg border text-[10px] font-black transition-all cursor-pointer ${
+                                                 isWorking
+                                                   ? "bg-orange-500/20 border-orange-500/50 text-orange-400 font-extrabold"
+                                                   : "bg-transparent border-[var(--border)] text-[var(--muted)] opacity-50 hover:opacity-100"
+                                               }`}
+                                             >
+                                               יום {day.label}
+                                             </button>
+                                           );
+                                         })}
+                                       </div>
+                                     </div>
+                                   </div>
+
+                                   {/* Absence registration & log */}
+                                   <div className="space-y-4">
+                                     <div className="flex items-center gap-1.5 text-[10px] font-black text-[var(--muted)] mr-1">
+                                       <AlertCircle className="w-3.5 h-3.5 text-rose-500" />
+                                       היעדרויות העובד
+                                     </div>
+
+                                     {/* Add absence form */}
+                                     <div className="space-y-2 bg-[var(--background)]/40 p-3 rounded-xl border border-[var(--border)]">
+                                       <div className="flex gap-2">
+                                         <input
+                                           type="date"
+                                           value={absenceDates[user.id] || ""}
+                                           onChange={e => setAbsenceDates(prev => ({ ...prev, [user.id]: e.target.value }))}
+                                           className="bg-[var(--surface)] border border-[var(--border)] text-[10px] font-bold text-[var(--foreground)] rounded-lg px-2 py-1 focus:outline-none focus:border-rose-500/50 w-full"
+                                         />
+                                       </div>
+                                       <div className="flex gap-1.5 items-end">
+                                         <input
+                                           type="text"
+                                           placeholder="סיבת היעדרות..."
+                                           value={absenceReasons[user.id] || ""}
+                                           onChange={e => setAbsenceReasons(prev => ({ ...prev, [user.id]: e.target.value }))}
+                                           className="bg-[var(--surface)] border border-[var(--border)] text-[10px] font-medium text-[var(--foreground)] rounded-lg px-2 py-1 focus:outline-none focus:border-rose-500/50 flex-1 placeholder:text-[var(--foreground)]/30"
+                                         />
+                                         <button
+                                           type="button"
+                                           disabled={submittingAbsenceId === user.id}
+                                           onClick={() => handleAddAbsence(user)}
+                                           className="bg-rose-600 hover:bg-rose-500 text-white p-1 rounded-lg transition-colors cursor-pointer shrink-0"
+                                           title="הוסף היעדרות מאושרת"
+                                         >
+                                           {submittingAbsenceId === user.id ? (
+                                             <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                           ) : (
+                                             <Plus className="w-3.5 h-3.5" />
+                                           )}
+                                         </button>
+                                       </div>
+                                     </div>
+
+                                     {/* Recent Absences List */}
+                                     <div className="space-y-1 max-h-32 overflow-y-auto no-scrollbar">
+                                       <span className="text-[9px] text-[var(--muted)] font-black uppercase tracking-wider block">היעדרויות אחרונות (מאושרות):</span>
+                                       {userAbsences[user.id]?.length > 0 ? (
+                                         userAbsences[user.id].map(abs => (
+                                            <div key={abs.id} className="flex items-center justify-between text-[10px] bg-[var(--background)]/20 p-1.5 rounded-lg border border-[var(--border)]/50">
+                                              <span className="font-bold">{abs.date}</span>
+                                              <span className="text-[9px] text-[var(--muted)] max-w-[100px] truncate">{abs.reason || "ללא סיבה"}</span>
+                                              <span className={`px-1.5 py-0.5 rounded text-[8px] font-black ${
+                                                abs.status === "approved"
+                                                  ? "bg-emerald-500/10 text-emerald-500"
+                                                  : abs.status === "rejected"
+                                                  ? "bg-rose-500/10 text-rose-500"
+                                                  : "bg-amber-500/10 text-amber-500"
+                                              }`}>
+                                                {abs.status === "approved" ? "אושר" : abs.status === "rejected" ? "לא אושר" : "ממתין"}
                                               </span>
-                                            )}
-                                          </button>
-                                        );
-                                      })}
-                                    </div>
-                                  </div>
-
-                                </div>
-                              </td>
-                            </tr>
-                          )}
+                                            </div>
+                                         ))
+                                       ) : (
+                                         <p className="text-[9px] text-[var(--muted)] italic">אין היעדרויות רשומות</p>
+                                       )}
+                                     </div>
+                                   </div>
+ 
+                                 </div>
+                               </td>
+                             </tr>
+                           )}
                         </React.Fragment>
                       );
                     })}
