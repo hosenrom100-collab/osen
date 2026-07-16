@@ -763,7 +763,7 @@ export default function Home() {
       )}
 
       {/* ── AI Insights Feed ── */}
-      {dataLoaded && (expiring3mCount > 0 || expiring6mCount > 0) && (
+      {dataLoaded && (roles?.includes("social_worker") || role === "social_worker" || isAdmin || isManager) && (expiring3mCount > 0 || expiring6mCount > 0) && (
         <div className="px-4 md:px-6 mt-6 max-w-6xl mx-auto">
           <div className="p-5 bg-[var(--card-bg,var(--surface))] border border-[var(--border)] rounded-3xl shadow-xl relative overflow-hidden">
             <div className="absolute -top-12 -right-12 w-40 h-40 bg-blue-500/5 rounded-full blur-2xl pointer-events-none" />
