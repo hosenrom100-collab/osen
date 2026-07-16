@@ -720,7 +720,7 @@ function AttendancePageContent() {
 
 export default function AdminPatientAttendancePage() {
   return (
-    <RoleGuard allowedRoles={["admin", "manager", "instructor", "social_worker", "employee"]}>
+    <RoleGuard allowedRoles={["admin", "manager", "instructor", "social_worker", "employee", "logistics"]}>
       <Suspense fallback={<div className="min-h-screen bg-[var(--background)]" />}>
         <AttendancePageContent />
       </Suspense>
