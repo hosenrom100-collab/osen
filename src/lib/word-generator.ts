@@ -15,6 +15,117 @@ import {
 } from "docx";
 import PizZip from "pizzip";
 
+const base64ToUint8Array = (base64String: string | undefined): Uint8Array | null => {
+  try {
+    if (!base64String || !base64String.includes(",")) return null;
+    const base64Content = base64String.split(",")[1];
+    const binaryString = atob(base64Content);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+    return bytes;
+  } catch (e) {
+    console.error("Failed to convert base64 to Uint8Array", e);
+    return null;
+  }
+};
+
+const buildSignatureTable = (
+  therapistName: string,
+  therapistTitle: string,
+  therapistOrg: string,
+  therapistSignature?: string,
+  managerName?: string,
+  managerTitle?: string,
+  managerOrg?: string,
+  managerSignature?: string
+): Table => {
+  const noBorders = {
+    top: { style: BorderStyle.NONE, size: 0, color: "auto" },
+    bottom: { style: BorderStyle.NONE, size: 0, color: "auto" },
+    left: { style: BorderStyle.NONE, size: 0, color: "auto" },
+    right: { style: BorderStyle.NONE, size: 0, color: "auto" },
+  };
+
+  const rightCellChildren: any[] = [
+    createParagraph("בברכה,", { bold: false, spacingAfter: 60 })
+  ];
+
+  if (therapistSignature) {
+    const sigData = base64ToUint8Array(therapistSignature);
+    if (sigData) {
+      rightCellChildren.push(
+        new Paragraph({
+          children: [
+            new ImageRun({
+              data: sigData,
+              type: "png",
+              transformation: { width: 120, height: 48 }
+            })
+          ],
+          spacing: { after: 60 }
+        })
+      );
+    }
+  } else {
+    rightCellChildren.push(createSpacer(120));
+  }
+
+  rightCellChildren.push(createParagraph(therapistName, { bold: true, spacingAfter: 30 }));
+  rightCellChildren.push(createParagraph(therapistTitle, { spacingAfter: 30 }));
+  rightCellChildren.push(createParagraph(therapistOrg, { spacingAfter: 30 }));
+
+  const leftCellChildren: any[] = [];
+  if (managerName) {
+    leftCellChildren.push(createParagraph("בברכה / אישור:", { bold: false, spacingAfter: 60 }));
+    if (managerSignature) {
+      const sigData = base64ToUint8Array(managerSignature);
+      if (sigData) {
+        leftCellChildren.push(
+          new Paragraph({
+            children: [
+              new ImageRun({
+                data: sigData,
+                type: "png",
+                transformation: { width: 120, height: 48 }
+              })
+            ],
+            spacing: { after: 60 }
+          })
+        );
+      }
+    } else {
+      leftCellChildren.push(createSpacer(120));
+    }
+    leftCellChildren.push(createParagraph(managerName, { bold: true, spacingAfter: 30 }));
+    leftCellChildren.push(createParagraph(managerTitle || 'עו"ס MSW, מנהלת מקצועית חוסן', { spacingAfter: 30 }));
+    if (managerOrg) {
+      leftCellChildren.push(createParagraph(managerOrg, { spacingAfter: 30 }));
+    }
+  }
+
+  return new Table({
+    visuallyRightToLeft: true,
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    borders: noBorders,
+    rows: [
+      new TableRow({
+        children: [
+          new TableCell({
+            width: { size: 50, type: WidthType.PERCENTAGE },
+            children: rightCellChildren
+          }),
+          new TableCell({
+            width: { size: 50, type: WidthType.PERCENTAGE },
+            children: leftCellChildren.length > 0 ? leftCellChildren : [createSpacer(10)]
+          })
+        ]
+      })
+    ]
+  });
+};
+
 /**
  * Trigger client-side download of a docx Document
  */
@@ -329,6 +440,11 @@ export const generateRehabPlanWord = (
     districtWorker: string;
     logoHeaderData?: Uint8Array;
     logoFooterData?: Uint8Array;
+    signatureImage?: string;
+    managerName?: string;
+    managerTitle?: string;
+    managerOrg?: string;
+    managerSignature?: string;
   }
 ): any => {
   const children: any[] = [
@@ -442,11 +558,19 @@ export const generateRehabPlanWord = (
   children.push(table);
   children.push(createSpacer(240));
 
-  // Signature Block
-  children.push(createParagraph("בברכה,", { spacingAfter: 60 }));
-  children.push(createParagraph(metadata.therapistName, { bold: true, spacingAfter: 30 }));
-  children.push(createParagraph(metadata.therapistTitle, { spacingAfter: 30 }));
-  children.push(createParagraph("צוות טיפולי, חוות רום", { spacingAfter: 30 }));
+  // Signature Block Table
+  children.push(
+    buildSignatureTable(
+      metadata.therapistName,
+      metadata.therapistTitle,
+      "חוות רום - מרכז חוסן",
+      metadata.signatureImage,
+      metadata.managerName,
+      metadata.managerTitle,
+      metadata.managerOrg,
+      metadata.managerSignature
+    )
+  );
 
   return createDocxDocument(children, metadata.logoHeaderData, metadata.logoFooterData);
 };
@@ -473,6 +597,11 @@ export interface StayCertData {
   specialRemarks?: string;
   logoHeaderData?: Uint8Array;
   logoFooterData?: Uint8Array;
+  signatureImage?: string;
+  managerName?: string;
+  managerTitle?: string;
+  managerOrg?: string;
+  managerSignature?: string;
 }
 
 export const generateStayCertificateWord = (data: StayCertData): any => {
@@ -500,11 +629,17 @@ export const generateStayCertificateWord = (data: StayCertData): any => {
 
     createSpacer(240),
 
-    // Signature Block
-    createParagraph("בברכה,", { spacingAfter: 60 }),
-    createParagraph(data.signatoryName, { bold: true, spacingAfter: 30 }),
-    createParagraph(data.signatoryTitle, { spacingAfter: 30 }),
-    createParagraph(data.signatoryOrg, { spacingAfter: 30 })
+    // Signature Block Table
+    buildSignatureTable(
+      data.signatoryName,
+      data.signatoryTitle,
+      data.signatoryOrg,
+      data.signatureImage,
+      data.managerName,
+      data.managerTitle,
+      data.managerOrg,
+      data.managerSignature
+    )
   ].filter(Boolean) as any[];
 
   return createDocxDocument(children, data.logoHeaderData, data.logoFooterData);
@@ -532,6 +667,11 @@ export interface TravelReimbData {
   totalDays?: string;
   logoHeaderData?: Uint8Array;
   logoFooterData?: Uint8Array;
+  signatureImage?: string;
+  managerName?: string;
+  managerTitle?: string;
+  managerOrg?: string;
+  managerSignature?: string;
 }
 
 export const generateTravelReimbursementWord = (data: TravelReimbData): any => {
@@ -600,11 +740,19 @@ export const generateTravelReimbursementWord = (data: TravelReimbData): any => {
 
   children.push(createSpacer(240));
 
-  // Signature Block
-  children.push(createParagraph("בברכה,", { spacingAfter: 60 }));
-  children.push(createParagraph(data.signatoryName, { bold: true, spacingAfter: 30 }));
-  children.push(createParagraph(data.signatoryTitle, { spacingAfter: 30 }));
-  children.push(createParagraph(data.signatoryOrg, { spacingAfter: 30 }));
+  // Signature Block Table
+  children.push(
+    buildSignatureTable(
+      data.signatoryName,
+      data.signatoryTitle,
+      data.signatoryOrg,
+      data.signatureImage,
+      data.managerName,
+      data.managerTitle,
+      data.managerOrg,
+      data.managerSignature
+    )
+  );
 
   return createDocxDocument(children, data.logoHeaderData, data.logoFooterData);
 };
@@ -626,6 +774,11 @@ export interface AttendanceReportData {
   signatoryTitle: string;
   logoHeaderData?: Uint8Array;
   logoFooterData?: Uint8Array;
+  signatureImage?: string;
+  managerName?: string;
+  managerTitle?: string;
+  managerOrg?: string;
+  managerSignature?: string;
 }
 
 export const generateAttendanceReportWord = (data: AttendanceReportData): any => {
@@ -660,10 +813,19 @@ export const generateAttendanceReportWord = (data: AttendanceReportData): any =>
 
   children.push(createSpacer(240));
 
-  // Signature Block
-  children.push(createParagraph("בברכה,", { spacingAfter: 60 }));
-  children.push(createParagraph(data.signatoryName, { bold: true, spacingAfter: 30 }));
-  children.push(createParagraph(data.signatoryTitle, { spacingAfter: 30 }));
+  // Signature Block Table
+  children.push(
+    buildSignatureTable(
+      data.signatoryName,
+      data.signatoryTitle,
+      "חוות רום - מרכז חוסן",
+      data.signatureImage,
+      data.managerName,
+      data.managerTitle,
+      data.managerOrg,
+      data.managerSignature
+    )
+  );
 
   return createDocxDocument(children, data.logoHeaderData, data.logoFooterData);
 };
@@ -695,6 +857,11 @@ export interface PeriodicReportData {
   nextPeriodGoal?: string;
   logoHeaderData?: Uint8Array;
   logoFooterData?: Uint8Array;
+  signatureImage?: string;
+  managerName?: string;
+  managerTitle?: string;
+  managerOrg?: string;
+  managerSignature?: string;
 }
 
 export const generatePeriodicReportWord = (data: PeriodicReportData): any => {
@@ -954,36 +1121,19 @@ export const generatePeriodicReportWord = (data: PeriodicReportData): any => {
 
   children.push(createLabelValueParagraph("6. תאריך:", data.date || "—", { spacingAfter: 240 }));
 
-  // 10. Signature Block
-  children.push(createParagraph("בברכה:", { alignment: AlignmentType.CENTER, bold: true, spacingAfter: 180 }));
-
-  const signatureTable = new Table({
-    visuallyRightToLeft: true,
-    width: { size: 100, type: WidthType.PERCENTAGE },
-    borders: noBorders,
-    rows: [
-      new TableRow({
-        children: [
-          // Right: Farm Social Worker name
-          new TableCell({
-            width: { size: 50, type: WidthType.PERCENTAGE },
-            children: [
-              createLabelValueParagraph("עו\"ס:", data.farmSocialWorker || "—"),
-            ]
-          }),
-          // Left: MSW / Title
-          new TableCell({
-            width: { size: 50, type: WidthType.PERCENTAGE },
-            children: [
-              createParagraph("MSW", { bold: true, alignment: AlignmentType.END }),
-              createParagraph("מנהלת מרכז חוסן", { bold: true, alignment: AlignmentType.END })
-            ]
-          })
-        ]
-      })
-    ]
-  });
-  children.push(signatureTable);
+  // 10. Signature Block Table
+  children.push(
+    buildSignatureTable(
+      data.farmSocialWorker,
+      'עו"ס מלווה בחווה',
+      "חוות רום - מרכז חוסן",
+      data.signatureImage,
+      data.managerName,
+      data.managerTitle,
+      data.managerOrg,
+      data.managerSignature
+    )
+  );
 
   return createDocxDocument(children, data.logoHeaderData, data.logoFooterData);
 };
@@ -995,15 +1145,49 @@ export interface FunctionalReportData {
   paragraphs: string[];
   logoHeaderData?: Uint8Array;
   logoFooterData?: Uint8Array;
+  signatoryName?: string;
+  signatoryTitle?: string;
+  signatoryOrg?: string;
+  signatureImage?: string;
+  managerName?: string;
+  managerTitle?: string;
+  managerOrg?: string;
+  managerSignature?: string;
 }
 
 export const generateFunctionalReportWord = (data: FunctionalReportData): any => {
-  const children = data.paragraphs.flatMap(p => {
+  let cleanedParagraphs = [...data.paragraphs];
+  
+  // Clean off the text signature block if present at the end
+  if (cleanedParagraphs.length > 0) {
+    const lastP = cleanedParagraphs[cleanedParagraphs.length - 1];
+    if (lastP.startsWith("בברכה") || lastP.includes("חתימה") || lastP.includes(data.signatoryName || "_____")) {
+      cleanedParagraphs.pop();
+    }
+  }
+
+  const children: any[] = cleanedParagraphs.flatMap(p => {
     const lines = p.split("\n");
     return [
       createParagraph(lines.join("\n"), { spacingAfter: 180, alignment: AlignmentType.BOTH })
     ];
   });
+
+  children.push(createSpacer(240));
+
+  // Add the rich signature table at the end
+  children.push(
+    buildSignatureTable(
+      data.signatoryName || "_____",
+      data.signatoryTitle || 'עו"ס',
+      data.signatoryOrg || "חוות רום",
+      data.signatureImage,
+      data.managerName,
+      data.managerTitle,
+      data.managerOrg,
+      data.managerSignature
+    )
+  );
 
   return createDocxDocument(children, data.logoHeaderData, data.logoFooterData);
 };

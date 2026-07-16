@@ -275,6 +275,9 @@ export default function PatientDetailPage() {
     travelActivityDetail?: string;
     logoHeaderUrl?: string;
     logoFooterUrl?: string;
+    professionalManagerName?: string;
+    professionalManagerTitle?: string;
+    professionalManagerSignature?: string;
   } | null>(null);
 
   // Periodic report specific states (Transient, not saved to DB)
@@ -718,7 +721,12 @@ export default function PatientDetailPage() {
           fundingSource: stayFundingSource,
           specialRemarks: staySpecialRemarks,
           logoHeaderData: undefined,
-          logoFooterData: undefined
+          logoFooterData: undefined,
+          signatureImage: signatureImage || undefined,
+          managerName: reportSettings?.professionalManagerName,
+          managerTitle: reportSettings?.professionalManagerTitle,
+          managerOrg: "חוות רום - מרכז חוסן",
+          managerSignature: reportSettings?.professionalManagerSignature
         });
       } else {
         wordDoc = generateTravelReimbursementWord({
@@ -739,7 +747,12 @@ export default function PatientDetailPage() {
           transportationMethod: travelTransportationMethod,
           totalDays: travelTotalDays || undefined,
           logoHeaderData: undefined,
-          logoFooterData: undefined
+          logoFooterData: undefined,
+          signatureImage: signatureImage || undefined,
+          managerName: reportSettings?.professionalManagerName,
+          managerTitle: reportSettings?.professionalManagerTitle,
+          managerOrg: "חוות רום - מרכז חוסן",
+          managerSignature: reportSettings?.professionalManagerSignature
         });
       }
 
@@ -1161,7 +1174,12 @@ export default function PatientDetailPage() {
         transportationMethod: travelTransportationMethod,
         totalDays: travelTotalDays || undefined,
         logoHeaderData: undefined,
-        logoFooterData: undefined
+        logoFooterData: undefined,
+        signatureImage: signatureImage || undefined,
+        managerName: reportSettings?.professionalManagerName,
+        managerTitle: reportSettings?.professionalManagerTitle,
+        managerOrg: "חוות רום - מרכז חוסן",
+        managerSignature: reportSettings?.professionalManagerSignature
       });
 
       const reqMonth = pendingRequest?.month || selectedMonth;
@@ -1231,7 +1249,12 @@ export default function PatientDetailPage() {
         fundingSource: stayFundingSource,
         specialRemarks: staySpecialRemarks,
         logoHeaderData: undefined,
-        logoFooterData: undefined
+        logoFooterData: undefined,
+        signatureImage: signatureImage || undefined,
+        managerName: reportSettings?.professionalManagerName,
+        managerTitle: reportSettings?.professionalManagerTitle,
+        managerOrg: "חוות רום - מרכז חוסן",
+        managerSignature: reportSettings?.professionalManagerSignature
       });
 
       const fileName = `אישור_שהייה_${stayLastName}_${stayFirstName}.docx`;
@@ -1301,7 +1324,15 @@ export default function PatientDetailPage() {
       const doc = generateFunctionalReportWord({
         paragraphs: functionalFreeText.split("\n\n").map(p => p.trim()).filter(Boolean),
         logoHeaderData: undefined,
-        logoFooterData: undefined
+        logoFooterData: undefined,
+        signatoryName: functionalSignatoryName,
+        signatoryTitle: functionalSignatoryTitle,
+        signatoryOrg: functionalSignatoryOrg,
+        signatureImage: signatureImage || undefined,
+        managerName: reportSettings?.professionalManagerName,
+        managerTitle: reportSettings?.professionalManagerTitle,
+        managerOrg: "חוות רום - מרכז חוסן",
+        managerSignature: reportSettings?.professionalManagerSignature
       });
 
       const fileName = `דו"ח_תפקודי_${patient.lastName}_${patient.firstName}.docx`;
@@ -1434,7 +1465,12 @@ export default function PatientDetailPage() {
         workshopPerformance: periodicWorkshopPerformance,
         nextPeriodGoal: periodicNextPeriodGoal,
         logoHeaderData: undefined,
-        logoFooterData: undefined
+        logoFooterData: undefined,
+        signatureImage: signatureImage || undefined,
+        managerName: reportSettings?.professionalManagerName,
+        managerTitle: reportSettings?.professionalManagerTitle,
+        managerOrg: "חוות רום - מרכז חוסן",
+        managerSignature: reportSettings?.professionalManagerSignature
       });
 
       const fileName = `דו"ח_תקופתי_${patient.lastName}_${patient.firstName}_${periodicReportType.replace(/\//g, "-")}.docx`;
@@ -1499,7 +1535,12 @@ export default function PatientDetailPage() {
         therapistTitle: rehabPlanTherapistTitle,
         districtWorker: rehabPlanDistrictWorker,
         logoHeaderData: undefined,
-        logoFooterData: undefined
+        logoFooterData: undefined,
+        signatureImage: signatureImage || undefined,
+        managerName: reportSettings?.professionalManagerName,
+        managerTitle: reportSettings?.professionalManagerTitle,
+        managerOrg: "חוות רום - מרכז חוסן",
+        managerSignature: reportSettings?.professionalManagerSignature
       });
       const fileName = `תוכנית_שיקום_${patient.lastName}_${patient.firstName}.docx`;
       await generateDocxWithLetterhead(doc, fileName);

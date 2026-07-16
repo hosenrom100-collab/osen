@@ -1,7 +1,7 @@
 "use client";
 
 import { RoleGuard } from "@/components/auth/RoleGuard";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { db } from "@/lib/firebase/config";
 import { doc, getDoc, setDoc, collection, getDocs, updateDoc } from "firebase/firestore";
 import { 
@@ -45,6 +45,87 @@ export default function AdminSettingsPage() {
   const [uploadingHeader, setUploadingHeader] = useState(false);
   const [uploadingFooter, setUploadingFooter] = useState(false);
 
+  // Professional Manager Signature States
+  const [professionalManagerName, setProfessionalManagerName] = useState("אורלי לבנוני אילת");
+  const [professionalManagerTitle, setProfessionalManagerTitle] = useState("עו״ס MSW, מנהלת מקצועית חוסן");
+  const [localSignatureImage, setLocalSignatureImage] = useState<string | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const [isDrawing, setIsDrawing] = useState(false);
+  const [canvasDirty, setCanvasDirty] = useState(false);
+
+  // Drawing canvas logic
+  const handleClearSignature = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    setLocalSignatureImage(null);
+    setCanvasDirty(false);
+  };
+
+  const startDrawing = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    ctx.strokeStyle = "#000000";
+    ctx.lineWidth = 3;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+
+    if (e.nativeEvent instanceof TouchEvent) {
+      e.preventDefault();
+    }
+
+    const { x, y } = getCoord(e);
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    setIsDrawing(true);
+    setCanvasDirty(true);
+  };
+
+  const draw = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
+    if (!isDrawing) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    if (e.nativeEvent instanceof TouchEvent) {
+      e.preventDefault();
+    }
+
+    const { x, y } = getCoord(e);
+    ctx.lineTo(x, y);
+    ctx.stroke();
+  };
+
+  const stopDrawing = () => {
+    setIsDrawing(false);
+  };
+
+  const getCoord = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return { x: 0, y: 0 };
+    const rect = canvas.getBoundingClientRect();
+
+    if ('touches' in e) {
+      if (e.touches.length === 0) return { x: 0, y: 0 };
+      const touch = e.touches[0];
+      return {
+        x: touch.clientX - rect.left,
+        y: touch.clientY - rect.top
+      };
+    } else {
+      return {
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top
+      };
+    }
+  };
+
   useEffect(() => {
     fetchSettings();
   }, []);
@@ -54,11 +135,14 @@ export default function AdminSettingsPage() {
     try {
       const snap = await getDoc(doc(db, "settings", "reports"));
       if (snap.exists()) {
-        const data = snap.data() as ReportSettings;
+        const data = snap.data() as any;
         setParticipationActivityDetail(data.participationActivityDetail || DEFAULT_ACTIVITY_DETAIL);
         setTravelActivityDetail(data.travelActivityDetail || DEFAULT_ACTIVITY_DETAIL);
         setLogoHeaderUrl(data.logoHeaderUrl || "");
         setLogoFooterUrl(data.logoFooterUrl || "");
+        if (data.professionalManagerName) setProfessionalManagerName(data.professionalManagerName);
+        if (data.professionalManagerTitle) setProfessionalManagerTitle(data.professionalManagerTitle);
+        if (data.professionalManagerSignature) setLocalSignatureImage(data.professionalManagerSignature);
       }
 
       const progsSnap = await getDocs(collection(db, "programs"));
@@ -131,13 +215,33 @@ export default function AdminSettingsPage() {
     setSuccess(false);
 
     try {
+      const canvas = canvasRef.current;
+      let finalSignatureImage = localSignatureImage;
+      if (canvasDirty && canvas) {
+        finalSignatureImage = canvas.toDataURL("image/png");
+      }
+
       await setDoc(doc(db, "settings", "reports"), {
         participationActivityDetail,
         travelActivityDetail,
         logoHeaderUrl,
         logoFooterUrl,
+        professionalManagerName,
+        professionalManagerTitle,
+        professionalManagerSignature: finalSignatureImage || "",
         updatedAt: new Date()
       }, { merge: true });
+      
+      // Update local signature image state in case it changed
+      if (canvasDirty && finalSignatureImage) {
+        setLocalSignatureImage(finalSignatureImage);
+        setCanvasDirty(false);
+        // Clear canvas
+        if (canvas) {
+          const ctx = canvas.getContext("2d");
+          if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+      }
 
       await Promise.all(
         programs.map(prog => 
@@ -238,6 +342,84 @@ export default function AdminSettingsPage() {
                   rows={3}
                   className="w-full bg-[var(--foreground)]/5 border border-[var(--border)] text-[var(--foreground)] rounded-xl p-3.5 text-xs font-bold focus:border-violet-500 outline-none transition-colors resize-none leading-relaxed"
                 />
+              </div>
+            </div>
+          </section>
+
+          {/* 2. Professional Manager Signature */}
+          <section className="bg-[var(--card-bg)] border border-[var(--border)] rounded-[2rem] p-6 space-y-6 shadow-sm">
+            <div className="flex items-center gap-2 border-b border-[var(--border-subtle)] pb-3">
+              <ImageIcon className="w-5 h-5 text-violet-500" />
+              <h2 className="text-xs font-black">חתימת מנהלת מקצועית בדוחות</h2>
+            </div>
+
+            <div className="space-y-4 text-right">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[10px] font-black text-[var(--foreground)]/40 uppercase tracking-wider mb-1.5">
+                    שם המנהלת המקצועית
+                  </label>
+                  <input
+                    type="text"
+                    value={professionalManagerName}
+                    onChange={e => setProfessionalManagerName(e.target.value)}
+                    className="w-full bg-[var(--foreground)]/5 border border-[var(--border)] text-[var(--foreground)] rounded-xl p-3 text-xs font-bold focus:border-violet-500 outline-none transition-colors"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-[var(--foreground)]/40 uppercase tracking-wider mb-1.5">
+                    תואר ותפקיד (מנהלת מקצועית)
+                  </label>
+                  <input
+                    type="text"
+                    value={professionalManagerTitle}
+                    onChange={e => setProfessionalManagerTitle(e.target.value)}
+                    className="w-full bg-[var(--foreground)]/5 border border-[var(--border)] text-[var(--foreground)] rounded-xl p-3 text-xs font-bold focus:border-violet-500 outline-none transition-colors"
+                  />
+                </div>
+              </div>
+
+              {/* Signature Canvas Pad */}
+              <div className="space-y-3.5 pt-2">
+                <label className="block text-[10px] font-black uppercase tracking-wider text-[var(--foreground)]/40">
+                  חתימה דיגיטלית של המנהלת המקצועית
+                </label>
+                
+                {localSignatureImage && (
+                  <div className="border border-[var(--border)] rounded-2xl p-4 bg-white flex flex-col items-center justify-center gap-2 shadow-inner">
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider">תצוגה מקדימה של החתימה הפעילה:</p>
+                    <img src={localSignatureImage} alt="חתימה פעילה" className="max-h-24 object-contain bg-white" />
+                  </div>
+                )}
+
+                <div className="border border-[var(--border)] rounded-2xl bg-white overflow-hidden relative shadow-inner">
+                  <canvas
+                    ref={canvasRef}
+                    width={500}
+                    height={180}
+                    onMouseDown={startDrawing}
+                    onMouseMove={draw}
+                    onMouseUp={stopDrawing}
+                    onMouseLeave={stopDrawing}
+                    onTouchStart={startDrawing}
+                    onTouchMove={draw}
+                    onTouchEnd={stopDrawing}
+                    className="w-full h-44 cursor-crosshair touch-none bg-white"
+                  />
+                  <div className="absolute bottom-3 left-3 flex gap-2">
+                    <button
+                      type="button"
+                      onClick={handleClearSignature}
+                      className="px-3.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-100 rounded-xl text-[10px] font-black transition-colors cursor-pointer shadow-sm"
+                    >
+                      נקה לוח
+                    </button>
+                  </div>
+                </div>
+                
+                <p className="text-[9px] text-[var(--muted)] font-medium leading-relaxed mt-1">
+                  * צייר את החתימה בתוך התיבה הלבנה, ולאחר מכן לחץ על "שמור הגדרות" בראש העמוד.
+                </p>
               </div>
             </div>
           </section>
