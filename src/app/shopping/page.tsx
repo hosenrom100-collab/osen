@@ -1,5 +1,6 @@
 "use client";
 
+import { Html5Qrcode } from "html5-qrcode";
 import { RoleGuard } from "@/components/auth/RoleGuard";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { db } from "@/lib/firebase/config";
@@ -11,7 +12,7 @@ import {
   ShoppingCart, Plus, Minus, Check, X, Clock, User, Search, Loader2, 
   ArrowRight, Trash2, CheckCircle2, Download, Flame, ChevronRight, 
   Edit3, RotateCcw, Package, ShoppingBag, Filter,
-  ChevronDown, Settings
+  ChevronDown, Settings, Scan, Camera
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { motion, AnimatePresence, LayoutGroup } from "framer-motion";
@@ -33,6 +34,7 @@ interface ShoppingRequest {
   notes?: string;
   priority?: "low" | "normal" | "urgent";
   listType?: "supermarket" | "large";
+  barcode?: string;
 }
 
 interface Product { 
@@ -41,6 +43,7 @@ interface Product {
   category: string; 
   isRecurring?: boolean;
   recurringQuantity?: string;
+  barcode?: string;
 }
 
 const CAT_COLOR: Record<string, string> = {
@@ -133,6 +136,14 @@ export default function ShoppingPage() {
   const [recurringSearchVal, setRecurringSearchVal] = useState("");
   const [actionsMenuOpen, setActionsMenuOpen] = useState(false);
   const [purchasedCollapsed, setPurchasedCollapsed] = useState(true);
+  const [scanOpen, setScanOpen] = useState(false);
+  const [scannedBarcode, setScannedBarcode] = useState("");
+  const [scannedProductInfo, setScannedProductInfo] = useState<{ name: string, category: string } | null>(null);
+  const [scanStatus, setScanStatus] = useState<"scanning" | "searching" | "found" | "not_found" | "error">("scanning");
+  const [scanErrorMsg, setScanErrorMsg] = useState("");
+  const [customProductName, setCustomProductName] = useState("");
+  const [customProductCat, setCustomProductCat] = useState("כללי");
+  const [editBarcode, setEditBarcode] = useState("");
 
   // Add-bar state
   const [inputVal, setInputVal]     = useState("");
@@ -214,8 +225,199 @@ export default function ShoppingPage() {
       setEditQty(editItem.quantity || "");
       setEditNotes(editItem.notes || "");
       setEditPriority(editItem.priority || "normal");
+      setEditBarcode(editItem.barcode || "");
     }
   }, [editItem]);
+
+  // ── Barcode Scanning Logic ───────────────────────────────────────────
+  useEffect(() => {
+    if (!scanOpen) return;
+    
+    // We delay slightly to allow the DOM element #reader to render
+    const timer = setTimeout(() => {
+      const html5QrCode = new Html5Qrcode("reader");
+      
+      const config = { 
+        fps: 10, 
+        qrbox: { width: 250, height: 150 },
+        aspectRatio: 1.777778
+      };
+      
+      html5QrCode.start(
+        { facingMode: "environment" }, 
+        config, 
+        (decodedText, decodedResult) => {
+          handleBarcodeScanned(decodedText);
+          html5QrCode.stop().catch(err => console.error("Error stopping scanner:", err));
+        },
+        (errorMessage) => {
+          // parse errors are normal and happen constantly during search, ignore
+        }
+      ).catch(err => {
+        console.error("Error starting camera:", err);
+        setScanStatus("error");
+        setScanErrorMsg("לא ניתן לגשת למצלמה. אנא ודא שאישרת הרשאות מצלמה.");
+      });
+      
+      return () => {
+        if (html5QrCode.isScanning) {
+          html5QrCode.stop().catch(err => console.error("Error in scanner cleanup:", err));
+        }
+      };
+    }, 100);
+    
+    return () => clearTimeout(timer);
+  }, [scanOpen]);
+
+  const handleBarcodeScanned = async (barcode: string) => {
+    setScannedBarcode(barcode);
+    setScanStatus("searching");
+    
+    try {
+      // 1. Check local Firebase pool first
+      const productSnap = await getDocs(collection(db, "product_pool"));
+      let foundProduct: any = null;
+      productSnap.forEach((d) => {
+        const p = d.data();
+        if (p.barcode === barcode) {
+          foundProduct = { id: d.id, ...p };
+        }
+      });
+      
+      if (foundProduct) {
+        const p = foundProduct;
+        await addProduct(p.name, p.category, "normal", "1");
+        setScanStatus("found");
+        setScannedProductInfo({ name: p.name, category: p.category });
+        showToast(`מוצר ממאגר החווה נוסף: "${p.name}"`, "success");
+        
+        setTimeout(() => {
+          setScanOpen(false);
+          setScannedBarcode("");
+          setScannedProductInfo(null);
+          setScanStatus("scanning");
+        }, 1500);
+        return;
+      }
+      
+      // 2. Not found locally, query Open Food Facts API
+      const res = await fetch(`https://world.openfoodfacts.org/api/v2/product/${barcode}.json`);
+      const data = await res.json();
+      
+      if (data.status === 1 && data.product) {
+        const pName = data.product.product_name_he || data.product.product_name || data.product.generic_name_he || data.product.generic_name || "";
+        let brand = data.product.brands || "";
+        if (brand && !pName.includes(brand)) {
+          brand = brand.split(",")[0].trim();
+        }
+        
+        let finalName = pName;
+        if (brand && !finalName.toLowerCase().includes(brand.toLowerCase())) {
+          finalName = `${brand} ${finalName}`;
+        }
+        
+        finalName = finalName.trim();
+        
+        if (finalName) {
+          let matchedCat = "כללי";
+          const offCats = data.product.categories_tags || [];
+          const offCatsStr = offCats.join(" ").toLowerCase();
+          
+          if (offCatsStr.includes("dairy") || offCatsStr.includes("cheese") || offCatsStr.includes("milk") || offCatsStr.includes("yoghurt")) {
+            matchedCat = "גבינות ומחלבה";
+          } else if (offCatsStr.includes("meat") || offCatsStr.includes("fish") || offCatsStr.includes("poultry")) {
+            matchedCat = "בשר ודגים";
+          } else if (offCatsStr.includes("fruit") || offCatsStr.includes("vegetable")) {
+            matchedCat = "פירות וירקות";
+          } else if (offCatsStr.includes("bread") || offCatsStr.includes("bakery") || offCatsStr.includes("pastry")) {
+            matchedCat = "לחם ומאפים";
+          } else if (offCatsStr.includes("cleaning") || offCatsStr.includes("detergent")) {
+            matchedCat = "חומרי ניקוי";
+          } else if (offCatsStr.includes("paper") || offCatsStr.includes("disposable")) {
+            matchedCat = "מוצרי נייר וחד פעמי";
+          } else if (offCatsStr.includes("hygiene") || offCatsStr.includes("toiletries") || offCatsStr.includes("shampoo") || offCatsStr.includes("soap")) {
+            matchedCat = "טואלטיקה והיגיינה";
+          } else if (offCatsStr.includes("frozen")) {
+            matchedCat = "קפואים";
+          } else if (offCatsStr.includes("canned") || offCatsStr.includes("cooking")) {
+            matchedCat = "שימורים ובישול";
+          }
+          
+          setScanStatus("found");
+          setScannedProductInfo({ name: finalName, category: matchedCat });
+          setCustomProductName(finalName);
+          setCustomProductCat(matchedCat);
+          
+          // Auto add
+          await addProduct(finalName, matchedCat, "normal", "1");
+          // Save code in pool
+          const docId = finalName.replace(/\//g, "-");
+          await setDoc(doc(db, "product_pool", docId), { 
+            name: finalName, 
+            category: matchedCat,
+            barcode: barcode
+          }, { merge: true });
+          
+          setTimeout(() => {
+            setScanOpen(false);
+            setScannedBarcode("");
+            setScannedProductInfo(null);
+            setScanStatus("scanning");
+          }, 1500);
+          return;
+        }
+      }
+      
+      setScanStatus("not_found");
+      setCustomProductName("");
+      setCustomProductCat("כללי");
+    } catch (err) {
+      console.error("Error looking up barcode:", err);
+      setScanStatus("error");
+      setScanErrorMsg("שגיאה בחיפוש הברקוד ברשת. נסה שנית או הוסף ידנית.");
+    }
+  };
+
+  const handleSaveScannedProduct = async () => {
+    if (!customProductName.trim() || !scannedBarcode) return;
+    
+    const name = customProductName.trim();
+    const category = customProductCat;
+    
+    try {
+      const docId = name.replace(/\//g, "-");
+      await setDoc(doc(db, "product_pool", docId), { 
+        name, 
+        category,
+        barcode: scannedBarcode
+      }, { merge: true });
+      
+      await addDoc(collection(db, "shopping_requests"), {
+        name, 
+        category, 
+        quantity: "1", 
+        notes: "", 
+        priority: "normal", 
+        status: "approved",
+        requestedBy: user?.uid, 
+        requestedByName: user?.displayName || user?.email || "משתמש",
+        createdAt: new Date(),
+        listType,
+        barcode: scannedBarcode
+      });
+      
+      showToast(`המוצר "${name}" נשמר במאגר והוזמן בהצלחה!`, "success");
+      fetchPool();
+      
+      setScanOpen(false);
+      setScannedBarcode("");
+      setScannedProductInfo(null);
+      setScanStatus("scanning");
+    } catch (e) {
+      console.error("Error saving barcode product:", e);
+      showToast("שגיאה בשמירת המוצר", "warning");
+    }
+  };
 
   const fetchPool = async () => {
     const snap = await getDocs(collection(db, "product_pool"));
@@ -495,11 +697,13 @@ export default function ShoppingPage() {
         quantity: editQty,
         notes: editNotes,
         priority: editPriority,
+        barcode: editBarcode || ""
       });
       const docId = editName.replace(/\//g, "-");
       await setDoc(doc(db, "product_pool", docId), {
         name: editName,
         category: editCat,
+        barcode: editBarcode || ""
       }, { merge: true });
       setEditItem(null);
       fetchPool();
@@ -640,8 +844,15 @@ export default function ShoppingPage() {
                 onChange={(e) => setInputVal(e.target.value)}
                 onFocus={openAddOverlay}
                 placeholder="הוסף מוצר..."
-                className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-2xl py-3.5 pr-20 pl-4 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all placeholder:text-[var(--muted)]/50 shadow-sm"
+                className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-2xl py-3.5 pr-20 pl-14 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all placeholder:text-[var(--muted)]/50 shadow-sm"
               />
+              <button
+                onClick={(e) => { e.stopPropagation(); e.preventDefault(); setScanOpen(true); }}
+                className="absolute left-3 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[var(--foreground)]/5 active:scale-95 transition-all text-indigo-500 cursor-pointer border-none bg-transparent"
+                title="סרוק ברקוד"
+              >
+                <Scan className="w-5 h-5" />
+              </button>
            </div>
         </div>
 
@@ -660,8 +871,15 @@ export default function ShoppingPage() {
                  onChange={(e) => setInputVal(e.target.value)}
                  onFocus={openAddOverlay}
                  placeholder="חיפוש או הוספת מוצר..."
-                 className="w-full bg-[var(--background)] border border-[var(--border)] rounded-2xl py-2.5 pr-11 pl-4 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all shadow-inner"
+                 className="w-full bg-[var(--background)] border border-[var(--border)] rounded-2xl py-2.5 pr-11 pl-12 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all shadow-inner"
                />
+               <button
+                 onClick={(e) => { e.stopPropagation(); e.preventDefault(); setScanOpen(true); }}
+                 className="absolute left-3 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[var(--foreground)]/5 active:scale-95 transition-all text-indigo-500 cursor-pointer border-none bg-transparent"
+                 title="סרוק ברקוד"
+               >
+                 <Scan className="w-4 h-4" />
+               </button>
             </div>
           </div>
           <div className="flex items-center gap-4">
@@ -930,8 +1148,15 @@ export default function ShoppingPage() {
                         if (e.key === "Escape") { setOverlayOpen(false); setAddUrgent(false); }
                      }}
                      placeholder="מה לקנות?"
-                     className="w-full bg-[var(--surface)] border-2 border-[var(--border)] rounded-[2rem] py-6 pr-14 pl-6 text-xl font-bold focus:outline-none focus:border-indigo-500 transition-all shadow-xl text-right placeholder:text-[var(--muted)]/40"
+                     className="w-full bg-[var(--surface)] border-2 border-[var(--border)] rounded-[2rem] py-6 pr-14 pl-16 text-xl font-bold focus:outline-none focus:border-indigo-500 transition-all shadow-xl text-right placeholder:text-[var(--muted)]/40"
                    />
+                    <button
+                      onClick={(e) => { e.stopPropagation(); e.preventDefault(); setScanOpen(true); }}
+                      className="absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 flex items-center justify-center rounded-2xl bg-indigo-500/10 hover:bg-indigo-500/20 active:scale-95 transition-all text-indigo-500 border border-indigo-500/20 cursor-pointer"
+                      title="סרוק ברקוד"
+                    >
+                      <Scan className="w-6 h-6" />
+                    </button>
                 </div>
 
                 {/* Quantity and Unit Inputs */}
@@ -1072,6 +1297,17 @@ export default function ShoppingPage() {
                         <option value="urgent">דחוף 🔥</option>
                       </select>
                     </div>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-black text-[var(--muted)] uppercase tracking-widest mb-1.5 block">ברקוד (אופציונלי)</label>
+                    <input 
+                      type="text" 
+                      value={editBarcode} 
+                      onChange={(e) => setEditBarcode(e.target.value)}
+                      placeholder="הקלד ברקוד..."
+                      className="w-full bg-[var(--background)] border border-[var(--border)] rounded-xl py-3 px-4 text-sm font-bold focus:outline-none focus:border-indigo-500/50" 
+                    />
                   </div>
 
                   <div>
@@ -1558,6 +1794,196 @@ export default function ShoppingPage() {
               </div>
             )}
           </AnimatePresence>
+        {/* Barcode Scanner Modal */}
+        <AnimatePresence>
+          {scanOpen && (
+            <div className="fixed inset-0 z-[130] flex items-center justify-center p-4">
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                onClick={() => {
+                  setScanOpen(false);
+                  setScannedBarcode("");
+                  setScannedProductInfo(null);
+                  setScanStatus("scanning");
+                }}
+                className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm" />
+              
+              <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
+                className="relative w-full max-w-md bg-[var(--surface)] border border-[var(--border)] rounded-[2.5rem] p-6 shadow-2xl text-right flex flex-col max-h-[90vh] overflow-hidden" dir="rtl">
+                
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-black flex items-center gap-2">
+                    <Scan className="w-5 h-5 text-indigo-500" />
+                    <span>סריקת ברקוד מוצר</span>
+                  </h3>
+                  <button onClick={() => {
+                    setScanOpen(false);
+                    setScannedBarcode("");
+                    setScannedProductInfo(null);
+                    setScanStatus("scanning");
+                  }} className="p-2 rounded-full hover:bg-[var(--foreground)]/5 text-[var(--muted)] cursor-pointer">
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <div className="flex-1 overflow-y-auto no-scrollbar py-2">
+                  {scanStatus === "scanning" && (
+                    <div className="space-y-4">
+                      <div className="relative overflow-hidden rounded-2xl bg-black border border-[var(--border)] aspect-video flex items-center justify-center">
+                        <div id="reader" className="w-full h-full" />
+                        <div className="absolute inset-0 border-2 border-indigo-500/30 rounded-2xl pointer-events-none flex items-center justify-center">
+                          <div className="w-48 h-24 border-2 border-indigo-500 rounded-xl relative">
+                            <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-rose-500 animate-pulse" />
+                          </div>
+                        </div>
+                      </div>
+                      <p className="text-center text-xs text-[var(--muted)] font-bold">
+                        מקם את ברקוד המוצר מול כוונת המצלמה
+                      </p>
+                      
+                      <div className="pt-2 border-t border-[var(--border)]/40">
+                        <label className="text-[10px] font-black text-[var(--muted)] uppercase tracking-widest mb-1.5 block">סריקה ידנית (הקלדת ברקוד)</label>
+                        <div className="flex gap-2">
+                          <input 
+                            type="text" 
+                            placeholder="הקלד ברקוד..."
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                const val = (e.target as HTMLInputElement).value.trim();
+                                if (val) handleBarcodeScanned(val);
+                              }
+                            }}
+                            className="flex-grow bg-[var(--background)] border border-[var(--border)] rounded-xl py-2 px-3 text-xs font-bold focus:border-indigo-500 outline-none text-[var(--foreground)]"
+                          />
+                          <button 
+                            onClick={(e) => {
+                              const input = e.currentTarget.previousSibling as HTMLInputElement;
+                              const val = input ? input.value.trim() : "";
+                              if (val) handleBarcodeScanned(val);
+                            }}
+                            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 !text-white rounded-xl text-xs font-black transition-all active:scale-95 border-none cursor-pointer"
+                          >
+                            חיפוש
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {scanStatus === "searching" && (
+                    <div className="flex flex-col items-center justify-center py-12 gap-4">
+                      <Loader2 className="w-10 h-10 text-indigo-500 animate-spin" />
+                      <p className="text-sm font-bold text-[var(--muted)]">מחפש מוצר ברשת ובמאגר של החווה...</p>
+                      <p className="text-xs text-[var(--muted)]/60 font-semibold">{scannedBarcode}</p>
+                    </div>
+                  )}
+
+                  {scanStatus === "found" && scannedProductInfo && (
+                    <div className="space-y-6 text-center py-6">
+                      <div className="w-16 h-16 rounded-full bg-emerald-500/10 text-emerald-500 flex items-center justify-center mx-auto">
+                        <Check className="w-8 h-8 stroke-[3]" />
+                      </div>
+                      <div>
+                        <h4 className="text-lg font-black text-[var(--foreground)]">{scannedProductInfo.name}</h4>
+                        <span className={`inline-block mt-2 text-[10px] font-black px-2.5 py-0.5 rounded-full ${CAT_COLOR[scannedProductInfo.category] || CAT_COLOR["כללי"]}`}>
+                          {scannedProductInfo.category}
+                        </span>
+                      </div>
+                      <p className="text-xs text-[var(--muted)] font-semibold">המוצר נוסף בהצלחה לרשימה!</p>
+                    </div>
+                  )}
+
+                  {scanStatus === "not_found" && (
+                    <div className="space-y-4">
+                      <div className="p-4 bg-amber-500/5 border border-amber-500/10 rounded-2xl text-right">
+                        <p className="text-sm font-black text-amber-500">המוצר אינו מוכר במאגר</p>
+                        <p className="text-xs text-[var(--muted)] font-bold mt-1">ברקוד: {scannedBarcode}</p>
+                        <p className="text-xs text-[var(--muted)]/80 font-bold mt-1">תוכל להוסיף אותו כעת ידנית והוא יישמר במאגר החווה לפעמים הבאות!</p>
+                      </div>
+
+                      <div className="space-y-4">
+                        <div>
+                          <label className="text-[10px] font-black text-[var(--muted)] uppercase tracking-widest mb-1.5 block">שם המוצר</label>
+                          <input 
+                            type="text" 
+                            value={customProductName} 
+                            onChange={(e) => setCustomProductName(e.target.value)}
+                            placeholder="שם המוצר..."
+                            className="w-full bg-[var(--background)] border border-[var(--border)] rounded-xl py-3 px-4 text-sm font-bold focus:outline-none focus:border-indigo-500/50" 
+                          />
+                        </div>
+
+                        <div>
+                          <label className="text-[10px] font-black text-[var(--muted)] uppercase tracking-widest mb-1.5 block">קטגוריה</label>
+                          <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto no-scrollbar border border-[var(--border)] p-2 rounded-xl bg-[var(--background)]/50">
+                            {categories.map(c => (
+                              <button 
+                                key={c} 
+                                type="button"
+                                onClick={() => setCustomProductCat(c)} 
+                                className={`py-2 px-3 rounded-lg text-xs font-bold border transition-all ${
+                                  customProductCat === c 
+                                    ? "bg-indigo-600 border-indigo-500 !text-white shadow-md shadow-indigo-500/10" 
+                                    : "bg-[var(--background)] border-[var(--border)] text-[var(--muted)] hover:text-[var(--foreground)]"
+                                }`}
+                              >
+                                {c}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        <button 
+                          onClick={handleSaveScannedProduct}
+                          disabled={!customProductName.trim()}
+                          className="w-full py-4 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:pointer-events-none !text-white text-sm font-black rounded-2xl shadow-lg transition-all active:scale-[0.98] mt-4 border-none cursor-pointer"
+                        >
+                          שמור מוצר והוסף לרשימה
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {scanStatus === "error" && (
+                    <div className="text-center py-8 space-y-6">
+                      <div className="w-16 h-16 rounded-full bg-rose-500/10 text-rose-500 flex items-center justify-center mx-auto">
+                        <X className="w-8 h-8" />
+                      </div>
+                      <p className="text-sm font-bold text-[var(--foreground)]">{scanErrorMsg}</p>
+                      
+                      {/* Manual text scanner input */}
+                      <div className="pt-2 text-right border-t border-[var(--border)]/40">
+                        <label className="text-[10px] font-black text-[var(--muted)] uppercase tracking-widest mb-1.5 block">סריקה ידנית (הקלדת ברקוד)</label>
+                        <div className="flex gap-2">
+                          <input 
+                            type="text" 
+                            placeholder="הקלד ברקוד..."
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                const val = (e.target as HTMLInputElement).value.trim();
+                                if (val) handleBarcodeScanned(val);
+                              }
+                            }}
+                            className="flex-grow bg-[var(--background)] border border-[var(--border)] rounded-xl py-2 px-3 text-xs font-bold focus:border-indigo-500 outline-none text-[var(--foreground)]"
+                          />
+                          <button 
+                            onClick={(e) => {
+                              const input = e.currentTarget.previousSibling as HTMLInputElement;
+                              const val = input ? input.value.trim() : "";
+                              if (val) handleBarcodeScanned(val);
+                            }}
+                            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 !text-white rounded-xl text-xs font-black transition-all active:scale-95 border-none cursor-pointer"
+                          >
+                            חיפוש
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
       </div>
     </RoleGuard>
   );
