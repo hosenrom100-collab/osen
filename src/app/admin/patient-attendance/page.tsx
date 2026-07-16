@@ -29,7 +29,7 @@ interface Patient {
   fullName?: string;
 }
 interface Group { id: string; name: string; programId?: string }
-interface SelectionItem { id: string; name: string; type: 'program' | 'group' }
+interface SelectionItem { id: string; name: string; type: 'program' | 'group'; activeDays?: number[] }
 interface AttendanceRecord { [patientId: string]: "present" | "absent" | "unset" }
 
 function MiniCalendar({ value, onChange }: { value: string; onChange: (d: string) => void }) {
@@ -173,23 +173,20 @@ function AttendancePageContent() {
         getDocs(collection(db, "groups"))
       ]);
       
-      const dayOfWeekIndex = getDay(parseISO(selectedDate));
       const progs = progSnap.docs
-        .map(d => ({ id: d.id, name: d.data().name, activeDays: d.data().activeDays || [] }))
-        .filter(p => p.activeDays.length === 0 || p.activeDays.includes(dayOfWeekIndex));
+        .map(d => ({ id: d.id, name: d.data().name, activeDays: d.data().activeDays || [] }));
       
       const groups = groupSnap.docs
-        .map(d => ({ id: d.id, name: d.data().name, programId: d.data().programId }))
-        .filter(g => !g.programId || progs.some(p => p.id === g.programId));
+        .map(d => ({ id: d.id, name: d.data().name, programId: d.data().programId }));
       
       const items: SelectionItem[] = [];
       progs.forEach(p => {
         const pGroups = groups.filter(g => g.programId === p.id);
         if (pGroups.length === 0) {
-          items.push({ id: p.id, name: p.name, type: 'program' });
+          items.push({ id: p.id, name: p.name, type: 'program', activeDays: p.activeDays });
         } else {
           pGroups.forEach(g => {
-            items.push({ id: g.id, name: `${p.name} - ${g.name}`, type: 'group' });
+            items.push({ id: g.id, name: `${p.name} - ${g.name}`, type: 'group', activeDays: p.activeDays });
           });
         }
       });
@@ -227,8 +224,21 @@ function AttendancePageContent() {
     if (selectedId && selectionItems.length > 0) {
       const selection = selectionItems.find(item => item.id === selectedId);
       if (selection) {
-        fetchData(selection);
+        const dayOfWeekIndex = getDay(parseISO(selectedDate));
+        const activeDays = selection.activeDays || [];
+        const isActiveToday = activeDays.length === 0 || activeDays.includes(dayOfWeekIndex);
+        if (!isActiveToday) {
+          setPatients([]);
+          setAttendance({});
+          setLoading(false);
+        } else {
+          fetchData(selection);
+        }
+      } else {
+        setLoading(false);
       }
+    } else if (selectionItems.length === 0) {
+      setLoading(false);
     }
   }, [selectedId, selectedDate, selectionItems]);
 
@@ -337,6 +347,10 @@ function AttendancePageContent() {
   const dateLabel = format(parseISO(selectedDate), "d בMMMM", { locale: he });
   const pct = stats.total ? Math.round((stats.present / stats.total) * 100) : 0;
   const hasUnset = stats.unset > 0 && filteredPatients.some(p => attendance[p.id] === "unset");
+
+  const selectedItem = selectionItems.find(item => item.id === selectedId);
+  const dayOfWeekIndex = getDay(parseISO(selectedDate));
+  const isSelectedActiveToday = !selectedItem || !selectedItem.activeDays || selectedItem.activeDays.length === 0 || selectedItem.activeDays.map(Number).includes(dayOfWeekIndex);
 
   return (
     <div dir="rtl" className="min-h-screen bg-[var(--background)] text-[var(--foreground)] pb-36">
@@ -449,101 +463,127 @@ function AttendancePageContent() {
       </AnimatePresence>
 
       <main className="max-w-2xl mx-auto p-4 space-y-4">
-
-        {/* Stats card */}
-        <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-4 space-y-3">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="flex items-center justify-between sm:justify-start gap-3 sm:gap-5 w-full sm:w-auto">
-              <div className="text-center flex-1 sm:flex-none">
-                <p className="text-xl font-black text-emerald-500 leading-none">{stats.present}</p>
-                <p className="text-[9px] font-black text-[var(--muted)] uppercase tracking-widest mt-0.5">נוכחים</p>
-              </div>
-              <div className="w-px h-8 bg-[var(--border)] shrink-0" />
-              <div className="text-center flex-1 sm:flex-none">
-                <p className="text-xl font-black text-rose-500 leading-none">{stats.absent}</p>
-                <p className="text-[9px] font-black text-[var(--muted)] uppercase tracking-widest mt-0.5">נעדרים</p>
-              </div>
-              <div className="w-px h-8 bg-[var(--border)] shrink-0" />
-              <div className="text-center flex-1 sm:flex-none">
-                <p className="text-xl font-black text-[var(--muted)]/40 leading-none">{stats.unset}</p>
-                <p className="text-[9px] font-black text-[var(--muted)] uppercase tracking-widest mt-0.5">ממתינים</p>
-              </div>
-            </div>
-            <div className="flex items-center justify-between sm:justify-end gap-4 w-full sm:w-auto pt-3 sm:pt-0 border-t border-[var(--border)]/60 sm:border-0">
-              <button
-                onClick={copyAttendanceToClipboard}
-                className={`flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-2 sm:px-3 sm:py-1.5 rounded-xl border text-[11px] font-black transition-all ${
-                  copied
-                    ? "bg-emerald-500/20 border-emerald-500/30 text-emerald-400"
-                    : "bg-[var(--foreground)]/5 border-[var(--border)] hover:bg-[var(--foreground)]/10 text-[var(--foreground)] active:scale-95 shadow-sm"
-                }`}
-                title="העתק רשימת נוכחים לוואטסאפ"
-              >
-                {copied ? <Check className="w-3.5 h-3.5" /> : <Share2 className="w-3.5 h-3.5 text-emerald-500" />}
-                <span>{copied ? "הועתק!" : "העתק לוואטסאפ"}</span>
-              </button>
-
-              <div className="text-left shrink-0">
-                <p className="text-2xl font-black leading-none">{pct}<span className="text-sm font-bold text-[var(--muted)]">%</span></p>
-                <p className="text-[9px] font-black text-[var(--muted)] uppercase tracking-widest mt-0.5">נוכחות</p>
-              </div>
-            </div>
+        {loading ? (
+          <div className="flex items-center justify-center py-20">
+            <Loader2 className="w-7 h-7 text-emerald-500 animate-spin" />
           </div>
-
-          {/* Split progress bar */}
-          <div className="h-2 bg-[var(--foreground)]/5 rounded-full overflow-hidden flex">
-            {stats.total > 0 && (
-              <>
-                <div className="bg-emerald-500 rounded-r-full transition-all duration-500"
-                  style={{ width: `${(stats.present / stats.total) * 100}%` }} />
-                <div className="bg-rose-500 transition-all duration-500"
-                  style={{ width: `${(stats.absent / stats.total) * 100}%` }} />
-              </>
+        ) : !isSelectedActiveToday ? (
+          <div className="bg-[var(--surface)] border border-[var(--border)] rounded-3xl p-8 text-center space-y-4 shadow-sm">
+            <div className="w-16 h-16 rounded-2xl bg-amber-500/10 text-amber-500 flex items-center justify-center mx-auto border border-amber-500/20">
+              <CalendarIcon className="w-8 h-8" />
+            </div>
+            <div className="space-y-2">
+              <h3 className="text-base font-black text-[var(--foreground)]">תוכנית זו אינה פעילה ביום זה</h3>
+              <p className="text-xs text-[var(--muted)] leading-relaxed">
+                לא ניתן לבצע בדיקת נוכחות עבור {selectedItem?.name} ביום {format(parseISO(selectedDate), "EEEE", { locale: he })}.
+              </p>
+            </div>
+            {selectedItem?.activeDays && selectedItem.activeDays.length > 0 && (
+              <div className="bg-[var(--foreground)]/3 rounded-2xl p-4 max-w-sm mx-auto">
+                <p className="text-[10px] font-black uppercase tracking-wider text-[var(--foreground)]/45 mb-1.5">ימי פעילות של התוכנית</p>
+                <div className="flex justify-center gap-1.5">
+                  {selectedItem.activeDays.map(d => (
+                    <span key={d} className="px-2.5 py-1 bg-violet-500/10 border border-violet-500/20 text-violet-500 rounded-lg text-xs font-black">
+                      {["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת"][d]}
+                    </span>
+                  ))}
+                </div>
+              </div>
             )}
           </div>
-        </div>
+        ) : (
+          <>
+            {/* Stats card */}
+            <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-4 space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex items-center justify-between sm:justify-start gap-3 sm:gap-5 w-full sm:w-auto">
+                  <div className="text-center flex-1 sm:flex-none">
+                    <p className="text-xl font-black text-emerald-500 leading-none">{stats.present}</p>
+                    <p className="text-[9px] font-black text-[var(--muted)] uppercase tracking-widest mt-0.5">נוכחים</p>
+                  </div>
+                  <div className="w-px h-8 bg-[var(--border)] shrink-0" />
+                  <div className="text-center flex-1 sm:flex-none">
+                    <p className="text-xl font-black text-rose-500 leading-none">{stats.absent}</p>
+                    <p className="text-[9px] font-black text-[var(--muted)] uppercase tracking-widest mt-0.5">נעדרים</p>
+                  </div>
+                  <div className="w-px h-8 bg-[var(--border)] shrink-0" />
+                  <div className="text-center flex-1 sm:flex-none">
+                    <p className="text-xl font-black text-[var(--muted)]/40 leading-none">{stats.unset}</p>
+                    <p className="text-[9px] font-black text-[var(--muted)] uppercase tracking-widest mt-0.5">ממתינים</p>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between sm:justify-end gap-4 w-full sm:w-auto pt-3 sm:pt-0 border-t border-[var(--border)]/60 sm:border-0">
+                  <button
+                    onClick={copyAttendanceToClipboard}
+                    className={`flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-2 sm:px-3 sm:py-1.5 rounded-xl border text-[11px] font-black transition-all ${
+                      copied
+                        ? "bg-emerald-500/20 border-emerald-500/30 text-emerald-400"
+                        : "bg-[var(--foreground)]/5 border-[var(--border)] hover:bg-[var(--foreground)]/10 text-[var(--foreground)] active:scale-95 shadow-sm"
+                    }`}
+                    title="העתק רשימת נוכחים לוואטסאפ"
+                  >
+                    {copied ? <Check className="w-3.5 h-3.5" /> : <Share2 className="w-3.5 h-3.5 text-emerald-500" />}
+                    <span>{copied ? "הועתק!" : "העתק לוואטסאפ"}</span>
+                  </button>
 
-        {/* Search */}
-        <div className="relative">
-          <Search className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--muted)]/40" />
-          <input
-            type="text"
-            placeholder="חיפוש משתתף..."
-            value={searchTerm}
-            onChange={e => setSearchTerm(e.target.value)}
-            className="w-full bg-[var(--surface)] border border-[var(--border)] text-[var(--foreground)] rounded-xl pr-11 pl-4 h-11 text-sm font-bold outline-none focus:border-[var(--muted)]/40 transition-all"
-          />
-        </div>
+                  <div className="text-left shrink-0">
+                    <p className="text-2xl font-black leading-none">{pct}<span className="text-sm font-bold text-[var(--muted)]">%</span></p>
+                    <p className="text-[9px] font-black text-[var(--muted)] uppercase tracking-widest mt-0.5">נוכחות</p>
+                  </div>
+                </div>
+              </div>
 
-        {/* Patient list */}
-        <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl overflow-hidden">
-          <AnimatePresence mode="wait">
-            {loading ? (
-              <motion.div key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                className="flex items-center justify-center py-20">
-                <Loader2 className="w-7 h-7 text-emerald-500 animate-spin" />
-              </motion.div>
-            ) : filteredPatients.length === 0 ? (
-              <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-                className="flex flex-col items-center justify-center py-20 opacity-30 gap-3">
-                <Users className="w-10 h-10" />
-                <p className="text-sm font-bold italic">אין משתתפים להצגה</p>
-              </motion.div>
-            ) : (
-              <motion.div key="list" initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-                className="divide-y divide-[var(--border)]">
-                {filteredPatients.map(p => (
-                  <AttendanceItem
-                    key={p.id}
-                    patient={p}
-                    status={attendance[p.id] || "unset"}
-                    onToggle={s => handleToggle(p.id, s)}
-                  />
-                ))}
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
+              {/* Split progress bar */}
+              <div className="h-2 bg-[var(--foreground)]/5 rounded-full overflow-hidden flex">
+                {stats.total > 0 && (
+                  <>
+                    <div className="bg-emerald-500 rounded-r-full transition-all duration-500"
+                      style={{ width: `${(stats.present / stats.total) * 100}%` }} />
+                    <div className="bg-rose-500 transition-all duration-500"
+                      style={{ width: `${(stats.absent / stats.total) * 100}%` }} />
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* Search */}
+            <div className="relative">
+              <Search className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--muted)]/40" />
+              <input
+                type="text"
+                placeholder="חיפוש משתתף..."
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+                className="w-full bg-[var(--surface)] border border-[var(--border)] text-[var(--foreground)] rounded-xl pr-11 pl-4 h-11 text-sm font-bold outline-none focus:border-[var(--muted)]/40 transition-all"
+              />
+            </div>
+
+            {/* Patient list */}
+            <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl overflow-hidden">
+              <AnimatePresence mode="wait">
+                {filteredPatients.length === 0 ? (
+                  <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                    className="flex flex-col items-center justify-center py-20 opacity-30 gap-3">
+                    <Users className="w-10 h-10" />
+                    <p className="text-sm font-bold italic">אין משתתפים להצגה</p>
+                  </motion.div>
+                ) : (
+                  <motion.div key="list" initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                    className="divide-y divide-[var(--border)]">
+                    {filteredPatients.map(p => (
+                      <AttendanceItem
+                        key={p.id}
+                        patient={p}
+                        status={attendance[p.id] || "unset"}
+                        onToggle={s => handleToggle(p.id, s)}
+                      />
+                    ))}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          </>
+        )}
       </main>
 
       {/* ── Filter Modal ── */}
