@@ -136,8 +136,16 @@ export default function ShoppingPage() {
   const [inputVal, setInputVal]     = useState("");
   const [overlayOpen, setOverlayOpen] = useState(false);
   const [addUrgent, setAddUrgent]   = useState(false);
+  const [addQty, setAddQty]         = useState("1");
+  const [addUnit, setAddUnit]       = useState("יחידות");
   const [justAdded, setJustAdded]   = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; type: "success" | "warning" } | null>(null);
+
+  const openAddOverlay = () => {
+    setAddQty("1");
+    setAddUnit("יחידות");
+    setOverlayOpen(true);
+  };
 
   const showToast = (message: string, type: "success" | "warning") => {
     setToast({ message, type });
@@ -364,7 +372,7 @@ export default function ShoppingPage() {
     }
   };
 
-  const addProduct = async (name: string, category = "כללי", priority: "normal" | "urgent" = "normal") => {
+  const addProduct = async (name: string, category = "כללי", priority: "normal" | "urgent" = "normal", quantity = "1") => {
     const activeRequestsList = requests.filter((r) => r.status !== "archived");
     const similarName = findSimilarRequest(name, activeRequestsList);
     if (similarName) {
@@ -376,7 +384,7 @@ export default function ShoppingPage() {
     const docId = name.replace(/\//g, "-");
     try { await setDoc(doc(db, "product_pool", docId), { name, category }, { merge: true }); } catch { /* ignore pool write fail for non-managers */ }
     await addDoc(collection(db, "shopping_requests"), {
-      name, category, quantity: "1", notes: "", priority, status: "approved",
+      name, category, quantity, notes: "", priority, status: "approved",
       requestedBy: user?.uid, requestedByName: user?.displayName || user?.email || "משתמש",
       createdAt: new Date(),
       listType,
@@ -500,7 +508,8 @@ export default function ShoppingPage() {
     const name = inputVal.trim();
     if (!name) return;
     const match = pool.find((p) => p.name === name);
-    await addProduct(name, match?.category ?? "כללי", addUrgent ? "urgent" : "normal");
+    const finalQty = addUnit === "יחידות" ? addQty : `${addQty} ${addUnit}`;
+    await addProduct(name, match?.category ?? "כללי", addUrgent ? "urgent" : "normal", finalQty);
     setInputVal("");
     setOverlayOpen(false);
     setAddUrgent(false);
@@ -518,11 +527,10 @@ export default function ShoppingPage() {
     XLSX.writeFile(wb, `ארכיון_רכש_${new Date().toLocaleDateString("he-IL").replace(/\//g, "-")}.xlsx`);
   };
 
-  const exportWord = async () => {
+  const exportProcurementList = async () => {
     try {
-      const activeSession = requests.filter((r) => r.status !== "archived" && (listType === "large" ? r.listType === "large" : r.listType !== "large"));
+      const activeSession = requests.filter((r) => r.status !== "archived" && r.listType === "large");
       const sortedItems = [...activeSession].sort((a, b) => a.category.localeCompare(b.category));
-
       const itemsToExport = sortedItems.map(r => ({
         name: r.name,
         category: r.category,
@@ -530,19 +538,40 @@ export default function ShoppingPage() {
         notes: r.notes || "",
         requestedByName: r.requestedByName || ""
       }));
-
       const dateStr = format(new Date(), "dd/MM/yyyy");
       const doc = generateShoppingListWord(itemsToExport, {
         date: dateStr,
-        title: listType === "large" ? "רשימת מוצרים גדולים וציוד - חוות רום" : "רשימת קניות סופר - חוות רום"
+        title: "רשימת רכש וציוד - חוות רום"
       });
-
-      const fileName = listType === "large"
-        ? `רשימת_קניות_גדולות_${format(new Date(), "yyyy-MM-dd")}.docx`
-        : `רשימת_קניות_סופר_${format(new Date(), "yyyy-MM-dd")}.docx`;
-      await generateDocxWithLetterhead(doc, fileName);
+      await generateDocxWithLetterhead(doc, `רשימת_רכש_${format(new Date(), "yyyy-MM-dd")}.docx`);
+      showToast("הופקה רשימת רכש והורדה בהצלחה!", "success");
     } catch (e) {
-      console.error("Failed to generate Word document", e);
+      console.error("Failed to generate procurement Word document", e);
+      showToast("שגיאה בהפקת רשימת רכש.", "warning");
+    }
+  };
+
+  const exportOngoingList = async () => {
+    try {
+      const activeSession = requests.filter((r) => r.status !== "archived" && r.listType !== "large");
+      const sortedItems = [...activeSession].sort((a, b) => a.category.localeCompare(b.category));
+      const itemsToExport = sortedItems.map(r => ({
+        name: r.name,
+        category: r.category,
+        quantity: r.quantity || "1",
+        notes: r.notes || "",
+        requestedByName: r.requestedByName || ""
+      }));
+      const dateStr = format(new Date(), "dd/MM/yyyy");
+      const doc = generateShoppingListWord(itemsToExport, {
+        date: dateStr,
+        title: "רשימת קניות שוטפת סופר - חוות רום"
+      });
+      await generateDocxWithLetterhead(doc, `רשימת_קניות_סופר_${format(new Date(), "yyyy-MM-dd")}.docx`);
+      showToast("הופקה רשימה שוטפת והורדה בהצלחה!", "success");
+    } catch (e) {
+      console.error("Failed to generate ongoing Word document", e);
+      showToast("שגיאה בהפקת רשימה שוטפת.", "warning");
     }
   };
 
@@ -600,7 +629,7 @@ export default function ShoppingPage() {
                 type="text"
                 value={inputVal}
                 onChange={(e) => setInputVal(e.target.value)}
-                onFocus={() => setOverlayOpen(true)}
+                onFocus={openAddOverlay}
                 placeholder="הוסף מוצר..."
                 className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-2xl py-3.5 pr-20 pl-4 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all placeholder:text-[var(--muted)]/50 shadow-sm"
               />
@@ -620,7 +649,7 @@ export default function ShoppingPage() {
                  type="text"
                  value={inputVal}
                  onChange={(e) => setInputVal(e.target.value)}
-                 onFocus={() => setOverlayOpen(true)}
+                 onFocus={openAddOverlay}
                  placeholder="חיפוש או הוספת מוצר..."
                  className="w-full bg-[var(--background)] border border-[var(--border)] rounded-2xl py-2.5 pr-11 pl-4 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all shadow-inner"
                />
@@ -630,14 +659,30 @@ export default function ShoppingPage() {
              <button onClick={() => setView(view === "list" ? "archive" : "list")} className="px-6 py-2.5 rounded-2xl bg-[var(--foreground)]/5 border border-[var(--border)] text-xs font-black hover:bg-[var(--foreground)]/10 transition-all">
                 {view === "list" ? "ארכיון קניות" : "רשימה פעילה"}
              </button>
-             <button 
-               onClick={exportWord} 
-               title="ייצוא לוורד רשמי" 
-               className="px-4 py-2.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-700 hover:bg-emerald-100 transition-all flex items-center gap-1.5 text-xs font-bold cursor-pointer"
-             >
-               <Download className="w-4 h-4 text-emerald-600" />
-               <span>הורדת טופס וורד</span>
-             </button>
+              <button 
+                onClick={exportProcurementList} 
+                title="יצוא רשימת רכש ל-Word" 
+                className="px-4 py-2.5 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-blue-400 hover:bg-blue-500/20 transition-all flex items-center gap-1.5 text-xs font-black cursor-pointer"
+              >
+                <Download className="w-4 h-4 text-blue-400" />
+                <span>יצוא רשימת רכש</span>
+              </button>
+              <button 
+                onClick={exportOngoingList} 
+                title="יצוא רשימה שוטפת ל-Word" 
+                className="px-4 py-2.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/20 transition-all flex items-center gap-1.5 text-xs font-black cursor-pointer"
+              >
+                <Download className="w-4 h-4 text-emerald-400" />
+                <span>יצוא רשימה שוטפת</span>
+              </button>
+              <button 
+                onClick={generateRecurringList} 
+                title="יצוא רשימה קבועה ל-Word" 
+                className="px-4 py-2.5 rounded-2xl bg-purple-500/10 border border-purple-500/20 text-purple-400 hover:bg-purple-500/20 transition-all flex items-center gap-1.5 text-xs font-black cursor-pointer"
+              >
+                <Download className="w-4 h-4 text-purple-400" />
+                <span>יצוא רשימה קבועה</span>
+              </button>
              {isAdmin && <button onClick={exportXlsx} title="ייצוא לאקסל" className="p-2.5 rounded-2xl bg-[var(--foreground)]/5 border border-[var(--border)] hover:bg-[var(--foreground)]/10 transition-all cursor-pointer"><Download className="w-5 h-5 text-[var(--muted)]" /></button>}
           </div>
         </header>
@@ -870,6 +915,32 @@ export default function ShoppingPage() {
                    />
                 </div>
 
+                {/* Quantity and Unit Inputs */}
+                <div className="grid grid-cols-2 gap-4 bg-[var(--surface)] border border-[var(--border)] rounded-[2rem] p-5 mb-4 shadow-sm" dir="rtl">
+                  <div>
+                    <label className="text-[10px] font-black text-[var(--muted)] text-right uppercase tracking-widest mb-1.5 block">כמות</label>
+                    <input 
+                      type="text" 
+                      value={addQty} 
+                      onChange={(e) => setAddQty(e.target.value)}
+                      placeholder="למשל: 1, 2, 0.5"
+                      className="w-full bg-[var(--background)] border border-[var(--border)] rounded-xl py-2.5 px-3 text-sm font-bold text-center focus:outline-none focus:border-indigo-500/50" 
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-black text-[var(--muted)] text-right uppercase tracking-widest mb-1.5 block">יחידות מידה</label>
+                    <select 
+                      value={addUnit} 
+                      onChange={(e) => setAddUnit(e.target.value)}
+                      className="w-full bg-[var(--background)] border border-[var(--border)] rounded-xl py-2.5 px-3 text-sm font-bold text-center focus:outline-none focus:border-indigo-500/50 text-right"
+                    >
+                      <option value="יחידות">יחידות</option>
+                      <option value="ק״ג">ק״ג</option>
+                      <option value="גרם">גרם</option>
+                    </select>
+                  </div>
+                </div>
+
                 {/* Quick Priority Toggle inside Add Overlay */}
                 <div className="flex items-center justify-between bg-[var(--surface)] border border-[var(--border)] rounded-[2rem] p-5 mb-6 shadow-sm">
                   <div className="flex items-center gap-3">
@@ -907,7 +978,8 @@ export default function ShoppingPage() {
                            key={p.id}
                            onClick={() => { 
                              if (!inList) { 
-                               addProduct(p.name, p.category, addUrgent ? "urgent" : "normal"); 
+                               const finalQty = addUnit === "יחידות" ? addQty : `${addQty} ${addUnit}`;
+                               addProduct(p.name, p.category, addUrgent ? "urgent" : "normal", finalQty);
                                setInputVal(""); 
                                setOverlayOpen(false); 
                                setAddUrgent(false);
