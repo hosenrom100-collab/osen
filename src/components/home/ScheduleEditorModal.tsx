@@ -119,7 +119,8 @@ export function ScheduleEditorModal({ isOpen, onClose, onSaved, initialDate }: S
         const udata = d.data();
         const roles = udata.roles || (udata.role ? [udata.role] : []);
         const isStaff = !roles.includes("participant") && udata.role !== "participant";
-        if (isStaff && (udata.status === "approved" || udata.status === "active")) {
+        const hasRequisiteRole = roles.includes("instructor") || roles.includes("social_worker") || udata.role === "instructor" || udata.role === "social_worker";
+        if (isStaff && (udata.status === "approved" || udata.status === "active") && hasRequisiteRole) {
           staffList.push({ id: d.id, name: udata.name || udata.displayName || udata.email || "עובד" });
         }
       });

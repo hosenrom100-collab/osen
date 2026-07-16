@@ -142,6 +142,7 @@ export default function ProgramDetailPage() {
             role: data.role || (roles.length > 0 ? roles[0] : ""),
             roles,
             assignedProgramIds: data.assignedProgramIds || [],
+            assignedGroupIds: data.assignedGroupIds || data.assignedGroups || [],
           });
         }
       });
@@ -239,6 +240,38 @@ export default function ProgramDetailPage() {
       }
     } catch (err) {
       console.error("Error removing staff from program:", err);
+    }
+  };
+
+  const handleAddGroupStaff = async (groupId: string, staffId: string) => {
+    if (!staffId) return;
+    try {
+      const staffDocRef = doc(db, "users", staffId);
+      const member = allStaff.find(s => s.id === staffId);
+      if (member) {
+        const newGroupIds = [...(member.assignedGroupIds || []), groupId];
+        await updateDoc(staffDocRef, { assignedGroupIds: newGroupIds });
+        
+        setAllStaff(prev => prev.map(s => s.id === staffId ? { ...s, assignedGroupIds: newGroupIds } : s));
+      }
+    } catch (err) {
+      console.error("Error adding staff to group:", err);
+    }
+  };
+
+  const handleRemoveGroupStaff = async (groupId: string, staffId: string) => {
+    if (!window.confirm("האם אתה בטוח שברצונך להסיר איש צוות זה מהקבוצה?")) return;
+    try {
+      const staffDocRef = doc(db, "users", staffId);
+      const member = allStaff.find(s => s.id === staffId);
+      if (member) {
+        const newGroupIds = (member.assignedGroupIds || []).filter((id: string) => id !== groupId);
+        await updateDoc(staffDocRef, { assignedGroupIds: newGroupIds });
+        
+        setAllStaff(prev => prev.map(s => s.id === staffId ? { ...s, assignedGroupIds: newGroupIds } : s));
+      }
+    } catch (err) {
+      console.error("Error removing staff from group:", err);
     }
   };
 
@@ -435,9 +468,9 @@ export default function ProgramDetailPage() {
                     key={group.id}
                     initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: idx * 0.05 }}
-                    className="bg-[var(--card-bg)] border border-[var(--border)] rounded-2xl overflow-hidden shadow-sm"
+                    className="bg-[var(--card-bg)] border border-[var(--border)] rounded-2xl overflow-hidden shadow-sm flex flex-col"
                   >
-                    <div className="flex items-center gap-3 px-4 py-3">
+                    <div className="flex items-center gap-3 px-4 py-3 border-b border-[var(--border)]/30">
                       {/* Avatar */}
                       <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-white font-black text-xs flex-shrink-0 ${AVATAR_COLORS[idx % AVATAR_COLORS.length]}`}>
                         {group.name[0]}
@@ -481,6 +514,54 @@ export default function ProgramDetailPage() {
                             className="p-1.5 rounded-lg hover:bg-rose-500/10 text-[var(--foreground)]/40 hover:text-rose-500 transition-colors">
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Group Staff Section */}
+                    <div className="px-4 py-3 bg-[var(--foreground)]/[0.01] space-y-2 text-right border-b border-[var(--border)]/10">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[9px] font-black uppercase tracking-wider text-[var(--foreground)]/40">צוות הקבוצה</span>
+                        <div className="flex items-center gap-1.5">
+                          <select
+                            onChange={e => {
+                              handleAddGroupStaff(group.id, e.target.value);
+                              e.target.value = ""; // Reset
+                            }}
+                            className="bg-[var(--foreground)]/5 border border-[var(--border)] rounded-lg text-[9px] font-bold px-2 py-1 focus:outline-none focus:border-violet-500 text-right"
+                          >
+                            <option value="">+ שייך עובד לקבוצה</option>
+                            {allStaff
+                              // List any staff member who is assigned to this program, but not to this group yet
+                              .filter(s => s.assignedProgramIds?.includes(progId) && !s.assignedGroupIds?.includes(group.id))
+                              .map(s => (
+                                <option key={s.id} value={s.id}>{s.name}</option>
+                              ))
+                            }
+                          </select>
+                        </div>
+                      </div>
+
+                      {/* Assigned staff list in group */}
+                      {allStaff.filter(s => s.assignedGroupIds?.includes(group.id)).length === 0 ? (
+                        <p className="text-[10px] text-[var(--muted)] italic">אין אנשי צוות משויכים לקבוצה זו</p>
+                      ) : (
+                        <div className="flex flex-wrap gap-1.5">
+                          {allStaff
+                            .filter(s => s.assignedGroupIds?.includes(group.id))
+                            .map(s => (
+                              <div key={s.id} className="flex items-center gap-1 bg-violet-500/5 border border-violet-500/10 rounded-lg px-2 py-1 text-[10px] font-bold text-violet-600">
+                                <span>{s.name}</span>
+                                <button
+                                  onClick={() => handleRemoveGroupStaff(group.id, s.id)}
+                                  className="w-3.5 h-3.5 rounded-md hover:bg-rose-500/10 hover:text-rose-500 flex items-center justify-center transition-colors"
+                                  title="הסר מהקבוצה"
+                                >
+                                  <X className="w-2.5 h-2.5" />
+                                </button>
+                              </div>
+                            ))
+                          }
                         </div>
                       )}
                     </div>

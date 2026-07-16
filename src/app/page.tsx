@@ -973,9 +973,12 @@ export default function Home() {
                         className="w-full bg-[var(--background)] border border-[var(--border)] text-[var(--foreground)] rounded-xl px-3 py-2 text-xs font-bold focus:outline-none"
                       >
                         <option value="">-- בחר מדריך תורן --</option>
-                        {staffMembers.map(s => (
-                          <option key={s.id} value={s.id}>{s.name}</option>
-                        ))}
+                        {staffMembers
+                          .filter(s => s.role === "instructor" || s.role === "social_worker" || s.roles?.includes("instructor") || s.roles?.includes("social_worker"))
+                          .map(s => (
+                            <option key={s.id} value={s.id}>{s.name}</option>
+                          ))
+                        }
                       </select>
                     </div>
                   ) : (
