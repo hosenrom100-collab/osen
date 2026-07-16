@@ -9,7 +9,7 @@ import {
   Shield, MapPin, Edit3, ChevronLeft, Clock,
   ClipboardList, Layers, X, Check, ChevronDown, Plus,
   AlertTriangle, Sparkles, Bell, Coffee, Utensils, ArrowLeftRight,
-  ShoppingCart
+  ShoppingCart, Share2
 } from "lucide-react";
 import Link from "next/link";
 import { db } from "@/lib/firebase/config";
@@ -169,6 +169,54 @@ export default function Home() {
   const isStrictAdmin = isAdmin && !(roles || []).some(r => r === "social_worker" || r === "instructor" || r === "employee" || r === "logistics");
   const isStrictManager = isManager && !(roles || []).some(r => r === "social_worker" || r === "instructor" || r === "employee" || r === "logistics");
   const showAll = isStrictAdmin || isStrictManager;
+
+  const [scheduleCopied, setScheduleCopied] = useState(false);
+
+  const handleCopyForWhatsApp = () => {
+    if (visibleActs.length === 0) return;
+    
+    const now = new Date();
+    const days = ["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת"];
+    const dayName = days[now.getDay()];
+    const formattedDate = `יום ${dayName} (${format(now, "dd/MM/yyyy")})`;
+
+    let text = `📅 *לוז פעילות ל${formattedDate}*\n\n`;
+    
+    if (dutyName) {
+      text += `👤 *מדריך/ה תורן/נית:* ${dutyName}\n\n`;
+    }
+    
+    const sortedActs = [...visibleActs].sort((a, b) => a.startTime.localeCompare(b.startTime));
+    
+    sortedActs.forEach(act => {
+      const timeStr = act.endTime ? `${act.startTime}–${act.endTime}` : act.startTime;
+      text += `⏰ *${timeStr}* | *${act.title}*\n`;
+      
+      const details = [];
+      if (act.locationName && act.locationName !== "ללא מיקום") {
+        details.push(`📍 *מיקום:* ${act.locationName}`);
+      }
+      if (act.staffNames && act.staffNames.length > 0) {
+        details.push(`👥 *צוות:* ${act.staffNames.join(", ")}`);
+      }
+      
+      if (details.length > 0) {
+        text += `${details.join("  •  ")}\n`;
+      }
+      text += `\n`;
+    });
+    
+    text += `_*חוות רום - מרכז חוסן*_`;
+    
+    navigator.clipboard.writeText(text)
+      .then(() => {
+        setScheduleCopied(true);
+        setTimeout(() => setScheduleCopied(false), 2000);
+      })
+      .catch(err => {
+        console.error("Failed to copy schedule:", err);
+      });
+  };
 
   useEffect(() => {
     if (!loading && (!user || !isWhitelisted)) router.push("/login");
@@ -909,6 +957,28 @@ export default function Home() {
                         <h2 className="text-sm font-black text-[var(--foreground)]">סדר יום ופעילויות</h2>
                       </div>
                       <div className="flex items-center gap-2">
+                        {visibleActs.length > 0 && (
+                          <button
+                            onClick={handleCopyForWhatsApp}
+                            className={`text-[10px] font-black px-2.5 py-1 rounded-xl border transition-all cursor-pointer flex items-center gap-1 ${
+                              scheduleCopied
+                                ? "text-emerald-600 bg-emerald-500/10 border-emerald-500/20 font-black"
+                                : "text-emerald-500 bg-emerald-500/5 hover:bg-emerald-500/10 border-emerald-500/10"
+                            }`}
+                          >
+                            {scheduleCopied ? (
+                              <>
+                                <Check className="w-3.5 h-3.5 text-emerald-500 animate-bounce" />
+                                <span>הועתק!</span>
+                              </>
+                            ) : (
+                              <>
+                                <Share2 className="w-3.5 h-3.5" />
+                                <span>העתק לוואטסאפ</span>
+                              </>
+                            )}
+                          </button>
+                        )}
                         {(isAdmin || isManager) && (
                           <button
                             onClick={() => setIsScheduleEditorOpen(true)}

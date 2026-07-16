@@ -46,6 +46,8 @@ const buildSignatureTable = (
     bottom: { style: BorderStyle.NONE, size: 0, color: "auto" },
     left: { style: BorderStyle.NONE, size: 0, color: "auto" },
     right: { style: BorderStyle.NONE, size: 0, color: "auto" },
+    insideVertical: { style: BorderStyle.NONE, size: 0, color: "auto" },
+    insideHorizontal: { style: BorderStyle.NONE, size: 0, color: "auto" },
   };
 
   const rightCellChildren: any[] = [

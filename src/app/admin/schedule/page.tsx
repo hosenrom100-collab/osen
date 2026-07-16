@@ -9,7 +9,8 @@ import { RoleGuard } from "@/components/auth/RoleGuard";
 import { ScheduleEditorModal } from "@/components/home/ScheduleEditorModal";
 import { 
   Calendar, ChevronLeft, ChevronRight, Edit3, 
-  MapPin, Users, User, Clock, ArrowRight, Loader2, Info
+  MapPin, Users, User, Clock, ArrowRight, Loader2, Info,
+  Share2, Check
 } from "lucide-react";
 import { format, addDays, subDays, parseISO } from "date-fns";
 
@@ -74,6 +75,7 @@ function ScheduleContent() {
   const [staff, setStaff] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   // Sync state if URL search param change
   useEffect(() => {
@@ -141,6 +143,63 @@ function ScheduleContent() {
     router.replace(`/admin/schedule?group=${groupId}`);
   };
 
+  const handleCopyForWhatsApp = () => {
+    if (filteredActivities.length === 0) return;
+    
+    const d = parseISO(selectedDate);
+    const days = ["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת"];
+    const dayName = days[d.getDay()];
+    const formattedDate = `יום ${dayName} (${format(d, "dd/MM/yyyy")})`;
+
+    let text = `📅 *לוז פעילות ל${formattedDate}*\n\n`;
+    
+    if (selectedGroup !== "all") {
+      const gName = groups.find(g => g.id === selectedGroup)?.name;
+      if (gName) text += `👥 *קבוצה:* ${gName}\n`;
+    }
+    
+    if (dutyInstructorName) {
+      text += `👤 *מדריך/ה תורן/נית:* ${dutyInstructorName}\n\n`;
+    } else {
+      text += `\n`;
+    }
+    
+    filteredActivities.forEach(act => {
+      const timeStr = act.endTime ? `${act.startTime}–${act.endTime}` : act.startTime;
+      text += `⏰ *${timeStr}* | *${act.title}*\n`;
+      
+      const details = [];
+      const loc = locations.find(l => l.id === act.locationId)?.name;
+      if (loc && loc !== "ללא מיקום") {
+        details.push(`📍 *מיקום:* ${loc}`);
+      }
+      
+      const staffNames = act.staffIds
+        ?.map(id => staff.find(s => s.id === id)?.displayName)
+        .filter(Boolean)
+        .join(", ");
+      if (staffNames && staffNames.length > 0) {
+        details.push(`👥 *צוות:* ${staffNames}`);
+      }
+      
+      if (details.length > 0) {
+        text += `${details.join("  •  ")}\n`;
+      }
+      text += `\n`;
+    });
+    
+    text += `_*חוות רום - מרכז חוסן*_`;
+    
+    navigator.clipboard.writeText(text)
+      .then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      })
+      .catch(err => {
+        console.error("Failed to copy schedule:", err);
+      });
+  };
+
   // Filter activities
   const filteredActivities = activities
     .filter(act => {
@@ -166,15 +225,39 @@ function ScheduleContent() {
               <p className="text-[10px] text-[var(--foreground)]/40 font-bold uppercase tracking-widest mt-0.5">Schedule Management</p>
             </div>
           </div>
-          {canEdit && (
-            <button
-              onClick={() => setIsEditorOpen(true)}
-              className="flex items-center gap-1.5 px-4 py-2 bg-rose-600 border border-rose-500 hover:bg-rose-500 text-white rounded-xl text-xs font-black transition-all"
-            >
-              <Edit3 className="w-3.5 h-3.5" />
-              ערוך לו״ז
-            </button>
-          )}
+          <div className="flex items-center gap-2">
+            {filteredActivities.length > 0 && (
+              <button
+                onClick={handleCopyForWhatsApp}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                  copied
+                    ? "bg-emerald-600 border border-emerald-500 hover:bg-emerald-500 text-white shadow-md"
+                    : "bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 hover:bg-emerald-500/20"
+                }`}
+              >
+                {copied ? (
+                  <>
+                    <Check className="w-3.5 h-3.5 animate-bounce" />
+                    <span>הועתק!</span>
+                  </>
+                ) : (
+                  <>
+                    <Share2 className="w-3.5 h-3.5" />
+                    <span>העתק לוואטסאפ</span>
+                  </>
+                )}
+              </button>
+            )}
+            {canEdit && (
+              <button
+                onClick={() => setIsEditorOpen(true)}
+                className="flex items-center gap-1.5 px-4 py-2 bg-rose-600 border border-rose-500 hover:bg-rose-500 text-white rounded-xl text-xs font-black transition-all"
+              >
+                <Edit3 className="w-3.5 h-3.5" />
+                ערוך לו״ז
+              </button>
+            )}
+          </div>
         </div>
       </header>
 
