@@ -710,7 +710,7 @@ export default function ShoppingPage() {
                 }`}
               >
                 <ShoppingCart className="w-4 h-4" />
-                <span>קניות סופרמרקט</span>
+                <span>קניות סופר</span>
               </button>
               <button
                 onClick={() => { setListType("large"); setActiveCategory(null); }}
@@ -721,7 +721,7 @@ export default function ShoppingPage() {
                 }`}
               >
                 <Package className="w-4 h-4" />
-                <span>מוצרים גדולים / ציוד</span>
+                <span>ציוד</span>
               </button>
             </div>
 
