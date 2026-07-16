@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { 
   Home, Calendar, ClipboardList, FileText, MoreHorizontal, 
   User, MessageSquare, LogOut, Sun, Moon, Shield, X, ChevronLeft,
-  ClipboardCheck, ShoppingCart
+  ClipboardCheck, ShoppingCart, HelpCircle
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useSettings } from "@/context/SettingsContext";
@@ -176,6 +176,25 @@ export function BottomNav() {
                   <span className="font-black text-xs text-[var(--foreground)]">מצב תצוגה</span>
                 </div>
                 <span className="text-[10px] text-teal-500 font-black">{theme === 'dark' ? "מצב בהיר" : "מצב כהה"}</span>
+              </button>
+
+              {/* Help Guide Button */}
+              <button 
+                onClick={() => {
+                  setActiveOverlay(null);
+                  setTimeout(() => {
+                    window.dispatchEvent(new CustomEvent("open-help-drawer"));
+                  }, 200);
+                }}
+                className="w-full flex items-center justify-between p-4 rounded-2xl bg-[var(--foreground)]/5 hover:bg-[var(--foreground)]/10 border border-[var(--border)] transition-all text-right cursor-pointer"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-[var(--surface)] border border-[var(--border)] flex items-center justify-center text-indigo-500 shadow-sm">
+                    <HelpCircle className="w-4 h-4" />
+                  </div>
+                  <span className="font-black text-xs text-[var(--foreground)]">מדריך עזרה והסברים</span>
+                </div>
+                <ChevronLeft className="w-4 h-4 text-[var(--text-secondary)]" />
               </button>
 
               {/* Personal Profile Button */}

@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { 
   Home, ClipboardList, Users, ShoppingCart, 
   Settings, Clock, MessageSquare, Calendar,
-  Sun, Moon, CheckSquare
+  Sun, Moon, CheckSquare, HelpCircle
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useSettings } from "@/context/SettingsContext";
@@ -144,13 +144,22 @@ export function DesktopSidebar() {
           </div>
           <Settings className="w-4 h-4 text-[var(--foreground)]/20 group-hover:text-[var(--foreground)]/60 transition-colors" />
         </Link>
-        <div className="mt-2 flex items-center justify-between">
+        <div className="mt-2 flex items-center justify-between gap-2">
           <button
             onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-            className="p-2 bg-[var(--foreground)]/5 hover:bg-[var(--foreground)]/10 text-[var(--foreground)]/60 hover:text-[var(--foreground)] rounded-xl transition-all cursor-pointer"
+            className="flex-1 py-2 px-3 bg-[var(--foreground)]/5 hover:bg-[var(--foreground)]/10 text-[var(--foreground)]/60 hover:text-[var(--foreground)] rounded-xl transition-all cursor-pointer flex items-center justify-center gap-2 text-xs font-bold"
             title={theme === 'dark' ? "מעבר למצב בהיר" : "מעבר למצב כהה"}
           >
-            {theme === 'dark' ? <Sun className="w-4 h-4 text-amber-500 animate-pulse" /> : <Moon className="w-4 h-4 text-indigo-500" />}
+            {theme === 'dark' ? <Sun className="w-4 h-4 text-amber-500" /> : <Moon className="w-4 h-4 text-indigo-500" />}
+            <span>{theme === 'dark' ? "בהיר" : "כהה"}</span>
+          </button>
+          <button
+            onClick={() => window.dispatchEvent(new CustomEvent("open-help-drawer"))}
+            className="flex-1 py-2 px-3 bg-[var(--foreground)]/5 hover:bg-[var(--foreground)]/10 text-[var(--foreground)]/60 hover:text-[var(--foreground)] rounded-xl transition-all cursor-pointer flex items-center justify-center gap-2 text-xs font-bold"
+            title="מדריך עזרה"
+          >
+            <HelpCircle className="w-4 h-4 text-indigo-500" />
+            <span>עזרה</span>
           </button>
         </div>
       </div>
