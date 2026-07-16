@@ -184,10 +184,17 @@ export default function Home() {
         getDocs(query(collection(db, "groups"), orderBy("name"))),
         getDocs(query(collection(db, "programs"), orderBy("name")))
       ]);
-      const groupList  = groupsSnap.docs.map(d => ({ id: d.id, ...d.data() } as any));
-      const progList   = progsSnap.docs.map(d => ({ id: d.id, name: d.data().name as string }));
+      const groupListAll  = groupsSnap.docs.map(d => ({ id: d.id, ...d.data() } as any));
+      const progListAll   = progsSnap.docs.map(d => ({ id: d.id, name: d.data().name as string, activeDays: d.data().activeDays || [] }));
+      
+      const currentDayNum = new Date().getDay();
+      const activeProgList = progListAll.filter(p => !p.activeDays || p.activeDays.length === 0 || p.activeDays.includes(currentDayNum));
+      const activeProgIds = new Set(activeProgList.map(p => p.id));
+      
+      const groupList = groupListAll.filter(g => !g.programId || activeProgIds.has(g.programId));
+      
       setGroups(groupList);
-      setPrograms(progList);
+      setPrograms(activeProgList);
 
       // 2. Attendance & Patients
       const [pSnap, aSnap] = await Promise.all([
@@ -439,6 +446,9 @@ export default function Home() {
 
   /* ── Derived ── */
   const isGroupVisible = (gId: string) => {
+    const isGroupActiveToday = groups.some(g => g.id === gId);
+    if (!isGroupActiveToday) return false;
+
     const hasPreferences = (preferredProgramIds && preferredProgramIds.length > 0) || (preferredGroupIds && preferredGroupIds.length > 0);
     if (hasPreferences) {
       const gDoc = groups.find(g => g.id === gId) as any;

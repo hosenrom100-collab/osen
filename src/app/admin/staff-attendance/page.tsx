@@ -60,7 +60,7 @@ export default function StaffAttendancePage() {
   const [staff, setStaff] = useState<StaffProfile[]>([]);
   const [absences, setAbsences] = useState<AbsenceRequest[]>([]);
   const [attendance, setAttendance] = useState<Record<string, StaffAttendanceRecord>>({});
-  const [programs, setPrograms] = useState<{ id: string; name: string }[]>([]);
+  const [programs, setPrograms] = useState<{ id: string; name: string; activeDays?: number[] }[]>([]);
   
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
@@ -108,7 +108,7 @@ export default function StaffAttendancePage() {
 
       // 4. Fetch programs catalog
       const progSnap = await getDocs(collection(db, "programs"));
-      setPrograms(progSnap.docs.map(d => ({ id: d.id, name: d.data().name })));
+      setPrograms(progSnap.docs.map(d => ({ id: d.id, name: d.data().name, activeDays: d.data().activeDays || [] })));
     } catch (err) {
       console.error("Error loading staff attendance data:", err);
     } finally {
@@ -380,14 +380,19 @@ export default function StaffAttendancePage() {
                               {hasSchedule && (schedule as any).programs && Object.keys((schedule as any).programs).length > 0 && (
                                 <div className="flex items-center gap-1.5 flex-wrap text-[9px] text-violet-500 font-bold mt-0.5">
                                   <span>פירוט מסגרות:</span>
-                                  {Object.entries((schedule as any).programs).map(([progId, pSched]: any) => {
-                                    const progName = programs.find(p => p.id === progId)?.name || progId;
-                                    return (
-                                      <span key={progId} className="bg-violet-500/5 px-1.5 py-0.5 rounded">
-                                        {progName}: {pSched.start} - {pSched.end}
-                                      </span>
-                                    );
-                                  })}
+                                  {Object.entries((schedule as any).programs)
+                                    .filter(([progId]: any) => {
+                                      const prog = programs.find(p => p.id === progId);
+                                      return !prog || !prog.activeDays || prog.activeDays.length === 0 || prog.activeDays.includes(dayOfWeekIndex);
+                                    })
+                                    .map(([progId, pSched]: any) => {
+                                      const progName = programs.find(p => p.id === progId)?.name || progId;
+                                      return (
+                                        <span key={progId} className="bg-violet-500/5 px-1.5 py-0.5 rounded">
+                                          {progName}: {pSched.start} - {pSched.end}
+                                        </span>
+                                      );
+                                    })}
                                 </div>
                               )}
                             </div>

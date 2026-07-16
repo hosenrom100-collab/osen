@@ -15,7 +15,7 @@ import { useAuth } from "@/context/AuthContext";
 import {
   format, startOfMonth, endOfMonth, startOfWeek, endOfWeek,
   eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths,
-  addDays, parseISO,
+  addDays, parseISO, getDay,
 } from "date-fns";
 import { he } from "date-fns/locale";
 import { motion, AnimatePresence } from "framer-motion";
@@ -173,8 +173,14 @@ function AttendancePageContent() {
         getDocs(collection(db, "groups"))
       ]);
       
-      const progs = progSnap.docs.map(d => ({ id: d.id, name: d.data().name }));
-      const groups = groupSnap.docs.map(d => ({ id: d.id, name: d.data().name, programId: d.data().programId }));
+      const dayOfWeekIndex = getDay(parseISO(selectedDate));
+      const progs = progSnap.docs
+        .map(d => ({ id: d.id, name: d.data().name, activeDays: d.data().activeDays || [] }))
+        .filter(p => p.activeDays.length === 0 || p.activeDays.includes(dayOfWeekIndex));
+      
+      const groups = groupSnap.docs
+        .map(d => ({ id: d.id, name: d.data().name, programId: d.data().programId }))
+        .filter(g => !g.programId || progs.some(p => p.id === g.programId));
       
       const items: SelectionItem[] = [];
       progs.forEach(p => {
@@ -207,14 +213,15 @@ function AttendancePageContent() {
       setSelectionItems(filteredItems);
       
       const urlGroup = searchParams.get("group");
-      if (urlGroup) {
+      const isSelectedValid = filteredItems.some(item => item.id === selectedId);
+      if (urlGroup && filteredItems.some(item => item.id === urlGroup)) {
         setSelectedId(urlGroup);
-      } else if (!selectedId && filteredItems.length > 0) {
+      } else if (!isSelectedValid && filteredItems.length > 0) {
         setSelectedId(filteredItems[0].id);
       }
     };
     loadSelections();
-  }, [preferredProgramIds, preferredGroupIds, reloadTrigger]);
+  }, [preferredProgramIds, preferredGroupIds, reloadTrigger, selectedDate]);
 
   useEffect(() => {
     if (selectedId && selectionItems.length > 0) {

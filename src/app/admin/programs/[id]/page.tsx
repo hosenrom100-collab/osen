@@ -9,7 +9,7 @@ import {
 } from "firebase/firestore";
 import {
   ArrowRight, Save, Trash2, Plus, Loader2, Calendar,
-  Users, Edit3, Check, X, ChevronLeft, Layers
+  Users, Edit3, Check, X, ChevronLeft, Layers, User, UserMinus
 } from "lucide-react";
 import { useAutoSave } from "@/hooks/useAutoSave";
 import { AutoSaveIndicator } from "@/components/ui/AutoSaveIndicator";
@@ -49,6 +49,12 @@ export default function ProgramDetailPage() {
   const [loading,    setLoading]    = useState(true);
   const [saving,     setSaving]     = useState(false);
   const [saved,      setSaved]      = useState(false);
+
+  // Staff members states
+  const [allStaff,        setAllStaff]        = useState<any[]>([]);
+  const [showAddStaff,    setShowAddStaff]    = useState(false);
+  const [selectedStaffId, setSelectedStaffId] = useState("");
+  const [updatingStaff,   setUpdatingStaff]   = useState(false);
 
   // Editing program fields
   const [editName,   setEditName]   = useState("");
@@ -105,9 +111,10 @@ export default function ProgramDetailPage() {
   const fetchAll = async () => {
     setLoading(true);
     try {
-      const [progSnap, groupsSnap] = await Promise.all([
+      const [progSnap, groupsSnap, usersSnap] = await Promise.all([
         getDoc(doc(db, "programs", progId)),
         getDocs(query(collection(db, "groups"), where("programId", "==", progId), orderBy("name"))),
+        getDocs(collection(db, "users")),
       ]);
 
       if (!progSnap.exists()) { router.push("/admin/programs"); return; }
@@ -121,6 +128,24 @@ export default function ProgramDetailPage() {
       setEditTravelDetail(prog.travelActivityDetail || "");
 
       setGroups(groupsSnap.docs.map(d => ({ id: d.id, ...d.data() } as Group)));
+
+      const staffList: any[] = [];
+      usersSnap.forEach(d => {
+        const data = d.data();
+        const name = data.name || data.displayName || data.email || "עובד";
+        const roles = data.roles || (data.role ? [data.role] : []);
+        const isStaff = !roles.includes("participant") && data.role !== "participant";
+        if (isStaff) {
+          staffList.push({
+            id: d.id,
+            name,
+            role: data.role || (roles.length > 0 ? roles[0] : ""),
+            roles,
+            assignedProgramIds: data.assignedProgramIds || [],
+          });
+        }
+      });
+      setAllStaff(staffList);
     } finally {
       setLoading(false);
     }
@@ -178,6 +203,43 @@ export default function ProgramDetailPage() {
   const deleteGroup = async (id: string) => {
     await deleteDoc(doc(db, "groups", id));
     setGroups(gs => gs.filter(g => g.id !== id));
+  };
+
+  const handleAddStaff = async () => {
+    if (!selectedStaffId) return;
+    setUpdatingStaff(true);
+    try {
+      const staffDocRef = doc(db, "users", selectedStaffId);
+      const member = allStaff.find(s => s.id === selectedStaffId);
+      if (member) {
+        const newProgIds = [...(member.assignedProgramIds || []), progId];
+        await updateDoc(staffDocRef, { assignedProgramIds: newProgIds });
+        
+        setAllStaff(prev => prev.map(s => s.id === selectedStaffId ? { ...s, assignedProgramIds: newProgIds } : s));
+        setSelectedStaffId("");
+        setShowAddStaff(false);
+      }
+    } catch (err) {
+      console.error("Error adding staff to program:", err);
+    } finally {
+      setUpdatingStaff(false);
+    }
+  };
+
+  const handleRemoveStaff = async (staffId: string) => {
+    if (!window.confirm("האם אתה בטוח שברצונך להסיר איש צוות זה מהתוכנית?")) return;
+    try {
+      const staffDocRef = doc(db, "users", staffId);
+      const member = allStaff.find(s => s.id === staffId);
+      if (member) {
+        const newProgIds = (member.assignedProgramIds || []).filter((id: string) => id !== progId);
+        await updateDoc(staffDocRef, { assignedProgramIds: newProgIds });
+        
+        setAllStaff(prev => prev.map(s => s.id === staffId ? { ...s, assignedProgramIds: newProgIds } : s));
+      }
+    } catch (err) {
+      console.error("Error removing staff from program:", err);
+    }
   };
 
   const toggleDay = (d: number) => {
@@ -424,6 +486,99 @@ export default function ProgramDetailPage() {
                     </div>
                   </motion.div>
                 ))}
+              </div>
+            )}
+          </section>
+
+          {/* ── Staff Section ── */}
+          <section className="text-right">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-[12px] font-black text-[var(--foreground)]/40 flex items-center gap-2 uppercase tracking-wider">
+                <Users className="w-4 h-4 text-violet-500" />
+                צוות התוכנית ({allStaff.filter(s => s.assignedProgramIds?.includes(progId)).length})
+              </h2>
+              <button onClick={() => setShowAddStaff(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-600/15 border border-violet-500/30 rounded-xl text-[10px] font-black text-violet-500 hover:bg-violet-600/25 transition-all active:scale-95">
+                <Plus className="w-3.5 h-3.5" /> הוסף איש צוות
+              </button>
+            </div>
+
+            {/* Add staff form (inline) */}
+            <AnimatePresence>
+              {showAddStaff && (
+                <motion.div
+                  initial={{ opacity: 0, y: -6, height: 0 }}
+                  animate={{ opacity: 1, y: 0, height: "auto" }}
+                  exit={{ opacity: 0, y: -6, height: 0 }}
+                  className="overflow-hidden mb-3"
+                >
+                  <div className="bg-violet-500/8 border border-violet-500/20 rounded-2xl p-4">
+                    <label className="text-[10px] font-black text-[var(--foreground)]/40 uppercase block mb-2">בחר איש צוות להוספה</label>
+                    <div className="flex gap-2">
+                      <select
+                        value={selectedStaffId}
+                        onChange={e => setSelectedStaffId(e.target.value)}
+                        className="flex-1 bg-[var(--background)] border border-[var(--border)] rounded-xl p-3 text-xs font-bold text-[var(--foreground)] focus:border-violet-500 outline-none"
+                      >
+                        <option value="">-- בחר איש צוות --</option>
+                        {allStaff
+                          .filter(s => !s.assignedProgramIds?.includes(progId))
+                          .map(s => (
+                            <option key={s.id} value={s.id}>{s.name} ({s.role || "עובד"})</option>
+                          ))
+                        }
+                      </select>
+                      <button onClick={handleAddStaff} disabled={!selectedStaffId || updatingStaff}
+                        className="px-4 py-3 bg-violet-600 rounded-xl font-bold text-xs text-white hover:bg-violet-500 transition-all disabled:opacity-40 flex items-center gap-1.5">
+                        {updatingStaff ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                      </button>
+                      <button onClick={() => { setShowAddStaff(false); setSelectedStaffId(""); }}
+                        className="px-3 py-3 bg-[var(--foreground)]/5 rounded-xl hover:bg-[var(--foreground)]/10 border border-[var(--border)] transition-all text-[var(--foreground)]/40">
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* Staff list */}
+            {allStaff.filter(s => s.assignedProgramIds?.includes(progId)).length === 0 && !showAddStaff ? (
+              <button onClick={() => setShowAddStaff(true)}
+                className="w-full py-8 border border-dashed border-[var(--border)] rounded-[2rem] text-[var(--foreground)]/30 text-xs font-bold flex flex-col items-center gap-2 hover:border-violet-500/30 hover:text-violet-500 transition-all bg-[var(--card-bg)]">
+                <User className="w-6 h-6" />
+                לחץ להוספת איש צוות ראשון לתוכנית
+              </button>
+            ) : (
+              <div className="space-y-2">
+                {allStaff
+                  .filter(s => s.assignedProgramIds?.includes(progId))
+                  .map((member, idx) => (
+                    <motion.div
+                      key={member.id}
+                      initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: idx * 0.05 }}
+                      className="bg-[var(--card-bg)] border border-[var(--border)] rounded-2xl overflow-hidden shadow-sm"
+                    >
+                      <div className="flex items-center gap-3 px-4 py-3">
+                        <div className="w-10 h-10 rounded-xl bg-violet-500/10 text-violet-500 flex items-center justify-center border border-violet-500/20 shrink-0">
+                          <User className="w-5 h-5" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-black text-xs leading-tight">{member.name}</p>
+                          <span className="text-[9px] font-black text-violet-500 bg-violet-500/5 px-2 py-0.5 rounded-md mt-1 inline-block">
+                            {member.role || "עובד"}
+                          </span>
+                        </div>
+                        <button onClick={() => handleRemoveStaff(member.id)}
+                          className="p-2 rounded-xl hover:bg-rose-500/10 text-[var(--foreground)]/40 hover:text-rose-500 transition-all border border-transparent hover:border-rose-500/20"
+                          title="הסר מהתוכנית"
+                        >
+                          <UserMinus className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </motion.div>
+                  ))}
               </div>
             )}
           </section>
