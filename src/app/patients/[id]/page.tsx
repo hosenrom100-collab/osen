@@ -217,8 +217,8 @@ export default function PatientDetailPage() {
   }, []);
 
   useEffect(() => {
-    if (role === "logistics" && activeTab !== "attendance" && activeTab !== "certificates") {
-      setActiveTab("certificates");
+    if (role === "logistics" && activeTab !== "attendance") {
+      setActiveTab("attendance");
     }
   }, [role, activeTab]);
 

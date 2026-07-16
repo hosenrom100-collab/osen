@@ -62,7 +62,8 @@ interface RehabWorker {
 }
 
 export default function PatientsPage() {
-  const { user } = useAuth();
+  const { user, role, roles } = useAuth();
+  const isLogistics = role === "logistics" || roles?.includes("logistics");
   const [patients, setPatients] = useState<Patient[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
   const [programs, setPrograms] = useState<{ id: string; name: string }[]>([]);
@@ -80,6 +81,7 @@ export default function PatientsPage() {
   const [sortBy, setSortBy] = useState<string>("lastNameAsc");
   const [sortDropdownOpen, setSortDropdownOpen] = useState(false);
   const [viewMode, setViewMode] = useState<"table" | "cards">("table");
+  const currentViewMode = isLogistics ? "table" : viewMode;
   const router = useRouter();
 
   // Excel Import States & Functions
@@ -738,43 +740,47 @@ export default function PatientsPage() {
           </div>
 
           <div className="flex items-center gap-2">
-            <div className="flex bg-[var(--foreground)]/5 p-1 rounded-lg border border-[var(--border)] mr-4">
-              <button 
-                onClick={() => setViewMode("table")} 
-                title="תצוגת טבלה"
-                className={`p-1.5 rounded-md transition-all ${viewMode === 'table' ? 'bg-[var(--foreground)] text-[var(--background)] shadow-sm' : 'text-[var(--foreground)]/40'}`}
-              >
-                <List className="w-3.5 h-3.5" />
-              </button>
-              <button 
-                onClick={() => setViewMode("cards")} 
-                title="תצוגת כרטיסים"
-                className={`p-1.5 rounded-md transition-all ${viewMode === 'cards' ? 'bg-[var(--foreground)] text-[var(--background)] shadow-sm' : 'text-[var(--foreground)]/40'}`}
-              >
-                <LayoutGrid className="w-3.5 h-3.5" />
-              </button>
-            </div>
+            {!isLogistics && (
+              <>
+                <div className="flex bg-[var(--foreground)]/5 p-1 rounded-lg border border-[var(--border)] mr-4">
+                  <button 
+                    onClick={() => setViewMode("table")} 
+                    title="תצוגת טבלה"
+                    className={`p-1.5 rounded-md transition-all ${viewMode === 'table' ? 'bg-[var(--foreground)] text-[var(--background)] shadow-sm' : 'text-[var(--foreground)]/40'}`}
+                  >
+                    <List className="w-3.5 h-3.5" />
+                  </button>
+                  <button 
+                    onClick={() => setViewMode("cards")} 
+                    title="תצוגת כרטיסים"
+                    className={`p-1.5 rounded-md transition-all ${viewMode === 'cards' ? 'bg-[var(--foreground)] text-[var(--background)] shadow-sm' : 'text-[var(--foreground)]/40'}`}
+                  >
+                    <LayoutGrid className="w-3.5 h-3.5" />
+                  </button>
+                </div>
 
-            <button 
-              onClick={() => {
-                setImportStep("upload");
-                setImportModalOpen(true);
-              }}
-              title="ייבוא משתתפים מרוכז מקובץ אקסל"
-              className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 px-5 py-2.5 rounded-xl text-xs font-black transition-all hover:bg-emerald-500/20 active:scale-95 ml-2"
-            >
-              <Upload className="w-4 h-4" />
-              ייבוא מאקסל
-            </button>
+                <button 
+                  onClick={() => {
+                    setImportStep("upload");
+                    setImportModalOpen(true);
+                  }}
+                  title="ייבוא משתתפים מרוכז מקובץ אקסל"
+                  className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 px-5 py-2.5 rounded-xl text-xs font-black transition-all hover:bg-emerald-500/20 active:scale-95 ml-2"
+                >
+                  <Upload className="w-4 h-4" />
+                  ייבוא מאקסל
+                </button>
 
-            <button 
-              onClick={() => router.push("/patients/new")}
-              title="הוספת משתתף חדש למערכת"
-              className="flex items-center gap-2 bg-[var(--foreground)] text-[var(--background)] px-5 py-2.5 rounded-xl text-xs font-black transition-all hover:opacity-90"
-            >
-              <Plus className="w-4 h-4" />
-              משתתף חדש
-            </button>
+                <button 
+                  onClick={() => router.push("/patients/new")}
+                  title="הוספת משתתף חדש למערכת"
+                  className="flex items-center gap-2 bg-[var(--foreground)] text-[var(--background)] px-5 py-2.5 rounded-xl text-xs font-black transition-all hover:opacity-90"
+                >
+                  <Plus className="w-4 h-4" />
+                  משתתף חדש
+                </button>
+              </>
+            )}
           </div>
         </div>
 
@@ -1071,7 +1077,7 @@ export default function PatientsPage() {
             <div className="text-center py-40 bg-[var(--foreground)]/5 border border-dashed border-[var(--border)] rounded-[3rem] opacity-20">
               <p className="text-lg font-bold italic">לא נמצאו משתתפים העונים לחיפוש</p>
             </div>
-          ) : viewMode === "table" ? (
+          ) : currentViewMode === "table" ? (
             <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl overflow-hidden shadow-sm">
               <div className="overflow-x-auto overflow-y-auto max-h-[calc(100vh-240px)] no-scrollbar">
                 <table className="w-full text-right border-collapse">
@@ -1079,16 +1085,16 @@ export default function PatientsPage() {
                     <tr className="border-b border-[var(--border)]">
                       <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-3 py-3 text-[9px] font-black uppercase tracking-widest text-[var(--muted)] z-10 shadow-[inset_0_-1px_0_var(--border)]">משתתף</th>
                       <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-3 py-3 text-[9px] font-black uppercase tracking-widest text-[var(--muted)] z-10 shadow-[inset_0_-1px_0_var(--border)]">עו"ס מלווה</th>
-                      <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-3 py-3 text-[9px] font-black uppercase tracking-widest text-[var(--muted)] z-10 shadow-[inset_0_-1px_0_var(--border)]">עו"ס שיקום (משרד הביטחון)</th>
+                      {!isLogistics && <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-3 py-3 text-[9px] font-black uppercase tracking-widest text-[var(--muted)] z-10 shadow-[inset_0_-1px_0_var(--border)]">עו"ס שיקום (משרד הביטחון)</th>}
                       <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-3 py-3 text-[9px] font-black uppercase tracking-widest text-[var(--muted)] z-10 shadow-[inset_0_-1px_0_var(--border)]">תוכנית</th>
-                      <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-3 py-3 text-[9px] font-black uppercase tracking-widest text-[var(--muted)] z-10 shadow-[inset_0_-1px_0_var(--border)]">תאריך התחלה</th>
-                      <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-3 py-3 text-[9px] font-black uppercase tracking-widest text-[var(--muted)] z-10 shadow-[inset_0_-1px_0_var(--border)]">תאריך סיום</th>
-                      <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-2 py-3 text-[9px] font-black uppercase tracking-widest text-[var(--muted)] text-center z-10 shadow-[inset_0_-1px_0_var(--border)]">תוכנית שיקום</th>
-                      <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-2 py-3 text-[9px] font-black uppercase tracking-widest text-[var(--muted)] text-center z-10 shadow-[inset_0_-1px_0_var(--border)]">דוח אמצע והארכה</th>
-                      <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-2 py-3 text-[9px] font-black uppercase tracking-widest text-[var(--muted)] text-center z-10 shadow-[inset_0_-1px_0_var(--border)]">התקבלה הארכה</th>
-                      <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-2 py-3 text-[9px] font-black uppercase tracking-widest text-[var(--muted)] text-center z-10 shadow-[inset_0_-1px_0_var(--border)]">דוח סיכום</th>
+                      {!isLogistics && <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-3 py-3 text-[9px] font-black uppercase tracking-widest text-[var(--muted)] z-10 shadow-[inset_0_-1px_0_var(--border)]">תאריך התחלה</th>}
+                      {!isLogistics && <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-3 py-3 text-[9px] font-black uppercase tracking-widest text-[var(--muted)] z-10 shadow-[inset_0_-1px_0_var(--border)]">תאריך סיום</th>}
+                      {!isLogistics && <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-2 py-3 text-[9px] font-black uppercase tracking-widest text-[var(--muted)] text-center z-10 shadow-[inset_0_-1px_0_var(--border)]">תוכנית שיקום</th>}
+                      {!isLogistics && <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-2 py-3 text-[9px] font-black uppercase tracking-widest text-[var(--muted)] text-center z-10 shadow-[inset_0_-1px_0_var(--border)]">דוח אמצע והארכה</th>}
+                      {!isLogistics && <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-2 py-3 text-[9px] font-black uppercase tracking-widest text-[var(--muted)] text-center z-10 shadow-[inset_0_-1px_0_var(--border)]">התקבלה הארכה</th>}
+                      {!isLogistics && <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-2 py-3 text-[9px] font-black uppercase tracking-widest text-[var(--muted)] text-center z-10 shadow-[inset_0_-1px_0_var(--border)]">דוח סיכום</th>}
                       <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-3 py-3 text-[9px] font-black uppercase tracking-widest text-[var(--muted)] z-10 shadow-[inset_0_-1px_0_var(--border)]">סטטוס</th>
-                      <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-3 py-3 text-[9px] font-black uppercase tracking-widest text-[var(--muted)] w-12 z-10 shadow-[inset_0_-1px_0_var(--border)]"></th>
+                      {!isLogistics && <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-3 py-3 text-[9px] font-black uppercase tracking-widest text-[var(--muted)] w-12 z-10 shadow-[inset_0_-1px_0_var(--border)]"></th>}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[var(--border)]">
@@ -1143,31 +1149,33 @@ export default function PatientsPage() {
                                <span className="text-[11px] font-bold">{staff[p.assignedWorkerId || ""] || "לא שובץ"}</span>
                             </div>
                           </td>
-                          <td className="px-3 py-3">
-                            {(() => {
-                              const rw = p.rehabWorkerId ? rehabWorkers[p.rehabWorkerId] : undefined;
-                              if (!rw) return <span className="text-[11px] font-bold opacity-30">לא שויך</span>;
-                              return (
-                                <div className="flex items-center justify-between gap-2">
-                                  <span className="text-[11px] font-bold truncate">{rw.name}</span>
-                                  <div className="flex items-center gap-1 shrink-0">
-                                    {rw.email && (
-                                      <a href={`mailto:${rw.email}`} onClick={(e) => e.stopPropagation()} title={rw.email}
-                                        className="w-6 h-6 rounded-lg bg-[var(--foreground)]/5 border border-[var(--border)] flex items-center justify-center text-[var(--muted)]/50 hover:text-teal-500 hover:border-teal-300 transition-colors">
-                                        <Mail className="w-3 h-3" />
-                                      </a>
-                                    )}
-                                    {rw.phone && (
-                                      <a href={`tel:${rw.phone}`} onClick={(e) => e.stopPropagation()} title={rw.phone}
-                                        className="w-6 h-6 rounded-lg bg-[var(--foreground)]/5 border border-[var(--border)] flex items-center justify-center text-[var(--muted)]/50 hover:text-teal-500 hover:border-teal-300 transition-colors">
-                                        <Phone className="w-3 h-3" />
-                                      </a>
-                                    )}
+                          {!isLogistics && (
+                            <td className="px-3 py-3">
+                              {(() => {
+                                const rw = p.rehabWorkerId ? rehabWorkers[p.rehabWorkerId] : undefined;
+                                if (!rw) return <span className="text-[11px] font-bold opacity-30">לא שויך</span>;
+                                return (
+                                  <div className="flex items-center justify-between gap-2">
+                                    <span className="text-[11px] font-bold truncate">{rw.name}</span>
+                                    <div className="flex items-center gap-1 shrink-0">
+                                      {rw.email && (
+                                        <a href={`mailto:${rw.email}`} onClick={(e) => e.stopPropagation()} title={rw.email}
+                                          className="w-6 h-6 rounded-lg bg-[var(--foreground)]/5 border border-[var(--border)] flex items-center justify-center text-[var(--muted)]/50 hover:text-teal-500 hover:border-teal-300 transition-colors">
+                                          <Mail className="w-3 h-3" />
+                                        </a>
+                                      )}
+                                      {rw.phone && (
+                                        <a href={`tel:${rw.phone}`} onClick={(e) => e.stopPropagation()} title={rw.phone}
+                                          className="w-6 h-6 rounded-lg bg-[var(--foreground)]/5 border border-[var(--border)] flex items-center justify-center text-[var(--muted)]/50 hover:text-teal-500 hover:border-teal-300 transition-colors">
+                                          <Phone className="w-3 h-3" />
+                                        </a>
+                                      )}
+                                    </div>
                                   </div>
-                                </div>
-                              );
-                            })()}
-                          </td>
+                                );
+                              })()}
+                            </td>
+                          )}
                           <td className="px-3 py-3">
                             <span className="px-2 py-0.5 rounded-full bg-[var(--foreground)]/5 border border-[var(--border)] text-[9px] font-black">
                               {(() => {
@@ -1200,79 +1208,85 @@ export default function PatientsPage() {
                               })()}
                             </span>
                           </td>
-                          <td className="px-3 py-3 text-[11px] font-bold opacity-60">{formatDate(p.startDate)}</td>
-                          <td className="px-3 py-3 text-[11px] font-bold opacity-60">{formatDate(getEffectiveEndDateStr(p))}</td>
-                          <td className="px-2 py-3 text-center">
-                            <div className="flex justify-center">
-                              <button
-                                onClick={(e) => handleToggleRehabPlanCompleted(p.id, !!p.rehabPlanCompleted, e)}
-                                className={`w-5 h-5 rounded border flex items-center justify-center transition-all ${
-                                  p.rehabPlanCompleted
-                                    ? 'bg-emerald-500 border-emerald-600 text-white'
-                                    : 'border-[var(--border)] hover:border-emerald-500 bg-[var(--surface)] hover:scale-105'
-                                }`}
-                              >
-                                {p.rehabPlanCompleted && <Check className="w-3.5 h-3.5 stroke-[4]" />}
-                              </button>
-                            </div>
-                          </td>
-                          <td className="px-2 py-3 text-center">
-                            <div className="flex justify-center">
-                              <button
-                                onClick={(e) => handleToggleExtensionSent(p.id, !!p.extensionSent, e)}
-                                className={`w-5 h-5 rounded border flex items-center justify-center transition-all ${
-                                  p.extensionSent
-                                    ? 'bg-emerald-500 border-emerald-600 text-white'
-                                    : 'border-[var(--border)] hover:border-emerald-500 bg-[var(--surface)] hover:scale-105'
-                                }`}
-                              >
-                                {p.extensionSent && <Check className="w-3.5 h-3.5 stroke-[4]" />}
-                              </button>
-                            </div>
-                          </td>
-                          <td className="px-2 py-3 text-center">
-                            <div className="flex justify-center">
-                              <button
-                                onClick={(e) => handleToggleExtensionReceived(p.id, !!p.extensionReceived, e)}
-                                className={`w-5 h-5 rounded border flex items-center justify-center transition-all ${
-                                  p.extensionReceived 
-                                    ? 'bg-emerald-500 border-emerald-600 text-white' 
-                                    : 'border-[var(--border)] hover:border-emerald-500 bg-[var(--surface)] hover:scale-105'
-                                }`}
-                              >
-                                {p.extensionReceived && <Check className="w-3.5 h-3.5 stroke-[4]" />}
-                              </button>
-                            </div>
-                          </td>
-                          <td className="px-2 py-3 text-center">
-                            <div className="flex justify-center">
-                              <button
-                                onClick={(e) => handleToggleSummaryReportCompleted(p.id, !!p.summaryReportCompleted, e)}
-                                className={`w-5 h-5 rounded border flex items-center justify-center transition-all ${
-                                  p.summaryReportCompleted
-                                    ? 'bg-emerald-500 border-emerald-600 text-white'
-                                    : 'border-[var(--border)] hover:border-emerald-500 bg-[var(--surface)] hover:scale-105'
-                                }`}
-                              >
-                                {p.summaryReportCompleted && <Check className="w-3.5 h-3.5 stroke-[4]" />}
-                              </button>
-                            </div>
-                          </td>
+                          {!isLogistics && (
+                            <>
+                              <td className="px-3 py-3 text-[11px] font-bold opacity-60">{formatDate(p.startDate)}</td>
+                              <td className="px-3 py-3 text-[11px] font-bold opacity-60">{formatDate(getEffectiveEndDateStr(p))}</td>
+                              <td className="px-2 py-3 text-center">
+                                <div className="flex justify-center">
+                                  <button
+                                    onClick={(e) => handleToggleRehabPlanCompleted(p.id, !!p.rehabPlanCompleted, e)}
+                                    className={`w-5 h-5 rounded border flex items-center justify-center transition-all ${
+                                      p.rehabPlanCompleted
+                                        ? 'bg-emerald-500 border-emerald-600 text-white'
+                                        : 'border-[var(--border)] hover:border-emerald-500 bg-[var(--surface)] hover:scale-105'
+                                    }`}
+                                  >
+                                    {p.rehabPlanCompleted && <Check className="w-3.5 h-3.5 stroke-[4]" />}
+                                  </button>
+                                </div>
+                              </td>
+                              <td className="px-2 py-3 text-center">
+                                <div className="flex justify-center">
+                                  <button
+                                    onClick={(e) => handleToggleExtensionSent(p.id, !!p.extensionSent, e)}
+                                    className={`w-5 h-5 rounded border flex items-center justify-center transition-all ${
+                                      p.extensionSent
+                                        ? 'bg-emerald-500 border-emerald-600 text-white'
+                                        : 'border-[var(--border)] hover:border-emerald-500 bg-[var(--surface)] hover:scale-105'
+                                    }`}
+                                  >
+                                    {p.extensionSent && <Check className="w-3.5 h-3.5 stroke-[4]" />}
+                                  </button>
+                                </div>
+                              </td>
+                              <td className="px-2 py-3 text-center">
+                                <div className="flex justify-center">
+                                  <button
+                                    onClick={(e) => handleToggleExtensionReceived(p.id, !!p.extensionReceived, e)}
+                                    className={`w-5 h-5 rounded border flex items-center justify-center transition-all ${
+                                      p.extensionReceived 
+                                        ? 'bg-emerald-500 border-emerald-600 text-white' 
+                                        : 'border-[var(--border)] hover:border-emerald-500 bg-[var(--surface)] hover:scale-105'
+                                    }`}
+                                  >
+                                    {p.extensionReceived && <Check className="w-3.5 h-3.5 stroke-[4]" />}
+                                  </button>
+                                </div>
+                              </td>
+                              <td className="px-2 py-3 text-center">
+                                <div className="flex justify-center">
+                                  <button
+                                    onClick={(e) => handleToggleSummaryReportCompleted(p.id, !!p.summaryReportCompleted, e)}
+                                    className={`w-5 h-5 rounded border flex items-center justify-center transition-all ${
+                                      p.summaryReportCompleted
+                                        ? 'bg-emerald-500 border-emerald-600 text-white'
+                                        : 'border-[var(--border)] hover:border-emerald-500 bg-[var(--surface)] hover:scale-105'
+                                    }`}
+                                  >
+                                    {p.summaryReportCompleted && <Check className="w-3.5 h-3.5 stroke-[4]" />}
+                                  </button>
+                                </div>
+                              </td>
+                            </>
+                          )}
                           <td className="px-3 py-3">
                             <div className="flex items-center gap-1.5">
                               <div className={`w-1.5 h-1.5 rounded-full ${p.status === 'active' ? 'bg-emerald-500' : 'bg-[var(--muted)]/30'}`} />
                               <span className="text-[11px] font-bold">{p.status === 'active' ? 'פעיל' : 'לא פעיל'}</span>
                             </div>
                           </td>
-                          <td className="px-3 py-3 text-left">
-                            <button 
-                              onClick={(e) => handleDelete(p.id, e)}
-                              title="מחיקת משתתף"
-                              className="p-1.5 hover:bg-rose-500/10 text-[var(--foreground)]/20 hover:text-rose-500 rounded-lg transition-all"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </td>
+                          {!isLogistics && (
+                            <td className="px-3 py-3 text-left">
+                              <button 
+                                onClick={(e) => handleDelete(p.id, e)}
+                                title="מחיקת משתתף"
+                                className="p-1.5 hover:bg-rose-500/10 text-[var(--foreground)]/20 hover:text-rose-500 rounded-lg transition-all"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </td>
+                          )}
                         </tr>
                       );
                     })}
