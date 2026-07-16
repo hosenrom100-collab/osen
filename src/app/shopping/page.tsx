@@ -247,6 +247,7 @@ export default function ShoppingPage() {
       
       const html5QrCode = new Html5Qrcode("reader", {
         verbose: false,
+        useBarCodeDetectorIfSupported: true,
         formatsToSupport: [
           Html5QrcodeSupportedFormats.EAN_13,
           Html5QrcodeSupportedFormats.EAN_8,
@@ -257,15 +258,22 @@ export default function ShoppingPage() {
         ]
       });
       scannerRef.current = html5QrCode;
-      
-      const config = { 
-        fps: 24, 
+
+      const config = {
+        fps: 10,
         qrbox: (width: number, height: number) => {
           const boxWidth = Math.floor(width * 0.85);
           const boxHeight = Math.floor(height * 0.5);
           return { width: boxWidth, height: boxHeight };
         },
-        aspectRatio: 1.0
+        // Do NOT force a square aspectRatio here - the viewfinder only *looks*
+        // square via CSS object-cover. Forcing the raw camera capture into a
+        // 1:1 crop throws away horizontal resolution that thin 1D barcodes
+        // need, producing a small/blurry image the decoder can't read.
+        videoConstraints: {
+          width: { ideal: 1920 },
+          height: { ideal: 1920 }
+        }
       };
       
       await html5QrCode.start(
