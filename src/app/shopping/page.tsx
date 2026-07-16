@@ -1,6 +1,6 @@
 "use client";
 
-import { Html5Qrcode } from "html5-qrcode";
+import { Html5Qrcode, Html5QrcodeSupportedFormats } from "html5-qrcode";
 import { RoleGuard } from "@/components/auth/RoleGuard";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { db } from "@/lib/firebase/config";
@@ -1828,11 +1828,17 @@ export default function ShoppingPage() {
                 <div className="flex-1 overflow-y-auto no-scrollbar py-2">
                   {scanStatus === "scanning" && (
                     <div className="space-y-4">
-                      <div className="relative overflow-hidden rounded-2xl bg-black border border-[var(--border)] aspect-video flex items-center justify-center">
-                        <div id="reader" className="w-full h-full" />
-                        <div className="absolute inset-0 border-2 border-indigo-500/30 rounded-2xl pointer-events-none flex items-center justify-center">
-                          <div className="w-48 h-24 border-2 border-indigo-500 rounded-xl relative">
-                            <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-rose-500 animate-pulse" />
+                      <div className="relative overflow-hidden rounded-3xl bg-black border border-[var(--border)] aspect-square flex items-center justify-center shadow-inner">
+                        <div id="reader" className="w-full h-full [&_video]:object-cover" />
+                        <div className="absolute inset-0 border-2 border-indigo-500/30 rounded-3xl pointer-events-none flex items-center justify-center">
+                          <div className="w-[85%] h-[50%] border-2 border-dashed border-indigo-500 rounded-2xl relative bg-indigo-500/5 flex items-center justify-center shadow-[0_0_20px_rgba(99,102,241,0.15)]">
+                            {/* Scanning Laser Line */}
+                            <div className="absolute left-2 right-2 h-0.5 bg-rose-500 shadow-[0_0_8px_#f43f5e] animate-pulse" />
+                            {/* Corner brackets for guidance */}
+                            <div className="absolute -top-1.5 -left-1.5 w-4 h-4 border-t-4 border-l-4 border-indigo-500 rounded-tl" />
+                            <div className="absolute -top-1.5 -right-1.5 w-4 h-4 border-t-4 border-r-4 border-indigo-500 rounded-tr" />
+                            <div className="absolute -bottom-1.5 -left-1.5 w-4 h-4 border-b-4 border-l-4 border-indigo-500 rounded-bl" />
+                            <div className="absolute -bottom-1.5 -right-1.5 w-4 h-4 border-b-4 border-r-4 border-indigo-500 rounded-br" />
                           </div>
                         </div>
                       </div>
