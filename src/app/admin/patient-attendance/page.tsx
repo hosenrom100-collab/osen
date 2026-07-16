@@ -81,7 +81,7 @@ function MiniCalendar({ value, onChange }: { value: string; onChange: (d: string
 function AttendancePageContent() {
   const searchParams = useSearchParams();
   const router       = useRouter();
-  const { preferredProgramIds, preferredGroupIds, setPreferredPrograms, setPreferredGroups } = useAuth();
+  const { preferredProgramIds, preferredGroupIds, setPreferredPrograms, setPreferredGroups, isLogistics } = useAuth();
 
   const [selectionItems, setSelectionItems] = useState<SelectionItem[]>([]);
   const [selectedId,     setSelectedId]     = useState<string>(searchParams.get("group") || "");
@@ -378,11 +378,13 @@ function AttendancePageContent() {
 
           {/* Desktop: calendar toggle button */}
           <div className="hidden md:flex items-center gap-3">
-            <button onClick={() => router.push("/admin/attendance-matrix")}
-              className="flex items-center gap-2 px-4 h-9 bg-violet-500/10 border border-violet-500/20 rounded-xl text-xs font-black text-violet-400 hover:bg-violet-500/20 transition-colors">
-              <ClipboardList className="w-3.5 h-3.5" />
-              מבט טבלאי (אקסל)
-            </button>
+            {!isLogistics && (
+              <button onClick={() => router.push("/admin/attendance-matrix")}
+                className="flex items-center gap-2 px-4 h-9 bg-violet-500/10 border border-violet-500/20 rounded-xl text-xs font-black text-violet-400 hover:bg-violet-500/20 transition-colors">
+                <ClipboardList className="w-3.5 h-3.5" />
+                מבט טבלאי (אקסל)
+              </button>
+            )}
             <button onClick={() => setShowCalendar(!showCalendar)}
               className="flex items-center gap-2 px-4 h-9 bg-[var(--foreground)]/5 border border-[var(--border)] rounded-xl text-xs font-black hover:bg-[var(--foreground)]/10 transition-colors">
               <CalendarIcon className="w-3.5 h-3.5 text-emerald-500" />

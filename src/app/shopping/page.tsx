@@ -131,6 +131,8 @@ export default function ShoppingPage() {
   const [listType, setListType]     = useState<"supermarket" | "large">("supermarket");
   const [isEditingRecurring, setIsEditingRecurring] = useState(false);
   const [recurringSearchVal, setRecurringSearchVal] = useState("");
+  const [actionsMenuOpen, setActionsMenuOpen] = useState(false);
+  const [purchasedCollapsed, setPurchasedCollapsed] = useState(true);
 
   // Add-bar state
   const [inputVal, setInputVal]     = useState("");
@@ -616,6 +618,13 @@ export default function ShoppingPage() {
                  >
                     {view === "list" ? "ארכיון" : "רשימה"}
                  </button>
+                 <button 
+                   onClick={() => setActionsMenuOpen(true)}
+                   className="w-10 h-10 flex items-center justify-center rounded-xl bg-[var(--foreground)]/5 border border-[var(--border)] active:scale-95 transition-all"
+                   title="פעולות נוספות"
+                 >
+                    <Settings className="w-5 h-5 text-[var(--muted)]" />
+                 </button>
               </div>
            </div>
 
@@ -718,7 +727,7 @@ export default function ShoppingPage() {
 
             {/* Action buttons (Only for Supermarket tab) */}
             {listType === "supermarket" && (
-              <div className="flex items-center gap-2">
+              <div className="hidden md:flex items-center gap-2">
                 <button
                   onClick={() => setIsEditingRecurring(true)}
                   className="px-4 py-2.5 rounded-xl bg-[var(--foreground)]/5 hover:bg-[var(--foreground)]/10 border border-[var(--border)] text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer"
@@ -798,6 +807,7 @@ export default function ShoppingPage() {
                              onUpdateQuantity={updateQuantity}
                              canPurchase={canPurchase}
                              currentUser={user}
+                             activeCategory={activeCategory}
                           />
                        );
                      })}
@@ -813,6 +823,7 @@ export default function ShoppingPage() {
                            onUpdateQuantity={updateQuantity}
                            canPurchase={canPurchase}
                            currentUser={user}
+                            activeCategory={activeCategory}
                         />
                      )}
 
@@ -827,31 +838,39 @@ export default function ShoppingPage() {
                    </LayoutGroup>
 
                    {sessionPurchased.length > 0 && (
-                     <div className="mt-8 space-y-4 px-4 pb-12">
-                       <div className="flex items-center justify-between border-b border-[var(--border)] pb-2 mb-2">
-                         <h3 className="text-sm font-black text-emerald-500 flex items-center gap-2">
-                           <ShoppingBag className="w-4.5 h-4.5" />
-                           מצרכים שנקנו בקנייה זו ({sessionPurchased.length})
-                         </h3>
-                         <button
-                           onClick={() => setShowArchivePrompt(true)}
-                           className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-black transition-all active:scale-95 shadow-lg shadow-emerald-600/10 flex items-center gap-1.5"
-                         >
-                           <Check className="w-3.5 h-3.5 stroke-[3] text-white" />
-                           סיום קנייה וארכוב
-                         </button>
-                       </div>
-                       <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl overflow-hidden divide-y divide-[var(--border)]/50">
-                         {sessionPurchased.map(item => (
-                           <PurchasedRow 
-                             key={item.id} 
-                             item={item} 
-                             onStatus={changeStatus} 
-                           />
-                         ))}
-                       </div>
-                     </div>
-                   )}
+                      <div className="mt-8 px-4 pb-12">
+                        <div className="flex items-center justify-between border-b border-[var(--border)] pb-3 mb-3">
+                          <button
+                            onClick={() => setPurchasedCollapsed(!purchasedCollapsed)}
+                            className="text-sm font-black text-emerald-500 flex items-center gap-2 hover:opacity-80 active:scale-95 transition-all border-none bg-transparent"
+                          >
+                            <ShoppingBag className="w-4.5 h-4.5" />
+                            <span>מצרכים שנקנו ({sessionPurchased.length})</span>
+                            <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${purchasedCollapsed ? "" : "rotate-180"}`} />
+                          </button>
+                          
+                          <button
+                            onClick={() => setShowArchivePrompt(true)}
+                            className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-black transition-all active:scale-95 shadow-lg shadow-emerald-600/10 flex items-center gap-1 border-none cursor-pointer"
+                          >
+                            <Check className="w-3.5 h-3.5 stroke-[3] text-white" />
+                            <span>סיום וארכוב</span>
+                          </button>
+                        </div>
+                        
+                        {!purchasedCollapsed && (
+                          <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl overflow-hidden divide-y divide-[var(--border)]/50 shadow-sm">
+                            {sessionPurchased.map(item => (
+                              <PurchasedRow 
+                                key={item.id} 
+                                item={item} 
+                                onStatus={changeStatus} 
+                              />
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
                 </>
               ) : (
                 <div className="p-4 space-y-6">
@@ -1430,24 +1449,137 @@ export default function ShoppingPage() {
               </motion.div>
             )}
           </AnimatePresence>
+
+          {/* Actions Menu Drawer / Modal (Mobile & Desktop) */}
+          <AnimatePresence>
+            {actionsMenuOpen && (
+              <div className="fixed inset-0 z-[120] flex items-end md:items-center justify-center p-0 md:p-4">
+                <motion.div 
+                  initial={{ opacity: 0 }} 
+                  animate={{ opacity: 1 }} 
+                  exit={{ opacity: 0 }} 
+                  onClick={() => setActionsMenuOpen(false)} 
+                  className="absolute inset-0 bg-black/60 backdrop-blur-sm" 
+                />
+                <motion.div 
+                  initial={{ y: "100%", scale: 1 }} 
+                  animate={{ y: 0, scale: 1 }} 
+                  exit={{ y: "100%" }}
+                  transition={{ type: "spring", damping: 25, stiffness: 200 }}
+                  className="relative bg-[var(--surface)] border-t md:border border-[var(--border)] rounded-t-[2rem] md:rounded-[2.5rem] w-full max-w-md p-6 md:p-8 shadow-2xl text-right flex flex-col max-h-[85vh] overflow-hidden z-10" 
+                  dir="rtl"
+                >
+                  <div className="w-12 h-1.5 bg-[var(--border)] rounded-full mx-auto mb-5 md:hidden" />
+                  
+                  <div className="flex items-center justify-between mb-6 shrink-0">
+                    <h3 className="text-xl font-black flex items-center gap-2">
+                      <Settings className="w-5 h-5 text-indigo-500" />
+                      <span>פעולות ניהול וייצוא</span>
+                    </h3>
+                    <button onClick={() => setActionsMenuOpen(false)} className="p-2 rounded-full hover:bg-[var(--foreground)]/5 text-[var(--muted)]">
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+
+                  <div className="space-y-3 overflow-y-auto no-scrollbar pb-6">
+                    {listType === "supermarket" && (
+                      <>
+                        <button
+                          onClick={() => {
+                            setActionsMenuOpen(false);
+                            setIsEditingRecurring(true);
+                          }}
+                          className="w-full py-4 px-4 bg-[var(--foreground)]/5 hover:bg-[var(--foreground)]/10 rounded-2xl border border-[var(--border)] text-sm font-bold transition-all flex items-center gap-3 justify-start cursor-pointer border-none"
+                        >
+                          <Settings className="w-5 h-5 text-indigo-500" />
+                          <span>עריכת רשימה קבועה (שבועית)</span>
+                        </button>
+
+                        <button
+                          onClick={() => {
+                            setActionsMenuOpen(false);
+                            generateRecurringList();
+                          }}
+                          className="w-full py-4 px-4 bg-[var(--foreground)]/5 hover:bg-[var(--foreground)]/10 rounded-2xl border border-[var(--border)] text-sm font-bold transition-all flex items-center gap-3 justify-start cursor-pointer border-none"
+                        >
+                          <Download className="w-5 h-5 text-purple-500" />
+                          <span>ייצוא רשימה קבועה ל-Word</span>
+                        </button>
+                      </>
+                    )}
+
+                    <button
+                      onClick={() => {
+                        setActionsMenuOpen(false);
+                        exportProcurementList();
+                      }}
+                      className="w-full py-4 px-4 bg-[var(--foreground)]/5 hover:bg-[var(--foreground)]/10 rounded-2xl border border-[var(--border)] text-sm font-bold transition-all flex items-center gap-3 justify-start cursor-pointer border-none"
+                    >
+                      <Download className="w-5 h-5 text-blue-500" />
+                      <span>ייצוא רשימת רכש ל-Word</span>
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        setActionsMenuOpen(false);
+                        exportOngoingList();
+                      }}
+                      className="w-full py-4 px-4 bg-[var(--foreground)]/5 hover:bg-[var(--foreground)]/10 rounded-2xl border border-[var(--border)] text-sm font-bold transition-all flex items-center gap-3 justify-start cursor-pointer border-none"
+                    >
+                      <Download className="w-5 h-5 text-emerald-500" />
+                      <span>ייצוא רשימה שוטפת ל-Word</span>
+                    </button>
+
+                    {isAdmin && (
+                      <button
+                        onClick={() => {
+                          setActionsMenuOpen(false);
+                          exportXlsx();
+                        }}
+                        className="w-full py-4 px-4 bg-[var(--foreground)]/5 hover:bg-[var(--foreground)]/10 rounded-2xl border border-[var(--border)] text-sm font-bold transition-all flex items-center gap-3 justify-start cursor-pointer border-none"
+                      >
+                        <Download className="w-5 h-5 text-amber-500" />
+                        <span>ייצוא ארכיון לאקסל (Excel)</span>
+                      </button>
+                    )}
+
+                    <button
+                      onClick={() => {
+                        setActionsMenuOpen(false);
+                        setIsAddingCat(true);
+                      }}
+                      className="w-full py-4 px-4 bg-[var(--foreground)]/5 hover:bg-[var(--foreground)]/10 rounded-2xl border border-[var(--border)] text-sm font-bold transition-all flex items-center gap-3 justify-start cursor-pointer border-none"
+                    >
+                      <Edit3 className="w-5 h-5 text-indigo-500" />
+                      <span>ניהול קטגוריות רכש</span>
+                    </button>
+                  </div>
+                </motion.div>
+              </div>
+            )}
+          </AnimatePresence>
       </div>
     </RoleGuard>
   );
 }
 
-function CategorySection({ title, items, onStatus, onEdit, onUpdateQuantity, canPurchase, currentUser }: {
-  title: string, items: ShoppingRequest[], onStatus: any, onEdit: any, onUpdateQuantity: any, canPurchase: boolean, currentUser: any
+function CategorySection({ title, items, onStatus, onEdit, onUpdateQuantity, canPurchase, currentUser, activeCategory }: {
+  title: string, items: ShoppingRequest[], onStatus: any, onEdit: any, onUpdateQuantity: any, canPurchase: boolean, currentUser: any, activeCategory: string | null
 }) {
   return (
-    <div className="mb-8 last:mb-0">
-      <div className="flex items-center justify-between px-4 py-3 bg-[var(--surface)]/50 backdrop-blur-sm sticky top-0 z-10 border-y border-[var(--border)]">
-        <h3 className="text-xs font-black text-[var(--muted)] uppercase tracking-widest flex items-center gap-2">
-          <Filter className="w-3 h-3 text-indigo-500" />
-          {title}
-        </h3>
-        <span className="text-[10px] font-bold bg-[var(--foreground)]/5 px-2 py-0.5 rounded-full">{items.length} פריטים</span>
+    <div className="mb-6 last:mb-0 px-4 md:px-0">
+      <div className="flex items-center justify-between py-2 mb-3">
+        <div className="flex items-center gap-2">
+          <div className="w-1.5 h-5 rounded-full bg-indigo-600 shadow-sm shadow-indigo-600/30" />
+          <h3 className="text-sm font-extrabold text-[var(--foreground)]">
+            {title}
+          </h3>
+          <span className="text-[10px] font-bold bg-[var(--foreground)]/5 px-2 py-0.5 rounded-full text-[var(--muted)]">
+            {items.length}
+          </span>
+        </div>
       </div>
-      <div className="divide-y divide-[var(--border)]/50">
+      <div className="space-y-2.5">
         {items.map(item => (
           <MobileItemRow 
             key={item.id} 
@@ -1457,6 +1589,7 @@ function CategorySection({ title, items, onStatus, onEdit, onUpdateQuantity, can
             onUpdateQuantity={onUpdateQuantity}
             canPurchase={canPurchase}
             currentUser={currentUser}
+            activeCategory={activeCategory}
           />
         ))}
       </div>
@@ -1464,8 +1597,8 @@ function CategorySection({ title, items, onStatus, onEdit, onUpdateQuantity, can
   );
 }
 
-function MobileItemRow({ item, onStatus, onEdit, onUpdateQuantity, canPurchase, currentUser }: {
-  item: ShoppingRequest, onStatus: any, onEdit: any, onUpdateQuantity: any, canPurchase: boolean, currentUser: any
+function MobileItemRow({ item, onStatus, onEdit, onUpdateQuantity, canPurchase, currentUser, activeCategory }: {
+  item: ShoppingRequest, onStatus: any, onEdit: any, onUpdateQuantity: any, canPurchase: boolean, currentUser: any, activeCategory: string | null
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
   const isApproved = item.status === "approved" || item.status === "pending";
@@ -1482,6 +1615,9 @@ function MobileItemRow({ item, onStatus, onEdit, onUpdateQuantity, canPurchase, 
   const handleCheckboxClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (isApproved && canPurchase) {
+      if (typeof navigator !== "undefined" && navigator.vibrate) {
+        navigator.vibrate(15);
+      }
       onStatus(item.id, "purchased");
     }
   };
@@ -1490,54 +1626,74 @@ function MobileItemRow({ item, onStatus, onEdit, onUpdateQuantity, canPurchase, 
     <motion.div
       layout
       onClick={() => setIsExpanded(!isExpanded)}
-      className={`group relative flex flex-col px-4 py-3.5 bg-[var(--surface)] hover:bg-[var(--foreground)]/5 transition-all border-b border-[var(--border)]/50 last:border-0 cursor-pointer ${
-        isExpanded ? "ring-1 ring-indigo-500/10 bg-[var(--foreground)]/[0.01]" : ""
+      className={`group relative flex flex-col p-4 bg-[var(--surface)] hover:bg-[var(--foreground)]/[0.02] transition-all border border-[var(--border)] rounded-2xl cursor-pointer shadow-sm ${
+        isExpanded ? "ring-2 ring-indigo-500/20" : ""
+      } ${
+        isUrgent ? "border-r-[4px] border-r-rose-500" : "border-r border-r-[var(--border)]"
       }`}
     >
       {/* Upper Row: Main Information & Checkbox */}
       <div className="flex items-center justify-between gap-3 w-full">
-        <div className="flex items-center gap-3 min-w-0 flex-1">
-          {/* Custom Checkbox/Action Circle */}
+        <div className="flex items-center gap-3.5 min-w-0 flex-1">
+          {/* Custom Checkbox/Action Circle - 44px for WCAG compliance */}
           <button
             onClick={handleCheckboxClick}
             disabled={!canPurchase}
-            className={`w-7 h-7 rounded-full flex items-center justify-center border transition-all shrink-0 active:scale-90 ${
+            className={`w-11 h-11 rounded-xl flex items-center justify-center border transition-all shrink-0 active:scale-90 ${
               isApproved
                 ? canPurchase
-                  ? "border-indigo-500 hover:bg-indigo-500/10 text-indigo-500"
+                  ? "border-indigo-500 hover:bg-indigo-500/10 bg-indigo-500/5 text-indigo-500 shadow-sm"
                   : "border-[var(--border)] text-[var(--muted)]/40 cursor-not-allowed"
                 : "border-[var(--border)] text-[var(--muted)]"
             }`}
           >
             {isApproved ? (
-              <Check className="w-3.5 h-3.5 text-indigo-500" />
+              <Check className="w-5 h-5 text-indigo-500 stroke-[3]" />
             ) : (
-              <Check className="w-3.5 h-3.5" />
+              <Check className="w-5 h-5" />
             )}
           </button>
 
           {/* Item details */}
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-[15px] font-bold tracking-tight text-[var(--foreground)]">
+          <div className="min-w-0 flex-1 text-right">
+            <div className="flex items-baseline gap-2 flex-wrap justify-start">
+              <span className="text-base font-bold tracking-tight text-[var(--foreground)]">
                 {item.name}
               </span>
-              <span className="text-xs font-black text-indigo-500/80 bg-indigo-500/5 px-2 py-0.5 rounded-lg border border-indigo-500/10">
-                {item.quantity || "1"} יח׳
-              </span>
-              <CatBadge cat={item.category} />
+              {item.quantity && item.quantity !== "1" && (
+                <span className="text-xs font-black text-indigo-500/90 bg-indigo-500/5 px-2 py-0.5 rounded-lg border border-indigo-500/10 shrink-0">
+                  {item.quantity} יח׳
+                </span>
+              )}
+            </div>
+            
+            {/* Metadata row */}
+            <div className="flex items-center gap-2 mt-1.5 flex-wrap justify-start">
               {isUrgent && (
-                <span className="text-[9px] font-black text-rose-500 bg-rose-500/10 px-1.5 py-0.5 rounded border border-rose-500/20">דחוף 🔥</span>
+                <span className="inline-flex items-center gap-1 text-[10px] font-black text-rose-500 bg-rose-500/10 px-1.5 py-0.5 rounded border border-rose-500/20">
+                  <Flame className="w-3 h-3 text-rose-500 animate-pulse" />
+                  דחוף
+                </span>
+              )}
+              {item.notes && (
+                <span className="inline-flex items-center text-[10px] font-bold text-amber-500 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20">
+                  הערה 💬
+                </span>
+              )}
+              <span className="text-[10px] text-[var(--muted)] font-semibold">
+                מבקש: {item.requestedByName}
+              </span>
+              {activeCategory === null && (
+                <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-md ${CAT_COLOR[item.category] || CAT_COLOR["כללי"]}`}>
+                  {item.category}
+                </span>
               )}
             </div>
           </div>
         </div>
 
-        {/* Left Side indicators */}
-        <div className="flex items-center gap-2 shrink-0">
-          {item.notes && (
-            <span className="text-xs text-[var(--muted)]" title="יש הערות לפריט זה">💬</span>
-          )}
+        {/* Left Side Chevron */}
+        <div className="flex items-center gap-1 shrink-0">
           <motion.div
             animate={{ rotate: isExpanded ? 180 : 0 }}
             transition={{ duration: 0.2 }}
@@ -1567,17 +1723,7 @@ function MobileItemRow({ item, onStatus, onEdit, onUpdateQuantity, canPurchase, 
               </div>
             )}
 
-            {/* Requested By and Status Info */}
-            <div className="flex items-center justify-between flex-wrap gap-2 mb-4 text-xs">
-              <span className="text-[var(--muted)] font-medium">מבקש: <span className="font-bold text-[var(--foreground)]">{item.requestedByName}</span></span>
-              <div>
-                <span className="flex items-center gap-1 text-emerald-500 font-bold bg-emerald-500/5 px-2 py-0.5 rounded border border-emerald-500/10">
-                  <CheckCircle2 className="w-3 h-3" /> מאושר לרכישה
-                </span>
-              </div>
-            </div>
-
-            {/* Action buttons */}
+            {/* Action buttons and Stepper */}
             <div className="flex items-center justify-between gap-3 flex-wrap">
               {/* Inline Quantity Stepper */}
               <div className="flex items-center gap-1 bg-[var(--foreground)]/5 border border-[var(--border)] rounded-xl p-1 shadow-sm shrink-0">
@@ -1602,7 +1748,7 @@ function MobileItemRow({ item, onStatus, onEdit, onUpdateQuantity, canPurchase, 
               </div>
 
               {/* Action Buttons */}
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5">
                 <button
                   onClick={() => onEdit(item)}
                   className="px-3 h-9 rounded-xl flex items-center justify-center gap-1.5 bg-[var(--foreground)]/5 hover:bg-[var(--foreground)]/10 text-[var(--muted)] hover:text-[var(--foreground)] transition-all active:scale-95 border border-[var(--border)] text-xs font-bold"

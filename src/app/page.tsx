@@ -9,7 +9,7 @@ import {
   Shield, MapPin, Edit3, ChevronLeft, Clock,
   ClipboardList, Layers, X, Check, ChevronDown, Plus,
   AlertTriangle, Sparkles, Bell, Coffee, Utensils, ArrowLeftRight,
-  ShoppingCart, Share2
+  ShoppingCart, Share2, CarTaxiFront, Info
 } from "lucide-react";
 import Link from "next/link";
 import { db } from "@/lib/firebase/config";
@@ -137,7 +137,7 @@ function TimelineRow({
 export default function Home() {
   const {
     user, loading, isWhitelisted, logout, photoURL,
-    isAdmin, isManager, role, roles, assignedGroups, primaryGroupId, setPrimaryGroupId,
+    isAdmin, isManager, isLogistics, role, roles, assignedGroups, primaryGroupId, setPrimaryGroupId,
     preferredProgramIds, preferredGroupIds,
   } = useAuth();
   const router = useRouter();
@@ -165,6 +165,7 @@ export default function Home() {
   const [recentNotifications, setRecentNotifications] = useState<any[]>([]);
   const [unreadNotifCount, setUnreadNotifCount] = useState(0);
   const [activeShoppingCount, setActiveShoppingCount] = useState(0);
+  const [taxiPatients, setTaxiPatients] = useState<any[]>([]);
 
   const isStrictAdmin = isAdmin && !(roles || []).some(r => r === "social_worker" || r === "instructor" || r === "employee" || r === "logistics");
   const isStrictManager = isManager && !(roles || []).some(r => r === "social_worker" || r === "instructor" || r === "employee" || r === "logistics");
@@ -265,11 +266,23 @@ export default function Home() {
       groupList.forEach(g => statMap.set(g.id, { ...g, present: 0, absent: 0, total: 0 }));
 
       const present: PresentPat[] = [];
+      const taxis: any[] = [];
       let expiring3m = 0;
       let expiring6m = 0;
       pSnap.forEach(d => {
         const p   = d.data();
         const pId = d.id;
+        
+        if (p.arrivalMethod === "taxi") {
+          taxis.push({
+            id: pId,
+            firstName: p.firstName || "",
+            lastName: p.lastName || "",
+            status: p.status,
+            hosenType: p.hosenType || "",
+            isPresentToday: presentIds.has(pId),
+          });
+        }
         
         // Collect all groups this patient belongs to
         const gIds: string[] = [];
@@ -366,6 +379,7 @@ export default function Home() {
       setPresentPatients(present);
       setExpiring3mCount(expiring3m);
       setExpiring6mCount(expiring6m);
+      setTaxiPatients(taxis);
 
       // 3. Absences
       const [myAbsSnap, allAbsSnap] = await Promise.all([
@@ -662,7 +676,7 @@ export default function Home() {
       </header>
 
       {/* ── Stunning Metrics Dashboard ── */}
-      {dataLoaded && (
+      {dataLoaded && !isLogistics && (
         <div className="px-4 md:px-6 mt-6 max-w-6xl mx-auto">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             
@@ -808,7 +822,100 @@ export default function Home() {
 
       {/* ── Main content ── */}
       <main className="px-4 md:px-6 py-5 pb-24">
-        <div className="grid md:grid-cols-[1fr_300px] lg:grid-cols-[1fr_320px] gap-6 max-w-6xl mx-auto">
+        {isLogistics ? (
+          <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* ── Active Shopping Summary ── */}
+            <div className="border border-[var(--border)] rounded-3xl overflow-hidden bg-[var(--card-bg,var(--surface))] shadow-xl flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border)]">
+                  <div className="flex items-center gap-2">
+                    <ShoppingCart className="w-4 h-4 text-indigo-500" />
+                    <h2 className="text-sm font-black text-[var(--foreground)]">רשימת קניות פעילה</h2>
+                  </div>
+                  <Link href="/shopping"
+                    className="text-[10px] font-black text-indigo-500 hover:underline flex items-center gap-0.5">
+                    לרשימת הקניות <ChevronLeft className="w-3 h-3" />
+                  </Link>
+                </div>
+                <div className="p-5">
+                  {activeShoppingCount === 0 ? (
+                    <div className="text-center py-8 text-[var(--muted)] space-y-2">
+                      <CheckCircle className="w-8 h-8 mx-auto stroke-1 text-emerald-500 opacity-60" />
+                      <p className="text-xs font-black text-[var(--foreground)]">אין פריטים לקנייה</p>
+                      <p className="text-[10px] text-[var(--muted)] font-bold">רשימת הקניות ריקה או שכל הפריטים כבר נקנו</p>
+                    </div>
+                  ) : (
+                    <div className="p-4 bg-indigo-500/5 border border-indigo-500/10 rounded-2xl flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-500 shrink-0">
+                          <ShoppingCart className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-black text-[var(--foreground)]">{activeShoppingCount} מוצרים ברשימת הקניות</p>
+                          <p className="text-[10px] text-[var(--muted)] font-bold">ישנם מוצרים הממתינים לרכישה בסופרמרקט או כציוד גדול</p>
+                        </div>
+                      </div>
+                      <Link href="/shopping"
+                        className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 !text-white text-xs font-black rounded-xl shadow-md transition-all">
+                        לרשימת הקניות
+                      </Link>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* ── Taxi Arrivals Card ── */}
+            <div className="border border-[var(--border)] rounded-3xl overflow-hidden bg-[var(--card-bg,var(--surface))] shadow-xl flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border)]">
+                  <div className="flex items-center gap-2">
+                    <CarTaxiFront className="w-4 h-4 text-amber-500" />
+                    <h2 className="text-sm font-black text-[var(--foreground)]">משתתפים שמגיעים במונית</h2>
+                  </div>
+                  <span className="text-[10px] bg-amber-500/10 text-amber-500 px-2.5 py-1 rounded-full font-bold">
+                    {taxiPatients.length} משתתפים
+                  </span>
+                </div>
+                <div className="p-5">
+                  {taxiPatients.length === 0 ? (
+                    <div className="text-center py-8 text-[var(--muted)] space-y-2">
+                      <Info className="w-8 h-8 mx-auto stroke-1 text-[var(--muted)] opacity-60" />
+                      <p className="text-xs font-black text-[var(--foreground)]">אין משתתפים המגיעים במונית</p>
+                      <p className="text-[10px] text-[var(--muted)] font-bold">לא סומנו משתתפים ששיטת ההגעה שלהם היא מונית</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1 no-scrollbar text-right">
+                      {taxiPatients.map(p => (
+                        <div key={p.id} className="p-3 bg-amber-500/5 border border-amber-500/10 rounded-2xl flex items-center justify-between hover:bg-amber-500/10 transition-all duration-200">
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-8 h-8 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center font-black text-xs shrink-0">
+                              {p.firstName?.[0]}{p.lastName?.[0]}
+                            </div>
+                            <div>
+                              <p className="text-xs font-black text-[var(--foreground)]">{p.firstName} {p.lastName}</p>
+                              <p className="text-[9px] text-[var(--muted)] font-bold">מגיע במונית</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <span className={`text-[10px] px-2 py-0.5 rounded-full font-black border ${
+                              p.isPresentToday 
+                                ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-500" 
+                                : "bg-slate-500/10 border-slate-500/20 text-[var(--muted)]"
+                            }`}>
+                              {p.isPresentToday ? "נוכח היום" : "טרם הגיע / לא סומן"}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="grid md:grid-cols-[1fr_300px] lg:grid-cols-[1fr_320px] gap-6 max-w-6xl mx-auto">
 
           {/* ── Attendance by group — PRIMARY column ── */}
           <section className="md:order-1 space-y-6">
@@ -1167,6 +1274,7 @@ export default function Home() {
             </div>
           </aside>
         </div>
+        )}
       </main>
 
       {/* ── Group picker modal ── */}
