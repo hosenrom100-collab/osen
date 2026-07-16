@@ -116,8 +116,11 @@ function TimelineRow({
               <MapPin className="w-2.5 h-2.5" />{act.locationName}
             </span>
           )}
-          {isCurrent && act.staffNames.length > 0 && (
-            <span className="text-[10px] text-[var(--muted)] truncate max-w-[160px]">{act.staffNames.join(", ")}</span>
+          {act.staffNames && act.staffNames.length > 0 && (
+            <span className="text-[10px] text-[var(--muted)] flex items-center gap-0.5 truncate max-w-[160px]" title={act.staffNames.join(", ")}>
+              <User className="w-2.5 h-2.5 text-violet-400" />
+              <span>{act.staffNames.join(", ")}</span>
+            </span>
           )}
         </div>
       </div>
