@@ -144,6 +144,9 @@ export default function ShoppingPage() {
   const [customProductName, setCustomProductName] = useState("");
   const [customProductCat, setCustomProductCat] = useState("כללי");
   const [editBarcode, setEditBarcode] = useState("");
+  const [cameraList, setCameraList] = useState<any[]>([]);
+  const [activeCameraId, setActiveCameraId] = useState<string | null>(null);
+  const scannerRef = useRef<Html5Qrcode | null>(null);
 
   // Add-bar state
   const [inputVal, setInputVal]     = useState("");
@@ -229,47 +232,124 @@ export default function ShoppingPage() {
     }
   }, [editItem]);
 
-  // ── Barcode Scanning Logic ───────────────────────────────────────────
-  useEffect(() => {
-    if (!scanOpen) return;
+    // ── Barcode Scanning Logic ───────────────────────────────────────────
+  const startScanning = async (cameraId: any) => {
+    if (!document.getElementById("reader")) return;
     
-    // We delay slightly to allow the DOM element #reader to render
-    const timer = setTimeout(() => {
-      const html5QrCode = new Html5Qrcode("reader");
+    try {
+      if (scannerRef.current) {
+        try {
+          await scannerRef.current.stop();
+        } catch (e) {
+          // ignore stop errors
+        }
+      }
+      
+      const html5QrCode = new Html5Qrcode("reader", {
+        verbose: false,
+        formatsToSupport: [
+          Html5QrcodeSupportedFormats.EAN_13,
+          Html5QrcodeSupportedFormats.EAN_8,
+          Html5QrcodeSupportedFormats.UPC_A,
+          Html5QrcodeSupportedFormats.UPC_E,
+          Html5QrcodeSupportedFormats.CODE_128,
+          Html5QrcodeSupportedFormats.CODE_39
+        ]
+      });
+      scannerRef.current = html5QrCode;
       
       const config = { 
-        fps: 10, 
-        qrbox: { width: 250, height: 150 },
-        aspectRatio: 1.777778
+        fps: 24, 
+        qrbox: (width: number, height: number) => {
+          const boxWidth = Math.floor(width * 0.85);
+          const boxHeight = Math.floor(height * 0.5);
+          return { width: boxWidth, height: boxHeight };
+        },
+        aspectRatio: 1.0
       };
       
-      html5QrCode.start(
-        { facingMode: "environment" }, 
+      await html5QrCode.start(
+        cameraId, 
         config, 
-        (decodedText, decodedResult) => {
+        (decodedText) => {
           handleBarcodeScanned(decodedText);
           html5QrCode.stop().catch(err => console.error("Error stopping scanner:", err));
         },
-        (errorMessage) => {
-          // parse errors are normal and happen constantly during search, ignore
-        }
-      ).catch(err => {
-        console.error("Error starting camera:", err);
-        setScanStatus("error");
-        setScanErrorMsg("לא ניתן לגשת למצלמה. אנא ודא שאישרת הרשאות מצלמה.");
-      });
+        () => {}
+      );
       
-      return () => {
-        if (html5QrCode.isScanning) {
-          html5QrCode.stop().catch(err => console.error("Error in scanner cleanup:", err));
-        }
-      };
-    }, 100);
+      // Try to apply continuous autofocus constraints
+      try {
+        await html5QrCode.applyVideoConstraints({
+          focusMode: "continuous"
+        } as any);
+      } catch (e) {
+        // autofocus constraint not supported on this browser/device, ignore
+      }
+      
+    } catch (err) {
+      console.error("Error starting camera:", err);
+      setScanStatus("error");
+      setScanErrorMsg("לא ניתן לגשת למצלמה. אנא ודא שאישרת הרשאות מצלמה.");
+    }
+  };
+
+  const handleSwitchCamera = async () => {
+    if (cameraList.length <= 1) return;
     
-    return () => clearTimeout(timer);
+    const currentIndex = cameraList.findIndex(c => c.id === activeCameraId);
+    const nextIndex = (currentIndex + 1) % cameraList.length;
+    const nextCamera = cameraList[nextIndex];
+    
+    setActiveCameraId(nextCamera.id);
+    await startScanning(nextCamera.id);
+  };
+
+  useEffect(() => {
+    if (!scanOpen) {
+      if (scannerRef.current) {
+        scannerRef.current.stop().catch(err => console.error("Error stopping scanner on close:", err));
+        scannerRef.current = null;
+      }
+      return;
+    }
+    
+    const timer = setTimeout(async () => {
+      try {
+        const list = await Html5Qrcode.getCameras();
+        setCameraList(list || []);
+        
+        let initialCamera: any = { facingMode: "environment" };
+        if (list && list.length > 0) {
+          // Look for rear/back camera first
+          const rear = list.find(c => 
+            c.label.toLowerCase().includes("back") || 
+            c.label.toLowerCase().includes("rear") ||
+            c.label.toLowerCase().includes("אחורית") ||
+            c.label.toLowerCase().includes("סביבה")
+          );
+          if (rear) {
+            initialCamera = rear.id;
+          } else {
+            initialCamera = list[list.length - 1].id;
+          }
+        }
+        setActiveCameraId(typeof initialCamera === "string" ? initialCamera : null);
+        await startScanning(initialCamera);
+      } catch (err) {
+        console.error("Error listing cameras:", err);
+        await startScanning({ facingMode: "environment" });
+      }
+    }, 300);
+
+    return () => {
+      clearTimeout(timer);
+    };
   }, [scanOpen]);
 
-  const handleBarcodeScanned = async (barcode: string) => {
+
+
+const handleBarcodeScanned = async (barcode: string) => {
     setScannedBarcode(barcode);
     setScanStatus("searching");
     
@@ -1845,6 +1925,16 @@ export default function ShoppingPage() {
                       <p className="text-center text-xs text-[var(--muted)] font-bold">
                         מקם את ברקוד המוצר מול כוונת המצלמה
                       </p>
+                      
+                      {cameraList.length > 1 && (
+                        <button
+                          onClick={(e) => { e.preventDefault(); handleSwitchCamera(); }}
+                          className="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-[var(--foreground)]/5 hover:bg-[var(--foreground)]/10 text-[var(--foreground)]/80 text-xs font-extrabold rounded-xl border border-[var(--border)] active:scale-95 transition-all cursor-pointer"
+                        >
+                          <Camera className="w-4 h-4 text-indigo-500" />
+                          <span>החלף מצלמה (מצלמה פעילה: {cameraList.find(c => c.id === activeCameraId)?.label || "רגילה"})</span>
+                        </button>
+                      )}
                       
                       <div className="pt-2 border-t border-[var(--border)]/40">
                         <label className="text-[10px] font-black text-[var(--muted)] uppercase tracking-widest mb-1.5 block">סריקה ידנית (הקלדת ברקוד)</label>
