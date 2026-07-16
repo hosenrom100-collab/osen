@@ -194,7 +194,106 @@ export const generateDocxBlobWithLetterhead = async (bodyDoc: Document): Promise
     return "";
   };
 
-  const generatedBodyContent = getBodyContent(bodyXmlText);
+  // MERGE IMAGE RELATIONSHIPS AND MEDIA FILES
+  const relsFile = bodyZip.file("word/_rels/document.xml.rels");
+  const templateRelsFile = templateZip.file("word/_rels/document.xml.rels");
+
+  let modifiedBodyXmlText = bodyXmlText;
+
+  if (relsFile && templateRelsFile) {
+    const bodyRelsText = relsFile.asText();
+    const templateRelsText = templateRelsFile.asText();
+
+    // Find the maximum ID in template rels to avoid collision
+    const idRegex = /Id="(rId(\d+))"/g;
+    let maxIdNum = 0;
+    let match;
+    while ((match = idRegex.exec(templateRelsText)) !== null) {
+      const num = parseInt(match[2], 10);
+      if (num > maxIdNum) {
+        maxIdNum = num;
+      }
+    }
+    if (maxIdNum === 0) maxIdNum = 100;
+
+    // Parse all relationships in bodyRelsText
+    const relRegex = /<Relationship\s+([^>]*)\/>/g;
+    const bodyRels: { id: string; type: string; target: string; fullTag: string }[] = [];
+    let relMatch;
+    while ((relMatch = relRegex.exec(bodyRelsText)) !== null) {
+      const fullTag = relMatch[0];
+      const attrs = relMatch[1];
+      
+      const idM = /Id="([^"]+)"/.exec(attrs);
+      const typeM = /Type="([^"]+)"/.exec(attrs);
+      const targetM = /Target="([^"]+)"/.exec(attrs);
+      
+      if (idM && typeM && targetM) {
+        bodyRels.push({
+          id: idM[1],
+          type: typeM[1],
+          target: targetM[1],
+          fullTag
+        });
+      }
+    }
+
+    // Process each body relationship
+    let updatedTemplateRelsText = templateRelsText;
+    const closeIndex = updatedTemplateRelsText.lastIndexOf("</Relationships>");
+    
+    if (closeIndex !== -1) {
+      let newRelsXml = "";
+      
+      for (const rel of bodyRels) {
+        if (rel.type.includes("/image")) {
+          // Determine numeric part of body Id
+          const numMatch = /\d+/.exec(rel.id);
+          const num = numMatch ? parseInt(numMatch[0], 10) : bodyRels.indexOf(rel) + 1;
+          const newIdNum = maxIdNum + num;
+          const newId = `rId${newIdNum}`;
+
+          // Form new unique target name to prevent collision
+          const extension = rel.target.split(".").pop() || "png";
+          const origFilePath = `word/${rel.target}`;
+          const newTargetName = `media/body_image_${newId}.${extension}`;
+          const newFilePath = `word/${newTargetName}`;
+
+          // Copy file from bodyZip to templateZip
+          const imgFile = bodyZip.file(origFilePath);
+          if (imgFile) {
+            const imgData = imgFile.asBinary();
+            templateZip.file(newFilePath, imgData, { binary: true });
+          }
+
+          // Add to template relationships XML
+          newRelsXml += `<Relationship Id="${newId}" Type="${rel.type}" Target="${newTargetName}"/>`;
+
+          // Replace references in the body XML
+          const escapedOldId = rel.id.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+          const embedRegex = new RegExp(`r:embed="${escapedOldId}"`, 'g');
+          const idRefRegex = new RegExp(`r:id="${escapedOldId}"`, 'g');
+          const linkRegex = new RegExp(`r:link="${escapedOldId}"`, 'g');
+          
+          modifiedBodyXmlText = modifiedBodyXmlText
+            .replace(embedRegex, `r:embed="${newId}"`)
+            .replace(idRefRegex, `r:id="${newId}"`)
+            .replace(linkRegex, `r:link="${newId}"`);
+        }
+      }
+
+      if (newRelsXml) {
+        updatedTemplateRelsText = 
+          updatedTemplateRelsText.substring(0, closeIndex) + 
+          newRelsXml + 
+          updatedTemplateRelsText.substring(closeIndex);
+        
+        templateZip.file("word/_rels/document.xml.rels", updatedTemplateRelsText);
+      }
+    }
+  }
+
+  const generatedBodyContent = getBodyContent(modifiedBodyXmlText);
   const templateSectPr = getSectPr(templateXmlText);
 
   // 5. Replace template body content with generated content + template's section properties (header/footer)
