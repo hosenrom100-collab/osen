@@ -145,7 +145,7 @@ export default function ShoppingPage() {
   const [customProductCat, setCustomProductCat] = useState("כללי");
   const [editBarcode, setEditBarcode] = useState("");
   const [cameraList, setCameraList] = useState<any[]>([]);
-  const [activeCameraId, setActiveCameraId] = useState<string | null>(null);
+  const [cameraFacing, setCameraFacing] = useState<"environment" | "user">("environment");
   const scannerRef = useRef<Html5Qrcode | null>(null);
 
   // Add-bar state
@@ -296,6 +296,18 @@ export default function ShoppingPage() {
       }
       
     } catch (err) {
+      // If an exact facingMode was requested and the device can't satisfy it
+      // (e.g. a laptop with only one camera), retry once with a relaxed
+      // (non-exact) request instead of failing outright.
+      const requestedExactFacing = cameraId && typeof cameraId === "object" && cameraId.facingMode && cameraId.facingMode.exact;
+      if (requestedExactFacing) {
+        try {
+          await startScanning({ facingMode: requestedExactFacing });
+          return;
+        } catch (e) {
+          // fall through to error state below
+        }
+      }
       console.error("Error starting camera:", err);
       setScanStatus("error");
       setScanErrorMsg("לא ניתן לגשת למצלמה. אנא ודא שאישרת הרשאות מצלמה.");
@@ -303,14 +315,14 @@ export default function ShoppingPage() {
   };
 
   const handleSwitchCamera = async () => {
-    if (cameraList.length <= 1) return;
-    
-    const currentIndex = cameraList.findIndex(c => c.id === activeCameraId);
-    const nextIndex = (currentIndex + 1) % cameraList.length;
-    const nextCamera = cameraList[nextIndex];
-    
-    setActiveCameraId(nextCamera.id);
-    await startScanning(nextCamera.id);
+    // Toggle via the browser's own facingMode negotiation instead of
+    // guessing a specific device id from cameraList - device labels and
+    // enumeration order vary wildly between phones (some list the front
+    // camera last), which previously caused the switch to get stuck on
+    // the front camera.
+    const nextFacing = cameraFacing === "environment" ? "user" : "environment";
+    setCameraFacing(nextFacing);
+    await startScanning({ facingMode: { exact: nextFacing } });
   };
 
   useEffect(() => {
@@ -321,29 +333,16 @@ export default function ShoppingPage() {
       }
       return;
     }
-    
+
     const timer = setTimeout(async () => {
       try {
         const list = await Html5Qrcode.getCameras();
         setCameraList(list || []);
-        
-        let initialCamera: any = { facingMode: "environment" };
-        if (list && list.length > 0) {
-          // Look for rear/back camera first
-          const rear = list.find(c => 
-            c.label.toLowerCase().includes("back") || 
-            c.label.toLowerCase().includes("rear") ||
-            c.label.toLowerCase().includes("אחורית") ||
-            c.label.toLowerCase().includes("סביבה")
-          );
-          if (rear) {
-            initialCamera = rear.id;
-          } else {
-            initialCamera = list[list.length - 1].id;
-          }
-        }
-        setActiveCameraId(typeof initialCamera === "string" ? initialCamera : null);
-        await startScanning(initialCamera);
+        setCameraFacing("environment");
+        // Prefer asking the browser directly for the rear camera via
+        // facingMode - far more reliable than matching device labels,
+        // which differ by device/language and can point at the wrong camera.
+        await startScanning({ facingMode: { exact: "environment" } });
       } catch (err) {
         console.error("Error listing cameras:", err);
         await startScanning({ facingMode: "environment" });
@@ -1940,7 +1939,7 @@ const handleBarcodeScanned = async (barcode: string) => {
                           className="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-[var(--foreground)]/5 hover:bg-[var(--foreground)]/10 text-[var(--foreground)]/80 text-xs font-extrabold rounded-xl border border-[var(--border)] active:scale-95 transition-all cursor-pointer"
                         >
                           <Camera className="w-4 h-4 text-indigo-500" />
-                          <span>החלף מצלמה (מצלמה פעילה: {cameraList.find(c => c.id === activeCameraId)?.label || "רגילה"})</span>
+                          <span>החלף מצלמה (מצלמה פעילה: {cameraFacing === "environment" ? "אחורית" : "קדמית"})</span>
                         </button>
                       )}
                       
