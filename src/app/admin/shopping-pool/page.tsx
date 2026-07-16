@@ -4,7 +4,7 @@ import { RoleGuard } from "@/components/auth/RoleGuard";
 import { useState, useEffect } from "react";
 import { db } from "@/lib/firebase/config";
 import { collection, addDoc, getDocs, query, orderBy, doc, deleteDoc, writeBatch, getDoc, setDoc } from "firebase/firestore";
-import { Package, Plus, Trash2, Tag, Search, ArrowRight, Loader2 } from "lucide-react";
+import { Package, Plus, Trash2, Tag, Search, ArrowRight, Loader2, Settings, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
 
@@ -21,6 +21,8 @@ export default function ShoppingPoolPage() {
   const [isAdding, setIsAdding] = useState(false);
   const [newName, setNewName] = useState("");
   const [newCategory, setNewCategory] = useState("כללי");
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [newCatInput, setNewCatInput] = useState("");
   
   const router = useRouter();
 
@@ -36,6 +38,60 @@ export default function ShoppingPoolPage() {
       if (s.exists() && s.data().categories) setCategories(s.data().categories);
     });
   }, []);
+
+  const handleAddCategory = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const cleanCat = newCatInput.trim();
+    if (!cleanCat) return;
+    if (categories.includes(cleanCat)) {
+      alert("קטגוריה זו כבר קיימת!");
+      return;
+    }
+    const updatedCats = [...categories, cleanCat];
+    try {
+      await setDoc(doc(db, "settings", "shopping"), { categories: updatedCats }, { merge: true });
+      setCategories(updatedCats);
+      setNewCatInput("");
+    } catch (err) {
+      console.error("Error adding category:", err);
+      alert("שגיאה בהוספת קטגוריה");
+    }
+  };
+
+  const handleDeleteCategory = async (catToDelete: string) => {
+    if (catToDelete === "כללי") {
+      alert("לא ניתן למחוק את קטגוריית ברירת המחדל 'כללי'");
+      return;
+    }
+    const productsInCat = products.filter(p => p.category === catToDelete);
+    if (productsInCat.length > 0) {
+      if (!confirm(`שים לב: ישנם ${productsInCat.length} מוצרים המשויכים לקטגוריה זו. אם תמחק אותה, מוצרים אלו יוצגו תחת 'כללי'. האם להמשיך?`)) {
+        return;
+      }
+      
+      const batch = writeBatch(db);
+      productsInCat.forEach(p => {
+        batch.update(doc(db, "product_pool", p.id), { category: "כללי" });
+      });
+      await batch.commit();
+      
+      setProducts(products.map(p => p.category === catToDelete ? { ...p, category: "כללי" } : p));
+    } else {
+      if (!confirm(`האם למחוק את הקטגוריה '${catToDelete}'?`)) return;
+    }
+
+    const updatedCats = categories.filter(c => c !== catToDelete);
+    try {
+      await setDoc(doc(db, "settings", "shopping"), { categories: updatedCats }, { merge: true });
+      setCategories(updatedCats);
+      if (newCategory === catToDelete) {
+        setNewCategory("כללי");
+      }
+    } catch (err) {
+      console.error("Error deleting category:", err);
+      alert("שגיאה במחיקת קטגוריה");
+    }
+  };
 
   const fetchProducts = async () => {
     try {
@@ -160,14 +216,23 @@ export default function ShoppingPoolPage() {
                 <p className="text-slate-400 text-sm">נהל את רשימת המוצרים הקבועים במערכת</p>
               </div>
             </div>
-            <button
-              onClick={handleBulkImport}
-              disabled={loading}
-              className="flex items-center gap-2 px-4 py-2 bg-purple-500/10 text-purple-400 border border-purple-500/20 rounded-xl text-sm font-medium hover:bg-purple-500/20 transition-all disabled:opacity-50"
-            >
-              <Plus className="w-4 h-4" />
-              ייבוא מוצרי בסיס
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShowCategoryModal(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-slate-500/10 text-slate-300 border border-slate-500/20 rounded-xl text-sm font-medium hover:bg-slate-500/20 transition-all cursor-pointer"
+              >
+                <Settings className="w-4 h-4 text-slate-400" />
+                <span>ניהול קטגוריות</span>
+              </button>
+              <button
+                onClick={handleBulkImport}
+                disabled={loading}
+                className="flex items-center gap-2 px-4 py-2 bg-purple-500/10 text-purple-400 border border-purple-500/20 rounded-xl text-sm font-medium hover:bg-purple-500/20 transition-all disabled:opacity-50 cursor-pointer"
+              >
+                <Plus className="w-4 h-4" />
+                ייבוא מוצרי בסיס
+              </button>
+            </div>
           </div>
 
           <div className="flex gap-3">
@@ -268,6 +333,78 @@ export default function ShoppingPoolPage() {
             </div>
           )}
         </div>
+
+        <AnimatePresence>
+          {showCategoryModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+              <motion.div 
+                initial={{ opacity: 0 }} 
+                animate={{ opacity: 1 }} 
+                exit={{ opacity: 0 }} 
+                onClick={() => setShowCategoryModal(false)} 
+                className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm" 
+              />
+              
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                className="relative w-full max-w-md bg-[var(--surface)] border border-[var(--border)] rounded-[2rem] shadow-2xl p-6 overflow-hidden flex flex-col gap-6"
+              >
+                <div className="flex items-center justify-between border-b border-[var(--border)] pb-4">
+                  <div className="flex items-center gap-2">
+                    <Settings className="w-5 h-5 text-blue-500" />
+                    <h2 className="text-lg font-bold">ניהול קטגוריות מוצרים</h2>
+                  </div>
+                  <button 
+                    onClick={() => setShowCategoryModal(false)} 
+                    className="p-1.5 rounded-full hover:bg-[var(--foreground)]/5 text-slate-400 cursor-pointer"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                {/* Add category form */}
+                <form onSubmit={handleAddCategory} className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="שם קטגוריה חדשה..."
+                    value={newCatInput}
+                    onChange={e => setNewCatInput(e.target.value)}
+                    className="flex-1 bg-[var(--background)] border border-[var(--border)] rounded-xl py-2 px-3 text-sm focus:outline-none focus:border-blue-500 text-right"
+                    required
+                  />
+                  <button 
+                    type="submit" 
+                    className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer"
+                  >
+                    הוסף
+                  </button>
+                </form>
+
+                {/* Categories list */}
+                <div className="max-h-60 overflow-y-auto pr-1 flex flex-col gap-2">
+                  {categories.map(cat => (
+                    <div 
+                      key={cat} 
+                      className="flex items-center justify-between bg-[var(--background)] border border-[var(--border)] px-4 py-2.5 rounded-xl"
+                    >
+                      <span className="text-sm font-semibold">{cat}</span>
+                      {cat !== "כללי" && (
+                        <button 
+                          onClick={() => handleDeleteCategory(cat)}
+                          className="text-slate-500 hover:text-rose-500 p-1 transition-colors cursor-pointer"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
       </main>
     </RoleGuard>
   );
