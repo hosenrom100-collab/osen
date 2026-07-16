@@ -342,7 +342,10 @@ export default function ShoppingPage() {
         // Prefer asking the browser directly for the rear camera via
         // facingMode - far more reliable than matching device labels,
         // which differ by device/language and can point at the wrong camera.
-        await startScanning({ facingMode: { exact: "environment" } });
+        // Non-exact ("ideal") on purpose: some mobile browsers (notably
+        // iOS Safari in installed/standalone PWA mode) hard-fail on an
+        // "exact" facingMode constraint instead of gracefully falling back.
+        await startScanning({ facingMode: "environment" });
       } catch (err) {
         console.error("Error listing cameras:", err);
         await startScanning({ facingMode: "environment" });
