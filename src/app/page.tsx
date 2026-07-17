@@ -480,8 +480,8 @@ export default function Home() {
       setRecentNotifications(nList);
       setUnreadNotifCount(nList.filter((n: any) => !n.readBy?.includes(user?.uid)).length);
 
-      // 6. Shopping Count (for admins and managers)
-      if (isAdmin || isManager) {
+      // 6. Shopping Count (for admins, managers, and logistics)
+      if (isAdmin || isManager || isLogistics) {
         try {
           const shoppingSnap = await getDocs(query(
             collection(db, "shopping_requests"),
@@ -616,17 +616,52 @@ export default function Home() {
   const firstName  = user.displayName?.split(" ")[0] ?? "שלום";
   const todayLabel = format(new Date(), "EEEE, d בMMMM", { locale: he });
 
-  const quickActions = isStrictAdmin
-    ? [
-        { href: "/admin/staff-attendance", icon: ClipboardList, label: "אישורי היעדרות", color: "text-amber-500 bg-amber-500/5 hover:bg-amber-500/10 border-amber-500/10 hover:border-amber-500/20" },
-        { href: "/shopping",               icon: ShoppingCart,  label: "קניות",          color: "text-indigo-500 bg-indigo-500/5 hover:bg-indigo-500/10 border-indigo-500/10 hover:border-indigo-500/20" },
-        { href: "/admin",                  icon: Shield,        label: "ממשק ניהול ובקרה", color: "text-slate-300 bg-[var(--foreground)]/5 border-[var(--border)] hover:bg-[var(--foreground)]/8" },
-      ]
-    : [
-        { href: "/attendance", icon: ClipboardList, label: "נוכחות", color: "text-emerald-500 bg-emerald-500/5 hover:bg-emerald-500/10 border-emerald-500/10 hover:border-emerald-500/20" },
-        { href: "/patients",   icon: Users,         label: "משתתפים ותיקים", color: "text-blue-500 bg-blue-500/5 hover:bg-blue-500/10 border-blue-500/10 hover:border-blue-500/20" },
-        ...((isAdmin || isManager) ? [{ href: "/admin", icon: Shield, label: "ממשק ניהול ובקרה", color: "text-slate-300 bg-[var(--foreground)]/5 border-[var(--border)] hover:bg-[var(--foreground)]/8" }] : []),
-      ];
+  const quickActions = [];
+
+  // 1. Attendance / Staff Attendance
+  if (isStrictAdmin || isStrictManager) {
+    quickActions.push({ 
+      href: "/admin/staff-attendance", 
+      icon: ClipboardList, 
+      label: "אישורי היעדרות", 
+      color: "text-amber-500 bg-amber-500/5 hover:bg-amber-500/10 border-amber-500/10 hover:border-amber-500/20" 
+    });
+  } else {
+    quickActions.push({ 
+      href: "/attendance", 
+      icon: ClipboardList, 
+      label: "נוכחות", 
+      color: "text-emerald-500 bg-emerald-500/5 hover:bg-emerald-500/10 border-emerald-500/10 hover:border-emerald-500/20" 
+    });
+  }
+
+  // 2. Participants
+  quickActions.push({ 
+    href: "/patients",   
+    icon: Users,         
+    label: "משתתפים ותיקים", 
+    color: "text-blue-500 bg-blue-500/5 hover:bg-blue-500/10 border-blue-500/10 hover:border-blue-500/20" 
+  });
+
+  // 3. Shopping List (if logistics, admin, or manager)
+  if (isLogistics || isAdmin || isManager) {
+    quickActions.push({ 
+      href: "/shopping",   
+      icon: ShoppingCart,  
+      label: "קניות",          
+      color: "text-indigo-500 bg-indigo-500/5 hover:bg-indigo-500/10 border-indigo-500/10 hover:border-indigo-500/20" 
+    });
+  }
+
+  // 4. Admin Management (if admin, manager, social_worker or logistics)
+  if (isAdmin || isManager || role === "social_worker" || roles?.includes("social_worker") || isLogistics) {
+    quickActions.push({ 
+      href: "/admin",      
+      icon: Shield,        
+      label: "ממשק ניהול ובקרה", 
+      color: "text-slate-300 bg-[var(--foreground)]/5 border-[var(--border)] hover:bg-[var(--foreground)]/8" 
+    });
+  }
 
   return (
     <div dir="rtl" className="min-h-screen bg-[var(--background)] text-[var(--foreground)]">
@@ -825,7 +860,7 @@ export default function Home() {
         {isLogistics ? (
           <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* ── Active Shopping Summary ── */}
-            <div className="border border-[var(--border)] rounded-3xl overflow-hidden bg-[var(--card-bg,var(--surface))] shadow-xl flex flex-col justify-between">
+            <div className={`border border-[var(--border)] rounded-3xl overflow-hidden bg-[var(--card-bg,var(--surface))] shadow-xl flex flex-col justify-between ${activeShoppingCount === 0 ? "hidden md:flex" : ""}`}>
               <div>
                 <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border)]">
                   <div className="flex items-center gap-2">
@@ -837,26 +872,26 @@ export default function Home() {
                     לרשימת הקניות <ChevronLeft className="w-3 h-3" />
                   </Link>
                 </div>
-                <div className="p-5">
+                <div className="p-4 md:p-5">
                   {activeShoppingCount === 0 ? (
-                    <div className="text-center py-8 text-[var(--muted)] space-y-2">
-                      <CheckCircle className="w-8 h-8 mx-auto stroke-1 text-emerald-500 opacity-60" />
+                    <div className="text-center py-6 md:py-8 text-[var(--muted)] space-y-1.5 md:space-y-2">
+                      <CheckCircle className="w-7 h-7 md:w-8 md:h-8 mx-auto stroke-1 text-emerald-500 opacity-60" />
                       <p className="text-xs font-black text-[var(--foreground)]">אין פריטים לקנייה</p>
-                      <p className="text-[10px] text-[var(--muted)] font-bold">רשימת הקניות ריקה או שכל הפריטים כבר נקנו</p>
+                      <p className="text-[10px] text-[var(--muted)] font-bold hidden md:block">רשימת הקניות ריקה או שכל הפריטים כבר נקנו</p>
                     </div>
                   ) : (
-                    <div className="p-4 bg-indigo-500/5 border border-indigo-500/10 rounded-2xl flex items-center justify-between">
+                    <div className="p-3 md:p-4 bg-indigo-500/5 border border-indigo-500/10 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-500 shrink-0">
-                          <ShoppingCart className="w-5 h-5" />
+                        <div className="w-9 h-9 md:w-10 md:h-10 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-500 shrink-0">
+                          <ShoppingCart className="w-4.5 h-4.5 md:w-5 md:h-5" />
                         </div>
                         <div>
                           <p className="text-sm font-black text-[var(--foreground)]">{activeShoppingCount} מוצרים ברשימת הקניות</p>
-                          <p className="text-[10px] text-[var(--muted)] font-bold">ישנם מוצרים הממתינים לרכישה בסופרמרקט או כציוד גדול</p>
+                          <p className="text-[10px] text-[var(--muted)] font-bold hidden sm:block">ישנם מוצרים הממתינים לרכישה בסופרמרקט או כציוד גדול</p>
                         </div>
                       </div>
                       <Link href="/shopping"
-                        className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 !text-white text-xs font-black rounded-xl shadow-md transition-all">
+                        className="w-full sm:w-auto text-center px-4 py-2 bg-indigo-600 hover:bg-indigo-700 !text-white text-xs font-black rounded-xl shadow-md transition-all">
                         לרשימת הקניות
                       </Link>
                     </div>
@@ -961,7 +996,7 @@ export default function Home() {
                 </div>
 
                 {/* ── Active Shopping Summary ── */}
-                <div className="border border-[var(--border)] rounded-3xl overflow-hidden bg-[var(--card-bg,var(--surface))] shadow-xl">
+                <div className={`border border-[var(--border)] rounded-3xl overflow-hidden bg-[var(--card-bg,var(--surface))] shadow-xl ${activeShoppingCount === 0 ? "hidden md:block" : ""}`}>
                   <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border)]">
                     <div className="flex items-center gap-2">
                       <ShoppingCart className="w-4 h-4 text-indigo-500" />
@@ -972,26 +1007,26 @@ export default function Home() {
                       לרשימת הקניות <ChevronLeft className="w-3 h-3" />
                     </Link>
                   </div>
-                  <div className="p-5">
+                  <div className="p-4 md:p-5">
                     {activeShoppingCount === 0 ? (
-                      <div className="text-center py-8 text-[var(--muted)] space-y-2">
-                        <CheckCircle className="w-8 h-8 mx-auto stroke-1 text-emerald-500 opacity-60" />
+                      <div className="text-center py-6 md:py-8 text-[var(--muted)] space-y-1.5 md:space-y-2">
+                        <CheckCircle className="w-7 h-7 md:w-8 md:h-8 mx-auto stroke-1 text-emerald-500 opacity-60" />
                         <p className="text-xs font-black text-[var(--foreground)]">אין פריטים לקנייה</p>
-                        <p className="text-[10px] text-[var(--muted)] font-bold">רשימת הקניות ריקה או שכל הפריטים כבר נקנו</p>
+                        <p className="text-[10px] text-[var(--muted)] font-bold hidden md:block">רשימת הקניות ריקה או שכל הפריטים כבר נקנו</p>
                       </div>
                     ) : (
-                      <div className="p-4 bg-indigo-500/5 border border-indigo-500/10 rounded-2xl flex items-center justify-between">
+                      <div className="p-3 md:p-4 bg-indigo-500/5 border border-indigo-500/10 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-500 shrink-0">
-                            <ShoppingCart className="w-5 h-5" />
+                          <div className="w-9 h-9 md:w-10 md:h-10 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-500 shrink-0">
+                            <ShoppingCart className="w-4.5 h-4.5 md:w-5 md:h-5" />
                           </div>
                           <div>
                             <p className="text-sm font-black text-[var(--foreground)]">{activeShoppingCount} מוצרים ברשימת הקניות</p>
-                            <p className="text-[10px] text-[var(--muted)] font-bold">ישנם מוצרים הממתינים לרכישה בסופרמרקט או כציוד גדול</p>
+                            <p className="text-[10px] text-[var(--muted)] font-bold hidden sm:block">ישנם מוצרים הממתינים לרכישה בסופרמרקט או כציוד גדול</p>
                           </div>
                         </div>
                         <Link href="/shopping"
-                          className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 !text-white text-xs font-black rounded-xl shadow-md transition-all">
+                          className="w-full sm:w-auto text-center px-4 py-2 bg-indigo-600 hover:bg-indigo-700 !text-white text-xs font-black rounded-xl shadow-md transition-all">
                           לרשימת הקניות
                         </Link>
                       </div>

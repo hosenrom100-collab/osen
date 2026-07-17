@@ -15,7 +15,7 @@ import { motion, AnimatePresence } from "framer-motion";
 export function BottomNav() {
   const pathname = usePathname();
   const router = useRouter();
-  const { logout, user, role } = useAuth();
+  const { logout, user, role, roles, isManager, isLogistics } = useAuth();
   const { theme, setTheme } = useSettings();
 
   // Dialog overlay state
@@ -282,21 +282,23 @@ export function BottomNav() {
               </button>
 
               {/* Administrative Console Button */}
-              <button 
-                onClick={() => {
-                  setActiveOverlay(null);
-                  router.push("/admin");
-                }}
-                className="w-full flex items-center justify-between p-4 rounded-2xl bg-[var(--foreground)]/5 hover:bg-[var(--foreground)]/10 border border-[var(--border)] transition-all text-right cursor-pointer"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-[var(--surface)] border border-[var(--border)] flex items-center justify-center text-teal-500 shadow-sm">
-                    <Shield className="w-4 h-4" />
+              {(isManager || isLogistics || role === "social_worker" || roles?.includes("social_worker")) && (
+                <button 
+                  onClick={() => {
+                    setActiveOverlay(null);
+                    router.push("/admin");
+                  }}
+                  className="w-full flex items-center justify-between p-4 rounded-2xl bg-[var(--foreground)]/5 hover:bg-[var(--foreground)]/10 border border-[var(--border)] transition-all text-right cursor-pointer"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-[var(--surface)] border border-[var(--border)] flex items-center justify-center text-teal-500 shadow-sm">
+                      <Shield className="w-4 h-4" />
+                    </div>
+                    <span className="font-black text-xs text-[var(--foreground)]">ממשק ניהול ובקרה</span>
                   </div>
-                  <span className="font-black text-xs text-[var(--foreground)]">ממשק ניהול ובקרה</span>
-                </div>
-                <ChevronLeft className="w-4 h-4 text-[var(--text-secondary)]" />
-              </button>
+                  <ChevronLeft className="w-4 h-4 text-[var(--text-secondary)]" />
+                </button>
+              )}
 
               {/* Logout Button */}
               <button 

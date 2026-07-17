@@ -200,7 +200,7 @@ export default function ShoppingPoolPage() {
   );
 
   return (
-    <RoleGuard allowedRoles={["admin", "manager"]} redirectTo="/">
+    <RoleGuard allowedRoles={["admin", "manager", "logistics"]} redirectTo="/">
       <main className="min-h-screen bg-[var(--background)] text-[var(--foreground)] p-4 pb-24 md:p-8" dir="rtl">
         <header className="max-w-2xl mx-auto mb-10">
           <div className="flex items-center justify-between mb-8">

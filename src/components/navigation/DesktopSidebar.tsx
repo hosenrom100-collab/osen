@@ -34,7 +34,7 @@ const ROLE_HE: Record<string, string> = {
 
 export function DesktopSidebar() {
   const pathname = usePathname();
-  const { user, roles, role, isManager, photoURL } = useAuth();
+  const { user, roles, role, isManager, isLogistics, photoURL } = useAuth();
   const { theme, setTheme } = useSettings();
 
   if (pathname === "/login") return null;
@@ -85,9 +85,9 @@ export function DesktopSidebar() {
             })}
           </div>
         </div>
-
+        
         {/* Administration Section */}
-        {isManager && (
+        {(isManager || isLogistics || role === "social_worker" || roles?.includes("social_worker")) && (
           <div>
             <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--foreground)]/30 px-4 mb-4">ניהול ובקרה</p>
             <div className="space-y-1">
