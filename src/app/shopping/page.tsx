@@ -794,14 +794,6 @@ export default function ShoppingPage() {
                   <Settings className="w-4 h-4 text-[var(--muted)]" />
                   <span>עריכת רשימה קבועה</span>
                 </button>
-                <button
-                  onClick={generateRecurringList}
-                  className="px-4 py-2.5 rounded-xl bg-indigo-600/10 hover:bg-indigo-600/20 text-indigo-500 border border-indigo-500/20 text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer"
-                  title="ייצוא הרשימה הקבועה לקובץ Word נפרד"
-                >
-                  <Download className="w-4 h-4 text-indigo-500" />
-                  <span>ייצוא רשימה קבועה</span>
-                </button>
               </div>
             )}
           </div>

@@ -2154,36 +2154,7 @@ export default function PatientDetailPage() {
                       </div>
                     </div>
 
-                    {/* ── Rehab Worker Info Card ── */}
-                    {(() => {
-                      const assignedRehabWorker = rehabWorkers.find(w => w.id === patient.rehabWorkerId);
-                      return (
-                        <div className="bg-white border border-slate-200/60 rounded-xl p-3">
-                          <h4 className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-2.5">עו״ס שיקום משרד הביטחון</h4>
-                          {assignedRehabWorker ? (
-                            <div className="flex items-center justify-between gap-2">
-                              <p className="text-xs font-black text-slate-800 truncate">{assignedRehabWorker.name}</p>
-                              <div className="flex items-center gap-1 shrink-0">
-                                {assignedRehabWorker.email && (
-                                  <a href={`mailto:${assignedRehabWorker.email}`}
-                                    className="w-7 h-7 rounded-lg bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-400 hover:text-teal-500 hover:border-teal-300 transition-colors">
-                                    <Mail className="w-3.5 h-3.5" />
-                                  </a>
-                                )}
-                                {assignedRehabWorker.phone && (
-                                  <a href={`tel:${assignedRehabWorker.phone}`}
-                                    className="w-7 h-7 rounded-lg bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-400 hover:text-teal-500 hover:border-teal-300 transition-colors">
-                                    <Phone className="w-3.5 h-3.5" />
-                                  </a>
-                                )}
-                              </div>
-                            </div>
-                          ) : (
-                            <p className="text-[10px] font-bold text-slate-400 italic text-center py-1">לא שויך עו״ס שיקום משרד הביטחון</p>
-                          )}
-                        </div>
-                      );
-                    })()}
+
                  </div>
               </motion.div>
             )}
