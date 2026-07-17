@@ -787,13 +787,13 @@ export default function ShoppingPage() {
                     <select
                       value={activeCategory || ""}
                       onChange={(e) => setActiveCategory(e.target.value || null)}
-                      className={`h-9 px-3.5 pl-7 rounded-xl border text-[10px] font-black transition-all appearance-none cursor-pointer text-center ${
+                      className={`w-[90px] h-9 px-2 pl-6 rounded-xl border text-[10px] font-black transition-all appearance-none cursor-pointer text-center truncate ${
                         activeCategory 
                           ? "bg-indigo-600 border-indigo-500 text-white shadow-md shadow-indigo-600/25" 
                           : "bg-[var(--surface-raised)] border-[var(--border)] text-[var(--muted)]"
                       }`}
                     >
-                      <option value="">כל הקטגוריות</option>
+                      <option value="">קטגוריות</option>
                       {categories.map(cat => {
                         const count = activeRequests.filter(r => r.category === cat).length;
                         if (count === 0) return null;
@@ -804,7 +804,7 @@ export default function ShoppingPage() {
                         );
                       })}
                     </select>
-                    <div className={`absolute left-2 top-1/2 -translate-y-1/2 pointer-events-none ${activeCategory ? "text-white" : "text-[var(--muted)]/60"}`}>
+                    <div className={`absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none ${activeCategory ? "text-white" : "text-[var(--muted)]/60"}`}>
                        <ChevronDown className="w-3 h-3" />
                     </div>
                  </div>
