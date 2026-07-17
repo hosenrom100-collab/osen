@@ -27,20 +27,29 @@ export function BottomNav() {
 
   useEffect(() => {
     const handleScroll = (e: Event) => {
-      const target = e.target as HTMLElement;
-      // Ensure we only track vertical scrolling on main containers
-      if (target && target.scrollTop !== undefined && target.clientHeight > 0) {
-        const currentScrollY = target.scrollTop;
-        // Ignore very small scrolls
-        if (Math.abs(currentScrollY - lastScrollY.current) < 10) return;
-        
-        if (currentScrollY > lastScrollY.current && currentScrollY > 50) {
-          setIsVisible(false);
-        } else {
-          setIsVisible(true);
-        }
-        lastScrollY.current = currentScrollY;
+      let currentScrollY = 0;
+
+      // Handle document/window scrolling
+      if (e.target === document || e.target === window) {
+        currentScrollY = window.scrollY || document.documentElement.scrollTop;
+      } else {
+        // Handle nested container scrolling
+        const target = e.target as HTMLElement;
+        if (!target || target.scrollTop === undefined || target.clientHeight === 0) return;
+        // Ignore scrolling inside small elements (e.g. dropdowns or small modals)
+        if (target.clientHeight < 300) return;
+        currentScrollY = target.scrollTop;
       }
+
+      // Ignore very small scrolls
+      if (Math.abs(currentScrollY - lastScrollY.current) < 10) return;
+      
+      if (currentScrollY > lastScrollY.current && currentScrollY > 50) {
+        setIsVisible(false);
+      } else {
+        setIsVisible(true);
+      }
+      lastScrollY.current = currentScrollY;
     };
 
     // Use capture phase to catch scroll events from any overflow-y-auto child

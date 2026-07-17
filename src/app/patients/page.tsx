@@ -1295,7 +1295,7 @@ export default function PatientsPage() {
               </div>
             </div>
           ) : (
-            <div className="space-y-2">
+            <div className="flex flex-col bg-[var(--surface)] border border-[var(--border)] rounded-2xl overflow-hidden mb-8 shadow-sm">
               {filtered.map((p) => {
                 const daysLeft = getDaysRemaining(p);
                 const isExpiring3m = p.status === 'active' && daysLeft !== null && daysLeft <= 14 && !p.extensionReceived;
@@ -1306,32 +1306,40 @@ export default function PatientsPage() {
                     key={p.id}
                     layout
                     onClick={() => goToPatient(p.id)}
-                    className={`border rounded-2xl p-4 flex flex-col gap-3 active:bg-[var(--foreground)]/5 transition-all group ${
-                      isExpiring6m
-                        ? 'bg-rose-500/5 border-rose-500/30 shadow-lg shadow-rose-500/5'
-                        : isExpiring3m 
-                        ? 'bg-amber-500/5 border-amber-500/30 shadow-lg shadow-amber-500/5' 
-                        : 'bg-[var(--surface)] border-[var(--border)]'
+                    className={`p-3.5 flex flex-col gap-2.5 active:bg-[var(--foreground)]/5 transition-all group border-b border-[var(--border)] last:border-b-0 cursor-pointer ${
+                      isExpiring6m ? 'bg-rose-500/[0.02]' : isExpiring3m ? 'bg-amber-500/[0.02]' : 'hover:bg-[var(--foreground)]/[0.02]'
                     }`}
                   >
-                    <div className="flex items-center gap-4">
-                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-black text-sm shrink-0 ${
+                    <div className="flex items-center gap-3">
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center font-black text-sm shrink-0 ${
                         isExpiring6m ? 'bg-rose-500/20 text-rose-600' : isExpiring3m ? 'bg-amber-500/20 text-amber-600' : 'bg-[var(--foreground)]/5 text-[var(--muted)]/50'
                       }`}>
                         {p.firstName?.[0]}{p.lastName?.[0]}
                       </div>
                       
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-0.5">
-                          <h3 className={`text-sm font-black transition-colors truncate ${
-                            isExpiring6m ? 'text-rose-700' : isExpiring3m ? 'text-amber-700' : 'text-[var(--foreground)] group-hover:text-emerald-500'
+                        <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+                          <h3 className={`text-sm font-black transition-colors whitespace-normal leading-tight ${
+                            isExpiring6m ? 'text-rose-700' : isExpiring3m ? 'text-amber-700' : 'text-[var(--foreground)] group-hover:text-emerald-600'
                           }`}>
                             {p.firstName} {p.lastName}
                           </h3>
                           <div className={`w-1.5 h-1.5 rounded-full ${p.status === 'active' ? 'bg-emerald-500' : 'bg-[var(--muted)]/30'}`} />
+                          
+                          {isExpiring3m && (
+                            <span className="text-[9px] font-black text-amber-600 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20 flex items-center gap-1">
+                              <AlertCircle className="w-3 h-3" /> 3 חודשים
+                            </span>
+                          )}
+
+                          {isExpiring6m && (
+                            <span className="text-[9px] font-black text-rose-600 bg-rose-500/10 px-1.5 py-0.5 rounded border border-rose-500/20 flex items-center gap-1">
+                              <AlertCircle className="w-3 h-3 animate-pulse" /> פרידה
+                            </span>
+                          )}
                         </div>
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="text-[10px] font-bold text-[var(--muted)]/60 whitespace-nowrap">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <span className="text-[10.5px] font-bold text-[var(--muted)]/80 whitespace-normal leading-tight">
                             {(() => {
                               const patientProgs = p.programIds || (p.programId ? [p.programId] : []);
                               const patientGrps = p.groupIds || (p.hosenType ? [p.hosenType] : []);
@@ -1362,101 +1370,77 @@ export default function PatientsPage() {
                             })()}
                           </span>
                           <span className="w-1 h-1 rounded-full bg-[var(--border)] shrink-0" />
-                          <span className="text-[10px] font-bold text-[var(--muted)]/60 truncate">
+                          <span className="text-[10.5px] font-bold text-[var(--muted)]/80 whitespace-normal leading-tight">
                             {staff[p.assignedWorkerId || ""] || "לא שובץ"}
                           </span>
                         </div>
                       </div>
                       
-                      <div className="flex items-center gap-1 shrink-0">
+                      <div className="flex items-center gap-1.5 shrink-0">
                         {p.phone && (
                           <a 
                             href={`tel:${p.phone}`}
                             onClick={(e) => e.stopPropagation()}
-                            className="p-2.5 text-[var(--muted)]/40 hover:text-emerald-500 transition-colors"
+                            className="p-2 text-emerald-600 bg-emerald-500/10 rounded-full hover:bg-emerald-500/20 transition-colors"
                           >
-                            <Phone className="w-4 h-4" />
+                            <Phone className="w-3.5 h-3.5" />
                           </a>
                         )}
-                        <div className="p-2.5 text-[var(--muted)]/20">
+                        <div className="p-1 text-[var(--muted)]/30">
                           <ChevronLeft className="w-4 h-4" />
                         </div>
                       </div>
                     </div>
 
-                    {isExpiring3m && (
-                      <div className="flex items-center gap-1.5 text-[10px] font-black text-amber-600 bg-amber-500/10 px-3 py-1.5 rounded-xl w-full">
-                        <AlertCircle className="w-3.5 h-3.5 animate-pulse" />
-                        {daysLeft < 0 ? 'תקופת ה-3 חודשים הסתיימה! נדרשת הארכה.' : `מסיים 3 חודשים (נותרו ${daysLeft} ימים)`}
-                      </div>
-                    )}
+                    {/* Quick Action Toggle Pills for Mobile */}
+                    <div className="flex flex-wrap items-center gap-2 mt-1">
+                      <button
+                        onClick={(e) => handleToggleRehabPlanCompleted(p.id, !!p.rehabPlanCompleted, e)}
+                        className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-black transition-all border ${
+                          p.rehabPlanCompleted
+                            ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600 shadow-sm'
+                            : 'bg-[var(--foreground)]/5 border-[var(--border)] text-[var(--muted)] hover:border-emerald-500/30'
+                        }`}
+                      >
+                        {p.rehabPlanCompleted ? <Check className="w-3.5 h-3.5 stroke-[3]" /> : <div className="w-3.5 h-3.5 rounded-full border border-[var(--muted)]/30" />}
+                        שיקום
+                      </button>
 
-                    {isExpiring6m && (
-                      <div className="flex items-center gap-1.5 text-[10px] font-black text-rose-600 bg-rose-500/10 px-3 py-1.5 rounded-xl w-full">
-                        <AlertCircle className="w-3.5 h-3.5 animate-pulse" />
-                        {daysLeft < 0 ? 'תקופת החצי שנה הסתיימה! נדרשת פרידה מהתוכנית.' : `מסיים חצי שנה (פרידה) - נותרו ${daysLeft} ימים`}
-                      </div>
-                    )}
+                      <button
+                        onClick={(e) => handleToggleExtensionSent(p.id, !!p.extensionSent, e)}
+                        className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-black transition-all border ${
+                          p.extensionSent
+                            ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600 shadow-sm'
+                            : 'bg-[var(--foreground)]/5 border-[var(--border)] text-[var(--muted)] hover:border-emerald-500/30'
+                        }`}
+                      >
+                        {p.extensionSent ? <Check className="w-3.5 h-3.5 stroke-[3]" /> : <div className="w-3.5 h-3.5 rounded-full border border-[var(--muted)]/30" />}
+                        אמצע
+                      </button>
 
-                    {/* Quick Action Toggle Checkboxes for Mobile */}
-                    <div className="flex items-center justify-between border-t border-[var(--border)] pt-3 mt-1">
-                      <div className="flex flex-wrap items-center gap-4">
-                        <button
-                          onClick={(e) => handleToggleRehabPlanCompleted(p.id, !!p.rehabPlanCompleted, e)}
-                          className="flex items-center gap-2 text-[10px] font-bold text-[var(--muted)] hover:text-emerald-500 transition-colors"
-                        >
-                          <div className={`w-4 h-4 rounded border flex items-center justify-center transition-all ${
-                            p.rehabPlanCompleted
-                              ? 'bg-emerald-500 border-emerald-600 text-white'
-                              : 'border-[var(--border)] hover:border-emerald-500 bg-[var(--surface)]'
-                          }`}>
-                            {p.rehabPlanCompleted && <Check className="w-3 h-3 stroke-[4]" />}
-                          </div>
-                          תוכנית שיקום
-                        </button>
+                      <button
+                        onClick={(e) => handleToggleExtensionReceived(p.id, !!p.extensionReceived, e)}
+                        className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-black transition-all border ${
+                          p.extensionReceived 
+                            ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600 shadow-sm' 
+                            : 'bg-[var(--foreground)]/5 border-[var(--border)] text-[var(--muted)] hover:border-emerald-500/30'
+                        }`}
+                      >
+                        {p.extensionReceived ? <Check className="w-3.5 h-3.5 stroke-[3]" /> : <div className="w-3.5 h-3.5 rounded-full border border-[var(--muted)]/30" />}
+                        הארכה
+                      </button>
 
-                         <button
-                          onClick={(e) => handleToggleExtensionSent(p.id, !!p.extensionSent, e)}
-                          className="flex items-center gap-2 text-[10px] font-bold text-[var(--muted)] hover:text-emerald-500 transition-colors"
-                        >
-                          <div className={`w-4 h-4 rounded border flex items-center justify-center transition-all ${
-                            p.extensionSent
-                              ? 'bg-emerald-500 border-emerald-600 text-white'
-                              : 'border-[var(--border)] hover:border-emerald-500 bg-[var(--surface)]'
-                          }`}>
-                            {p.extensionSent && <Check className="w-3 h-3 stroke-[4]" />}
-                          </div>
-                          דוח אמצע והארכה
-                        </button>
-
-                        <button
-                          onClick={(e) => handleToggleExtensionReceived(p.id, !!p.extensionReceived, e)}
-                          className="flex items-center gap-2 text-[10px] font-bold text-[var(--muted)] hover:text-emerald-500 transition-colors"
-                        >
-                          <div className={`w-4 h-4 rounded border flex items-center justify-center transition-all ${
-                            p.extensionReceived 
-                              ? 'bg-emerald-500 border-emerald-600 text-white' 
-                              : 'border-[var(--border)] hover:border-emerald-500 bg-[var(--surface)]'
-                          }`}>
-                            {p.extensionReceived && <Check className="w-3 h-3 stroke-[4]" />}
-                          </div>
-                          התקבלה הארכה
-                        </button>
-
-                        <button
-                          onClick={(e) => handleToggleSummaryReportCompleted(p.id, !!p.summaryReportCompleted, e)}
-                          className="flex items-center gap-2 text-[10px] font-bold text-[var(--muted)] hover:text-emerald-500 transition-colors"
-                        >
-                          <div className={`w-4 h-4 rounded border flex items-center justify-center transition-all ${
-                            p.summaryReportCompleted
-                              ? 'bg-emerald-500 border-emerald-600 text-white'
-                              : 'border-[var(--border)] hover:border-emerald-500 bg-[var(--surface)]'
-                          }`}>
-                            {p.summaryReportCompleted && <Check className="w-3 h-3 stroke-[4]" />}
-                          </div>
-                          דוח סיכום
-                        </button>
-                      </div>
+                      <button
+                        onClick={(e) => handleToggleSummaryReportCompleted(p.id, !!p.summaryReportCompleted, e)}
+                        className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-black transition-all border ${
+                          p.summaryReportCompleted
+                            ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600 shadow-sm'
+                            : 'bg-[var(--foreground)]/5 border-[var(--border)] text-[var(--muted)] hover:border-emerald-500/30'
+                        }`}
+                      >
+                        {p.summaryReportCompleted ? <Check className="w-3.5 h-3.5 stroke-[3]" /> : <div className="w-3.5 h-3.5 rounded-full border border-[var(--muted)]/30" />}
+                        סיכום
+                      </button>
                     </div>
                   </motion.div>
                 );
