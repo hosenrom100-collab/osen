@@ -1,6 +1,5 @@
 "use client";
 
-import { Html5Qrcode, Html5QrcodeSupportedFormats } from "html5-qrcode";
 import { RoleGuard } from "@/components/auth/RoleGuard";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { db } from "@/lib/firebase/config";
@@ -12,7 +11,7 @@ import {
   ShoppingCart, Plus, Minus, Check, X, Clock, User, Search, Loader2, 
   ArrowRight, Trash2, CheckCircle2, Download, Flame, ChevronRight, 
   Edit3, RotateCcw, Package, ShoppingBag, Filter,
-  ChevronDown, Settings, Scan, Camera
+  ChevronDown, Settings
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { motion, AnimatePresence, LayoutGroup } from "framer-motion";
@@ -34,7 +33,6 @@ interface ShoppingRequest {
   notes?: string;
   priority?: "low" | "normal" | "urgent";
   listType?: "supermarket" | "large";
-  barcode?: string;
 }
 
 interface Product { 
@@ -43,7 +41,6 @@ interface Product {
   category: string; 
   isRecurring?: boolean;
   recurringQuantity?: string;
-  barcode?: string;
 }
 
 const CAT_COLOR: Record<string, string> = {
@@ -136,17 +133,7 @@ export default function ShoppingPage() {
   const [recurringSearchVal, setRecurringSearchVal] = useState("");
   const [actionsMenuOpen, setActionsMenuOpen] = useState(false);
   const [purchasedCollapsed, setPurchasedCollapsed] = useState(true);
-  const [scanOpen, setScanOpen] = useState(false);
-  const [scannedBarcode, setScannedBarcode] = useState("");
-  const [scannedProductInfo, setScannedProductInfo] = useState<{ name: string, category: string } | null>(null);
-  const [scanStatus, setScanStatus] = useState<"scanning" | "searching" | "found" | "not_found" | "error">("scanning");
-  const [scanErrorMsg, setScanErrorMsg] = useState("");
-  const [customProductName, setCustomProductName] = useState("");
-  const [customProductCat, setCustomProductCat] = useState("כללי");
-  const [editBarcode, setEditBarcode] = useState("");
-  const [cameraList, setCameraList] = useState<any[]>([]);
-  const [cameraFacing, setCameraFacing] = useState<"environment" | "user">("environment");
-  const scannerRef = useRef<Html5Qrcode | null>(null);
+
 
   // Add-bar state
   const [inputVal, setInputVal]     = useState("");
@@ -228,286 +215,10 @@ export default function ShoppingPage() {
       setEditQty(editItem.quantity || "");
       setEditNotes(editItem.notes || "");
       setEditPriority(editItem.priority || "normal");
-      setEditBarcode(editItem.barcode || "");
     }
   }, [editItem]);
 
-    // ── Barcode Scanning Logic ───────────────────────────────────────────
-  const startScanning = async (cameraId: any) => {
-    if (!document.getElementById("reader")) return;
-    
-    try {
-      if (scannerRef.current) {
-        try {
-          await scannerRef.current.stop();
-        } catch (e) {
-          // ignore stop errors
-        }
-      }
-      
-      const html5QrCode = new Html5Qrcode("reader", {
-        verbose: false,
-        useBarCodeDetectorIfSupported: true,
-        formatsToSupport: [
-          Html5QrcodeSupportedFormats.EAN_13,
-          Html5QrcodeSupportedFormats.EAN_8,
-          Html5QrcodeSupportedFormats.UPC_A,
-          Html5QrcodeSupportedFormats.UPC_E,
-          Html5QrcodeSupportedFormats.CODE_128,
-          Html5QrcodeSupportedFormats.CODE_39
-        ]
-      });
-      scannerRef.current = html5QrCode;
 
-      const config = {
-        fps: 10,
-        qrbox: (width: number, height: number) => {
-          const boxWidth = Math.floor(width * 0.85);
-          const boxHeight = Math.floor(height * 0.5);
-          return { width: boxWidth, height: boxHeight };
-        },
-        // Do NOT force a square aspectRatio here - the viewfinder only *looks*
-        // square via CSS object-cover. Forcing the raw camera capture into a
-        // 1:1 crop throws away horizontal resolution that thin 1D barcodes
-        // need, producing a small/blurry image the decoder can't read.
-        videoConstraints: {
-          width: { ideal: 1920 },
-          height: { ideal: 1920 }
-        }
-      };
-      
-      await html5QrCode.start(
-        cameraId, 
-        config, 
-        (decodedText) => {
-          handleBarcodeScanned(decodedText);
-          html5QrCode.stop().catch(err => console.error("Error stopping scanner:", err));
-        },
-        () => {}
-      );
-      
-      // Try to apply continuous autofocus constraints
-      try {
-        await html5QrCode.applyVideoConstraints({
-          focusMode: "continuous"
-        } as any);
-      } catch (e) {
-        // autofocus constraint not supported on this browser/device, ignore
-      }
-      
-    } catch (err) {
-      // If an exact facingMode was requested and the device can't satisfy it
-      // (e.g. a laptop with only one camera), retry once with a relaxed
-      // (non-exact) request instead of failing outright.
-      const requestedExactFacing = cameraId && typeof cameraId === "object" && cameraId.facingMode && cameraId.facingMode.exact;
-      if (requestedExactFacing) {
-        try {
-          await startScanning({ facingMode: requestedExactFacing });
-          return;
-        } catch (e) {
-          // fall through to error state below
-        }
-      }
-      console.error("Error starting camera:", err);
-      setScanStatus("error");
-      setScanErrorMsg("לא ניתן לגשת למצלמה. אנא ודא שאישרת הרשאות מצלמה.");
-    }
-  };
-
-  const handleSwitchCamera = async () => {
-    // Toggle via the browser's own facingMode negotiation instead of
-    // guessing a specific device id from cameraList - device labels and
-    // enumeration order vary wildly between phones (some list the front
-    // camera last), which previously caused the switch to get stuck on
-    // the front camera.
-    const nextFacing = cameraFacing === "environment" ? "user" : "environment";
-    setCameraFacing(nextFacing);
-    await startScanning({ facingMode: { exact: nextFacing } });
-  };
-
-  useEffect(() => {
-    if (!scanOpen) {
-      if (scannerRef.current) {
-        scannerRef.current.stop().catch(err => console.error("Error stopping scanner on close:", err));
-        scannerRef.current = null;
-      }
-      return;
-    }
-
-    const timer = setTimeout(async () => {
-      try {
-        const list = await Html5Qrcode.getCameras();
-        setCameraList(list || []);
-        setCameraFacing("environment");
-        // Prefer asking the browser directly for the rear camera via
-        // facingMode - far more reliable than matching device labels,
-        // which differ by device/language and can point at the wrong camera.
-        // Non-exact ("ideal") on purpose: some mobile browsers (notably
-        // iOS Safari in installed/standalone PWA mode) hard-fail on an
-        // "exact" facingMode constraint instead of gracefully falling back.
-        await startScanning({ facingMode: "environment" });
-      } catch (err) {
-        console.error("Error listing cameras:", err);
-        await startScanning({ facingMode: "environment" });
-      }
-    }, 300);
-
-    return () => {
-      clearTimeout(timer);
-    };
-  }, [scanOpen]);
-
-
-
-const handleBarcodeScanned = async (barcode: string) => {
-    setScannedBarcode(barcode);
-    setScanStatus("searching");
-    
-    try {
-      // 1. Check local Firebase pool first
-      const productSnap = await getDocs(collection(db, "product_pool"));
-      let foundProduct: any = null;
-      productSnap.forEach((d) => {
-        const p = d.data();
-        if (p.barcode === barcode) {
-          foundProduct = { id: d.id, ...p };
-        }
-      });
-      
-      if (foundProduct) {
-        const p = foundProduct;
-        await addProduct(p.name, p.category, "normal", "1");
-        setScanStatus("found");
-        setScannedProductInfo({ name: p.name, category: p.category });
-        showToast(`מוצר ממאגר החווה נוסף: "${p.name}"`, "success");
-        
-        setTimeout(() => {
-          setScanOpen(false);
-          setScannedBarcode("");
-          setScannedProductInfo(null);
-          setScanStatus("scanning");
-        }, 1500);
-        return;
-      }
-      
-      // 2. Not found locally, query Open Food Facts API
-      const res = await fetch(`https://world.openfoodfacts.org/api/v2/product/${barcode}.json`);
-      const data = await res.json();
-      
-      if (data.status === 1 && data.product) {
-        const pName = data.product.product_name_he || data.product.product_name || data.product.generic_name_he || data.product.generic_name || "";
-        let brand = data.product.brands || "";
-        if (brand && !pName.includes(brand)) {
-          brand = brand.split(",")[0].trim();
-        }
-        
-        let finalName = pName;
-        if (brand && !finalName.toLowerCase().includes(brand.toLowerCase())) {
-          finalName = `${brand} ${finalName}`;
-        }
-        
-        finalName = finalName.trim();
-        
-        if (finalName) {
-          let matchedCat = "כללי";
-          const offCats = data.product.categories_tags || [];
-          const offCatsStr = offCats.join(" ").toLowerCase();
-          
-          if (offCatsStr.includes("dairy") || offCatsStr.includes("cheese") || offCatsStr.includes("milk") || offCatsStr.includes("yoghurt")) {
-            matchedCat = "גבינות ומחלבה";
-          } else if (offCatsStr.includes("meat") || offCatsStr.includes("fish") || offCatsStr.includes("poultry")) {
-            matchedCat = "בשר ודגים";
-          } else if (offCatsStr.includes("fruit") || offCatsStr.includes("vegetable")) {
-            matchedCat = "פירות וירקות";
-          } else if (offCatsStr.includes("bread") || offCatsStr.includes("bakery") || offCatsStr.includes("pastry")) {
-            matchedCat = "לחם ומאפים";
-          } else if (offCatsStr.includes("cleaning") || offCatsStr.includes("detergent")) {
-            matchedCat = "חומרי ניקוי";
-          } else if (offCatsStr.includes("paper") || offCatsStr.includes("disposable")) {
-            matchedCat = "מוצרי נייר וחד פעמי";
-          } else if (offCatsStr.includes("hygiene") || offCatsStr.includes("toiletries") || offCatsStr.includes("shampoo") || offCatsStr.includes("soap")) {
-            matchedCat = "טואלטיקה והיגיינה";
-          } else if (offCatsStr.includes("frozen")) {
-            matchedCat = "קפואים";
-          } else if (offCatsStr.includes("canned") || offCatsStr.includes("cooking")) {
-            matchedCat = "שימורים ובישול";
-          }
-          
-          setScanStatus("found");
-          setScannedProductInfo({ name: finalName, category: matchedCat });
-          setCustomProductName(finalName);
-          setCustomProductCat(matchedCat);
-          
-          // Auto add
-          await addProduct(finalName, matchedCat, "normal", "1");
-          // Save code in pool
-          const docId = finalName.replace(/\//g, "-");
-          await setDoc(doc(db, "product_pool", docId), { 
-            name: finalName, 
-            category: matchedCat,
-            barcode: barcode
-          }, { merge: true });
-          
-          setTimeout(() => {
-            setScanOpen(false);
-            setScannedBarcode("");
-            setScannedProductInfo(null);
-            setScanStatus("scanning");
-          }, 1500);
-          return;
-        }
-      }
-      
-      setScanStatus("not_found");
-      setCustomProductName("");
-      setCustomProductCat("כללי");
-    } catch (err) {
-      console.error("Error looking up barcode:", err);
-      setScanStatus("error");
-      setScanErrorMsg("שגיאה בחיפוש הברקוד ברשת. נסה שנית או הוסף ידנית.");
-    }
-  };
-
-  const handleSaveScannedProduct = async () => {
-    if (!customProductName.trim() || !scannedBarcode) return;
-    
-    const name = customProductName.trim();
-    const category = customProductCat;
-    
-    try {
-      const docId = name.replace(/\//g, "-");
-      await setDoc(doc(db, "product_pool", docId), { 
-        name, 
-        category,
-        barcode: scannedBarcode
-      }, { merge: true });
-      
-      await addDoc(collection(db, "shopping_requests"), {
-        name, 
-        category, 
-        quantity: "1", 
-        notes: "", 
-        priority: "normal", 
-        status: "approved",
-        requestedBy: user?.uid, 
-        requestedByName: user?.displayName || user?.email || "משתמש",
-        createdAt: new Date(),
-        listType,
-        barcode: scannedBarcode
-      });
-      
-      showToast(`המוצר "${name}" נשמר במאגר והוזמן בהצלחה!`, "success");
-      fetchPool();
-      
-      setScanOpen(false);
-      setScannedBarcode("");
-      setScannedProductInfo(null);
-      setScanStatus("scanning");
-    } catch (e) {
-      console.error("Error saving barcode product:", e);
-      showToast("שגיאה בשמירת המוצר", "warning");
-    }
-  };
 
   const fetchPool = async () => {
     const snap = await getDocs(collection(db, "product_pool"));
@@ -786,14 +497,12 @@ const handleBarcodeScanned = async (barcode: string) => {
         category: editCat,
         quantity: editQty,
         notes: editNotes,
-        priority: editPriority,
-        barcode: editBarcode || ""
+        priority: editPriority
       });
       const docId = editName.replace(/\//g, "-");
       await setDoc(doc(db, "product_pool", docId), {
         name: editName,
-        category: editCat,
-        barcode: editBarcode || ""
+        category: editCat
       }, { merge: true });
       setEditItem(null);
       fetchPool();
@@ -934,15 +643,8 @@ const handleBarcodeScanned = async (barcode: string) => {
                 onChange={(e) => setInputVal(e.target.value)}
                 onFocus={openAddOverlay}
                 placeholder="הוסף מוצר..."
-                className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-2xl py-3.5 pr-20 pl-14 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all placeholder:text-[var(--muted)]/50 shadow-sm"
+                className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-2xl py-3.5 pr-20 pl-4 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all placeholder:text-[var(--muted)]/50 shadow-sm"
               />
-              <button
-                onClick={(e) => { e.stopPropagation(); e.preventDefault(); setScanOpen(true); }}
-                className="absolute left-3 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[var(--foreground)]/5 active:scale-95 transition-all text-indigo-500 cursor-pointer border-none bg-transparent"
-                title="סרוק ברקוד"
-              >
-                <Scan className="w-5 h-5" />
-              </button>
            </div>
         </div>
 
@@ -961,15 +663,8 @@ const handleBarcodeScanned = async (barcode: string) => {
                  onChange={(e) => setInputVal(e.target.value)}
                  onFocus={openAddOverlay}
                  placeholder="חיפוש או הוספת מוצר..."
-                 className="w-full bg-[var(--background)] border border-[var(--border)] rounded-2xl py-2.5 pr-11 pl-12 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all shadow-inner"
+                 className="w-full bg-[var(--background)] border border-[var(--border)] rounded-2xl py-2.5 pr-11 pl-4 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all shadow-inner"
                />
-               <button
-                 onClick={(e) => { e.stopPropagation(); e.preventDefault(); setScanOpen(true); }}
-                 className="absolute left-3 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[var(--foreground)]/5 active:scale-95 transition-all text-indigo-500 cursor-pointer border-none bg-transparent"
-                 title="סרוק ברקוד"
-               >
-                 <Scan className="w-4 h-4" />
-               </button>
             </div>
           </div>
           <div className="flex items-center gap-4">
@@ -1008,12 +703,12 @@ const handleBarcodeScanned = async (barcode: string) => {
         {view === "list" && !loading && (
           <div className="flex items-center justify-between px-4 py-3 bg-[var(--surface)] border-b border-[var(--border)] shrink-0 gap-4 flex-wrap">
             {/* Sliding tabs control */}
-            <div className="flex bg-[var(--background)] p-1 rounded-2xl border border-[var(--border)] relative shrink-0">
+            <div className="flex w-full md:w-auto bg-[var(--foreground)]/[0.04] p-1.5 rounded-2xl border border-[var(--border)] relative shrink-0">
               <button
                 onClick={() => { setListType("supermarket"); setActiveCategory(null); }}
-                className={`px-5 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 select-none ${
+                className={`flex-1 md:flex-none px-5 py-2.5 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-2 select-none cursor-pointer ${
                   listType === "supermarket"
-                    ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/10"
+                    ? "bg-[var(--surface)] text-indigo-500 shadow-sm border border-[var(--border)] scale-100"
                     : "text-[var(--muted)] hover:text-[var(--foreground)]"
                 }`}
               >
@@ -1022,14 +717,14 @@ const handleBarcodeScanned = async (barcode: string) => {
               </button>
               <button
                 onClick={() => { setListType("large"); setActiveCategory(null); }}
-                className={`px-5 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 select-none ${
+                className={`flex-1 md:flex-none px-5 py-2.5 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-2 select-none cursor-pointer ${
                   listType === "large"
-                    ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/10"
+                    ? "bg-[var(--surface)] text-indigo-500 shadow-sm border border-[var(--border)] scale-100"
                     : "text-[var(--muted)] hover:text-[var(--foreground)]"
                 }`}
               >
                 <Package className="w-4 h-4" />
-                <span>ציוד</span>
+                <span>ציוד ורכש</span>
               </button>
             </div>
 
@@ -1058,13 +753,13 @@ const handleBarcodeScanned = async (barcode: string) => {
 
         {/* ── Category Scrolling Filters Bar (Visible in list view) ── */}
         {view === "list" && !loading && (
-          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-3 px-4 bg-[var(--surface)]/30 border-b border-[var(--border)] shrink-0 scroll-smooth">
+          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-3.5 px-4 bg-[var(--surface)]/50 backdrop-blur-md border-b border-[var(--border)] shrink-0 scroll-smooth">
             <button 
               onClick={() => setActiveCategory(null)}
-              className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all shrink-0 border ${
+              className={`px-4 py-2 rounded-xl text-xs font-black transition-all shrink-0 border select-none cursor-pointer active:scale-95 ${
                 activeCategory === null 
-                  ? "bg-[var(--foreground)] text-[var(--background)] border-[var(--foreground)] shadow-sm" 
-                  : "bg-transparent text-[var(--muted)] border-[var(--border)] hover:text-[var(--foreground)]"
+                  ? "bg-[var(--foreground)] text-[var(--background)] border-[var(--foreground)] shadow-sm font-black" 
+                  : "bg-[var(--foreground)]/[0.03] text-[var(--muted)] border-[var(--border)] hover:text-[var(--foreground)]"
               }`}
             >
               הכל ({activeRequests.length})
@@ -1078,10 +773,10 @@ const handleBarcodeScanned = async (barcode: string) => {
                 <button
                   key={cat}
                   onClick={() => setActiveCategory(cat)}
-                  className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all shrink-0 flex items-center gap-1.5 ${
+                  className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all shrink-0 flex items-center gap-1.5 select-none cursor-pointer active:scale-95 ${
                     isSelected 
-                      ? `${cls} ring-2 ring-current/40 shadow-sm`
-                      : "bg-transparent text-[var(--muted)] border border-[var(--border)] hover:text-[var(--foreground)]"
+                      ? `${cls} shadow-sm font-black border-current`
+                      : "bg-[var(--foreground)]/[0.03] text-[var(--muted)] border border-[var(--border)] hover:text-[var(--foreground)]"
                   }`}
                 >
                   {cat} ({count})
@@ -1207,26 +902,39 @@ const handleBarcodeScanned = async (barcode: string) => {
 
         <AnimatePresence>
           {overlayOpen && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 z-[100] bg-[var(--background)]/85 backdrop-blur-md p-4 md:p-12 overflow-y-auto pt-24 md:pt-32"
-            >
-              <div className="max-w-2xl mx-auto space-y-6">
-                <div className="flex items-center justify-between mb-8">
-                   <h2 className="text-3xl font-black">הוסף מוצר</h2>
-                   <button 
-                     onClick={() => { setOverlayOpen(false); setAddUrgent(false); }} 
-                     className="w-12 h-12 rounded-2xl bg-[var(--foreground)]/5 flex items-center justify-center hover:bg-[var(--foreground)]/10 transition-all border border-[var(--border)]"
-                   >
-                      <X className="w-6 h-6" />
-                   </button>
+            <div className="fixed inset-0 z-[100] bg-slate-950/60 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-6">
+              <motion.div 
+                initial={{ opacity: 0 }} 
+                animate={{ opacity: 1 }} 
+                exit={{ opacity: 0 }}
+                onClick={() => { setOverlayOpen(false); setAddUrgent(false); }}
+                className="absolute inset-0"
+              />
+              
+              <motion.div 
+                initial={{ y: "100%", opacity: 0.5 }} 
+                animate={{ y: 0, opacity: 1 }} 
+                exit={{ y: "100%", opacity: 0.5 }}
+                transition={{ type: "spring", damping: 25, stiffness: 220 }}
+                className="relative w-full md:max-w-xl bg-[var(--surface)] border-t md:border border-[var(--border)] rounded-t-[2.5rem] md:rounded-[2.5rem] p-6 shadow-2xl text-right flex flex-col max-h-[92vh] md:max-h-[85vh] overflow-hidden" 
+                dir="rtl"
+              >
+                {/* Pull handle indicator on mobile */}
+                <div className="w-12 h-1 bg-[var(--border)] rounded-full mx-auto mb-4 md:hidden shrink-0" />
+
+                <div className="flex items-center justify-between mb-5 shrink-0">
+                  <h2 className="text-lg md:text-xl font-black flex items-center gap-2">הוספת מוצר לרשימה</h2>
+                  <button 
+                    onClick={() => { setOverlayOpen(false); setAddUrgent(false); }} 
+                    className="p-2 rounded-full hover:bg-[var(--foreground)]/5 text-[var(--muted)] cursor-pointer"
+                  >
+                     <X className="w-5 h-5" />
+                  </button>
                 </div>
 
-                <div className="relative group mb-4">
+                <div className="relative group mb-4 shrink-0">
                    <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2 text-indigo-500">
-                      <Plus className="w-6 h-6" />
+                      <Plus className="w-5 h-5" />
                    </div>
                    <input
                      autoFocus
@@ -1237,36 +945,29 @@ const handleBarcodeScanned = async (barcode: string) => {
                         if (e.key === "Enter") handleAddInput();
                         if (e.key === "Escape") { setOverlayOpen(false); setAddUrgent(false); }
                      }}
-                     placeholder="מה לקנות?"
-                     className="w-full bg-[var(--surface)] border-2 border-[var(--border)] rounded-[2rem] py-6 pr-14 pl-16 text-xl font-bold focus:outline-none focus:border-indigo-500 transition-all shadow-xl text-right placeholder:text-[var(--muted)]/40"
+                     placeholder="שם המוצר שברצונך להוסיף..."
+                     className="w-full bg-[var(--background)] border border-[var(--border)] rounded-2xl py-3 pr-11 pl-4 text-sm font-bold focus:outline-none focus:border-indigo-500/50 transition-all shadow-inner text-right placeholder:text-[var(--muted)]/40"
                    />
-                    <button
-                      onClick={(e) => { e.stopPropagation(); e.preventDefault(); setScanOpen(true); }}
-                      className="absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 flex items-center justify-center rounded-2xl bg-indigo-500/10 hover:bg-indigo-500/20 active:scale-95 transition-all text-indigo-500 border border-indigo-500/20 cursor-pointer"
-                      title="סרוק ברקוד"
-                    >
-                      <Scan className="w-6 h-6" />
-                    </button>
                 </div>
 
                 {/* Quantity and Unit Inputs */}
-                <div className="grid grid-cols-2 gap-4 bg-[var(--surface)] border border-[var(--border)] rounded-[2rem] p-5 mb-4 shadow-sm" dir="rtl">
+                <div className="grid grid-cols-2 gap-3 mb-4 shrink-0" dir="rtl">
                   <div>
                     <label className="text-[10px] font-black text-[var(--muted)] text-right uppercase tracking-widest mb-1.5 block">כמות</label>
                     <input 
                       type="text" 
                       value={addQty} 
                       onChange={(e) => setAddQty(e.target.value)}
-                      placeholder="למשל: 1, 2, 0.5"
-                      className="w-full bg-[var(--background)] border border-[var(--border)] rounded-xl py-2.5 px-3 text-sm font-bold text-center focus:outline-none focus:border-indigo-500/50" 
+                      placeholder="1"
+                      className="w-full bg-[var(--background)] border border-[var(--border)] rounded-xl py-2.5 px-3 text-sm font-bold text-center focus:outline-none focus:border-indigo-500/40" 
                     />
                   </div>
                   <div>
-                    <label className="text-[10px] font-black text-[var(--muted)] text-right uppercase tracking-widest mb-1.5 block">יחידות מידה</label>
+                    <label className="text-[10px] font-black text-[var(--muted)] text-right uppercase tracking-widest mb-1.5 block">יחידה</label>
                     <select 
                       value={addUnit} 
                       onChange={(e) => setAddUnit(e.target.value)}
-                      className="w-full bg-[var(--background)] border border-[var(--border)] rounded-xl py-2.5 px-3 text-sm font-bold text-center focus:outline-none focus:border-indigo-500/50 text-right"
+                      className="w-full bg-[var(--background)] border border-[var(--border)] rounded-xl py-2.5 px-3 text-sm font-bold focus:outline-none focus:border-indigo-500/40 text-right cursor-pointer"
                     >
                       <option value="יחידות">יחידות</option>
                       <option value="ק״ג">ק״ג</option>
@@ -1276,32 +977,32 @@ const handleBarcodeScanned = async (barcode: string) => {
                 </div>
 
                 {/* Quick Priority Toggle inside Add Overlay */}
-                <div className="flex items-center justify-between bg-[var(--surface)] border border-[var(--border)] rounded-[2rem] p-5 mb-6 shadow-sm">
-                  <div className="flex items-center gap-3">
-                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${addUrgent ? "bg-rose-500/10" : "bg-[var(--foreground)]/5"}`}>
-                      <Flame className={`w-5 h-5 ${addUrgent ? "text-rose-500 animate-pulse" : "text-[var(--muted)]"}`} />
+                <div className="flex items-center justify-between border border-[var(--border)] rounded-2xl p-4 mb-4 shrink-0 bg-[var(--background)]/20">
+                  <div className="flex items-center gap-2.5">
+                    <div className={`w-8.5 h-8.5 rounded-xl flex items-center justify-center ${addUrgent ? "bg-rose-500/10 text-rose-500" : "bg-[var(--foreground)]/5 text-[var(--muted)]"}`}>
+                      <Flame className={`w-4 h-4 ${addUrgent ? "animate-pulse" : ""}`} />
                     </div>
-                    <div>
-                      <p className="text-sm font-black">בקשה דחופה 🔥</p>
-                      <p className="text-[10px] text-[var(--muted)] font-semibold">יישלח פוש מיידי למנהלים על בקשה זו</p>
+                    <div className="text-right">
+                      <p className="text-xs font-black">בקשה דחופה 🔥</p>
+                      <p className="text-[9px] text-[var(--muted)] font-semibold">יישלח פוש מיידי למנהלים</p>
                     </div>
                   </div>
                   <button
                     onClick={() => setAddUrgent(!addUrgent)}
-                    className={`w-12 h-7 rounded-full p-1 transition-all flex items-center ${addUrgent ? "bg-rose-500 justify-end" : "bg-[var(--foreground)]/10 justify-start"}`}
+                    className={`w-10 h-6 rounded-full p-0.5 transition-all flex items-center cursor-pointer border-none ${addUrgent ? "bg-rose-500 justify-end" : "bg-[var(--foreground)]/10 justify-start"}`}
                   >
                     <motion.div layout className="w-5 h-5 rounded-full bg-white shadow-sm" />
                   </button>
                 </div>
 
-                <div className="grid grid-cols-1 gap-3">
+                <div className="flex-1 overflow-y-auto no-scrollbar space-y-2 pb-6">
                    {!exactMatch && inputVal.trim() && (
                       <button 
                          onClick={handleAddInput}
-                         className="flex items-center justify-between px-6 py-5 rounded-2xl bg-indigo-600 !text-white font-black text-lg shadow-lg shadow-indigo-600/20 active:scale-[0.98] transition-all"
+                         className="w-full flex items-center justify-between px-5 py-3.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 !text-white font-black text-sm shadow-md shadow-indigo-600/15 active:scale-[0.98] transition-all cursor-pointer border-none shrink-0"
                       >
                          <span className="!text-white">הוסף "{inputVal}" חדש</span>
-                         <Plus className="w-6 h-6 !text-white" />
+                         <Plus className="w-5 h-5 !text-white" />
                       </button>
                    )}
 
@@ -1320,23 +1021,23 @@ const handleBarcodeScanned = async (barcode: string) => {
                              } 
                            }}
                            disabled={inList}
-                           className={`flex items-center justify-between px-6 py-4 rounded-2xl border border-[var(--border)] transition-all active:scale-[0.98] ${
-                             inList ? "opacity-35 bg-transparent" : "bg-[var(--surface)] hover:border-indigo-500/50"
+                           className={`w-full flex items-center justify-between px-5 py-3 rounded-xl border border-[var(--border)] transition-all active:scale-[0.98] cursor-pointer text-right shrink-0 ${
+                             inList ? "opacity-35 bg-transparent cursor-not-allowed border-none" : "bg-[var(--foreground)]/[0.02] hover:border-indigo-500/50 hover:bg-[var(--foreground)]/[0.04]"
                            }`}
                          >
-                            <div className="flex flex-col items-start gap-1 text-right">
-                               <span className="text-lg font-bold">{p.name}</span>
-                               <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-md ${CAT_COLOR[p.category] || CAT_COLOR["כללי"]}`}>
+                            <div className="flex flex-col items-start gap-0.5">
+                               <span className="text-sm font-bold">{p.name}</span>
+                               <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-md ${CAT_COLOR[p.category] || CAT_COLOR["כללי"]}`}>
                                   {p.category}
                                </span>
                             </div>
-                            {inList ? <CheckCircle2 className="w-6 h-6 text-emerald-500 animate-bounce" /> : <Plus className="w-5 h-5 text-[var(--muted)]" />}
+                            {inList ? <CheckCircle2 className="w-5 h-5 text-emerald-500" /> : <Plus className="w-4 h-4 text-[var(--muted)]" />}
                          </button>
                       );
                    })}
                 </div>
-              </div>
-            </motion.div>
+              </motion.div>
+            </div>
           )}
         </AnimatePresence>
 
@@ -1389,16 +1090,7 @@ const handleBarcodeScanned = async (barcode: string) => {
                     </div>
                   </div>
 
-                  <div>
-                    <label className="text-[10px] font-black text-[var(--muted)] uppercase tracking-widest mb-1.5 block">ברקוד (אופציונלי)</label>
-                    <input 
-                      type="text" 
-                      value={editBarcode} 
-                      onChange={(e) => setEditBarcode(e.target.value)}
-                      placeholder="הקלד ברקוד..."
-                      className="w-full bg-[var(--background)] border border-[var(--border)] rounded-xl py-3 px-4 text-sm font-bold focus:outline-none focus:border-indigo-500/50" 
-                    />
-                  </div>
+
 
                   <div>
                     <label className="text-[10px] font-black text-[var(--muted)] uppercase tracking-widest mb-1.5 block">הערות / הנחיות מיוחדות</label>
@@ -1884,212 +1576,7 @@ const handleBarcodeScanned = async (barcode: string) => {
               </div>
             )}
           </AnimatePresence>
-        {/* Barcode Scanner Modal */}
-        <AnimatePresence>
-          {scanOpen && (
-            <div className="fixed inset-0 z-[130] flex items-center justify-center p-4">
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                onClick={() => {
-                  setScanOpen(false);
-                  setScannedBarcode("");
-                  setScannedProductInfo(null);
-                  setScanStatus("scanning");
-                }}
-                className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm" />
-              
-              <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
-                className="relative w-full max-w-md bg-[var(--surface)] border border-[var(--border)] rounded-[2.5rem] p-6 shadow-2xl text-right flex flex-col max-h-[90vh] overflow-hidden" dir="rtl">
-                
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-black flex items-center gap-2">
-                    <Scan className="w-5 h-5 text-indigo-500" />
-                    <span>סריקת ברקוד מוצר</span>
-                  </h3>
-                  <button onClick={() => {
-                    setScanOpen(false);
-                    setScannedBarcode("");
-                    setScannedProductInfo(null);
-                    setScanStatus("scanning");
-                  }} className="p-2 rounded-full hover:bg-[var(--foreground)]/5 text-[var(--muted)] cursor-pointer">
-                    <X className="w-5 h-5" />
-                  </button>
-                </div>
 
-                <div className="flex-1 overflow-y-auto no-scrollbar py-2">
-                  {scanStatus === "scanning" && (
-                    <div className="space-y-4">
-                      <div className="relative overflow-hidden rounded-3xl bg-black border border-[var(--border)] aspect-square flex items-center justify-center shadow-inner">
-                        <div id="reader" className="w-full h-full [&_video]:object-cover" />
-                        <div className="absolute inset-0 border-2 border-indigo-500/30 rounded-3xl pointer-events-none flex items-center justify-center">
-                          <div className="w-[85%] h-[50%] border-2 border-dashed border-indigo-500 rounded-2xl relative bg-indigo-500/5 flex items-center justify-center shadow-[0_0_20px_rgba(99,102,241,0.15)]">
-                            {/* Scanning Laser Line */}
-                            <div className="absolute left-2 right-2 h-0.5 bg-rose-500 shadow-[0_0_8px_#f43f5e] animate-pulse" />
-                            {/* Corner brackets for guidance */}
-                            <div className="absolute -top-1.5 -left-1.5 w-4 h-4 border-t-4 border-l-4 border-indigo-500 rounded-tl" />
-                            <div className="absolute -top-1.5 -right-1.5 w-4 h-4 border-t-4 border-r-4 border-indigo-500 rounded-tr" />
-                            <div className="absolute -bottom-1.5 -left-1.5 w-4 h-4 border-b-4 border-l-4 border-indigo-500 rounded-bl" />
-                            <div className="absolute -bottom-1.5 -right-1.5 w-4 h-4 border-b-4 border-r-4 border-indigo-500 rounded-br" />
-                          </div>
-                        </div>
-                      </div>
-                      <p className="text-center text-xs text-[var(--muted)] font-bold">
-                        מקם את ברקוד המוצר מול כוונת המצלמה
-                      </p>
-                      
-                      {cameraList.length > 1 && (
-                        <button
-                          onClick={(e) => { e.preventDefault(); handleSwitchCamera(); }}
-                          className="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-[var(--foreground)]/5 hover:bg-[var(--foreground)]/10 text-[var(--foreground)]/80 text-xs font-extrabold rounded-xl border border-[var(--border)] active:scale-95 transition-all cursor-pointer"
-                        >
-                          <Camera className="w-4 h-4 text-indigo-500" />
-                          <span>החלף מצלמה (מצלמה פעילה: {cameraFacing === "environment" ? "אחורית" : "קדמית"})</span>
-                        </button>
-                      )}
-                      
-                      <div className="pt-2 border-t border-[var(--border)]/40">
-                        <label className="text-[10px] font-black text-[var(--muted)] uppercase tracking-widest mb-1.5 block">סריקה ידנית (הקלדת ברקוד)</label>
-                        <div className="flex gap-2">
-                          <input 
-                            type="text" 
-                            placeholder="הקלד ברקוד..."
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") {
-                                const val = (e.target as HTMLInputElement).value.trim();
-                                if (val) handleBarcodeScanned(val);
-                              }
-                            }}
-                            className="flex-grow bg-[var(--background)] border border-[var(--border)] rounded-xl py-2 px-3 text-xs font-bold focus:border-indigo-500 outline-none text-[var(--foreground)]"
-                          />
-                          <button 
-                            onClick={(e) => {
-                              const input = e.currentTarget.previousSibling as HTMLInputElement;
-                              const val = input ? input.value.trim() : "";
-                              if (val) handleBarcodeScanned(val);
-                            }}
-                            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 !text-white rounded-xl text-xs font-black transition-all active:scale-95 border-none cursor-pointer"
-                          >
-                            חיפוש
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {scanStatus === "searching" && (
-                    <div className="flex flex-col items-center justify-center py-12 gap-4">
-                      <Loader2 className="w-10 h-10 text-indigo-500 animate-spin" />
-                      <p className="text-sm font-bold text-[var(--muted)]">מחפש מוצר ברשת ובמאגר של החווה...</p>
-                      <p className="text-xs text-[var(--muted)]/60 font-semibold">{scannedBarcode}</p>
-                    </div>
-                  )}
-
-                  {scanStatus === "found" && scannedProductInfo && (
-                    <div className="space-y-6 text-center py-6">
-                      <div className="w-16 h-16 rounded-full bg-emerald-500/10 text-emerald-500 flex items-center justify-center mx-auto">
-                        <Check className="w-8 h-8 stroke-[3]" />
-                      </div>
-                      <div>
-                        <h4 className="text-lg font-black text-[var(--foreground)]">{scannedProductInfo.name}</h4>
-                        <span className={`inline-block mt-2 text-[10px] font-black px-2.5 py-0.5 rounded-full ${CAT_COLOR[scannedProductInfo.category] || CAT_COLOR["כללי"]}`}>
-                          {scannedProductInfo.category}
-                        </span>
-                      </div>
-                      <p className="text-xs text-[var(--muted)] font-semibold">המוצר נוסף בהצלחה לרשימה!</p>
-                    </div>
-                  )}
-
-                  {scanStatus === "not_found" && (
-                    <div className="space-y-4">
-                      <div className="p-4 bg-amber-500/5 border border-amber-500/10 rounded-2xl text-right">
-                        <p className="text-sm font-black text-amber-500">המוצר אינו מוכר במאגר</p>
-                        <p className="text-xs text-[var(--muted)] font-bold mt-1">ברקוד: {scannedBarcode}</p>
-                        <p className="text-xs text-[var(--muted)]/80 font-bold mt-1">תוכל להוסיף אותו כעת ידנית והוא יישמר במאגר החווה לפעמים הבאות!</p>
-                      </div>
-
-                      <div className="space-y-4">
-                        <div>
-                          <label className="text-[10px] font-black text-[var(--muted)] uppercase tracking-widest mb-1.5 block">שם המוצר</label>
-                          <input 
-                            type="text" 
-                            value={customProductName} 
-                            onChange={(e) => setCustomProductName(e.target.value)}
-                            placeholder="שם המוצר..."
-                            className="w-full bg-[var(--background)] border border-[var(--border)] rounded-xl py-3 px-4 text-sm font-bold focus:outline-none focus:border-indigo-500/50" 
-                          />
-                        </div>
-
-                        <div>
-                          <label className="text-[10px] font-black text-[var(--muted)] uppercase tracking-widest mb-1.5 block">קטגוריה</label>
-                          <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto no-scrollbar border border-[var(--border)] p-2 rounded-xl bg-[var(--background)]/50">
-                            {categories.map(c => (
-                              <button 
-                                key={c} 
-                                type="button"
-                                onClick={() => setCustomProductCat(c)} 
-                                className={`py-2 px-3 rounded-lg text-xs font-bold border transition-all ${
-                                  customProductCat === c 
-                                    ? "bg-indigo-600 border-indigo-500 !text-white shadow-md shadow-indigo-500/10" 
-                                    : "bg-[var(--background)] border-[var(--border)] text-[var(--muted)] hover:text-[var(--foreground)]"
-                                }`}
-                              >
-                                {c}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-
-                        <button 
-                          onClick={handleSaveScannedProduct}
-                          disabled={!customProductName.trim()}
-                          className="w-full py-4 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:pointer-events-none !text-white text-sm font-black rounded-2xl shadow-lg transition-all active:scale-[0.98] mt-4 border-none cursor-pointer"
-                        >
-                          שמור מוצר והוסף לרשימה
-                        </button>
-                      </div>
-                    </div>
-                  )}
-
-                  {scanStatus === "error" && (
-                    <div className="text-center py-8 space-y-6">
-                      <div className="w-16 h-16 rounded-full bg-rose-500/10 text-rose-500 flex items-center justify-center mx-auto">
-                        <X className="w-8 h-8" />
-                      </div>
-                      <p className="text-sm font-bold text-[var(--foreground)]">{scanErrorMsg}</p>
-                      
-                      {/* Manual text scanner input */}
-                      <div className="pt-2 text-right border-t border-[var(--border)]/40">
-                        <label className="text-[10px] font-black text-[var(--muted)] uppercase tracking-widest mb-1.5 block">סריקה ידנית (הקלדת ברקוד)</label>
-                        <div className="flex gap-2">
-                          <input 
-                            type="text" 
-                            placeholder="הקלד ברקוד..."
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") {
-                                const val = (e.target as HTMLInputElement).value.trim();
-                                if (val) handleBarcodeScanned(val);
-                              }
-                            }}
-                            className="flex-grow bg-[var(--background)] border border-[var(--border)] rounded-xl py-2 px-3 text-xs font-bold focus:border-indigo-500 outline-none text-[var(--foreground)]"
-                          />
-                          <button 
-                            onClick={(e) => {
-                              const input = e.currentTarget.previousSibling as HTMLInputElement;
-                              const val = input ? input.value.trim() : "";
-                              if (val) handleBarcodeScanned(val);
-                            }}
-                            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 !text-white rounded-xl text-xs font-black transition-all active:scale-95 border-none cursor-pointer"
-                          >
-                            חיפוש
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </motion.div>
-            </div>
-          )}
-        </AnimatePresence>
       </div>
     </RoleGuard>
   );
@@ -2158,10 +1645,12 @@ function MobileItemRow({ item, onStatus, onEdit, onUpdateQuantity, canPurchase, 
     <motion.div
       layout
       onClick={() => setIsExpanded(!isExpanded)}
-      className={`group relative flex flex-col px-3 py-2.5 bg-[var(--surface)] hover:bg-[var(--foreground)]/[0.01] transition-all border border-[var(--border)] rounded-xl cursor-pointer shadow-sm ${
-        isExpanded ? "ring-2 ring-indigo-500/20" : ""
+      className={`group relative flex flex-col px-4 py-3.5 bg-[var(--surface)] transition-all rounded-2xl cursor-pointer shadow-sm border border-[var(--border)]/75 ${
+        isExpanded ? "ring-2 ring-indigo-500/20 border-indigo-500/35" : "hover:border-[var(--border-hi)]"
       } ${
-        isUrgent ? "border-r-[4px] border-r-rose-500 pl-3.5" : "border-r border-r-[var(--border)]"
+        isUrgent 
+          ? "bg-gradient-to-l from-rose-500/[0.02] to-transparent border-r-4 border-r-rose-500 pr-3" 
+          : "border-r border-r-[var(--border)]"
       }`}
     >
       {/* Upper Row: Main Information & Checkbox */}
@@ -2171,7 +1660,7 @@ function MobileItemRow({ item, onStatus, onEdit, onUpdateQuantity, canPurchase, 
           <button
             onClick={handleCheckboxClick}
             disabled={!canPurchase}
-            className={`w-9.5 h-9.5 rounded-xl flex items-center justify-center border transition-all shrink-0 active:scale-90 ${
+            className={`w-9.5 h-9.5 rounded-full flex items-center justify-center border transition-all shrink-0 active:scale-90 cursor-pointer ${
               isApproved
                 ? canPurchase
                   ? "border-indigo-500 hover:bg-indigo-500/10 bg-indigo-500/5 text-indigo-500 shadow-sm"
@@ -2180,9 +1669,9 @@ function MobileItemRow({ item, onStatus, onEdit, onUpdateQuantity, canPurchase, 
             }`}
           >
             {isApproved ? (
-              <Check className="w-4.5 h-4.5 text-indigo-500 stroke-[3]" />
+              <Check className="w-4 h-4 text-indigo-500 stroke-[3.5]" />
             ) : (
-              <Check className="w-4.5 h-4.5" />
+              <Check className="w-4 h-4 opacity-0" />
             )}
           </button>
 
@@ -2192,13 +1681,6 @@ function MobileItemRow({ item, onStatus, onEdit, onUpdateQuantity, canPurchase, 
               <span className="text-sm font-bold text-[var(--foreground)] truncate">
                 {item.name}
               </span>
-              
-              {/* Category label - only shown if filtering by "All" */}
-              {activeCategory === null && (
-                <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-md ${CAT_COLOR[item.category] || CAT_COLOR["כללי"]}`}>
-                  {item.category}
-                </span>
-              )}
               
               {isUrgent && (
                 <span className="text-[9px] font-black text-rose-500 bg-rose-500/10 px-1.5 py-0.5 rounded border border-rose-500/20">דחוף 🔥</span>
@@ -2236,71 +1718,68 @@ function MobileItemRow({ item, onStatus, onEdit, onUpdateQuantity, canPurchase, 
             animate={{ height: "auto", opacity: 1, marginTop: 10 }}
             exit={{ height: 0, opacity: 0, marginTop: 0 }}
             transition={{ duration: 0.2, ease: "easeInOut" }}
-            className="overflow-hidden w-full border-t border-[var(--border)]/40 pt-2.5"
+            className="overflow-hidden w-full border-t border-[var(--border)]/40 pt-3"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Requester name & Category info when expanded */}
-            <div className="flex items-center justify-between flex-wrap gap-2 mb-2.5 text-xs text-[var(--muted)]">
-              <span>מבקש: <span className="font-bold text-[var(--foreground)]">{item.requestedByName}</span></span>
-              <span>קטגוריה: <span className="font-bold text-[var(--foreground)]">{item.category}</span></span>
+            <div className="grid grid-cols-2 gap-2 mb-3.5 p-3 rounded-xl bg-[var(--foreground)]/[0.02] border border-[var(--border)]/40 text-xs text-[var(--muted)]">
+              <div>מבקש/ת: <span className="font-bold text-[var(--foreground)]">{item.requestedByName}</span></div>
+              <div>קטגוריה: <span className="font-bold text-[var(--foreground)]">{item.category}</span></div>
+              {item.notes && (
+                <div className="col-span-2 border-t border-[var(--border)]/30 pt-2 mt-1">
+                  <span className="font-bold text-[var(--foreground)]/70">הערות:</span> <span className="text-[var(--foreground)]/90">{item.notes}</span>
+                </div>
+              )}
             </div>
-
-            {item.notes && (
-              <div className="mb-2.5 p-2 rounded-lg bg-[var(--foreground)]/[0.02] border border-[var(--border)]/30 text-right">
-                <p className="text-xs text-[var(--muted)] font-medium leading-relaxed">
-                  <span className="font-bold text-[var(--foreground)]/70">הערות:</span> {item.notes}
-                </p>
-              </div>
-            )}
 
             {/* Action buttons and Stepper */}
             <div className="flex items-center justify-between gap-2.5 flex-wrap">
               {/* Inline Quantity Stepper */}
-              <div className="flex items-center gap-1 bg-[var(--foreground)]/5 border border-[var(--border)] rounded-xl p-0.5 shadow-sm shrink-0">
+              <div className="flex items-center gap-1.5 bg-[var(--foreground)]/[0.03] border border-[var(--border)] rounded-xl p-1 shadow-sm shrink-0">
                 <button
                   onClick={() => onUpdateQuantity(item.id, item.quantity || "1", -1)}
-                  className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-[var(--foreground)]/10 text-[var(--muted)] hover:text-[var(--foreground)] transition-all active:scale-75"
+                  className="w-8 h-8 rounded-lg flex items-center justify-center bg-[var(--surface)] hover:bg-[var(--foreground)]/10 text-[var(--muted)] hover:text-[var(--foreground)] border border-[var(--border)] transition-all active:scale-75 shadow-sm cursor-pointer"
                   title="הפחת כמות"
                 >
-                  <Minus className="w-3.5 h-3.5 stroke-[2.5]" />
+                  <Minus className="w-3.5 h-3.5 stroke-[3]" />
                 </button>
-                <div className="min-w-[32px] text-center px-1">
-                  <span className="text-xs font-black text-[var(--foreground)]">{item.quantity || "1"}</span>
-                  <span className="text-[8px] text-[var(--muted)] block -mt-1 font-bold">יח׳</span>
+                <div className="min-w-[36px] text-center px-1">
+                  <span className="text-sm font-black text-[var(--foreground)]">{item.quantity || "1"}</span>
+                  <span className="text-[9px] text-[var(--muted)] block -mt-1 font-bold">יח׳</span>
                 </div>
                 <button
                   onClick={() => onUpdateQuantity(item.id, item.quantity || "1", 1)}
-                  className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-[var(--foreground)]/10 text-[var(--muted)] hover:text-[var(--foreground)] transition-all active:scale-75"
+                  className="w-8 h-8 rounded-lg flex items-center justify-center bg-[var(--surface)] hover:bg-[var(--foreground)]/10 text-[var(--muted)] hover:text-[var(--foreground)] border border-[var(--border)] transition-all active:scale-75 shadow-sm cursor-pointer"
                   title="הוסף כמות"
                 >
-                  <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+                  <Plus className="w-3.5 h-3.5 stroke-[3]" />
                 </button>
               </div>
 
               {/* Action Buttons */}
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1.5 flex-grow justify-end">
                 <button
                   onClick={() => onEdit(item)}
-                  className="px-2.5 h-8 rounded-lg flex items-center justify-center gap-1 bg-[var(--foreground)]/5 hover:bg-[var(--foreground)]/10 text-[var(--muted)] hover:text-[var(--foreground)] transition-all active:scale-95 border border-[var(--border)] text-[10px] font-bold"
+                  className="px-3 py-2 rounded-xl flex items-center justify-center gap-1 bg-[var(--foreground)]/[0.04] hover:bg-[var(--foreground)]/10 text-[var(--muted)] hover:text-[var(--foreground)] transition-all active:scale-95 border border-[var(--border)] text-xs font-bold cursor-pointer"
                   title="ערוך מוצר"
                 >
-                  <Edit3 className="w-3 h-3" /> עריכה
+                  <Edit3 className="w-3.5 h-3.5" /> עריכה
                 </button>
 
                 <button
                   onClick={handleDelete}
-                  className="px-2.5 h-8 rounded-lg flex items-center justify-center gap-1 bg-rose-500/5 hover:bg-rose-500/10 text-rose-500 hover:text-rose-500 transition-all active:scale-95 border border-rose-500/10 text-[10px] font-bold"
+                  className="px-3 py-2 rounded-xl flex items-center justify-center gap-1 bg-rose-500/5 hover:bg-rose-500/10 text-rose-500 border border-rose-500/10 transition-all active:scale-95 text-xs font-bold cursor-pointer"
                   title="מחק מהרשימה"
                 >
-                  <Trash2 className="w-3 h-3" /> מחיקה
+                  <Trash2 className="w-3.5 h-3.5" /> מחיקה
                 </button>
 
                 {isApproved && canPurchase && (
                   <button
                     onClick={() => onStatus(item.id, "purchased")}
-                    className="bg-indigo-600 hover:bg-indigo-500 !text-white rounded-lg px-3 h-8 text-[10px] font-black transition-all flex items-center gap-1 hover:scale-105 active:scale-95 shadow-md shadow-indigo-600/15"
+                    className="bg-indigo-600 hover:bg-indigo-500 !text-white rounded-xl px-4.5 py-2 text-xs font-black transition-all flex items-center justify-center gap-1 active:scale-95 shadow-md shadow-indigo-600/15 cursor-pointer border-none"
                   >
-                    <ShoppingCart className="w-3 h-3 !text-white" /> קנה
+                    <ShoppingCart className="w-3.5 h-3.5 !text-white" /> קנה
                   </button>
                 )}
               </div>
