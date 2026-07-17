@@ -1582,6 +1582,19 @@ export default function ShoppingPage() {
   );
 }
 
+const formatQuantityAndUnit = (qtyStr: string) => {
+  if (!qtyStr) return { qty: "1.0", unit: "יח׳" };
+  const trimmed = qtyStr.trim();
+  const match = trimmed.match(/^([\d\.]+)\s*(.*)$/);
+  if (match) {
+    const qty = match[1];
+    let unit = match[2] || "יח׳";
+    if (unit === "יחידות") unit = "יח׳";
+    return { qty, unit };
+  }
+  return { qty: qtyStr, unit: "יח׳" };
+};
+
 function CategorySection({ title, items, onStatus, onEdit, onUpdateQuantity, canPurchase, currentUser, activeCategory }: {
   title: string, items: ShoppingRequest[], onStatus: any, onEdit: any, onUpdateQuantity: any, canPurchase: boolean, currentUser: any, activeCategory: string | null
 }) {
@@ -1598,7 +1611,7 @@ function CategorySection({ title, items, onStatus, onEdit, onUpdateQuantity, can
           </span>
         </div>
       </div>
-      <div className="space-y-2.5">
+      <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl overflow-hidden shadow-sm divide-y divide-[var(--border)]/55">
         {items.map(item => (
           <MobileItemRow 
             key={item.id} 
@@ -1645,34 +1658,30 @@ function MobileItemRow({ item, onStatus, onEdit, onUpdateQuantity, canPurchase, 
     <motion.div
       layout
       onClick={() => setIsExpanded(!isExpanded)}
-      className={`group relative flex flex-col px-4 py-3.5 bg-[var(--surface)] transition-all rounded-2xl cursor-pointer shadow-sm border border-[var(--border)]/75 ${
-        isExpanded ? "ring-2 ring-indigo-500/20 border-indigo-500/35" : "hover:border-[var(--border-hi)]"
+      className={`group relative flex flex-col px-4 py-3 bg-[var(--surface)] even:bg-[var(--foreground)]/[0.012] transition-all cursor-pointer ${
+        isExpanded ? "bg-[var(--foreground)]/[0.025]! ring-2 ring-indigo-500/20" : "hover:bg-[var(--foreground)]/[0.01]"
       } ${
         isUrgent 
           ? "bg-gradient-to-l from-rose-500/[0.02] to-transparent border-r-4 border-r-rose-500 pr-3" 
-          : "border-r border-r-[var(--border)]"
+          : ""
       }`}
     >
       {/* Upper Row: Main Information & Checkbox */}
       <div className="flex items-center justify-between gap-3 w-full">
-        <div className="flex items-center gap-3 min-w-0 flex-1">
-          {/* Custom Checkbox/Action Circle - 38px compact */}
+        <div className="flex items-center gap-3.5 min-w-0 flex-1">
+          {/* Custom Checkbox/Action Square - rounded-lg */}
           <button
             onClick={handleCheckboxClick}
             disabled={!canPurchase}
-            className={`w-9.5 h-9.5 rounded-full flex items-center justify-center border transition-all shrink-0 active:scale-90 cursor-pointer ${
+            className={`w-6 h-6 rounded-lg flex items-center justify-center border-2 transition-all shrink-0 active:scale-90 cursor-pointer ${
               isApproved
                 ? canPurchase
-                  ? "border-indigo-500 hover:bg-indigo-500/10 bg-indigo-500/5 text-indigo-500 shadow-sm"
-                  : "border-[var(--border)] text-[var(--muted)]/40 cursor-not-allowed"
-                : "border-[var(--border)] text-[var(--muted)]"
+                  ? "border-[var(--muted)]/50 hover:border-indigo-500 hover:bg-indigo-500/5 text-indigo-500"
+                  : "border-[var(--border)] text-[var(--muted)]/20 cursor-not-allowed"
+                : "border-indigo-500 bg-indigo-500 text-white"
             }`}
           >
-            {isApproved ? (
-              <Check className="w-4 h-4 text-indigo-500 stroke-[3.5]" />
-            ) : (
-              <Check className="w-4 h-4 opacity-0" />
-            )}
+            <Check className="w-3.5 h-3.5 opacity-0 hover:opacity-100 transition-opacity" />
           </button>
 
           {/* Item details */}
@@ -1694,12 +1703,20 @@ function MobileItemRow({ item, onStatus, onEdit, onUpdateQuantity, canPurchase, 
         </div>
 
         {/* Left Side: Quantity and Expand indicator */}
-        <div className="flex items-center gap-2.5 shrink-0">
-          {item.quantity && item.quantity !== "1" && (
-            <span className="text-[10px] font-black text-[var(--muted)] bg-[var(--foreground)]/5 px-2 py-0.5 rounded-lg border border-[var(--border)]">
-              {item.quantity} יח׳
-            </span>
-          )}
+        <div className="flex items-center gap-3 shrink-0">
+          {(() => {
+            const { qty, unit } = formatQuantityAndUnit(item.quantity);
+            return (
+              <div className="flex flex-col items-center justify-center text-left min-w-[32px] shrink-0">
+                <span className="text-sm font-black text-[var(--foreground)] leading-tight">
+                  {qty}
+                </span>
+                <span className="text-[10px] text-[var(--muted)] font-extrabold mt-0.5 leading-none">
+                  {unit}
+                </span>
+              </div>
+            );
+          })()}
           <motion.div
             animate={{ rotate: isExpanded ? 180 : 0 }}
             transition={{ duration: 0.2 }}
