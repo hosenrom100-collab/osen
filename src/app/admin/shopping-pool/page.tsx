@@ -4,9 +4,10 @@ import { RoleGuard } from "@/components/auth/RoleGuard";
 import { useState, useEffect } from "react";
 import { db } from "@/lib/firebase/config";
 import { collection, addDoc, getDocs, query, orderBy, doc, deleteDoc, writeBatch, getDoc, setDoc } from "firebase/firestore";
-import { Package, Plus, Trash2, Tag, Search, ArrowRight, Loader2, Settings, X } from "lucide-react";
+import { Package, Plus, Trash2, Tag, Search, ArrowRight, Loader2, Settings, X, Download, Upload } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
+import * as XLSX from "xlsx";
 
 interface Product {
   id: string;
@@ -166,6 +167,85 @@ export default function ShoppingPoolPage() {
     }
   };
 
+  const downloadPoolTemplateXlsx = () => {
+    const sampleData = [
+      {
+        "מוצר": "חלב 3% בקרטון",
+        "קטגוריה": "גבינות ומחלבה"
+      },
+      {
+        "מוצר": "נייר טואלט",
+        "קטגוריה": "מוצרי נייר וחד פעמי"
+      },
+      {
+        "מוצר": "עגבניות",
+        "קטגוריה": "פירות וירקות"
+      }
+    ];
+    const ws = XLSX.utils.json_to_sheet(sampleData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "תבנית מאגר מוצרים");
+    XLSX.writeFile(wb, "תבנית_מאגר_מוצרים.xlsx");
+  };
+
+  const handleImportPoolXlsx = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setLoading(true);
+    const reader = new FileReader();
+    reader.onload = async (evt) => {
+      try {
+        const bstr = evt.target?.result;
+        const wb = XLSX.read(bstr, { type: "binary" });
+        const wsname = wb.SheetNames[0];
+        const ws = wb.Sheets[wsname];
+        const data = XLSX.utils.sheet_to_json(ws) as any[];
+
+        if (data.length === 0) {
+          alert("הקובץ ריק או לא תקין.");
+          setLoading(false);
+          return;
+        }
+
+        const hasProduct = data.some(row => row["מוצר"]);
+        if (!hasProduct) {
+          alert("קובץ לא תקין. חובה להזין עמודת 'מוצר'.");
+          setLoading(false);
+          return;
+        }
+
+        const batch = writeBatch(db);
+        let addedCount = 0;
+
+        for (const row of data) {
+          const name = row["מוצר"]?.toString().trim();
+          if (!name) continue;
+          const category = row["קטגוריה"]?.toString().trim() || "כללי";
+
+          const docId = name.replace(/\//g, "-");
+          const newDocRef = doc(db, "product_pool", docId);
+          batch.set(newDocRef, { name, category }, { merge: true });
+          addedCount++;
+        }
+
+        if (addedCount > 0) {
+          await batch.commit();
+        }
+
+        await fetchProducts();
+        alert(`הייבוא מאקסל הסתיים בהצלחה! נוספו/עודכנו ${addedCount} מוצרים במאגר.`);
+        e.target.value = "";
+      } catch (err) {
+        console.error("Error importing xlsx pool:", err);
+        alert("שגיאה בקריאת קובץ האקסל.");
+      } finally {
+        setLoading(false);
+      }
+    };
+    reader.readAsBinaryString(file);
+  };
+
   const handleAddProduct = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newName) return;
@@ -216,22 +296,46 @@ export default function ShoppingPoolPage() {
                 <p className="text-slate-400 text-sm">נהל את רשימת המוצרים הקבועים במערכת</p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap justify-end">
               <button
                 onClick={() => setShowCategoryModal(true)}
-                className="flex items-center gap-2 px-4 py-2 bg-slate-500/10 text-slate-300 border border-slate-500/20 rounded-xl text-sm font-medium hover:bg-slate-500/20 transition-all cursor-pointer"
+                className="flex items-center gap-2 px-3 py-2 bg-slate-500/10 text-slate-300 border border-slate-500/20 rounded-xl text-xs font-medium hover:bg-slate-500/20 transition-all cursor-pointer"
               >
-                <Settings className="w-4 h-4 text-slate-400" />
+                <Settings className="w-3.5 h-3.5 text-slate-400" />
                 <span>ניהול קטגוריות</span>
               </button>
               <button
                 onClick={handleBulkImport}
                 disabled={loading}
-                className="flex items-center gap-2 px-4 py-2 bg-purple-500/10 text-purple-400 border border-purple-500/20 rounded-xl text-sm font-medium hover:bg-purple-500/20 transition-all disabled:opacity-50 cursor-pointer"
+                className="flex items-center gap-2 px-3 py-2 bg-purple-500/10 text-purple-400 border border-purple-500/20 rounded-xl text-xs font-medium hover:bg-purple-500/20 transition-all disabled:opacity-50 cursor-pointer"
               >
-                <Plus className="w-4 h-4" />
+                <Plus className="w-3.5 h-3.5" />
                 ייבוא מוצרי בסיס
               </button>
+
+              {/* Excel Import for Pool */}
+              <input 
+                type="file" 
+                accept=".xlsx, .xls" 
+                onChange={handleImportPoolXlsx} 
+                className="hidden" 
+                id="import-excel-pool-file" 
+              />
+              <button
+                onClick={downloadPoolTemplateXlsx}
+                className="flex items-center gap-2 px-3 py-2 bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 rounded-xl text-xs font-medium hover:bg-indigo-500/20 transition-all cursor-pointer"
+                title="הורדת תבנית אקסל להזנת מאגר מוצרים"
+              >
+                <Download className="w-3.5 h-3.5 text-indigo-400" />
+                <span>תבנית יבוא</span>
+              </button>
+              <label
+                htmlFor="import-excel-pool-file"
+                className="flex items-center gap-2 px-3 py-2 bg-indigo-600 text-white rounded-xl text-xs font-medium hover:bg-indigo-700 transition-all cursor-pointer shadow-sm shadow-indigo-600/15"
+              >
+                <Upload className="w-3.5 h-3.5 text-white" />
+                <span>ייבוא מאקסל</span>
+              </label>
             </div>
           </div>
 
