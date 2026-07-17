@@ -51,10 +51,24 @@ const CAT_COLOR: Record<string, string> = {
   "לחם ומאפים":           "text-orange-500 bg-orange-500/10 border border-orange-500/20",
   "חומרי ניקוי":          "text-cyan-500 bg-cyan-500/10 border border-cyan-500/20",
   "מוצרי נייר וחד פעמי": "text-indigo-500 bg-indigo-500/10 border border-indigo-500/20",
-  "טואלטיקה והיגיינה":   "text-emerald-500 bg-emerald-500/10 border border-emerald-500/20",
+  "טואלטיקה והיגיינה":   "text-teal-500 bg-teal-500/10 border border-teal-500/20",
   "שימורים ובישול":       "text-slate-500 bg-slate-500/10 border border-slate-500/20",
   "קפואים":               "text-sky-500 bg-sky-500/10 border border-sky-500/20",
   "כללי":                 "text-slate-400 bg-slate-400/10 border border-slate-400/20",
+};
+
+// Solid variants of CAT_COLOR (bar indicators, selected states)
+const CAT_SOLID: Record<string, string> = {
+  "גבינות ומחלבה":       "bg-amber-500 border-amber-400",
+  "בשר ודגים":            "bg-rose-500 border-rose-400",
+  "פירות וירקות":         "bg-emerald-500 border-emerald-400",
+  "לחם ומאפים":           "bg-orange-500 border-orange-400",
+  "חומרי ניקוי":          "bg-cyan-500 border-cyan-400",
+  "מוצרי נייר וחד פעמי": "bg-indigo-500 border-indigo-400",
+  "טואלטיקה והיגיינה":   "bg-teal-500 border-teal-400",
+  "שימורים ובישול":       "bg-slate-500 border-slate-400",
+  "קפואים":               "bg-sky-500 border-sky-400",
+  "כללי":                 "bg-slate-400 border-slate-300",
 };
 
 const getLevenshteinDistance = (a: string, b: string): number => {
@@ -788,8 +802,8 @@ export default function ShoppingPage() {
                       value={activeCategory || ""}
                       onChange={(e) => setActiveCategory(e.target.value || null)}
                       className={`w-[90px] h-9 px-2 pl-6 rounded-xl border text-[10px] font-black transition-all appearance-none cursor-pointer text-center truncate ${
-                        activeCategory 
-                          ? "bg-indigo-600 border-indigo-500 text-white shadow-md shadow-indigo-600/25" 
+                        activeCategory
+                          ? `${CAT_SOLID[activeCategory] ?? CAT_SOLID["כללי"]} text-white shadow-md`
                           : "bg-[var(--surface-raised)] border-[var(--border)] text-[var(--muted)]"
                       }`}
                     >
@@ -1275,13 +1289,13 @@ export default function ShoppingPage() {
                     <label className="text-[10px] font-black text-[var(--muted)] uppercase tracking-widest mb-1.5 block">קטגוריה</label>
                     <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto no-scrollbar border border-[var(--border)] p-2 rounded-xl bg-[var(--background)]/50">
                       {categories.map(c => (
-                        <button 
-                          key={c} 
+                        <button
+                          key={c}
                           type="button"
-                          onClick={() => setEditCat(c)} 
+                          onClick={() => setEditCat(c)}
                           className={`py-2 px-3 rounded-lg text-xs font-bold border transition-all ${
-                            editCat === c 
-                              ? "bg-indigo-600 border-indigo-500 !text-white shadow-md shadow-indigo-500/10" 
+                            editCat === c
+                              ? `${CAT_SOLID[c] ?? CAT_SOLID["כללי"]} !text-white shadow-md`
                               : "bg-[var(--background)] border-[var(--border)] text-[var(--muted)] hover:text-[var(--foreground)]"
                           }`}
                         >
@@ -1480,7 +1494,7 @@ export default function ShoppingPage() {
                                     className="w-full text-right px-4 py-3 text-xs font-bold hover:bg-[var(--foreground)]/5 flex items-center justify-between"
                                   >
                                     <span>{p.name}</span>
-                                    <span className="text-[9px] text-[var(--muted)]">{p.category}</span>
+                                    <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-md ${CAT_COLOR[p.category] ?? CAT_COLOR["כללי"]}`}>{p.category}</span>
                                   </button>
                                 ))}
                                 {!hasExact && (
@@ -1516,7 +1530,7 @@ export default function ShoppingPage() {
                           <div key={p.id} className="py-3 flex items-center justify-between gap-4">
                             <div className="min-w-0 flex-1">
                               <span className="text-sm font-bold text-[var(--foreground)]">{p.name}</span>
-                              <span className="mr-2 text-[9px] font-black bg-[var(--foreground)]/5 text-[var(--muted)] px-1.5 py-0.5 rounded-md">{p.category}</span>
+                              <span className={`mr-2 text-[9px] font-black px-1.5 py-0.5 rounded-md ${CAT_COLOR[p.category] ?? CAT_COLOR["כללי"]}`}>{p.category}</span>
                             </div>
 
                             {/* Stepper & Trash */}
@@ -1938,7 +1952,7 @@ function CategorySection({ title, items, onStatus, onEdit, onUpdateQuantity, can
     <div className="mb-6 last:mb-0 px-4 md:px-0">
       <div className="flex items-center justify-between py-2 mb-3">
         <div className="flex items-center gap-2">
-          <div className="w-1.5 h-5 rounded-full bg-indigo-600 shadow-sm shadow-indigo-600/30" />
+          <div className={`w-1.5 h-5 rounded-full shadow-sm ${(CAT_SOLID[title] ?? CAT_SOLID["כללי"]).split(" ")[0]}`} />
           <h3 className="text-sm font-extrabold text-[var(--foreground)]">
             {title}
           </h3>
