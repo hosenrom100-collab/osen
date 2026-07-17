@@ -22,7 +22,31 @@ export function BottomNav() {
   const [activeOverlay, setActiveOverlay] = useState<"menu" | null>(null);
 
   // Scroll visibility logic
-  const isVisible = true;
+  const [isVisible, setIsVisible] = useState(true);
+  const lastScrollY = useRef(0);
+
+  useEffect(() => {
+    const handleScroll = (e: Event) => {
+      const target = e.target as HTMLElement;
+      // Ensure we only track vertical scrolling on main containers
+      if (target && target.scrollTop !== undefined && target.clientHeight > 0) {
+        const currentScrollY = target.scrollTop;
+        // Ignore very small scrolls
+        if (Math.abs(currentScrollY - lastScrollY.current) < 10) return;
+        
+        if (currentScrollY > lastScrollY.current && currentScrollY > 50) {
+          setIsVisible(false);
+        } else {
+          setIsVisible(true);
+        }
+        lastScrollY.current = currentScrollY;
+      }
+    };
+
+    // Use capture phase to catch scroll events from any overflow-y-auto child
+    window.addEventListener("scroll", handleScroll, true);
+    return () => window.removeEventListener("scroll", handleScroll, true);
+  }, []);
 
   // If not logged in, or on public/onboarding pages, do not show BottomNav
   if (!user || pathname === "/login") return null;
@@ -79,7 +103,7 @@ export function BottomNav() {
     <>
       {/* Bottom Nav Bar */}
       <div 
-        className="fixed bottom-0 inset-x-0 z-50 md:hidden bg-[var(--surface)] border-t border-[var(--border)] shadow-[0_-4px_24px_rgba(0,85,212,0.05)]"
+        className={`fixed bottom-0 inset-x-0 z-50 md:hidden bg-[var(--surface)] border-t border-[var(--border)] shadow-[0_-4px_24px_rgba(0,85,212,0.05)] transition-transform duration-300 ${isVisible ? 'translate-y-0' : 'translate-y-full'}`}
       >
         <nav className="flex items-center justify-around h-[68px] px-2" dir="rtl">
           {items.map((item) => {

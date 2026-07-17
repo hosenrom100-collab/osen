@@ -604,37 +604,37 @@ export default function ShoppingPage() {
       <div dir="rtl" className="flex flex-col h-screen bg-[var(--background)] text-[var(--foreground)] overflow-hidden font-sans">
         
         {/* ── Mobile Action Bar (Top) ── */}
-        <div className="md:hidden pt-2 pb-2 px-3 bg-[var(--background)] border-b border-[var(--border)] z-40 shrink-0">
-           <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2">
-                 <button onClick={() => router.push("/")} className="w-8 h-8 flex items-center justify-center rounded-lg bg-[var(--foreground)]/5 border border-[var(--border)] active:scale-95 transition-all">
-                    <ArrowRight className="w-4 h-4 text-[var(--muted)]" />
+        <div className="md:hidden pt-2 pb-2 px-2 bg-[var(--background)] border-b border-[var(--border)] z-40 shrink-0">
+           <div className="flex items-center justify-between mb-1.5 px-1">
+              <div className="flex items-center gap-1.5">
+                 <button onClick={() => router.push("/")} className="w-6 h-6 flex items-center justify-center rounded md:rounded-lg bg-[var(--foreground)]/5 border border-[var(--border)] active:scale-95 transition-all">
+                    <ArrowRight className="w-3.5 h-3.5 text-[var(--muted)]" />
                  </button>
-                 <h1 className="text-base font-black flex items-center gap-1.5">
-                    <span className="text-lg">💗🥒</span> קניות
+                 <h1 className="text-sm font-black flex items-center gap-1">
+                    <span className="text-base">💗🥒</span> קניות
                  </h1>
               </div>
               <div className="flex items-center gap-1.5">
                  <button 
                    onClick={() => setView(view === "list" ? "archive" : "list")}
-                   className="px-3 py-1.5 rounded-lg bg-[var(--foreground)]/5 border border-[var(--border)] text-[11px] font-black transition-all hover:bg-[var(--foreground)]/10"
+                   className="px-2 py-1 rounded bg-[var(--foreground)]/5 border border-[var(--border)] text-[10px] font-black transition-all hover:bg-[var(--foreground)]/10"
                  >
                     {view === "list" ? "ארכיון" : "רשימה"}
                  </button>
                  <button 
                    onClick={() => setActionsMenuOpen(true)}
-                   className="w-8 h-8 flex items-center justify-center rounded-lg bg-[var(--foreground)]/5 border border-[var(--border)] active:scale-95 transition-all"
+                   className="w-6 h-6 flex items-center justify-center rounded bg-[var(--foreground)]/5 border border-[var(--border)] active:scale-95 transition-all"
                    title="פעולות נוספות"
                  >
-                    <Settings className="w-4 h-4 text-[var(--muted)]" />
+                    <Settings className="w-3.5 h-3.5 text-[var(--muted)]" />
                  </button>
               </div>
            </div>
 
            <div className="relative group">
-              <div className="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center gap-1.5 text-[var(--muted)]/40 px-1.5 border-l border-[var(--border)] ml-2">
+              <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 text-[var(--muted)]/40 px-1 border-l border-[var(--border)] ml-1">
                  <Plus className="w-3.5 h-3.5" />
-                 <Search className="w-3.5 h-3.5" />
+                 <Search className="w-3 h-3" />
               </div>
               <input
                 ref={mobileInputRef}
@@ -642,8 +642,8 @@ export default function ShoppingPage() {
                 value={inputVal}
                 onChange={(e) => setInputVal(e.target.value)}
                 onFocus={openAddOverlay}
-                placeholder="הוסף מוצר..."
-                className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-xl py-2.5 pr-16 pl-3 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all placeholder:text-[var(--muted)]/50 shadow-sm"
+                placeholder="הוסף או חפש מוצר..."
+                className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-lg py-1.5 pr-14 pl-2 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all placeholder:text-[var(--muted)]/50 shadow-sm"
               />
            </div>
         </div>
@@ -916,7 +916,7 @@ export default function ShoppingPage() {
                 animate={{ y: 0, opacity: 1 }} 
                 exit={{ y: "100%", opacity: 0.5 }}
                 transition={{ type: "spring", damping: 25, stiffness: 220 }}
-                className="relative w-full md:max-w-xl bg-[var(--surface)] border-t md:border border-[var(--border)] rounded-t-[2.5rem] md:rounded-[2.5rem] p-6 shadow-2xl text-right flex flex-col max-h-[92vh] md:max-h-[85vh] overflow-hidden" 
+                className="relative w-full h-[95vh] md:h-auto md:max-w-xl bg-[var(--surface)] border-t md:border border-[var(--border)] rounded-t-[1.5rem] md:rounded-[2.5rem] p-5 md:p-6 shadow-2xl text-right flex flex-col overflow-hidden" 
                 dir="rtl"
               >
                 {/* Pull handle indicator on mobile */}
@@ -1691,6 +1691,16 @@ function MobileItemRow({ item, onStatus, onEdit, onUpdateQuantity, canPurchase, 
                 {item.name}
               </span>
               
+              {(() => {
+                const { qty, unit } = formatQuantityAndUnit(item.quantity);
+                return (
+                  <div className="flex items-center gap-1 bg-[var(--foreground)]/5 border border-[var(--border)] px-1.5 py-0.5 rounded-md shrink-0">
+                    <span className="text-[11px] font-black text-[var(--foreground)] leading-none">{qty}</span>
+                    <span className="text-[10px] text-[var(--muted)] font-extrabold leading-none">{unit}</span>
+                  </div>
+                );
+              })()}
+              
               {isUrgent && (
                 <span className="text-[9px] font-black text-rose-500 bg-rose-500/10 px-1.5 py-0.5 rounded border border-rose-500/20">דחוף 🔥</span>
               )}
@@ -1702,25 +1712,12 @@ function MobileItemRow({ item, onStatus, onEdit, onUpdateQuantity, canPurchase, 
           </div>
         </div>
 
-        {/* Left Side: Quantity and Expand indicator */}
-        <div className="flex items-center gap-3 shrink-0">
-          {(() => {
-            const { qty, unit } = formatQuantityAndUnit(item.quantity);
-            return (
-              <div className="flex flex-col items-center justify-center text-left min-w-[32px] shrink-0">
-                <span className="text-sm font-black text-[var(--foreground)] leading-tight">
-                  {qty}
-                </span>
-                <span className="text-[10px] text-[var(--muted)] font-extrabold mt-0.5 leading-none">
-                  {unit}
-                </span>
-              </div>
-            );
-          })()}
+        {/* Left Side: Expand indicator */}
+        <div className="flex items-center shrink-0">
           <motion.div
             animate={{ rotate: isExpanded ? 180 : 0 }}
             transition={{ duration: 0.2 }}
-            className="text-[var(--muted)]/40"
+            className="text-[var(--muted)]/40 p-1"
           >
             <ChevronDown className="w-3.5 h-3.5" />
           </motion.div>
