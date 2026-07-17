@@ -874,6 +874,14 @@ export default function ShoppingPage() {
                 <span>יצוא רשימה קבועה</span>
               </button>
              {isAdmin && <button onClick={exportXlsx} title="ייצוא לאקסל" className="p-2.5 rounded-2xl bg-[var(--foreground)]/5 border border-[var(--border)] hover:bg-[var(--foreground)]/10 transition-all cursor-pointer"><Download className="w-5 h-5 text-[var(--muted)]" /></button>}
+              <button
+                onClick={() => setIsAddingCat(true)}
+                title="ניהול קטגוריות רכש"
+                className="px-4 py-2.5 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 hover:bg-indigo-500/20 transition-all flex items-center gap-1.5 text-xs font-black cursor-pointer"
+              >
+                <Edit3 className="w-4 h-4 text-indigo-400" />
+                <span>ניהול קטגוריות</span>
+              </button>
 
              {/* Receipts Scan button */}
              <div className="flex items-center gap-2 border-r border-[var(--border)] pr-3 mr-1">
