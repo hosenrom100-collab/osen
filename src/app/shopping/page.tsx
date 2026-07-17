@@ -2,7 +2,8 @@
 
 import { RoleGuard } from "@/components/auth/RoleGuard";
 import { useState, useEffect, useRef, useCallback } from "react";
-import { db } from "@/lib/firebase/config";
+import { db, storage } from "@/lib/firebase/config";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import {
   collection, addDoc, getDocs, query, orderBy, doc,
   updateDoc, deleteDoc, onSnapshot, setDoc, getDoc,
@@ -11,7 +12,7 @@ import {
   ShoppingCart, Plus, Minus, Check, X, Clock, User, Search, Loader2, 
   ArrowRight, Trash2, CheckCircle2, Download, Flame, ChevronRight, 
   Edit3, RotateCcw, Package, ShoppingBag, Filter,
-  ChevronDown, Settings, Upload
+  ChevronDown, Settings, Upload, Receipt
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { motion, AnimatePresence, LayoutGroup } from "framer-motion";
@@ -133,6 +134,13 @@ export default function ShoppingPage() {
   const [recurringSearchVal, setRecurringSearchVal] = useState("");
   const [actionsMenuOpen, setActionsMenuOpen] = useState(false);
   const [purchasedCollapsed, setPurchasedCollapsed] = useState(true);
+
+  // Receipt Scan Modal State
+  const [receiptScanOpen, setReceiptScanOpen] = useState(false);
+  const [receiptImage, setReceiptImage] = useState<File | null>(null);
+  const [receiptPreviewUrl, setReceiptPreviewUrl] = useState<string | null>(null);
+  const [receiptNotes, setReceiptNotes] = useState("");
+  const [receiptUploading, setReceiptUploading] = useState(false);
 
 
   // Add-bar state
@@ -617,6 +625,48 @@ export default function ShoppingPage() {
     reader.readAsBinaryString(file);
   };
 
+  const handleReceiptImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setReceiptImage(file);
+      setReceiptPreviewUrl(URL.createObjectURL(file));
+    }
+  };
+
+  const handleSaveReceipt = async () => {
+    if (!receiptImage) {
+      showToast("אנא בחר או צלם תמונה של החשבונית.", "warning");
+      return;
+    }
+
+    try {
+      setReceiptUploading(true);
+      const fileId = `${Date.now()}_${user?.uid}`;
+      const storageRef = ref(storage, `receipts/${fileId}.jpg`);
+      await uploadBytes(storageRef, receiptImage, { contentType: receiptImage.type || "image/jpeg" });
+      const imageUrl = await getDownloadURL(storageRef);
+
+      await addDoc(collection(db, "receipts"), {
+        userId: user?.uid || "",
+        userName: user?.displayName || user?.email || "מערכת",
+        notes: receiptNotes.trim(),
+        imageUrl,
+        createdAt: new Date(),
+      });
+
+      showToast("החשבונית נשמרה בהצלחה בארכיון!", "success");
+      setReceiptScanOpen(false);
+      setReceiptImage(null);
+      setReceiptPreviewUrl(null);
+      setReceiptNotes("");
+    } catch (err) {
+      console.error("Error saving receipt:", err);
+      showToast("שגיאה בשמירת החשבונית במערכת.", "warning");
+    } finally {
+      setReceiptUploading(false);
+    }
+  };
+
   const exportProcurementList = async () => {
     try {
       const activeSession = requests.filter((r) => r.status !== "archived" && r.listType === "large");
@@ -862,6 +912,14 @@ export default function ShoppingPage() {
                   <Upload className="w-4 h-4 text-white" />
                   <span>ייבוא מאקסל</span>
                 </label>
+                <button
+                  onClick={() => setReceiptScanOpen(true)}
+                  className="px-3.5 py-2.5 rounded-2xl bg-rose-600 hover:bg-rose-700 !text-white text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
+                  title="צילום/העלאת קבלה ושמירה בארכיון"
+                >
+                  <Receipt className="w-4 h-4 text-white" />
+                  <span>סריקת קבלה</span>
+                </button>
              </div>
           </div>
         </header>
@@ -1730,7 +1788,16 @@ export default function ShoppingPage() {
                       <Edit3 className="w-5 h-5 text-indigo-500" />
                       <span>ניהול קטגוריות רכש</span>
                     </button>
-
+                    <button
+                      onClick={() => {
+                        setActionsMenuOpen(false);
+                        setReceiptScanOpen(true);
+                      }}
+                      className="w-full py-4 px-4 bg-rose-500/10 hover:bg-rose-500/20 rounded-2xl text-sm font-bold text-rose-600 transition-all flex items-center gap-3 justify-start cursor-pointer border-none"
+                    >
+                      <Receipt className="w-5 h-5 text-rose-500" />
+                      <span>סריקה/צילום חשבונית</span>
+                    </button>
                     {/* Import from Excel (Mobile action menu) */}
                     <div className="pt-4 border-t border-[var(--border)] mt-4 space-y-3 shrink-0">
                       <button
@@ -1759,6 +1826,164 @@ export default function ShoppingPage() {
                         id="import-excel-file-mobile" 
                       />
                     </div>
+                  </div>
+                </motion.div>
+              </div>
+            )}
+          </AnimatePresence>
+
+          {/* Receipt Scan / Upload Modal */}
+          <AnimatePresence>
+            {receiptScanOpen && (
+              <div className="fixed inset-0 z-[130] flex items-end md:items-center justify-center p-0 md:p-4">
+                <motion.div 
+                  initial={{ opacity: 0 }} 
+                  animate={{ opacity: 1 }} 
+                  exit={{ opacity: 0 }} 
+                  onClick={() => {
+                    if (!receiptUploading) {
+                      setReceiptScanOpen(false);
+                      setReceiptImage(null);
+                      setReceiptPreviewUrl(null);
+                      setReceiptNotes("");
+                    }
+                  }} 
+                  className="absolute inset-0 bg-black/60 backdrop-blur-sm" 
+                />
+                
+                <motion.div 
+                  initial={{ y: "100%", scale: 1 }} 
+                  animate={{ y: 0, scale: 1 }} 
+                  exit={{ y: "100%" }}
+                  transition={{ type: "spring", damping: 25, stiffness: 200 }}
+                  className="relative bg-[var(--surface)] border-t md:border border-[var(--border)] rounded-t-[2rem] md:rounded-[2.5rem] w-full max-w-md p-6 md:p-8 shadow-2xl text-right flex flex-col max-h-[90vh] overflow-hidden z-10" 
+                  dir="rtl"
+                >
+                  <div className="w-12 h-1.5 bg-[var(--border)] rounded-full mx-auto mb-5 md:hidden" />
+                  
+                  <div className="flex items-center justify-between mb-6 shrink-0">
+                    <h3 className="text-xl font-black flex items-center gap-2">
+                      <Receipt className="w-5 h-5 text-rose-500" />
+                      <span>צילום והעלאת חשבונית</span>
+                    </h3>
+                    <button 
+                      onClick={() => {
+                        if (!receiptUploading) {
+                          setReceiptScanOpen(false);
+                          setReceiptImage(null);
+                          setReceiptPreviewUrl(null);
+                          setReceiptNotes("");
+                        }
+                      }} 
+                      disabled={receiptUploading}
+                      className="p-2 rounded-full hover:bg-[var(--foreground)]/5 text-[var(--muted)] disabled:opacity-50"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+
+                  <div className="space-y-4 overflow-y-auto no-scrollbar pb-6 flex-1">
+                    
+                    {/* Capture / Upload Area */}
+                    {!receiptPreviewUrl ? (
+                      <div className="space-y-3">
+                        {/* Camera capture (mobile primary action) */}
+                        <label 
+                          htmlFor="camera-capture-input"
+                          className="w-full py-8 px-4 border-2 border-dashed border-[var(--border)] hover:border-rose-500/40 rounded-2xl transition-all flex flex-col items-center justify-center gap-3 cursor-pointer bg-[var(--foreground)]/[0.02]"
+                        >
+                          <div className="w-12 h-12 rounded-full bg-rose-500/10 flex items-center justify-center">
+                            <Plus className="w-6 h-6 text-rose-500" />
+                          </div>
+                          <span className="text-sm font-black text-[var(--foreground)]">צלם חשבונית מהמצלמה</span>
+                          <span className="text-xs text-[var(--muted)]">הפעלת מצלמת המכשיר ישירות</span>
+                        </label>
+                        <input 
+                          type="file"
+                          accept="image/*"
+                          capture="environment"
+                          onChange={handleReceiptImageChange}
+                          id="camera-capture-input"
+                          className="hidden"
+                        />
+
+                        {/* File upload secondary action */}
+                        <label 
+                          htmlFor="file-upload-input"
+                          className="w-full py-4 px-4 bg-[var(--foreground)]/5 hover:bg-[var(--foreground)]/10 rounded-2xl border border-[var(--border)] text-sm font-bold transition-all flex items-center gap-3 justify-center cursor-pointer"
+                        >
+                          <Upload className="w-4 h-4 text-[var(--muted)]" />
+                          <span>בחר קובץ קיים מהגלריה</span>
+                        </label>
+                        <input 
+                          type="file"
+                          accept="image/*"
+                          onChange={handleReceiptImageChange}
+                          id="file-upload-input"
+                          className="hidden"
+                        />
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        <div className="relative rounded-2xl overflow-hidden border border-[var(--border)] bg-black max-h-[250px] flex items-center justify-center">
+                          <img 
+                            src={receiptPreviewUrl} 
+                            alt="תצוגה מקדימה" 
+                            className="object-contain max-h-[250px] w-full"
+                          />
+                          <button 
+                            onClick={() => {
+                              setReceiptImage(null);
+                              setReceiptPreviewUrl(null);
+                            }}
+                            type="button"
+                            className="absolute top-2 right-2 p-1.5 rounded-full bg-black/75 text-white hover:bg-black transition-colors"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Metadata & User info */}
+                    <div className="bg-[var(--foreground)]/[0.02] border border-[var(--border)] rounded-2xl p-4 space-y-2 text-xs">
+                      <div className="flex justify-between">
+                        <span className="text-[var(--muted)] font-bold">מתעד:</span>
+                        <span className="font-black text-[var(--foreground)]">{user?.displayName || user?.email || "מערכת"}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-[var(--muted)] font-bold">תאריך:</span>
+                        <span className="font-black text-[var(--foreground)]">{new Date().toLocaleDateString("he-IL")}</span>
+                      </div>
+                    </div>
+
+                    {/* Notes field */}
+                    <div className="space-y-2">
+                      <label className="text-xs font-black text-[var(--foreground)]">הערות לחשבונית / פירוט רכש:</label>
+                      <textarea
+                        value={receiptNotes}
+                        onChange={(e) => setReceiptNotes(e.target.value)}
+                        placeholder="רשום הערות כגון: סניף, פריטים מיוחדים או לאיזה פרויקט..."
+                        className="w-full bg-[var(--background)] border border-[var(--border)] rounded-2xl p-3 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-rose-500/20 transition-all min-h-[80px] resize-none"
+                      />
+                    </div>
+
+                    {/* Save button */}
+                    <button
+                      onClick={handleSaveReceipt}
+                      disabled={receiptUploading || !receiptImage}
+                      className="w-full py-4 px-4 bg-rose-600 hover:bg-rose-700 disabled:bg-[var(--border)] text-white disabled:text-[var(--muted)] rounded-2xl text-sm font-black transition-all flex items-center justify-center gap-2 shadow-md shadow-rose-600/10"
+                    >
+                      {receiptUploading ? (
+                        <>
+                          <Loader2 className="w-5 h-5 animate-spin" />
+                          <span>שומר חשבונית בארכיון...</span>
+                        </>
+                      ) : (
+                        <span>שמור חשבונית בארכיון הקבלות</span>
+                      )}
+                    </button>
+
                   </div>
                 </motion.div>
               </div>
