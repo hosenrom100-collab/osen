@@ -11,7 +11,7 @@ import {
   ShoppingCart, Plus, Minus, Check, X, Clock, User, Search, Loader2, 
   ArrowRight, Trash2, CheckCircle2, Download, Flame, ChevronRight, 
   Edit3, RotateCcw, Package, ShoppingBag, Filter,
-  ChevronDown, Settings
+  ChevronDown, Settings, Upload
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { motion, AnimatePresence, LayoutGroup } from "framer-motion";
@@ -532,6 +532,91 @@ export default function ShoppingPage() {
     XLSX.writeFile(wb, `ארכיון_רכש_${new Date().toLocaleDateString("he-IL").replace(/\//g, "-")}.xlsx`);
   };
 
+  const downloadTemplateXlsx = () => {
+    const sampleData = [
+      {
+        "מוצר": "חלב 3%",
+        "כמות": 2,
+        "יחידה": "קרטון",
+        "קטגוריה": "גבינות ומחלבה",
+        "סוג רשימה": "סופר",
+        "הערות": "חלב תנובה ירוק"
+      },
+      {
+        "מוצר": "מקדחה נטענת",
+        "כמות": 1,
+        "יחידה": "יחידה",
+        "קטגוריה": "כללי",
+        "סוג רשימה": "רכש",
+        "הערות": "עבור צוות תחזוקה"
+      }
+    ];
+    const ws = XLSX.utils.json_to_sheet(sampleData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "תבנית יבוא");
+    XLSX.writeFile(wb, "תבנית_יבוא_קניות.xlsx");
+  };
+
+  const handleImportXlsx = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (evt) => {
+      try {
+        const bstr = evt.target?.result;
+        const wb = XLSX.read(bstr, { type: "binary" });
+        const wsname = wb.SheetNames[0];
+        const ws = wb.Sheets[wsname];
+        const data = XLSX.utils.sheet_to_json(ws) as any[];
+
+        if (data.length === 0) {
+          showToast("הקובץ ריק או לא תקין.", "warning");
+          return;
+        }
+
+        const hasProduct = data.some(row => row["מוצר"]);
+        if (!hasProduct) {
+          showToast("קובץ לא תקין. חובה להזין עמודת 'מוצר'.", "warning");
+          return;
+        }
+
+        let importedCount = 0;
+        for (const row of data) {
+          const name = row["מוצר"]?.toString().trim();
+          if (!name) continue;
+
+          const quantity = parseFloat(row["כמות"]) || 1;
+          const unit = row["יחידה"]?.toString().trim() || "יח׳";
+          const category = row["קטגוריה"]?.toString().trim() || "כללי";
+          const listTypeRaw = row["סוג רשימה"]?.toString().trim() || "סופר";
+          const listType = listTypeRaw === "רכש" ? "large" : "supermarket";
+          const notes = row["הערות"]?.toString().trim() || "";
+
+          await addDoc(collection(db, "shopping_requests"), {
+            name,
+            category,
+            quantity: `${quantity} ${unit}`,
+            notes,
+            status: "approved",
+            requestedBy: user?.uid || "",
+            requestedByName: user?.displayName || "מערכת",
+            createdAt: new Date(),
+            listType,
+          });
+          importedCount++;
+        }
+
+        showToast(`יובאו בהצלחה ${importedCount} מוצרים!`, "success");
+        e.target.value = "";
+      } catch (err) {
+        console.error("Error importing xlsx:", err);
+        showToast("שגיאה בקריאת קובץ האקסל.", "warning");
+      }
+    };
+    reader.readAsBinaryString(file);
+  };
+
   const exportProcurementList = async () => {
     try {
       const activeSession = requests.filter((r) => r.status !== "archived" && r.listType === "large");
@@ -752,6 +837,32 @@ export default function ShoppingPage() {
                 <span>יצוא רשימה קבועה</span>
               </button>
              {isAdmin && <button onClick={exportXlsx} title="ייצוא לאקסל" className="p-2.5 rounded-2xl bg-[var(--foreground)]/5 border border-[var(--border)] hover:bg-[var(--foreground)]/10 transition-all cursor-pointer"><Download className="w-5 h-5 text-[var(--muted)]" /></button>}
+
+             {/* Excel Import Options */}
+             <div className="flex items-center gap-2 border-r border-[var(--border)] pr-3 mr-1">
+                <input 
+                  type="file" 
+                  accept=".xlsx, .xls" 
+                  onChange={handleImportXlsx} 
+                  className="hidden" 
+                  id="import-excel-file-desktop" 
+                />
+                <button 
+                  onClick={downloadTemplateXlsx} 
+                  title="הורדת תבנית אקסל לייבוא" 
+                  className="px-3.5 py-2.5 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-500 hover:bg-indigo-500/20 transition-all flex items-center gap-1.5 text-xs font-black cursor-pointer"
+                >
+                  <Download className="w-4 h-4 text-indigo-500" />
+                  <span>תבנית יבוא</span>
+                </button>
+                <label 
+                  htmlFor="import-excel-file-desktop" 
+                  className="px-3.5 py-2.5 rounded-2xl bg-indigo-600 hover:bg-indigo-700 !text-white text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
+                >
+                  <Upload className="w-4 h-4 text-white" />
+                  <span>ייבוא מאקסל</span>
+                </label>
+             </div>
           </div>
         </header>
 
@@ -1619,6 +1730,35 @@ export default function ShoppingPage() {
                       <Edit3 className="w-5 h-5 text-indigo-500" />
                       <span>ניהול קטגוריות רכש</span>
                     </button>
+
+                    {/* Import from Excel (Mobile action menu) */}
+                    <div className="pt-4 border-t border-[var(--border)] mt-4 space-y-3 shrink-0">
+                      <button
+                        onClick={() => {
+                          setActionsMenuOpen(false);
+                          downloadTemplateXlsx();
+                        }}
+                        className="w-full py-3.5 px-4 bg-indigo-500/5 hover:bg-indigo-500/10 rounded-2xl border border-indigo-500/10 text-sm font-black text-indigo-600 transition-all flex items-center gap-3 justify-start cursor-pointer border-none"
+                      >
+                        <Download className="w-5 h-5 text-indigo-500" />
+                        <span>הורדת תבנית אקסל לייבוא</span>
+                      </button>
+
+                      <label
+                        htmlFor="import-excel-file-mobile"
+                        className="w-full py-3.5 px-4 bg-indigo-600 hover:bg-indigo-700 rounded-2xl text-sm font-black text-white transition-all flex items-center gap-3 justify-start cursor-pointer shadow-md shadow-indigo-600/10"
+                      >
+                        <Upload className="w-5 h-5 text-white" />
+                        <span>ייבוא מוצרים מאקסל</span>
+                      </label>
+                      <input 
+                        type="file" 
+                        accept=".xlsx, .xls" 
+                        onChange={handleImportXlsx} 
+                        className="hidden" 
+                        id="import-excel-file-mobile" 
+                      />
+                    </div>
                   </div>
                 </motion.div>
               </div>
