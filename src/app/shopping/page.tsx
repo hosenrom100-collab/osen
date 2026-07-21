@@ -135,7 +135,7 @@ function CatBadge({ cat }: { cat: string }) {
 }
 
 export default function ShoppingPage() {
-  const { user, role, isAdmin, isManager } = useAuth();
+  const { user, role, isAdmin, isManager, isLogistics } = useAuth();
   const router = useRouter();
 
   const [requests, setRequests]     = useState<ShoppingRequest[]>([]);
@@ -278,7 +278,7 @@ export default function ShoppingPage() {
     }
   };
 
-  const generateRecurringList = async () => {
+  const importRecurringList = async () => {
     const recurringItems = pool.filter(p => p.isRecurring);
     if (recurringItems.length === 0) {
       showToast("לא הוגדרו מוצרים ברשימה הקבועה. לחץ על 'עריכת רשימה קבועה' כדי להוסיף.", "warning");
@@ -287,28 +287,40 @@ export default function ShoppingPage() {
     
     setLoading(true);
     try {
-      const sortedItems = [...recurringItems].sort((a, b) => a.category.localeCompare(b.category));
-      
-      const itemsToExport = sortedItems.map(item => ({
-        name: item.name,
-        category: item.category || "כללי",
-        quantity: item.recurringQuantity || "1",
-        notes: "",
-        requestedByName: "רשימה קבועה"
-      }));
+      const activeSupermarketRequests = requests.filter(
+        (r) => r.status !== "archived" && r.listType !== "large"
+      );
 
-      const dateStr = format(new Date(), "dd/MM/yyyy");
-      const doc = generateShoppingListWord(itemsToExport, {
-        date: dateStr,
-        title: "רשימת קניות קבועה - חוות רום"
-      });
+      const itemsToImport = recurringItems.filter(
+        item => !findSimilarRequest(item.name, activeSupermarketRequests)
+      );
 
-      const fileName = `רשימת_קניות_קבועה_${format(new Date(), "yyyy-MM-dd")}.docx`;
-      await generateDocxWithLetterhead(doc, fileName);
-      showToast("הופק קובץ Word עבור הרשימה הקבועה והורד בהצלחה!", "success");
+      if (itemsToImport.length === 0) {
+        showToast("כל פריטי הרשימה הקבועה כבר קיימים ברשימת הסופר.", "warning");
+        return;
+      }
+
+      await Promise.all(
+        itemsToImport.map(item =>
+          addDoc(collection(db, "shopping_requests"), {
+            name: item.name,
+            category: item.category || "כללי",
+            quantity: item.recurringQuantity || "1",
+            notes: "",
+            priority: "normal",
+            status: "approved",
+            requestedBy: user?.uid,
+            requestedByName: "רשימה קבועה",
+            createdAt: new Date(),
+            listType: "supermarket",
+          })
+        )
+      );
+
+      showToast(`שאיבת הרשימה הקבועה הושלמה! התווספו ${itemsToImport.length} פריטים חדשים לרשימת הסופר.`, "success");
     } catch (e) {
       console.error(e);
-      showToast("שגיאה בהפקת הרשימה הקבועה.", "warning");
+      showToast("שגיאה בשאיבת הרשימה הקבועה.", "warning");
     } finally {
       setLoading(false);
     }
@@ -363,6 +375,20 @@ export default function ShoppingPage() {
       }
     } catch (e) { console.error(e); }
   }, [requests, user]);
+
+  const moveToEquipment = async (id: string) => {
+    try {
+      await updateDoc(doc(db, "shopping_requests", id), {
+        listType: "large",
+        updatedAt: new Date(),
+        updatedBy: user?.uid
+      });
+      showToast("המוצר הועבר לרשימת ציוד ורכש", "success");
+    } catch (e) {
+      console.error(e);
+      showToast("שגיאה בהעברת המוצר", "warning");
+    }
+  };
 
   const updateQuantity = async (id: string, currentQtyStr: string, increment: number) => {
     const currentVal = parseFloat(currentQtyStr) || 1;
@@ -865,14 +891,16 @@ export default function ShoppingPage() {
                 <Download className="w-4 h-4 text-emerald-400" />
                 <span>יצוא רשימה שוטפת</span>
               </button>
-              <button 
-                onClick={generateRecurringList} 
-                title="יצוא רשימה קבועה ל-Word" 
-                className="px-4 py-2.5 rounded-2xl bg-purple-500/10 border border-purple-500/20 text-purple-400 hover:bg-purple-500/20 transition-all flex items-center gap-1.5 text-xs font-black cursor-pointer"
-              >
-                <Download className="w-4 h-4 text-purple-400" />
-                <span>יצוא רשימה קבועה</span>
-              </button>
+              {(isAdmin || isLogistics) && (
+                <button 
+                  onClick={importRecurringList} 
+                  title="שאיבת פריטי הרשימה הקבועה לרשימת הסופר" 
+                  className="px-4 py-2.5 rounded-2xl bg-purple-500/10 border border-purple-500/20 text-purple-600 dark:text-purple-400 hover:bg-purple-500/20 transition-all flex items-center gap-1.5 text-xs font-black cursor-pointer"
+                >
+                  <RotateCcw className="w-4 h-4 text-purple-500" />
+                  <span>שאיבת רשימה קבועה לסופר</span>
+                </button>
+              )}
              {isAdmin && <button onClick={exportXlsx} title="ייצוא לאקסל" className="p-2.5 rounded-2xl bg-[var(--foreground)]/5 border border-[var(--border)] hover:bg-[var(--foreground)]/10 transition-all cursor-pointer"><Download className="w-5 h-5 text-[var(--muted)]" /></button>}
               <button
                 onClick={() => setIsAddingCat(true)}
@@ -936,6 +964,16 @@ export default function ShoppingPage() {
                   <Settings className="w-4 h-4 text-[var(--muted)]" />
                   <span>עריכת רשימה קבועה</span>
                 </button>
+                {(isAdmin || isLogistics) && (
+                  <button
+                    onClick={importRecurringList}
+                    className="px-4 py-2.5 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/20 text-purple-600 dark:text-purple-400 text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer"
+                    title="שאיבת פריטי הרשימה הקבועה לרשימת הסופר"
+                  >
+                    <RotateCcw className="w-4 h-4 text-purple-500" />
+                    <span>שאיבת רשימה קבועה לסופר</span>
+                  </button>
+                )}
               </div>
             )}
           </div>
@@ -1001,6 +1039,7 @@ export default function ShoppingPage() {
                              canPurchase={canPurchase}
                              currentUser={user}
                              activeCategory={activeCategory}
+                             onMoveToEquipment={moveToEquipment}
                           />
                        );
                      })}
@@ -1017,6 +1056,7 @@ export default function ShoppingPage() {
                            canPurchase={canPurchase}
                            currentUser={user}
                             activeCategory={activeCategory}
+                            onMoveToEquipment={moveToEquipment}
                         />
                      )}
 
@@ -1703,16 +1743,18 @@ export default function ShoppingPage() {
                           <span>עריכת רשימה קבועה (שבועית)</span>
                         </button>
 
-                        <button
-                          onClick={() => {
-                            setActionsMenuOpen(false);
-                            generateRecurringList();
-                          }}
-                          className="w-full py-4 px-4 bg-[var(--foreground)]/5 hover:bg-[var(--foreground)]/10 rounded-2xl border border-[var(--border)] text-sm font-bold transition-all flex items-center gap-3 justify-start cursor-pointer border-none"
-                        >
-                          <Download className="w-5 h-5 text-purple-500" />
-                          <span>ייצוא רשימה קבועה ל-Word</span>
-                        </button>
+                        {(isAdmin || isLogistics) && (
+                          <button
+                            onClick={() => {
+                              setActionsMenuOpen(false);
+                              importRecurringList();
+                            }}
+                            className="w-full py-4 px-4 bg-[var(--foreground)]/5 hover:bg-[var(--foreground)]/10 rounded-2xl border border-[var(--border)] text-sm font-bold transition-all flex items-center gap-3 justify-start cursor-pointer border-none"
+                          >
+                            <RotateCcw className="w-5 h-5 text-purple-500" />
+                            <span>שאיבת רשימה קבועה לסופר</span>
+                          </button>
+                        )}
                       </>
                     )}
 
@@ -1953,8 +1995,8 @@ const formatQuantityAndUnit = (qtyStr: string) => {
   return { qty: qtyStr, unit: "יח׳" };
 };
 
-function CategorySection({ title, items, onStatus, onEdit, onUpdateQuantity, canPurchase, currentUser, activeCategory }: {
-  title: string, items: ShoppingRequest[], onStatus: any, onEdit: any, onUpdateQuantity: any, canPurchase: boolean, currentUser: any, activeCategory: string | null
+function CategorySection({ title, items, onStatus, onEdit, onUpdateQuantity, canPurchase, currentUser, activeCategory, onMoveToEquipment }: {
+  title: string, items: ShoppingRequest[], onStatus: any, onEdit: any, onUpdateQuantity: any, canPurchase: boolean, currentUser: any, activeCategory: string | null, onMoveToEquipment: any
 }) {
   return (
     <div className="mb-6 last:mb-0 px-4 md:px-0">
@@ -1980,6 +2022,7 @@ function CategorySection({ title, items, onStatus, onEdit, onUpdateQuantity, can
             canPurchase={canPurchase}
             currentUser={currentUser}
             activeCategory={activeCategory}
+            onMoveToEquipment={onMoveToEquipment}
           />
         ))}
       </div>
@@ -1987,13 +2030,14 @@ function CategorySection({ title, items, onStatus, onEdit, onUpdateQuantity, can
   );
 }
 
-function MobileItemRow({ item, onStatus, onEdit, onUpdateQuantity, canPurchase, currentUser, activeCategory }: {
-  item: ShoppingRequest, onStatus: any, onEdit: any, onUpdateQuantity: any, canPurchase: boolean, currentUser: any, activeCategory: string | null
+function MobileItemRow({ item, onStatus, onEdit, onUpdateQuantity, canPurchase, currentUser, activeCategory, onMoveToEquipment }: {
+  item: ShoppingRequest, onStatus: any, onEdit: any, onUpdateQuantity: any, canPurchase: boolean, currentUser: any, activeCategory: string | null, onMoveToEquipment: any
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
   const isApproved = item.status === "approved" || item.status === "pending";
   const isUrgent   = item.priority === "urgent";
   const isOwnItem  = item.requestedBy === currentUser?.uid;
+  const { isAdmin, isLogistics } = useAuth();
 
   const handleDelete = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -2145,6 +2189,16 @@ function MobileItemRow({ item, onStatus, onEdit, onUpdateQuantity, canPurchase, 
                 >
                   <Trash2 className="w-3.5 h-3.5" /> מחיקה
                 </button>
+
+                {(isAdmin || isLogistics) && item.listType !== "large" && (
+                  <button
+                    onClick={() => onMoveToEquipment(item.id)}
+                    className="px-3 py-2 rounded-xl flex items-center justify-center gap-1 bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/20 transition-all active:scale-95 text-xs font-bold cursor-pointer"
+                    title="העבר לציוד ורכש"
+                  >
+                    <Package className="w-3.5 h-3.5" /> העבר לציוד ורכש
+                  </button>
+                )}
 
                 {isApproved && canPurchase && (
                   <button
