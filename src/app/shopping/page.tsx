@@ -390,6 +390,20 @@ export default function ShoppingPage() {
     }
   };
 
+  const moveToSupermarket = async (id: string) => {
+    try {
+      await updateDoc(doc(db, "shopping_requests", id), {
+        listType: "supermarket",
+        updatedAt: new Date(),
+        updatedBy: user?.uid
+      });
+      showToast("המוצר הועבר לרשימת הסופר", "success");
+    } catch (e) {
+      console.error(e);
+      showToast("שגיאה בהעברת המוצר", "warning");
+    }
+  };
+
   const updateQuantity = async (id: string, currentQtyStr: string, increment: number) => {
     const currentVal = parseFloat(currentQtyStr) || 1;
     const nextVal = Math.max(1, currentVal + increment);
@@ -891,16 +905,6 @@ export default function ShoppingPage() {
                 <Download className="w-4 h-4 text-emerald-400" />
                 <span>יצוא רשימה שוטפת</span>
               </button>
-              {(isAdmin || isLogistics) && (
-                <button 
-                  onClick={importRecurringList} 
-                  title="שאיבת פריטי הרשימה הקבועה לרשימת הסופר" 
-                  className="px-4 py-2.5 rounded-2xl bg-purple-500/10 border border-purple-500/20 text-purple-600 dark:text-purple-400 hover:bg-purple-500/20 transition-all flex items-center gap-1.5 text-xs font-black cursor-pointer"
-                >
-                  <RotateCcw className="w-4 h-4 text-purple-500" />
-                  <span>שאיבת רשימה קבועה לסופר</span>
-                </button>
-              )}
              {isAdmin && <button onClick={exportXlsx} title="ייצוא לאקסל" className="p-2.5 rounded-2xl bg-[var(--foreground)]/5 border border-[var(--border)] hover:bg-[var(--foreground)]/10 transition-all cursor-pointer"><Download className="w-5 h-5 text-[var(--muted)]" /></button>}
               <button
                 onClick={() => setIsAddingCat(true)}
@@ -964,7 +968,7 @@ export default function ShoppingPage() {
                   <Settings className="w-4 h-4 text-[var(--muted)]" />
                   <span>עריכת רשימה קבועה</span>
                 </button>
-                {(isAdmin || isLogistics) && (
+                {(isAdmin || isManager || isLogistics) && (
                   <button
                     onClick={importRecurringList}
                     className="px-4 py-2.5 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/20 text-purple-600 dark:text-purple-400 text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer"
@@ -1040,6 +1044,7 @@ export default function ShoppingPage() {
                              currentUser={user}
                              activeCategory={activeCategory}
                              onMoveToEquipment={moveToEquipment}
+                             onMoveToSupermarket={moveToSupermarket}
                           />
                        );
                      })}
@@ -1057,6 +1062,7 @@ export default function ShoppingPage() {
                            currentUser={user}
                             activeCategory={activeCategory}
                             onMoveToEquipment={moveToEquipment}
+                            onMoveToSupermarket={moveToSupermarket}
                         />
                      )}
 
@@ -1743,7 +1749,7 @@ export default function ShoppingPage() {
                           <span>עריכת רשימה קבועה (שבועית)</span>
                         </button>
 
-                        {(isAdmin || isLogistics) && (
+                        {(isAdmin || isManager || isLogistics) && (
                           <button
                             onClick={() => {
                               setActionsMenuOpen(false);
@@ -1995,8 +2001,8 @@ const formatQuantityAndUnit = (qtyStr: string) => {
   return { qty: qtyStr, unit: "יח׳" };
 };
 
-function CategorySection({ title, items, onStatus, onEdit, onUpdateQuantity, canPurchase, currentUser, activeCategory, onMoveToEquipment }: {
-  title: string, items: ShoppingRequest[], onStatus: any, onEdit: any, onUpdateQuantity: any, canPurchase: boolean, currentUser: any, activeCategory: string | null, onMoveToEquipment: any
+function CategorySection({ title, items, onStatus, onEdit, onUpdateQuantity, canPurchase, currentUser, activeCategory, onMoveToEquipment, onMoveToSupermarket }: {
+  title: string, items: ShoppingRequest[], onStatus: any, onEdit: any, onUpdateQuantity: any, canPurchase: boolean, currentUser: any, activeCategory: string | null, onMoveToEquipment: any, onMoveToSupermarket: any
 }) {
   return (
     <div className="mb-6 last:mb-0 px-4 md:px-0">
@@ -2023,6 +2029,7 @@ function CategorySection({ title, items, onStatus, onEdit, onUpdateQuantity, can
             currentUser={currentUser}
             activeCategory={activeCategory}
             onMoveToEquipment={onMoveToEquipment}
+            onMoveToSupermarket={onMoveToSupermarket}
           />
         ))}
       </div>
@@ -2030,14 +2037,14 @@ function CategorySection({ title, items, onStatus, onEdit, onUpdateQuantity, can
   );
 }
 
-function MobileItemRow({ item, onStatus, onEdit, onUpdateQuantity, canPurchase, currentUser, activeCategory, onMoveToEquipment }: {
-  item: ShoppingRequest, onStatus: any, onEdit: any, onUpdateQuantity: any, canPurchase: boolean, currentUser: any, activeCategory: string | null, onMoveToEquipment: any
+function MobileItemRow({ item, onStatus, onEdit, onUpdateQuantity, canPurchase, currentUser, activeCategory, onMoveToEquipment, onMoveToSupermarket }: {
+  item: ShoppingRequest, onStatus: any, onEdit: any, onUpdateQuantity: any, canPurchase: boolean, currentUser: any, activeCategory: string | null, onMoveToEquipment: any, onMoveToSupermarket: any
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
   const isApproved = item.status === "approved" || item.status === "pending";
   const isUrgent   = item.priority === "urgent";
   const isOwnItem  = item.requestedBy === currentUser?.uid;
-  const { isAdmin, isLogistics } = useAuth();
+  const { isAdmin, isManager, isLogistics } = useAuth();
 
   const handleDelete = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -2190,14 +2197,24 @@ function MobileItemRow({ item, onStatus, onEdit, onUpdateQuantity, canPurchase, 
                   <Trash2 className="w-3.5 h-3.5" /> מחיקה
                 </button>
 
-                {(isAdmin || isLogistics) && item.listType !== "large" && (
-                  <button
-                    onClick={() => onMoveToEquipment(item.id)}
-                    className="px-3 py-2 rounded-xl flex items-center justify-center gap-1 bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/20 transition-all active:scale-95 text-xs font-bold cursor-pointer"
-                    title="העבר לציוד ורכש"
-                  >
-                    <Package className="w-3.5 h-3.5" /> העבר לציוד ורכש
-                  </button>
+                {(isAdmin || isManager || isLogistics) && (
+                  item.listType !== "large" ? (
+                    <button
+                      onClick={() => onMoveToEquipment(item.id)}
+                      className="px-3 py-2 rounded-xl flex items-center justify-center gap-1 bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/20 transition-all active:scale-95 text-xs font-bold cursor-pointer"
+                      title="העבר לציוד ורכש"
+                    >
+                      <Package className="w-3.5 h-3.5" /> העבר לציוד ורכש
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => onMoveToSupermarket(item.id)}
+                      className="px-3 py-2 rounded-xl flex items-center justify-center gap-1 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 transition-all active:scale-95 text-xs font-bold cursor-pointer"
+                      title="העבר לרשימת סופר"
+                    >
+                      <ShoppingCart className="w-3.5 h-3.5" /> העבר לרשימת סופר
+                    </button>
+                  )
                 )}
 
                 {isApproved && canPurchase && (
