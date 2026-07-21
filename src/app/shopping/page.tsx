@@ -12,7 +12,7 @@ import {
   ShoppingCart, Plus, Minus, Check, X, Clock, User, Search, Loader2, 
   ArrowRight, Trash2, CheckCircle2, Download, Flame, ChevronRight, 
   Edit3, RotateCcw, Package, ShoppingBag, Filter,
-  ChevronDown, Settings, Upload, Receipt
+  ChevronDown, Settings, Upload, Receipt, Boxes, AlertTriangle, SlidersHorizontal
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { motion, AnimatePresence, LayoutGroup } from "framer-motion";
@@ -43,6 +43,18 @@ interface Product {
   isRecurring?: boolean;
   recurringQuantity?: string;
 }
+
+interface InventoryItem {
+  id: string;
+  productId: string;
+  name: string;
+  category: string;
+  currentStock: number;
+  minStock: number;
+  unit: string;
+  lastUpdated?: any;
+}
+
 
 const CAT_COLOR: Record<string, string> = {
   "גבינות ומחלבה":       "text-amber-500 bg-amber-500/10 border border-amber-500/20",
@@ -141,13 +153,22 @@ export default function ShoppingPage() {
   const [requests, setRequests]     = useState<ShoppingRequest[]>([]);
   const [pool, setPool]             = useState<Product[]>([]);
   const [loading, setLoading]       = useState(true);
-  const [view, setView]             = useState<"list" | "archive">("list");
+  const [view, setView]             = useState<"list" | "archive" | "inventory">("list");
   const [showArchivePrompt, setShowArchivePrompt] = useState(false);
   const [listType, setListType]     = useState<"supermarket" | "large">("supermarket");
   const [isEditingRecurring, setIsEditingRecurring] = useState(false);
   const [recurringSearchVal, setRecurringSearchVal] = useState("");
   const [actionsMenuOpen, setActionsMenuOpen] = useState(false);
   const [purchasedCollapsed, setPurchasedCollapsed] = useState(true);
+
+  // Inventory Management State
+  const [inventoryMap, setInventoryMap] = useState<Record<string, InventoryItem>>({});
+  const [inventoryFilter, setInventoryFilter] = useState<"all" | "out" | "low" | "ok">("all");
+  const [inventorySearch, setInventorySearch] = useState("");
+  const [editingInvItem, setEditingInvItem] = useState<{ productId: string; name: string; minStock: number; unit: string } | null>(null);
+  const [editMinStock, setEditMinStock] = useState("1");
+  const [editUnit, setEditUnit] = useState("יחידות");
+
 
   // Receipt Scan Modal State
   const [receiptScanOpen, setReceiptScanOpen] = useState(false);
@@ -227,8 +248,24 @@ export default function ShoppingPage() {
     }, (err) => {
       console.error("Uncaught Error in snapshot listener:", err);
     });
-    return () => unsub();
+
+    const unsubInv = onSnapshot(collection(db, "inventory"), (snap) => {
+      const map: Record<string, InventoryItem> = {};
+      snap.forEach((d) => {
+        map[d.id] = { id: d.id, productId: d.id, ...d.data() } as InventoryItem;
+      });
+      setInventoryMap(map);
+    }, (err) => {
+      console.error("Error in inventory snapshot listener:", err);
+    });
+
+
+    return () => {
+      unsub();
+      unsubInv();
+    };
   }, [user]);
+
 
   useEffect(() => {
     if (editItem) {
@@ -326,7 +363,78 @@ export default function ShoppingPage() {
     }
   };
 
+  const updateInventoryStock = async (
+    productId: string,
+    name: string,
+    category: string,
+    currentVal: number,
+    delta: number,
+    unit = "יחידות",
+    minStock = 1
+  ) => {
+    const nextVal = Math.max(0, currentVal + delta);
+    try {
+      await setDoc(doc(db, "inventory", productId), {
+        productId,
+        name,
+        category,
+        currentStock: nextVal,
+        minStock,
+        unit,
+        lastUpdated: new Date(),
+        lastUpdatedBy: user?.uid,
+      }, { merge: true });
+    } catch (e) {
+      console.error("Error updating inventory stock:", e);
+      showToast("שגיאה בעדכון המלאי", "warning");
+    }
+  };
+
+  const addInventoryToShoppingList = async (name: string, category: string, unit = "יחידות") => {
+    const activeRequestsList = requests.filter((r) => r.status !== "archived");
+    const similarName = findSimilarRequest(name, activeRequestsList);
+    if (similarName) {
+      showToast(`המוצר כבר ברשימת הקניות בשם דומה: "${similarName}"`, "warning");
+      return;
+    }
+    try {
+      await addDoc(collection(db, "shopping_requests"), {
+        name,
+        category: category || "כללי",
+        quantity: `1 ${unit}`,
+        notes: "הוזמן מניהול מלאי",
+        priority: "normal",
+        status: "approved",
+        requestedBy: user?.uid,
+        requestedByName: user?.displayName || "ניהול מלאי",
+        createdAt: new Date(),
+        listType: listType === "large" ? "large" : "supermarket",
+      });
+      showToast(`"${name}" הוסף בהצלחה לרשימת הקניות!`, "success");
+    } catch (e) {
+      console.error("Error adding product from inventory to shopping list:", e);
+      showToast("שגיאה בהוספת המוצר לרשימת הקניות", "warning");
+    }
+  };
+
+  const saveInventorySettings = async (productId: string, minStockVal: number, unitVal: string) => {
+    try {
+      await setDoc(doc(db, "inventory", productId), {
+        minStock: minStockVal,
+        unit: unitVal,
+        lastUpdated: new Date(),
+        lastUpdatedBy: user?.uid,
+      }, { merge: true });
+      setEditingInvItem(null);
+      showToast("הגדרות המוצר עודכנו בהצלחה", "success");
+    } catch (e) {
+      console.error("Error updating inventory settings:", e);
+      showToast("שגיאה בעדכון הגדרות המוצר", "warning");
+    }
+  };
+
   const changeStatus = useCallback(async (
+
     id: string,
     next: "pending" | "approved" | "purchased" | "archived" | "deleted",
     extra: Record<string, any> = {}
@@ -340,7 +448,30 @@ export default function ShoppingPage() {
         });
 
         if (next === "purchased") {
+          const targetReq = requests.find((r) => r.id === id);
+          if (targetReq) {
+            const normReqName = normalizeHebrewString(targetReq.name);
+            const matchingProduct = pool.find((p) => normalizeHebrewString(p.name) === normReqName);
+            if (matchingProduct) {
+              const invItem = inventoryMap[matchingProduct.id];
+              const currStock = invItem?.currentStock ?? 0;
+              const parsedQty = parseFloat(targetReq.quantity) || 1;
+              const newStock = currStock + parsedQty;
+              setDoc(doc(db, "inventory", matchingProduct.id), {
+                productId: matchingProduct.id,
+                name: matchingProduct.name,
+                category: matchingProduct.category,
+                currentStock: newStock,
+                minStock: invItem?.minStock ?? 1,
+                unit: invItem?.unit ?? "יחידות",
+                lastUpdated: new Date(),
+                lastUpdatedBy: user?.uid,
+              }, { merge: true }).catch((err) => console.error("Auto inventory update error:", err));
+            }
+          }
+
           const remainingApproved = requests.filter((r) => (r.status === "approved" || r.status === "pending") && r.id !== id);
+
           if (remainingApproved.length === 0) {
             // Notify managers and logistics
             sendPush({
@@ -774,6 +905,40 @@ export default function ShoppingPage() {
                     <ArrowRight className="w-4 h-4 text-[var(--muted)]" />
                  </button>
                  
+                 <div className="flex items-center gap-1 bg-[var(--foreground)]/[0.04] p-0.5 rounded-xl border border-[var(--border)]">
+                    <button 
+                      onClick={() => setView("list")}
+                      className={`px-2 py-1 rounded-lg text-[10px] font-black transition-all cursor-pointer border-none ${
+                        view === "list"
+                          ? "bg-[var(--surface)] text-indigo-600 shadow-sm"
+                          : "text-[var(--muted)] bg-transparent"
+                      }`}
+                    >
+                       רשימה
+                    </button>
+                    <button 
+                      onClick={() => setView("inventory")}
+                      className={`px-2 py-1 rounded-lg text-[10px] font-black transition-all flex items-center gap-0.5 cursor-pointer border-none ${
+                        view === "inventory"
+                          ? "bg-[var(--surface)] text-indigo-600 shadow-sm"
+                          : "text-[var(--muted)] bg-transparent"
+                      }`}
+                    >
+                       <Boxes className="w-3 h-3" />
+                       מלאי
+                    </button>
+                    <button 
+                      onClick={() => setView("archive")}
+                      className={`px-2 py-1 rounded-lg text-[10px] font-black transition-all cursor-pointer border-none ${
+                        view === "archive"
+                          ? "bg-[var(--surface)] text-indigo-600 shadow-sm"
+                          : "text-[var(--muted)] bg-transparent"
+                      }`}
+                    >
+                       ארכיון
+                    </button>
+                  </div>
+                 
                  {/* Compact Segmented Control for Supermarket vs Procurement */}
                  <div className="flex bg-[var(--foreground)]/[0.04] p-0.5 rounded-xl border border-[var(--border)] relative shrink-0">
                    <button
@@ -886,9 +1051,40 @@ export default function ShoppingPage() {
             </div>
           </div>
           <div className="flex items-center gap-4">
-             <button onClick={() => setView(view === "list" ? "archive" : "list")} className="px-6 py-2.5 rounded-2xl bg-[var(--foreground)]/5 border border-[var(--border)] text-xs font-black hover:bg-[var(--foreground)]/10 transition-all">
-                {view === "list" ? "ארכיון קניות" : "רשימה פעילה"}
-             </button>
+             <div className="flex bg-[var(--foreground)]/[0.04] p-1 rounded-2xl border border-[var(--border)] gap-1">
+               <button 
+                 onClick={() => setView("list")} 
+                 className={`px-4 py-2 rounded-xl text-xs font-black transition-all border-none cursor-pointer ${
+                   view === "list"
+                     ? "bg-[var(--surface)] text-indigo-600 shadow-sm"
+                     : "text-[var(--muted)] hover:text-[var(--foreground)] bg-transparent"
+                 }`}
+               >
+                  רשימה פעילה
+               </button>
+               <button 
+                 onClick={() => setView("inventory")} 
+                 className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 border-none cursor-pointer ${
+                   view === "inventory"
+                     ? "bg-[var(--surface)] text-indigo-600 shadow-sm"
+                     : "text-[var(--muted)] hover:text-[var(--foreground)] bg-transparent"
+                 }`}
+               >
+                  <Boxes className="w-4 h-4" />
+                  <span>ניהול מלאי</span>
+               </button>
+               <button 
+                 onClick={() => setView("archive")} 
+                 className={`px-4 py-2 rounded-xl text-xs font-black transition-all border-none cursor-pointer ${
+                   view === "archive"
+                     ? "bg-[var(--surface)] text-indigo-600 shadow-sm"
+                     : "text-[var(--muted)] hover:text-[var(--foreground)] bg-transparent"
+                 }`}
+               >
+                  ארכיון קניות
+               </button>
+             </div>
+
               <button 
                 onClick={exportProcurementList} 
                 title="יצוא רשימת רכש ל-Word" 
@@ -1111,6 +1307,234 @@ export default function ShoppingPage() {
                       </div>
                     )}
                 </>
+              ) : view === "inventory" ? (
+                <div className="p-3 md:p-6 space-y-6 max-w-[900px] mx-auto">
+                   {/* Inventory Header & Statistics Summary */}
+                   <div className="bg-[var(--surface)] border border-[var(--border)] rounded-[2rem] p-5 shadow-sm space-y-4">
+                      <div className="flex items-center justify-between flex-wrap gap-3 border-b border-[var(--border)] pb-4">
+                         <div>
+                            <h2 className="text-xl font-black flex items-center gap-2">
+                               <Boxes className="w-6 h-6 text-indigo-500" />
+                               <span>ניהול מלאי מוצרים</span>
+                            </h2>
+                            <p className="text-xs text-[var(--muted)] font-bold mt-1">מעקב ועדכון מלאי בזמן אמת עבור כל מוצרי חוסן</p>
+                         </div>
+                         
+                         <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => setIsAddingCat(true)}
+                              className="px-3.5 py-2 rounded-xl bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer"
+                            >
+                              <Edit3 className="w-3.5 h-3.5" />
+                              <span>ניהול קטגוריות</span>
+                            </button>
+                         </div>
+                      </div>
+
+                      {/* Stats Grid */}
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                         <button 
+                           onClick={() => setInventoryFilter("all")} 
+                           className={`p-3 rounded-2xl border text-right transition-all cursor-pointer ${
+                             inventoryFilter === "all" ? "bg-indigo-500/10 border-indigo-500/40 ring-2 ring-indigo-500/20" : "bg-[var(--foreground)]/[0.02] border-[var(--border)] hover:bg-[var(--foreground)]/5"
+                           }`}
+                         >
+                            <span className="text-[10px] font-black text-[var(--muted)] block">סה״כ מוצרים</span>
+                            <span className="text-xl font-black text-indigo-600 dark:text-indigo-400">{pool.length}</span>
+                         </button>
+
+                         <button 
+                           onClick={() => setInventoryFilter("out")} 
+                           className={`p-3 rounded-2xl border text-right transition-all cursor-pointer ${
+                             inventoryFilter === "out" ? "bg-rose-500/10 border-rose-500/40 ring-2 ring-rose-500/20" : "bg-[var(--foreground)]/[0.02] border-[var(--border)] hover:bg-[var(--foreground)]/5"
+                           }`}
+                         >
+                            <span className="text-[10px] font-black text-rose-500 block flex items-center gap-1">
+                              <span className="w-2 h-2 rounded-full bg-rose-500 inline-block" />
+                              אזל במלאי
+                            </span>
+                            <span className="text-xl font-black text-rose-600 dark:text-rose-400">
+                               {pool.filter(p => (inventoryMap[p.id]?.currentStock ?? 0) === 0).length}
+                            </span>
+                         </button>
+
+                         <button 
+                           onClick={() => setInventoryFilter("low")} 
+                           className={`p-3 rounded-2xl border text-right transition-all cursor-pointer ${
+                             inventoryFilter === "low" ? "bg-amber-500/10 border-amber-500/40 ring-2 ring-amber-500/20" : "bg-[var(--foreground)]/[0.02] border-[var(--border)] hover:bg-[var(--foreground)]/5"
+                           }`}
+                         >
+                            <span className="text-[10px] font-black text-amber-500 block">מלאי נמוך</span>
+                            <span className="text-xl font-black text-amber-600 dark:text-amber-400">
+                               {pool.filter(p => {
+                                  const s = inventoryMap[p.id]?.currentStock ?? 0;
+                                  const m = inventoryMap[p.id]?.minStock ?? 1;
+                                  return s > 0 && s <= m;
+                               }).length}
+                            </span>
+                         </button>
+
+                         <button 
+                           onClick={() => setInventoryFilter("ok")} 
+                           className={`p-3 rounded-2xl border text-right transition-all cursor-pointer ${
+                             inventoryFilter === "ok" ? "bg-emerald-500/10 border-emerald-500/40 ring-2 ring-emerald-500/20" : "bg-[var(--foreground)]/[0.02] border-[var(--border)] hover:bg-[var(--foreground)]/5"
+                           }`}
+                         >
+                            <span className="text-[10px] font-black text-emerald-500 block">תקין</span>
+                            <span className="text-xl font-black text-emerald-600 dark:text-emerald-400">
+                               {pool.filter(p => {
+                                  const s = inventoryMap[p.id]?.currentStock ?? 0;
+                                  const m = inventoryMap[p.id]?.minStock ?? 1;
+                                  return s > m;
+                               }).length}
+                            </span>
+                         </button>
+                      </div>
+
+                      {/* Search & Category Filter Controls */}
+                      <div className="flex items-center gap-2 pt-2">
+                         <div className="relative flex-1">
+                            <Search className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--muted)]" />
+                            <input 
+                              type="text" 
+                              value={inventorySearch} 
+                              onChange={e => setInventorySearch(e.target.value)} 
+                              placeholder="חפש מוצר במלאי..." 
+                              className="w-full bg-[var(--background)] border border-[var(--border)] rounded-xl py-2 pr-10 pl-3 text-xs font-bold focus:outline-none focus:border-indigo-500 text-[var(--foreground)]" 
+                            />
+                         </div>
+
+                         <select
+                           value={activeCategory || ""}
+                           onChange={e => setActiveCategory(e.target.value || null)}
+                           className="h-9 px-3 rounded-xl border border-[var(--border)] bg-[var(--background)] text-xs font-bold text-[var(--foreground)] focus:outline-none"
+                         >
+                            <option value="">כל הקטגוריות</option>
+                            {categories.map(cat => (
+                              <option key={cat} value={cat}>{cat}</option>
+                            ))}
+                         </select>
+                      </div>
+                   </div>
+
+                   {/* Inventory Product Cards List */}
+                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                      {pool.filter(p => {
+                         if (activeCategory && p.category !== activeCategory) return false;
+                         if (inventorySearch.trim()) {
+                            const q = inventorySearch.trim().toLowerCase();
+                            if (!p.name.toLowerCase().includes(q) && !p.category.toLowerCase().includes(q)) return false;
+                         }
+                         const inv = inventoryMap[p.id];
+                         const stock = inv?.currentStock ?? 0;
+                         const minStock = inv?.minStock ?? 1;
+                         if (inventoryFilter === "out") return stock === 0;
+                         if (inventoryFilter === "low") return stock > 0 && stock <= minStock;
+                         if (inventoryFilter === "ok") return stock > minStock;
+                         return true;
+                      }).map(p => {
+                         const inv = inventoryMap[p.id];
+                         const stock = inv?.currentStock ?? 0;
+                         const minStock = inv?.minStock ?? 1;
+                         const unit = inv?.unit ?? "יחידות";
+                         const isOut = stock === 0;
+                         const isLow = stock > 0 && stock <= minStock;
+
+                         const statusBg = isOut 
+                           ? "bg-rose-500/10 border-rose-500/30 text-rose-600 dark:text-rose-400" 
+                           : isLow 
+                           ? "bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400" 
+                           : "bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400";
+
+                         const statusDot = isOut ? "bg-rose-500" : isLow ? "bg-amber-500" : "bg-emerald-500";
+                         const statusText = isOut ? "אזל במלאי" : isLow ? "מלאי נמוך" : "תקין במלאי";
+
+                         return (
+                            <div 
+                              key={p.id} 
+                              className={`bg-[var(--surface)] border rounded-2xl p-4 shadow-sm transition-all flex flex-col justify-between gap-3 relative overflow-hidden ${
+                                isOut ? "border-rose-500/30 ring-1 ring-rose-500/10" : "border-[var(--border)]"
+                              }`}
+                            >
+                               {/* Card Header: Product Name + Status */}
+                               <div>
+                                  <div className="flex items-start justify-between gap-2 mb-1.5">
+                                     <h3 className="text-sm font-black text-[var(--foreground)] leading-snug">{p.name}</h3>
+                                     <div className="flex items-center gap-1 shrink-0">
+                                        <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border flex items-center gap-1 ${statusBg}`}>
+                                           <span className={`w-1.5 h-1.5 rounded-full ${statusDot}`} />
+                                           {statusText}
+                                        </span>
+                                        <button
+                                          onClick={() => {
+                                            setEditingInvItem({ productId: p.id, name: p.name, minStock, unit });
+                                            setEditMinStock(String(minStock));
+                                            setEditUnit(unit);
+                                          }}
+                                          className="p-1 rounded-lg hover:bg-[var(--foreground)]/5 text-[var(--muted)] hover:text-[var(--foreground)] transition-all cursor-pointer"
+                                          title="הגדרות סף יחידות"
+                                        >
+                                           <Settings className="w-3.5 h-3.5" />
+                                        </button>
+                                     </div>
+                                  </div>
+
+                                  <div className="flex items-center gap-2">
+                                     <CatBadge cat={p.category} />
+                                     <span className="text-[10px] text-[var(--muted)] font-bold">סף מינימום: {minStock} {unit}</span>
+                                  </div>
+                               </div>
+
+                               {/* Stepper + Quick Add Button */}
+                               <div className="flex items-center justify-between gap-2 pt-2 border-t border-[var(--border)]/60">
+                                  {/* Stepper */}
+                                  <div className="flex items-center gap-1 bg-[var(--foreground)]/[0.04] border border-[var(--border)] rounded-xl p-1 shadow-inner">
+                                     <button
+                                       onClick={() => updateInventoryStock(p.id, p.name, p.category, stock, -1, unit, minStock)}
+                                       disabled={stock <= 0}
+                                       className="w-8 h-8 rounded-lg flex items-center justify-center bg-[var(--surface)] hover:bg-[var(--foreground)]/10 text-[var(--foreground)] disabled:opacity-30 disabled:hover:bg-transparent transition-all border border-[var(--border)] cursor-pointer active:scale-95"
+                                     >
+                                        <Minus className="w-3.5 h-3.5 stroke-[2.5]" />
+                                     </button>
+                                     <div className="px-2 text-center min-w-[50px]">
+                                        <span className="text-sm font-black block leading-none">{stock}</span>
+                                        <span className="text-[9px] font-bold text-[var(--muted)] block">{unit}</span>
+                                     </div>
+                                     <button
+                                       onClick={() => updateInventoryStock(p.id, p.name, p.category, stock, 1, unit, minStock)}
+                                       className="w-8 h-8 rounded-lg flex items-center justify-center bg-[var(--surface)] hover:bg-[var(--foreground)]/10 text-[var(--foreground)] transition-all border border-[var(--border)] cursor-pointer active:scale-95"
+                                     >
+                                        <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+                                     </button>
+                                  </div>
+
+                                  {/* Quick Add to Shopping List Button */}
+                                  <button
+                                    onClick={() => addInventoryToShoppingList(p.name, p.category, unit)}
+                                    className={`px-3 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer shadow-sm active:scale-95 ${
+                                      isOut || isLow
+                                        ? "bg-indigo-600 hover:bg-indigo-500 !text-white"
+                                        : "bg-[var(--foreground)]/5 hover:bg-[var(--foreground)]/10 text-[var(--foreground)] border border-[var(--border)]"
+                                    }`}
+                                    title="הוסף מוצר זה לרשימת הקניות"
+                                  >
+                                     <ShoppingCart className="w-3.5 h-3.5" />
+                                     <span>הוסף לקניות</span>
+                                  </button>
+                               </div>
+                            </div>
+                         );
+                      })}
+                   </div>
+
+                   {/* Empty state fallback */}
+                   {pool.length === 0 && (
+                      <div className="py-20 text-center opacity-40">
+                         <Boxes className="w-12 h-12 mx-auto mb-2" />
+                         <p className="text-sm font-black">אין מוצרים במאגר המלאי</p>
+                      </div>
+                   )}
+                </div>
               ) : (
                 <div className="p-4 space-y-6">
                    <h2 className="text-2xl font-black px-2">ארכיון רכישות</h2>
@@ -1132,6 +1556,7 @@ export default function ShoppingPage() {
                    ))}
                 </div>
               )}
+
             </div>
           </div>
         </main>
@@ -1495,6 +1920,74 @@ export default function ShoppingPage() {
              </div>
           )}
          </AnimatePresence>
+
+        {/* Inventory Item Settings Dialog */}
+        <AnimatePresence>
+          {editingInvItem && (
+             <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setEditingInvItem(null)} className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+                <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} 
+                  className="relative bg-[var(--surface)] border border-[var(--border)] rounded-[2.5rem] w-full max-w-md p-8 shadow-2xl text-right flex flex-col" dir="rtl">
+                   
+                   <div className="flex items-center justify-between mb-6 shrink-0">
+                      <h3 className="text-lg font-black flex items-center gap-2">
+                        <Settings className="w-5 h-5 text-indigo-500" />
+                        <span>הגדרות מלאי: {editingInvItem.name}</span>
+                      </h3>
+                      <button onClick={() => setEditingInvItem(null)} className="p-2 rounded-full hover:bg-[var(--foreground)]/5 text-[var(--muted)]">
+                        <X className="w-5 h-5" />
+                      </button>
+                   </div>
+
+                   <div className="space-y-4 mb-6">
+                      <div>
+                         <label className="text-xs font-black text-[var(--muted)] mb-1 block">סף מינימום להתרעה (מינ׳ מלאי):</label>
+                         <input 
+                            type="number" 
+                            min="0"
+                            value={editMinStock} 
+                            onChange={e => setEditMinStock(e.target.value)} 
+                            className="w-full bg-[var(--background)] border border-[var(--border)] rounded-xl py-2.5 px-4 text-xs font-bold text-[var(--foreground)] focus:border-indigo-500 outline-none"
+                         />
+                      </div>
+
+                      <div>
+                         <label className="text-xs font-black text-[var(--muted)] mb-1 block">יחידת מידה:</label>
+                         <select 
+                            value={editUnit} 
+                            onChange={e => setEditUnit(e.target.value)} 
+                            className="w-full bg-[var(--background)] border border-[var(--border)] rounded-xl py-2.5 px-4 text-xs font-bold text-[var(--foreground)] focus:border-indigo-500 outline-none"
+                         >
+                            <option value="יחידות">יחידות</option>
+                            <option value="חבילות">חבילות</option>
+                            <option value="בקבוקים">בקבוקים</option>
+                            <option value="ק״ג">ק״ג</option>
+                            <option value="ליטר">ליטר</option>
+                            <option value="מארזים">מארזים</option>
+                            <option value="קופסאות">קופסאות</option>
+                         </select>
+                      </div>
+                   </div>
+
+                   <div className="flex gap-2">
+                      <button 
+                        onClick={() => saveInventorySettings(editingInvItem.productId, parseFloat(editMinStock) || 1, editUnit)}
+                        className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-500 !text-white rounded-xl text-xs font-black transition-all cursor-pointer shadow-md shadow-indigo-600/10 active:scale-95 border-none"
+                      >
+                        שמור שינויים
+                      </button>
+                      <button 
+                        onClick={() => setEditingInvItem(null)}
+                        className="py-3 px-5 bg-[var(--foreground)]/5 hover:bg-[var(--foreground)]/10 text-[var(--muted)] rounded-xl text-xs font-black transition-all cursor-pointer border-none"
+                      >
+                        ביטול
+                      </button>
+                   </div>
+                </motion.div>
+             </div>
+          )}
+        </AnimatePresence>
+
 
         {/* Recurring List Edit Modal */}
         <AnimatePresence>

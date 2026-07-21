@@ -3,8 +3,8 @@
 import { RoleGuard } from "@/components/auth/RoleGuard";
 import { useState, useEffect } from "react";
 import { db } from "@/lib/firebase/config";
-import { collection, addDoc, getDocs, query, orderBy, doc, deleteDoc, writeBatch, getDoc, setDoc } from "firebase/firestore";
-import { Package, Plus, Trash2, Tag, Search, ArrowRight, Loader2, Settings, X, Download, Upload } from "lucide-react";
+import { collection, addDoc, getDocs, query, orderBy, where, doc, deleteDoc, writeBatch, getDoc, setDoc } from "firebase/firestore";
+import { Package, Plus, Trash2, Tag, Search, ArrowRight, Loader2, Settings, X, Download, Upload, Edit3, Check } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
 import * as XLSX from "xlsx";
@@ -24,7 +24,9 @@ export default function ShoppingPoolPage() {
   const [newCategory, setNewCategory] = useState("כללי");
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [newCatInput, setNewCatInput] = useState("");
-  
+  const [editingCatName, setEditingCatName] = useState<string | null>(null);
+  const [editingCatNewValue, setEditingCatNewValue] = useState("");
+
   const router = useRouter();
 
   const [categories, setCategories] = useState([
@@ -39,6 +41,14 @@ export default function ShoppingPoolPage() {
       if (s.exists() && s.data().categories) setCategories(s.data().categories);
     });
   }, []);
+
+  const syncCategoryInRequests = async (oldName: string, newName: string) => {
+    const snap = await getDocs(query(collection(db, "shopping_requests"), where("category", "==", oldName)));
+    if (snap.empty) return;
+    const batch = writeBatch(db);
+    snap.forEach(d => batch.update(doc(db, "shopping_requests", d.id), { category: newName }));
+    await batch.commit();
+  };
 
   const handleAddCategory = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -56,6 +66,37 @@ export default function ShoppingPoolPage() {
     } catch (err) {
       console.error("Error adding category:", err);
       alert("שגיאה בהוספת קטגוריה");
+    }
+  };
+
+  const handleRenameCategory = async (oldName: string, newName: string) => {
+    const trimmedNew = newName.trim();
+    if (!trimmedNew || trimmedNew === oldName) {
+      setEditingCatName(null);
+      return;
+    }
+    if (categories.includes(trimmedNew)) {
+      alert("קטגוריה עם שם זה כבר קיימת!");
+      return;
+    }
+    const updatedCats = categories.map(c => c === oldName ? trimmedNew : c);
+    try {
+      await setDoc(doc(db, "settings", "shopping"), { categories: updatedCats }, { merge: true });
+      setCategories(updatedCats);
+      setEditingCatName(null);
+
+      const productsInCat = products.filter(p => p.category === oldName);
+      if (productsInCat.length > 0) {
+        const batch = writeBatch(db);
+        productsInCat.forEach(p => batch.update(doc(db, "product_pool", p.id), { category: trimmedNew }));
+        await batch.commit();
+        setProducts(products.map(p => p.category === oldName ? { ...p, category: trimmedNew } : p));
+      }
+
+      await syncCategoryInRequests(oldName, trimmedNew);
+    } catch (err) {
+      console.error("Error renaming category:", err);
+      alert("שגיאה בעדכון הקטגוריה");
     }
   };
 
@@ -88,6 +129,7 @@ export default function ShoppingPoolPage() {
       if (newCategory === catToDelete) {
         setNewCategory("כללי");
       }
+      await syncCategoryInRequests(catToDelete, "כללי");
     } catch (err) {
       console.error("Error deleting category:", err);
       alert("שגיאה במחיקת קטגוריה");
@@ -488,22 +530,70 @@ export default function ShoppingPoolPage() {
 
                 {/* Categories list */}
                 <div className="max-h-60 overflow-y-auto pr-1 flex flex-col gap-2">
-                  {categories.map(cat => (
-                    <div 
-                      key={cat} 
-                      className="flex items-center justify-between bg-[var(--background)] border border-[var(--border)] px-4 py-2.5 rounded-xl"
-                    >
-                      <span className="text-sm font-semibold">{cat}</span>
-                      {cat !== "כללי" && (
-                        <button 
-                          onClick={() => handleDeleteCategory(cat)}
-                          className="text-slate-500 hover:text-rose-500 p-1 transition-colors cursor-pointer"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      )}
-                    </div>
-                  ))}
+                  {categories.map(cat => {
+                    const isEditing = editingCatName === cat;
+                    return (
+                      <div
+                        key={cat}
+                        className="flex items-center justify-between bg-[var(--background)] border border-[var(--border)] px-4 py-2.5 rounded-xl gap-2"
+                      >
+                        {isEditing ? (
+                          <div className="flex items-center gap-2 flex-grow">
+                            <input
+                              type="text"
+                              value={editingCatNewValue}
+                              onChange={e => setEditingCatNewValue(e.target.value)}
+                              className="flex-grow bg-[var(--surface)] border border-[var(--border)] rounded-lg px-2 py-1.5 text-sm font-semibold focus:outline-none focus:border-blue-500 text-right"
+                              autoFocus
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") handleRenameCategory(cat, editingCatNewValue);
+                                else if (e.key === "Escape") setEditingCatName(null);
+                              }}
+                            />
+                            <button
+                              onClick={() => handleRenameCategory(cat, editingCatNewValue)}
+                              className="p-1.5 bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 border border-emerald-500/10 rounded-lg transition-colors cursor-pointer"
+                              title="שמור שם"
+                            >
+                              <Check className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => setEditingCatName(null)}
+                              className="p-1.5 bg-[var(--foreground)]/5 text-slate-400 hover:bg-[var(--foreground)]/10 border border-[var(--border)] rounded-lg transition-colors cursor-pointer"
+                              title="ביטול"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          </div>
+                        ) : (
+                          <>
+                            <span className="text-sm font-semibold">{cat}</span>
+                            <div className="flex items-center gap-1 shrink-0">
+                              <button
+                                onClick={() => {
+                                  setEditingCatName(cat);
+                                  setEditingCatNewValue(cat);
+                                }}
+                                className="text-slate-500 hover:text-blue-500 p-1 transition-colors cursor-pointer"
+                                title="ערוך קטגוריה"
+                              >
+                                <Edit3 className="w-4 h-4" />
+                              </button>
+                              {cat !== "כללי" && (
+                                <button
+                                  onClick={() => handleDeleteCategory(cat)}
+                                  className="text-slate-500 hover:text-rose-500 p-1 transition-colors cursor-pointer"
+                                  title="מחק קטגוריה"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              )}
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </motion.div>
             </div>
