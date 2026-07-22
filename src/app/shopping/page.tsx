@@ -28,7 +28,7 @@ interface ShoppingRequest {
   name: string;
   category: string;
   quantity: string;
-  status: "pending" | "approved" | "purchased" | "archived";
+  status: "pending" | "approved" | "purchased" | "archived" | "deleted";
   requestedBy: string;
   requestedByName: string;
   createdAt: any;
@@ -164,6 +164,7 @@ export default function ShoppingPage() {
   const [recurringSearchVal, setRecurringSearchVal] = useState("");
   const [actionsMenuOpen, setActionsMenuOpen] = useState(false);
   const [purchasedCollapsed, setPurchasedCollapsed] = useState(true);
+  const [deletedCollapsed, setDeletedCollapsed]     = useState(true);
 
   // Inventory Management State
   const [inventoryMap, setInventoryMap] = useState<Record<string, InventoryItem>>({});
@@ -444,13 +445,12 @@ export default function ShoppingPage() {
   };
 
   const changeStatus = useCallback(async (
-
     id: string,
-    next: "pending" | "approved" | "purchased" | "archived" | "deleted",
+    next: "pending" | "approved" | "purchased" | "archived" | "deleted" | "permanently_delete",
     extra: Record<string, any> = {}
   ) => {
     try {
-      if (next === "deleted") {
+      if (next === "permanently_delete") {
         await deleteDoc(doc(db, "shopping_requests", id));
       } else {
         await updateDoc(doc(db, "shopping_requests", id), {
@@ -625,6 +625,23 @@ export default function ShoppingPage() {
     } catch (e) {
       console.error("Error toggling isStar:", e);
       showToast("שגיאה בעדכון מוצר כוכב", "warning");
+    }
+  };
+
+  const clearAllArchive = async () => {
+    if (!canPurchase) return;
+    if (confirm("אזהרה: האם ברצונך לנקות ולאפס את כל ארכיון הקניות והבקשות הישנות לקראת תחילת שימוש? הפעולה אינה ניתנת לביטול!")) {
+      try {
+        setLoading(true);
+        const snap = await getDocs(collection(db, "shopping_requests"));
+        await Promise.all(snap.docs.map((d) => deleteDoc(doc(db, "shopping_requests", d.id))));
+        showToast("ארכיון הקניות נוקה בהצלחה! המערכת נקייה ומוכנה לשימוש.", "success");
+      } catch (e) {
+        console.error("Error clearing archive:", e);
+        showToast("שגיאה בניקוי ארכיון הקניות", "warning");
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
@@ -968,6 +985,7 @@ export default function ShoppingPage() {
 
   const activeRequests = requests.filter((r) => (r.status === "approved" || r.status === "pending") && (listType === "large" ? r.listType === "large" : r.listType !== "large"));
   const sessionPurchased = requests.filter((r) => r.status === "purchased" && (listType === "large" ? r.listType === "large" : r.listType !== "large"));
+  const sessionDeleted = requests.filter((r) => r.status === "deleted" && (listType === "large" ? r.listType === "large" : r.listType !== "large"));
   const archived = requests.filter((r) => r.status === "archived" && (listType === "large" ? r.listType === "large" : r.listType !== "large"));
 
   const suggestions = pool.filter((p) =>
@@ -977,7 +995,7 @@ export default function ShoppingPage() {
   ).slice(0, 20);
 
   const exactMatch = pool.some((p) => p.name === inputVal.trim());
-  const alreadyInList = (name: string) => requests.some((r) => r.name === name && r.status !== "archived");
+  const alreadyInList = (name: string) => requests.some((r) => r.name === name && r.status !== "archived" && r.status !== "deleted");
 
   const archiveByDate = archived.reduce((acc, item) => {
     const d = item.createdAt?.toDate ? item.createdAt.toDate() : new Date(item.createdAt);
@@ -1409,44 +1427,96 @@ export default function ShoppingPage() {
                         />
                      )}
 
-                     {activeRequests.length === 0 && sessionPurchased.length === 0 && (
-                        <div className="py-32 px-12 text-center opacity-30 flex flex-col items-center gap-4">
-                           <div className="w-20 h-20 rounded-[2.5rem] bg-[var(--foreground)]/5 flex items-center justify-center">
-                              <ShoppingBag className="w-10 h-10" />
-                           </div>
-                           <p className="text-sm font-black uppercase tracking-[0.2em]">הרשימה ריקה</p>
-                        </div>
-                     )}
-                   </LayoutGroup>
+                      {activeRequests.length === 0 && sessionPurchased.length === 0 && sessionDeleted.length === 0 && (
+                         <div className="py-32 px-12 text-center opacity-30 flex flex-col items-center gap-4">
+                            <div className="w-20 h-20 rounded-[2.5rem] bg-[var(--foreground)]/5 flex items-center justify-center">
+                               <ShoppingBag className="w-10 h-10" />
+                            </div>
+                            <p className="text-sm font-black uppercase tracking-[0.2em]">הרשימה ריקה</p>
+                         </div>
+                      )}
+                    </LayoutGroup>
 
-                   {sessionPurchased.length > 0 && (
-                      <div className="mt-8 px-4 pb-12">
+                    {sessionPurchased.length > 0 && (
+                       <div className="mt-8 px-4 pb-6">
+                         <div className="flex items-center justify-between border-b border-[var(--border)] pb-3 mb-3">
+                           <button
+                             onClick={() => setPurchasedCollapsed(!purchasedCollapsed)}
+                             className="text-sm font-black text-emerald-500 flex items-center gap-2 hover:opacity-80 active:scale-95 transition-all border-none bg-transparent cursor-pointer"
+                           >
+                             <ShoppingBag className="w-4.5 h-4.5" />
+                             <span>מצרכים שנקנו ({sessionPurchased.length})</span>
+                             <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${purchasedCollapsed ? "" : "rotate-180"}`} />
+                           </button>
+                           
+                           <button
+                             onClick={() => setShowArchivePrompt(true)}
+                             className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-black transition-all active:scale-95 shadow-lg shadow-emerald-600/10 flex items-center gap-1 border-none cursor-pointer"
+                           >
+                             <Check className="w-3.5 h-3.5 stroke-[3] text-white" />
+                             <span>סיום וארכוב</span>
+                           </button>
+                         </div>
+                         
+                         {!purchasedCollapsed && (
+                           <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl overflow-hidden divide-y divide-[var(--border)]/50 shadow-sm">
+                             {sessionPurchased.map(item => (
+                               <PurchasedRow 
+                                 key={item.id} 
+                                 item={item} 
+                                 onStatus={changeStatus}
+                                 currentUser={user}
+                                 canPurchase={canPurchase}
+                               />
+                             ))}
+                           </div>
+                         )}
+                       </div>
+                     )}
+
+                    {sessionDeleted.length > 0 && (
+                      <div className="mt-6 px-4 pb-12">
                         <div className="flex items-center justify-between border-b border-[var(--border)] pb-3 mb-3">
                           <button
-                            onClick={() => setPurchasedCollapsed(!purchasedCollapsed)}
-                            className="text-sm font-black text-emerald-500 flex items-center gap-2 hover:opacity-80 active:scale-95 transition-all border-none bg-transparent"
+                            onClick={() => setDeletedCollapsed(!deletedCollapsed)}
+                            className="text-sm font-black text-rose-500 flex items-center gap-2 hover:opacity-80 active:scale-95 transition-all border-none bg-transparent cursor-pointer"
                           >
-                            <ShoppingBag className="w-4.5 h-4.5" />
-                            <span>מצרכים שנקנו ({sessionPurchased.length})</span>
-                            <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${purchasedCollapsed ? "" : "rotate-180"}`} />
+                            <Trash2 className="w-4.5 h-4.5" />
+                            <span>מוצרים שנמחקו ({sessionDeleted.length})</span>
+                            <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${deletedCollapsed ? "" : "rotate-180"}`} />
                           </button>
                           
-                          <button
-                            onClick={() => setShowArchivePrompt(true)}
-                            className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-black transition-all active:scale-95 shadow-lg shadow-emerald-600/10 flex items-center gap-1 border-none cursor-pointer"
-                          >
-                            <Check className="w-3.5 h-3.5 stroke-[3] text-white" />
-                            <span>סיום וארכוב</span>
-                          </button>
+                          {canPurchase && (
+                            <button
+                              onClick={async () => {
+                                if (confirm("האם ברצונך למחוק לצמיתות את כל המוצרים שנמחקו?")) {
+                                  await Promise.all(sessionDeleted.map(r => changeStatus(r.id, "permanently_delete")));
+                                  showToast("כל המוצרים שנמחקו הוסרו לצמיתות", "success");
+                                }
+                              }}
+                              className="px-3.5 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 rounded-xl text-xs font-black transition-all active:scale-95 border border-rose-500/20 cursor-pointer flex items-center gap-1"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                              <span>רוקן אשפה</span>
+                            </button>
+                          )}
                         </div>
                         
-                        {!purchasedCollapsed && (
+                        {!deletedCollapsed && (
                           <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl overflow-hidden divide-y divide-[var(--border)]/50 shadow-sm">
-                            {sessionPurchased.map(item => (
-                              <PurchasedRow 
+                            {sessionDeleted.map(item => (
+                              <DeletedRow 
                                 key={item.id} 
                                 item={item} 
-                                onStatus={changeStatus} 
+                                onRestore={(id: string) => changeStatus(id, "approved")}
+                                onPermanentDelete={async (id: string) => {
+                                  if (confirm(`האם ברצונך למחוק לצמיתות את "${item.name}"?`)) {
+                                    await changeStatus(id, "permanently_delete");
+                                    showToast(`"${item.name}" נמחק לצמיתות`, "success");
+                                  }
+                                }}
+                                currentUser={user}
+                                canPurchase={canPurchase}
                               />
                             ))}
                           </div>
@@ -2610,6 +2680,19 @@ export default function ShoppingPage() {
                       </button>
                     )}
 
+                    {(isAdmin || isManager || isLogistics) && (
+                      <button
+                        onClick={() => {
+                          setActionsMenuOpen(false);
+                          clearAllArchive();
+                        }}
+                        className="w-full py-4 px-4 bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 rounded-2xl text-sm font-bold transition-all flex items-center gap-3 justify-start cursor-pointer border-none"
+                      >
+                        <Trash2 className="w-5 h-5 text-rose-500" />
+                        <span>ניקוי ואיפוס כל ארכיון הקניות 🧹</span>
+                      </button>
+                    )}
+
                     <button
                       onClick={() => {
                         setActionsMenuOpen(false);
@@ -3154,9 +3237,12 @@ function MobileItemRow({ item, onStatus, onEdit, onUpdateQuantity, canPurchase, 
   );
 }
 
-function PurchasedRow({ item, onStatus }: { item: ShoppingRequest, onStatus: any }) {
+function PurchasedRow({ item, onStatus, currentUser, canPurchase }: { item: ShoppingRequest, onStatus: any, currentUser: any, canPurchase: boolean }) {
+  const canDelete = item.requestedBy === currentUser?.uid || canPurchase;
+
   const handleDelete = () => {
-    if (confirm(`האם ברצונך למחוק את "${item.name}" לחלוטין מסל הקניות?`)) {
+    if (!canDelete) return;
+    if (confirm(`האם ברצונך להעביר את "${item.name}" למוצרים שנמחקו?`)) {
       onStatus(item.id, "deleted");
     }
   };
@@ -3166,10 +3252,10 @@ function PurchasedRow({ item, onStatus }: { item: ShoppingRequest, onStatus: any
       layout
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="flex items-center justify-between gap-4 px-6 py-3.5 bg-[var(--surface)]/90 backdrop-blur-sm border-b border-[var(--border)] last:border-0"
+      className="flex items-center justify-between gap-4 px-4 md:px-6 py-3.5 bg-[var(--surface)]/90 backdrop-blur-sm border-b border-[var(--border)] last:border-0"
     >
-      <div className="flex-1 min-w-0">
-        <span className="text-sm font-bold text-[var(--muted)] line-through decoration-2 decoration-rose-500/40">
+      <div className="flex-1 min-w-0 text-right">
+        <span className="text-xs md:text-sm font-bold text-[var(--muted)] line-through decoration-2 decoration-emerald-500/40">
           {item.name}
         </span>
         <div className="text-[10px] text-[var(--muted)]/60 font-semibold mt-0.5">
@@ -3177,26 +3263,87 @@ function PurchasedRow({ item, onStatus }: { item: ShoppingRequest, onStatus: any
         </div>
       </div>
       
-      <div className="flex items-center gap-3 shrink-0">
-        <span className="text-xs font-black text-[var(--muted)] bg-[var(--foreground)]/5 px-2 py-1 rounded-lg">
-          {item.quantity || "1"} יח׳
+      <div className="flex items-center gap-2.5 shrink-0">
+        <span className="text-[11px] font-black text-[var(--muted)] bg-[var(--foreground)]/5 px-2 py-1 rounded-lg">
+          {item.quantity || "1"}
         </span>
         
         <button
           onClick={() => onStatus(item.id, "approved")}
-          className="w-8 h-8 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-500 flex items-center justify-center shadow-sm transition-all active:scale-75 border border-amber-500/20"
+          className="w-8 h-8 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center shadow-xs transition-all active:scale-75 border border-amber-500/20 cursor-pointer"
           title="החזר לרשימה הפעילה"
         >
           <RotateCcw className="w-3.5 h-3.5 stroke-[2.5]" />
         </button>
 
+        {canDelete && (
+          <button
+            onClick={handleDelete}
+            className="w-8 h-8 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 flex items-center justify-center shadow-xs transition-all active:scale-75 border border-rose-500/20 cursor-pointer"
+            title="העבר למוצרים שנמחקו"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        )}
+      </div>
+    </motion.div>
+  );
+}
+
+function DeletedRow({ 
+  item, 
+  onRestore, 
+  onPermanentDelete,
+  currentUser,
+  canPurchase
+}: { 
+  item: ShoppingRequest, 
+  onRestore: (id: string) => void, 
+  onPermanentDelete: (id: string) => void,
+  currentUser: any,
+  canPurchase: boolean
+}) {
+  const canDelete = item.requestedBy === currentUser?.uid || canPurchase;
+
+  return (
+    <motion.div
+      layout
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="flex items-center justify-between gap-4 px-4 md:px-6 py-3.5 bg-[var(--surface)]/90 backdrop-blur-sm border-b border-[var(--border)] last:border-0"
+    >
+      <div className="flex-1 min-w-0 text-right">
+        <span className="text-xs md:text-sm font-bold text-[var(--muted)] line-through decoration-2 decoration-rose-500/40">
+          {item.name}
+        </span>
+        <div className="text-[10px] text-[var(--muted)]/60 font-semibold mt-0.5">
+          נמחק • ביקש/ה: {item.requestedByName}
+        </div>
+      </div>
+      
+      <div className="flex items-center gap-2.5 shrink-0">
+        <span className="text-[11px] font-black text-[var(--muted)] bg-[var(--foreground)]/5 px-2 py-1 rounded-lg">
+          {item.quantity || "1"}
+        </span>
+        
         <button
-          onClick={handleDelete}
-          className="w-8 h-8 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 flex items-center justify-center shadow-sm transition-all active:scale-75 border border-rose-500/20"
-          title="מחק לחלוטין מהקניות"
+          onClick={() => onRestore(item.id)}
+          className="px-3 py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 text-xs font-black flex items-center gap-1 shadow-xs transition-all active:scale-95 border border-amber-500/20 cursor-pointer"
+          title="החזר לרשימה הפעילה"
         >
-          <Trash2 className="w-3.5 h-3.5" />
+          <RotateCcw className="w-3.5 h-3.5 stroke-[2.5]" />
+          <span>החזר לרשימה</span>
         </button>
+
+        {canDelete && (
+          <button
+            onClick={() => onPermanentDelete(item.id)}
+            className="p-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 flex items-center justify-center shadow-xs transition-all active:scale-95 border border-rose-500/20 cursor-pointer"
+            title="מחק לצמיתות"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        )}
       </div>
     </motion.div>
   );
