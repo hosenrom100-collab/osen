@@ -12,7 +12,8 @@ import {
   ShoppingCart, Plus, Minus, Check, X, Clock, User, Search, Loader2, 
   ArrowRight, Trash2, CheckCircle2, Download, Flame, ChevronRight, 
   Edit3, RotateCcw, Package, ShoppingBag, Filter,
-  ChevronDown, Settings, Upload, Receipt, Boxes, AlertTriangle, SlidersHorizontal
+  ChevronDown, Settings, Upload, Receipt, Boxes, AlertTriangle, SlidersHorizontal,
+  Star, Sparkles
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { motion, AnimatePresence, LayoutGroup } from "framer-motion";
@@ -82,8 +83,20 @@ const CAT_SOLID: Record<string, string> = {
   "טואלטיקה והיגיינה":   "bg-teal-500 border-teal-400",
   "שימורים ובישול":       "bg-slate-500 border-slate-400",
   "קפואים":               "bg-sky-500 border-sky-400",
-  "כללי":                 "bg-slate-400 border-slate-300",
 };
+
+const STAR_PRODUCTS = [
+  { name: "חלב", category: "גבינות ומחלבה" },
+  { name: "לחם", category: "לחם ומאפים" },
+  { name: "קפה", category: "כללי" },
+  { name: "סוכר", category: "שימורים ובישול" },
+  { name: "נייר טואלט", category: "מוצרי נייר וחד פעמי" },
+  { name: "גבינה צהובה", category: "גבינות ומחלבה" },
+  { name: "ביצים", category: "גבינות ומחלבה" },
+  { name: "חמאה", category: "גבינות ומחלבה" },
+  { name: "שמן זית", category: "שימורים ובישול" },
+  { name: "שקיות אשפה", category: "חומרי ניקוי" },
+];
 
 const getLevenshteinDistance = (a: string, b: string): number => {
   const matrix = [];
@@ -937,12 +950,12 @@ export default function ShoppingPage() {
         <div className="md:hidden pt-2 pb-2.5 px-3 bg-[var(--background)] border-b border-[var(--border)] z-40 shrink-0">
            {/* Top Row: Back, Tabs, View, Settings */}
            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-1.5">
-                 <button onClick={() => router.push("/")} className="w-7 h-7 flex items-center justify-center rounded-xl bg-[var(--foreground)]/5 border border-[var(--border)] active:scale-95 transition-all">
+              <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+                 <button onClick={() => router.push("/")} className="w-7 h-7 flex items-center justify-center rounded-xl bg-[var(--foreground)]/5 border border-[var(--border)] active:scale-95 transition-all shrink-0">
                     <ArrowRight className="w-4 h-4 text-[var(--muted)]" />
                  </button>
                  
-                 <div className="flex items-center gap-1 bg-[var(--foreground)]/[0.04] p-0.5 rounded-xl border border-[var(--border)]">
+                 <div className="flex items-center gap-1 bg-[var(--foreground)]/[0.04] p-0.5 rounded-xl border border-[var(--border)] shrink-0">
                     <button 
                       onClick={() => setView("list")}
                       className={`px-2 py-1 rounded-lg text-[10px] font-black transition-all cursor-pointer border-none ${
@@ -953,17 +966,19 @@ export default function ShoppingPage() {
                     >
                        רשימה
                     </button>
-                    <button 
-                      onClick={() => setView("inventory")}
-                      className={`px-2 py-1 rounded-lg text-[10px] font-black transition-all flex items-center gap-0.5 cursor-pointer border-none ${
-                        view === "inventory"
-                          ? "bg-[var(--surface)] text-indigo-600 shadow-sm"
-                          : "text-[var(--muted)] bg-transparent"
-                      }`}
-                    >
-                       <Boxes className="w-3 h-3" />
-                       מלאי
-                    </button>
+                    {canPurchase && (
+                      <button 
+                        onClick={() => setView("inventory")}
+                        className={`px-2 py-1 rounded-lg text-[10px] font-black transition-all flex items-center gap-0.5 cursor-pointer border-none ${
+                          view === "inventory"
+                            ? "bg-[var(--surface)] text-indigo-600 shadow-sm"
+                            : "text-[var(--muted)] bg-transparent"
+                        }`}
+                      >
+                         <Boxes className="w-3 h-3" />
+                         מלאי
+                      </button>
+                    )}
                     <button 
                       onClick={() => setView("archive")}
                       className={`px-2 py-1 rounded-lg text-[10px] font-black transition-all cursor-pointer border-none ${
@@ -974,49 +989,47 @@ export default function ShoppingPage() {
                     >
                        ארכיון
                     </button>
-                  </div>
-                 
-                 {/* Compact Segmented Control for Supermarket vs Procurement */}
-                 <div className="flex bg-[var(--foreground)]/[0.04] p-0.5 rounded-xl border border-[var(--border)] relative shrink-0">
-                   <button
-                     onClick={() => { setListType("supermarket"); setActiveCategory(null); }}
-                     className={`px-3 py-1.5 rounded-lg text-[10px] font-black transition-all flex items-center gap-1 cursor-pointer border-none ${
-                       listType === "supermarket"
-                         ? "bg-[var(--surface)] text-indigo-600 shadow-sm border border-[var(--border)]"
-                         : "text-[var(--muted)] bg-transparent"
-                     }`}
-                   >
-                     <ShoppingCart className="w-3 h-3" />
-                     סופר
-                   </button>
-                   <button
-                     onClick={() => { setListType("large"); setActiveCategory(null); }}
-                     className={`px-3 py-1.5 rounded-lg text-[10px] font-black transition-all flex items-center gap-1 cursor-pointer border-none ${
-                       listType === "large"
-                         ? "bg-[var(--surface)] text-indigo-600 shadow-sm border border-[var(--border)]"
-                         : "text-[var(--muted)] bg-transparent"
-                     }`}
-                   >
-                     <Package className="w-3 h-3" />
-                     רכש
-                   </button>
                  </div>
+                
+                 {/* Compact Segmented Control for Supermarket vs Procurement (Logistics/Admin only) */}
+                 {canPurchase && (
+                   <div className="flex bg-[var(--foreground)]/[0.04] p-0.5 rounded-xl border border-[var(--border)] relative shrink-0">
+                     <button
+                       onClick={() => { setListType("supermarket"); setActiveCategory(null); }}
+                       className={`px-2.5 py-1 rounded-lg text-[10px] font-black transition-all flex items-center gap-1 cursor-pointer border-none ${
+                         listType === "supermarket"
+                           ? "bg-[var(--surface)] text-indigo-600 shadow-sm border border-[var(--border)]"
+                           : "text-[var(--muted)] bg-transparent"
+                       }`}
+                     >
+                       <ShoppingCart className="w-3 h-3" />
+                       סופר
+                     </button>
+                     <button
+                       onClick={() => { setListType("large"); setActiveCategory(null); }}
+                       className={`px-2.5 py-1 rounded-lg text-[10px] font-black transition-all flex items-center gap-1 cursor-pointer border-none ${
+                         listType === "large"
+                           ? "bg-[var(--surface)] text-indigo-600 shadow-sm border border-[var(--border)]"
+                           : "text-[var(--muted)] bg-transparent"
+                       }`}
+                     >
+                       <Package className="w-3 h-3" />
+                       רכש
+                     </button>
+                   </div>
+                 )}
               </div>
               
-              <div className="flex items-center gap-1.5">
-                 <button 
-                   onClick={() => setView(view === "list" ? "archive" : "list")}
-                   className="px-2.5 py-1.5 rounded-xl bg-[var(--foreground)]/5 border border-[var(--border)] text-[10px] font-black transition-all hover:bg-[var(--foreground)]/10"
-                 >
-                    {view === "list" ? "ארכיון" : "רשימה"}
-                 </button>
-                 <button 
-                   onClick={() => setActionsMenuOpen(true)}
-                   className="w-7 h-7 flex items-center justify-center rounded-xl bg-[var(--foreground)]/5 border border-[var(--border)] active:scale-95 transition-all"
-                   title="פעולות נוספות"
-                 >
-                    <Settings className="w-3.5 h-3.5 text-[var(--muted)]" />
-                 </button>
+              <div className="flex items-center gap-1.5 shrink-0">
+                 {canPurchase && (
+                   <button 
+                     onClick={() => setActionsMenuOpen(true)}
+                     className="w-7 h-7 flex items-center justify-center rounded-xl bg-[var(--foreground)]/5 border border-[var(--border)] active:scale-95 transition-all"
+                     title="פעולות נוספות"
+                   >
+                      <Settings className="w-3.5 h-3.5 text-[var(--muted)]" />
+                   </button>
+                 )}
               </div>
            </div>
 
@@ -1099,17 +1112,19 @@ export default function ShoppingPage() {
                >
                   רשימה פעילה
                </button>
-               <button 
-                 onClick={() => setView("inventory")} 
-                 className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 border-none cursor-pointer ${
-                   view === "inventory"
-                     ? "bg-[var(--surface)] text-indigo-600 shadow-sm"
-                     : "text-[var(--muted)] hover:text-[var(--foreground)] bg-transparent"
-                 }`}
-               >
-                  <Boxes className="w-4 h-4" />
-                  <span>ניהול מלאי</span>
-               </button>
+               {canPurchase && (
+                 <button 
+                   onClick={() => setView("inventory")} 
+                   className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 border-none cursor-pointer ${
+                     view === "inventory"
+                       ? "bg-[var(--surface)] text-indigo-600 shadow-sm"
+                       : "text-[var(--muted)] hover:text-[var(--foreground)] bg-transparent"
+                   }`}
+                 >
+                    <Boxes className="w-4 h-4" />
+                    <span>ניהול מלאי</span>
+                 </button>
+               )}
                <button 
                  onClick={() => setView("archive")} 
                  className={`px-4 py-2 rounded-xl text-xs font-black transition-all border-none cursor-pointer ${
@@ -1122,43 +1137,47 @@ export default function ShoppingPage() {
                </button>
              </div>
 
-              <button 
-                onClick={exportProcurementList} 
-                title="יצוא רשימת רכש ל-Word" 
-                className="px-4 py-2.5 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-blue-400 hover:bg-blue-500/20 transition-all flex items-center gap-1.5 text-xs font-black cursor-pointer"
-              >
-                <Download className="w-4 h-4 text-blue-400" />
-                <span>יצוא רשימת רכש</span>
-              </button>
-              <button 
-                onClick={exportOngoingList} 
-                title="יצוא רשימה שוטפת ל-Word" 
-                className="px-4 py-2.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/20 transition-all flex items-center gap-1.5 text-xs font-black cursor-pointer"
-              >
-                <Download className="w-4 h-4 text-emerald-400" />
-                <span>יצוא רשימה שוטפת</span>
-              </button>
-             {isAdmin && <button onClick={exportXlsx} title="ייצוא לאקסל" className="p-2.5 rounded-2xl bg-[var(--foreground)]/5 border border-[var(--border)] hover:bg-[var(--foreground)]/10 transition-all cursor-pointer"><Download className="w-5 h-5 text-[var(--muted)]" /></button>}
-              <button
-                onClick={() => setIsAddingCat(true)}
-                title="ניהול קטגוריות רכש"
-                className="px-4 py-2.5 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 hover:bg-indigo-500/20 transition-all flex items-center gap-1.5 text-xs font-black cursor-pointer"
-              >
-                <Edit3 className="w-4 h-4 text-indigo-400" />
-                <span>ניהול קטגוריות</span>
-              </button>
+             {canPurchase && (
+               <>
+                 <button 
+                   onClick={exportProcurementList} 
+                   title="יצוא רשימת רכש ל-Word" 
+                   className="px-4 py-2.5 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-blue-400 hover:bg-blue-500/20 transition-all flex items-center gap-1.5 text-xs font-black cursor-pointer"
+                 >
+                   <Download className="w-4 h-4 text-blue-400" />
+                   <span>יצוא רשימת רכש</span>
+                 </button>
+                 <button 
+                   onClick={exportOngoingList} 
+                   title="יצוא רשימה שוטפת ל-Word" 
+                   className="px-4 py-2.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/20 transition-all flex items-center gap-1.5 text-xs font-black cursor-pointer"
+                 >
+                   <Download className="w-4 h-4 text-emerald-400" />
+                   <span>יצוא רשימה שוטפת</span>
+                 </button>
+                 {isAdmin && <button onClick={exportXlsx} title="ייצוא לאקסל" className="p-2.5 rounded-2xl bg-[var(--foreground)]/5 border border-[var(--border)] hover:bg-[var(--foreground)]/10 transition-all cursor-pointer"><Download className="w-5 h-5 text-[var(--muted)]" /></button>}
+                 <button
+                   onClick={() => setIsAddingCat(true)}
+                   title="ניהול קטגוריות רכש"
+                   className="px-4 py-2.5 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 hover:bg-indigo-500/20 transition-all flex items-center gap-1.5 text-xs font-black cursor-pointer"
+                 >
+                   <Edit3 className="w-4 h-4 text-indigo-400" />
+                   <span>ניהול קטגוריות</span>
+                 </button>
 
-             {/* Receipts Scan button */}
-             <div className="flex items-center gap-2 border-r border-[var(--border)] pr-3 mr-1">
-                <button
-                  onClick={() => setReceiptScanOpen(true)}
-                  className="px-3.5 py-2.5 rounded-2xl bg-rose-600 hover:bg-rose-700 !text-white text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
-                  title="צילום/העלאת קבלה ושמירה בארכיון"
-                >
-                  <Receipt className="w-4 h-4 text-white" />
-                  <span>סריקת קבלה</span>
-                </button>
-             </div>
+                {/* Receipts Scan button */}
+                <div className="flex items-center gap-2 border-r border-[var(--border)] pr-3 mr-1">
+                   <button
+                     onClick={() => setReceiptScanOpen(true)}
+                     className="px-3.5 py-2.5 rounded-2xl bg-rose-600 hover:bg-rose-700 !text-white text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
+                     title="צילום/העלאת קבלה ושמירה בארכיון"
+                   >
+                     <Receipt className="w-4 h-4 text-white" />
+                     <span>סריקת קבלה</span>
+                   </button>
+                </div>
+               </>
+             )}
           </div>
         </header>
 
@@ -1260,6 +1279,53 @@ export default function ShoppingPage() {
                 </div>
               ) : view === "list" ? (
                 <>
+                  {/* Dashboard Summary Bar for Logistics & Managers */}
+                  {canPurchase && (
+                    <div className="pt-3 pb-2 px-4 md:px-0">
+                      <div className="grid grid-cols-3 gap-2 p-2 bg-[var(--surface)] border border-[var(--border)] rounded-2xl shadow-xs">
+                        <button 
+                          onClick={() => setActiveCategory(null)}
+                          className="flex flex-col items-center justify-center py-2 px-1 rounded-xl bg-indigo-500/5 hover:bg-indigo-500/10 border border-indigo-500/10 transition-all cursor-pointer border-none"
+                        >
+                          <span className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 flex items-center gap-1">
+                            <ShoppingCart className="w-3 h-3" /> פתוחים
+                          </span>
+                          <span className="text-base font-black text-[var(--foreground)]">{activeRequests.length}</span>
+                        </button>
+
+                        <button 
+                          onClick={() => {
+                            const urgentReqs = activeRequests.filter(r => r.priority === "urgent");
+                            if (urgentReqs.length > 0) {
+                              const firstUrgentCat = urgentReqs[0].category;
+                              setActiveCategory(firstUrgentCat);
+                            }
+                          }}
+                          className="flex flex-col items-center justify-center py-2 px-1 rounded-xl bg-rose-500/5 hover:bg-rose-500/10 border border-rose-500/10 transition-all cursor-pointer border-none"
+                        >
+                          <span className="text-[10px] font-black text-rose-500 flex items-center gap-1">
+                            <Flame className="w-3 h-3 animate-pulse" /> דחופים
+                          </span>
+                          <span className="text-base font-black text-[var(--foreground)]">
+                            {activeRequests.filter(r => r.priority === "urgent").length}
+                          </span>
+                        </button>
+
+                        <button 
+                          onClick={() => setView("inventory")}
+                          className="flex flex-col items-center justify-center py-2 px-1 rounded-xl bg-amber-500/5 hover:bg-amber-500/10 border border-amber-500/10 transition-all cursor-pointer border-none"
+                        >
+                          <span className="text-[10px] font-black text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                            <Boxes className="w-3 h-3" /> מלאי נמוך
+                          </span>
+                          <span className="text-base font-black text-[var(--foreground)]">
+                            {pool.filter(p => p.trackInventory === true && (inventoryMap[p.id]?.currentStock ?? 0) <= (inventoryMap[p.id]?.minStock ?? 1)).length}
+                          </span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
                   <LayoutGroup>
                      {categories.map(cat => {
                        if (activeCategory !== null && activeCategory !== cat) return null;
@@ -1676,6 +1742,42 @@ export default function ShoppingPage() {
                      className="w-full bg-[var(--background)] border border-[var(--border)] rounded-2xl py-3 pr-11 pl-4 text-sm font-bold focus:outline-none focus:border-indigo-500/50 transition-all shadow-inner text-right placeholder:text-[var(--muted)]/40"
                    />
                 </div>
+
+                 {/* Star / Favorite Quick-Add Chips */}
+                 <div className="mb-4 shrink-0">
+                    <div className="flex items-center gap-1 mb-2 text-amber-500 font-black text-[11px]">
+                       <Star className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
+                       <span>מוצרי כוכב – בלחיצה אחת:</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1">
+                       {STAR_PRODUCTS.map((starItem) => {
+                          const inList = alreadyInList(starItem.name);
+                          return (
+                             <button
+                               key={starItem.name}
+                               onClick={() => {
+                                  if (!inList) {
+                                     const finalQty = addUnit === "יחידות" ? addQty : `${addQty} ${addUnit}`;
+                                     addProduct(starItem.name, starItem.category, addUrgent ? "urgent" : "normal", finalQty);
+                                     setInputVal("");
+                                     setOverlayOpen(false);
+                                     setAddUrgent(false);
+                                  }
+                               }}
+                               disabled={inList}
+                               className={`px-3 py-1.5 rounded-xl text-xs font-bold shrink-0 flex items-center gap-1 transition-all active:scale-95 cursor-pointer border ${
+                                  inList 
+                                    ? "bg-[var(--foreground)]/5 text-[var(--muted)] border-transparent opacity-50 cursor-not-allowed" 
+                                    : "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20 hover:bg-amber-500/20 shadow-xs"
+                               }`}
+                             >
+                                {inList ? <Check className="w-3 h-3 text-emerald-500" /> : <Plus className="w-3 h-3 text-amber-500" />}
+                                <span>{starItem.name}</span>
+                             </button>
+                          );
+                       })}
+                    </div>
+                 </div>
 
                 {/* Quantity and Unit Inputs */}
                 <div className="grid grid-cols-2 gap-3 mb-4 shrink-0" dir="rtl">
@@ -2319,19 +2421,19 @@ export default function ShoppingPage() {
           <AnimatePresence>
             {toast && (
               <motion.div
-                initial={{ opacity: 0, y: 50, scale: 0.9 }}
+                initial={{ opacity: 0, y: -20, scale: 0.9 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: 20, scale: 0.9 }}
-                className={`fixed bottom-24 left-1/2 -translate-x-1/2 z-50 px-6 py-4 rounded-2xl shadow-xl flex items-center gap-3 max-w-md w-[90%] border backdrop-blur-md ${
+                exit={{ opacity: 0, y: -20, scale: 0.9 }}
+                className={`fixed top-16 md:top-24 left-1/2 -translate-x-1/2 z-[150] px-6 py-3.5 rounded-2xl shadow-xl flex items-center gap-3 max-w-md w-[90%] border backdrop-blur-md ${
                   toast.type === "success"
-                    ? "bg-emerald-50 border-emerald-200 text-emerald-800"
-                    : "bg-amber-50 border-amber-200 text-amber-800"
+                    ? "bg-emerald-50/95 dark:bg-emerald-950/90 border-emerald-300 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200"
+                    : "bg-amber-50/95 dark:bg-amber-950/90 border-amber-300 dark:border-amber-800 text-amber-800 dark:text-amber-200"
                 }`}
               >
                 {toast.type === "success" ? (
-                  <CheckCircle2 className="w-5 h-5 shrink-0 text-emerald-600" />
+                  <CheckCircle2 className="w-5 h-5 shrink-0 text-emerald-600 dark:text-emerald-400" />
                 ) : (
-                  <Flame className="w-5 h-5 shrink-0 text-amber-600 animate-pulse" />
+                  <Flame className="w-5 h-5 shrink-0 text-amber-600 dark:text-amber-400 animate-pulse" />
                 )}
                 <span className="text-xs font-black leading-relaxed">{toast.message}</span>
               </motion.div>
@@ -2675,6 +2777,7 @@ function MobileItemRow({ item, onStatus, onEdit, onUpdateQuantity, canPurchase, 
   item: ShoppingRequest, onStatus: any, onEdit: any, onUpdateQuantity: any, canPurchase: boolean, currentUser: any, activeCategory: string | null, onMoveToEquipment: any, onMoveToSupermarket: any
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [dragOffset, setDragOffset] = useState(0);
   const isApproved = item.status === "approved" || item.status === "pending";
   const isUrgent   = item.priority === "urgent";
   const isOwnItem  = item.requestedBy === currentUser?.uid;
@@ -2698,74 +2801,113 @@ function MobileItemRow({ item, onStatus, onEdit, onUpdateQuantity, canPurchase, 
   };
 
   return (
-    <motion.div
-      layout
-      onClick={() => setIsExpanded(!isExpanded)}
-      className={`group relative flex flex-col px-3 py-2 bg-[var(--surface)] even:bg-[var(--foreground)]/[0.012] transition-all cursor-pointer ${
-        isExpanded ? "bg-[var(--foreground)]/[0.025]! ring-2 ring-indigo-500/20" : "hover:bg-[var(--foreground)]/[0.01]"
-      } ${
-        isUrgent 
-          ? "bg-gradient-to-l from-rose-500/[0.02] to-transparent border-r-4 border-r-rose-500 pr-2.5" 
-          : ""
-      }`}
-    >
-      {/* Upper Row: Main Information & Checkbox */}
-      <div className="flex items-center justify-between gap-2.5 w-full">
-        <div className="flex items-center gap-2.5 min-w-0 flex-1">
-          {/* Custom Checkbox/Action Square - rounded-lg */}
-          <button
-            onClick={handleCheckboxClick}
-            disabled={!canPurchase}
-            className={`w-5 h-5 rounded flex items-center justify-center border-2 transition-all shrink-0 active:scale-90 cursor-pointer ${
-              isApproved
-                ? canPurchase
-                  ? "border-[var(--muted)]/50 hover:border-indigo-500 hover:bg-indigo-500/5 text-indigo-500"
-                  : "border-[var(--border)] text-[var(--muted)]/20 cursor-not-allowed"
-                : "border-indigo-500 bg-indigo-500 text-white"
-            }`}
-          >
-            <Check className="w-3.5 h-3.5 opacity-0 hover:opacity-100 transition-opacity" />
-          </button>
+    <div className="relative overflow-hidden group">
+      {/* Background Actions Revealed On Swipe */}
+      <div className="absolute inset-0 flex items-center justify-between px-4 z-0 text-white font-bold text-xs">
+        {/* Right side (revealed when dragging right): Delete */}
+        <div className={`flex items-center gap-1.5 text-rose-500 font-black transition-opacity ${dragOffset > 20 ? "opacity-100" : "opacity-0"}`}>
+          <Trash2 className="w-4 h-4" />
+          <span>מחק</span>
+        </div>
+        {/* Left side (revealed when dragging left): Purchased */}
+        {canPurchase && isApproved && (
+          <div className={`flex items-center gap-1.5 text-indigo-500 font-black transition-opacity ${dragOffset < -20 ? "opacity-100" : "opacity-0"}`}>
+            <ShoppingCart className="w-4 h-4" />
+            <span>סומן כנקנה ✓</span>
+          </div>
+        )}
+      </div>
 
-          {/* Item details */}
-          <div className="min-w-0 flex-1 text-right">
-            <div className="flex items-center gap-1.5 justify-start flex-wrap">
-              <span className="text-xs font-bold text-[var(--foreground)] leading-tight whitespace-normal">
-                {item.name}
-              </span>
-              
-              {(() => {
-                const { qty, unit } = formatQuantityAndUnit(item.quantity);
-                return (
-                  <div className="flex items-center gap-1 bg-[var(--foreground)]/5 border border-[var(--border)] px-1.5 py-0.5 rounded-md shrink-0">
-                    <span className="text-[11px] font-black text-[var(--foreground)] leading-none">{qty}</span>
-                    <span className="text-[10px] text-[var(--muted)] font-extrabold leading-none">{unit}</span>
-                  </div>
-                );
-              })()}
-              
-              {isUrgent && (
-                <span className="text-[9px] font-black text-rose-500 bg-rose-500/10 px-1.5 py-0.5 rounded border border-rose-500/20">דחוף 🔥</span>
-              )}
+      <motion.div
+        layout
+        drag="x"
+        dragConstraints={{ left: canPurchase && isApproved ? -90 : 0, right: 90 }}
+        dragElastic={0.15}
+        onDrag={(_, info) => setDragOffset(info.offset.x)}
+        onDragEnd={(_, info) => {
+          if (info.offset.x < -60 && isApproved && canPurchase) {
+            if (typeof navigator !== "undefined" && navigator.vibrate) navigator.vibrate(20);
+            onStatus(item.id, "purchased");
+          } else if (info.offset.x > 60) {
+            if (confirm(`האם ברצונך למחוק את "${item.name}" מהרשימה?`)) {
+              onStatus(item.id, "deleted");
+            }
+          }
+          setDragOffset(0);
+        }}
+        onClick={() => setIsExpanded(!isExpanded)}
+        className={`relative z-10 flex flex-col px-3 py-2.5 bg-[var(--surface)] even:bg-[var(--foreground)]/[0.012] transition-colors cursor-pointer select-none ${
+          isExpanded ? "bg-[var(--foreground)]/[0.025]! ring-2 ring-indigo-500/20" : "hover:bg-[var(--foreground)]/[0.01]"
+        } ${
+          isUrgent 
+            ? "bg-gradient-to-l from-rose-500/[0.02] to-transparent border-r-4 border-r-rose-500 pr-2.5" 
+            : ""
+        }`}
+      >
+        {/* Upper Row: Main Information & Checkbox */}
+        <div className="flex items-center justify-between gap-2.5 w-full">
+          <div className="flex items-center gap-2.5 min-w-0 flex-1">
+            {/* Custom 44px Touch Target Checkbox */}
+            <button
+              onClick={handleCheckboxClick}
+              disabled={!canPurchase}
+              className={`w-7 h-7 rounded-xl flex items-center justify-center border-2 transition-all shrink-0 active:scale-90 cursor-pointer ${
+                isApproved
+                  ? canPurchase
+                    ? "border-[var(--muted)]/40 hover:border-indigo-500 hover:bg-indigo-500/10 text-indigo-500 shadow-xs"
+                    : "border-[var(--border)] text-[var(--muted)]/20 cursor-not-allowed"
+                  : "border-indigo-500 bg-indigo-500 text-white shadow-sm"
+              }`}
+            >
+              <Check className={`w-4 h-4 transition-opacity ${!isApproved ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`} />
+            </button>
 
-              {item.notes && (
-                <span className="text-[10px] text-amber-500" title={item.notes}>💬</span>
+            {/* Item details */}
+            <div className="min-w-0 flex-1 text-right">
+              <div className="flex items-center gap-1.5 justify-start flex-wrap">
+                <span className="text-xs font-bold text-[var(--foreground)] leading-tight whitespace-normal">
+                  {item.name}
+                </span>
+                
+                {(() => {
+                  const { qty, unit } = formatQuantityAndUnit(item.quantity);
+                  return (
+                    <div className="flex items-center gap-1 bg-[var(--foreground)]/5 border border-[var(--border)] px-1.5 py-0.5 rounded-md shrink-0">
+                      <span className="text-[11px] font-black text-[var(--foreground)] leading-none">{qty}</span>
+                      <span className="text-[10px] text-[var(--muted)] font-extrabold leading-none">{unit}</span>
+                    </div>
+                  );
+                })()}
+                
+                {isUrgent && (
+                  <span className="text-[9px] font-black text-rose-500 bg-rose-500/10 px-1.5 py-0.5 rounded border border-rose-500/20">דחוף 🔥</span>
+                )}
+
+                {item.notes && (
+                  <span className="text-[10px] text-amber-500" title={item.notes}>💬</span>
+                )}
+              </div>
+
+              {/* Subtext: Requester name */}
+              {item.requestedByName && (
+                <span className="text-[10px] text-[var(--muted)] font-bold block mt-0.5 opacity-75">
+                  מאת: {item.requestedByName}
+                </span>
               )}
             </div>
           </div>
-        </div>
 
-        {/* Left Side: Expand indicator */}
-        <div className="flex items-center shrink-0">
-          <motion.div
-            animate={{ rotate: isExpanded ? 180 : 0 }}
-            transition={{ duration: 0.2 }}
-            className="text-[var(--muted)]/40 p-1"
-          >
-            <ChevronDown className="w-3.5 h-3.5" />
-          </motion.div>
+          {/* Left Side: Expand indicator */}
+          <div className="flex items-center shrink-0">
+            <motion.div
+              animate={{ rotate: isExpanded ? 180 : 0 }}
+              transition={{ duration: 0.2 }}
+              className="text-[var(--muted)]/40 p-1"
+            >
+              <ChevronDown className="w-3.5 h-3.5" />
+            </motion.div>
+          </div>
         </div>
-      </div>
 
       {/* Expanded details container */}
       <AnimatePresence initial={false}>
@@ -2865,6 +3007,7 @@ function MobileItemRow({ item, onStatus, onEdit, onUpdateQuantity, canPurchase, 
         )}
       </AnimatePresence>
     </motion.div>
+  </div>
   );
 }
 
