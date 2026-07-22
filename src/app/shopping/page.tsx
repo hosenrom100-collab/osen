@@ -37,10 +37,24 @@ interface ShoppingRequest {
   listType?: "supermarket" | "large";
 }
 
+const MEASUREMENT_UNITS = [
+  "יחידות",
+  "ק״ג",
+  "גרם",
+  "ליטר",
+  "מ״ל",
+  "אריזה",
+  "ארגז",
+  "בקבוק",
+  "פחית",
+  "שקית"
+];
+
 interface Product { 
   id: string; 
   name: string; 
   category: string; 
+  defaultUnit?: string;
   isRecurring?: boolean;
   recurringQuantity?: string;
   trackInventory?: boolean;
@@ -287,6 +301,15 @@ export default function ShoppingPage() {
       setEditPriority(editItem.priority || "normal");
     }
   }, [editItem]);
+
+  useEffect(() => {
+    if (inputVal.trim()) {
+      const match = pool.find(p => p.name.trim().toLowerCase() === inputVal.trim().toLowerCase());
+      if (match && match.defaultUnit) {
+        setAddUnit(match.defaultUnit);
+      }
+    }
+  }, [inputVal, pool]);
 
 
 
@@ -1896,7 +1919,8 @@ export default function ShoppingPage() {
                                      key={starItem.id}
                                      onClick={() => {
                                         if (!inList) {
-                                           const finalQty = addUnit === "יחידות" ? addQty : `${addQty} ${addUnit}`;
+                                           const unitToUse = starItem.defaultUnit || addUnit;
+                                           const finalQty = unitToUse === "יחידות" ? addQty : `${addQty} ${unitToUse}`;
                                            addProduct(starItem.name, starItem.category, addUrgent ? "urgent" : "normal", finalQty);
                                            setInputVal("");
                                            setOverlayOpen(false);
@@ -1939,9 +1963,7 @@ export default function ShoppingPage() {
                       onChange={(e) => setAddUnit(e.target.value)}
                       className="w-full bg-[var(--background)] border border-[var(--border)] rounded-xl py-2.5 px-3 text-sm font-bold focus:outline-none focus:border-indigo-500/40 text-right cursor-pointer"
                     >
-                      <option value="יחידות">יחידות</option>
-                      <option value="ק״ג">ק״ג</option>
-                      <option value="גרם">גרם</option>
+                      {MEASUREMENT_UNITS.map(u => <option key={u} value={u}>{u}</option>)}
                     </select>
                   </div>
                 </div>
@@ -1983,7 +2005,8 @@ export default function ShoppingPage() {
                            key={p.id}
                            onClick={() => { 
                              if (!inList) { 
-                               const finalQty = addUnit === "יחידות" ? addQty : `${addQty} ${addUnit}`;
+                               const unitToUse = p.defaultUnit || addUnit;
+                               const finalQty = unitToUse === "יחידות" ? addQty : `${addQty} ${unitToUse}`;
                                addProduct(p.name, p.category, addUrgent ? "urgent" : "normal", finalQty);
                                setInputVal(""); 
                                setOverlayOpen(false); 

@@ -9,10 +9,24 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
 import * as XLSX from "xlsx";
 
+export const MEASUREMENT_UNITS = [
+  "יחידות",
+  "ק״ג",
+  "גרם",
+  "ליטר",
+  "מ״ל",
+  "אריזה",
+  "ארגז",
+  "בקבוק",
+  "פחית",
+  "שקית"
+];
+
 interface Product {
   id: string;
   name: string;
   category: string;
+  defaultUnit?: string;
   isRecurring?: boolean;
   recurringQuantity?: string;
   trackInventory?: boolean;
@@ -63,6 +77,7 @@ export default function ShoppingPoolPage() {
   const [isAdding, setIsAdding] = useState(false);
   const [newName, setNewName] = useState("");
   const [newCategory, setNewCategory] = useState("כללי");
+  const [newDefaultUnit, setNewDefaultUnit] = useState("יחידות");
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [newCatInput, setNewCatInput] = useState("");
   const [editingCatName, setEditingCatName] = useState<string | null>(null);
@@ -72,6 +87,7 @@ export default function ShoppingPoolPage() {
   const [editingProdId, setEditingProdId] = useState<string | null>(null);
   const [editingProdName, setEditingProdName] = useState("");
   const [editingProdCat, setEditingProdCat] = useState("");
+  const [editingProdUnit, setEditingProdUnit] = useState("יחידות");
 
   // Status Filter State
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive" | "inventory">("all");
@@ -239,9 +255,10 @@ export default function ShoppingPoolPage() {
     try {
       await setDoc(doc(db, "product_pool", id), {
         name: cleanName,
-        category: editingProdCat
+        category: editingProdCat,
+        defaultUnit: editingProdUnit
       }, { merge: true });
-      setProducts(products.map(p => p.id === id ? { ...p, name: cleanName, category: editingProdCat } : p));
+      setProducts(products.map(p => p.id === id ? { ...p, name: cleanName, category: editingProdCat, defaultUnit: editingProdUnit } : p));
       setEditingProdId(null);
     } catch (e) {
       console.error("Error updating product:", e);
@@ -353,15 +370,18 @@ export default function ShoppingPoolPage() {
     const sampleData = [
       {
         "מוצר": "חלב 3% בקרטון",
-        "קטגוריה": "גבינות ומחלבה"
+        "קטגוריה": "גבינות ומחלבה",
+        "יחידת מדידה": "ליטר"
       },
       {
         "מוצר": "נייר טואלט",
-        "קטגוריה": "מוצרי נייר וחד פעמי"
+        "קטגוריה": "מוצרי נייר וחד פעמי",
+        "יחידת מדידה": "אריזה"
       },
       {
         "מוצר": "עגבניות",
-        "קטגוריה": "פירות וירקות"
+        "קטגוריה": "פירות וירקות",
+        "יחידת מדידה": "ק״ג"
       }
     ];
     const ws = XLSX.utils.json_to_sheet(sampleData);
@@ -404,10 +424,11 @@ export default function ShoppingPoolPage() {
           const name = row["מוצר"]?.toString().trim();
           if (!name) continue;
           const category = row["קטגוריה"]?.toString().trim() || "כללי";
+          const defaultUnit = row["יחידת מדידה"]?.toString().trim() || row["יחידה"]?.toString().trim() || "יחידות";
 
           const docId = name.replace(/\//g, "-");
           const newDocRef = doc(db, "product_pool", docId);
-          batch.set(newDocRef, { name, category, isActive: true }, { merge: true });
+          batch.set(newDocRef, { name, category, defaultUnit, isActive: true }, { merge: true });
           addedCount++;
         }
 
@@ -443,11 +464,13 @@ export default function ShoppingPoolPage() {
       await setDoc(doc(db, "product_pool", docId), {
         name: cleanName,
         category: newCategory,
+        defaultUnit: newDefaultUnit,
         isActive: true,
         trackInventory: false
       }, { merge: true });
-      setProducts([...products.filter(p => p.id !== docId), { id: docId, name: cleanName, category: newCategory, isActive: true, trackInventory: false }].sort((a,b) => a.name.localeCompare(b.name)));
+      setProducts([...products.filter(p => p.id !== docId), { id: docId, name: cleanName, category: newCategory, defaultUnit: newDefaultUnit, isActive: true, trackInventory: false }].sort((a,b) => a.name.localeCompare(b.name)));
       setNewName("");
+      setNewDefaultUnit("יחידות");
       setIsAdding(false);
     } catch (error) {
       console.error("Error adding product:", error);
@@ -642,7 +665,7 @@ export default function ShoppingPoolPage() {
                     onSubmit={handleAddProduct}
                     className="bg-[var(--surface)] border border-blue-500/30 p-4 rounded-[1.5rem] flex flex-col gap-4 shadow-2xl shadow-blue-500/10"
                   >
-                    <div className="flex gap-4">
+                    <div className="flex flex-col sm:flex-row gap-3">
                       <input 
                         autoFocus
                         value={newName}
@@ -654,9 +677,17 @@ export default function ShoppingPoolPage() {
                       <select 
                         value={newCategory}
                         onChange={(e) => setNewCategory(e.target.value)}
-                        className="w-40 bg-[var(--background)] border border-[var(--border)] rounded-xl px-2 text-xs focus:outline-none text-right"
+                        className="w-full sm:w-36 bg-[var(--background)] border border-[var(--border)] rounded-xl px-2 py-3 text-xs focus:outline-none text-right font-bold"
                       >
                         {categories.map(c => <option key={c} value={c}>{c}</option>)}
+                      </select>
+                      <select 
+                        value={newDefaultUnit}
+                        onChange={(e) => setNewDefaultUnit(e.target.value)}
+                        className="w-full sm:w-28 bg-[var(--background)] border border-[var(--border)] rounded-xl px-2 py-3 text-xs focus:outline-none text-right font-bold text-indigo-600 dark:text-indigo-400"
+                        title="יחידת מדידה קבועה"
+                      >
+                        {MEASUREMENT_UNITS.map(u => <option key={u} value={u}>{u}</option>)}
                       </select>
                     </div>
                     <div className="flex gap-2">
@@ -688,12 +719,12 @@ export default function ShoppingPoolPage() {
                       }`}
                     >
                       {isEditingThis ? (
-                        <div className="flex items-center gap-2 w-full">
+                        <div className="flex items-center gap-2 w-full flex-wrap sm:flex-nowrap">
                           <input
                             type="text"
                             value={editingProdName}
                             onChange={(e) => setEditingProdName(e.target.value)}
-                            className="flex-1 bg-[var(--background)] border border-blue-500/40 rounded-xl py-1.5 px-3 text-sm font-bold text-right focus:outline-none"
+                            className="flex-1 bg-[var(--background)] border border-blue-500/40 rounded-xl py-1.5 px-3 text-sm font-bold text-right focus:outline-none min-w-[120px]"
                             autoFocus
                             onKeyDown={(e) => {
                               if (e.key === "Enter") handleUpdateProduct(prod.id);
@@ -707,20 +738,30 @@ export default function ShoppingPoolPage() {
                           >
                             {categories.map(c => <option key={c} value={c}>{c}</option>)}
                           </select>
-                          <button
-                            onClick={() => handleUpdateProduct(prod.id)}
-                            className="p-2 bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 rounded-xl border border-emerald-500/20 transition-all cursor-pointer"
-                            title="שמור"
+                          <select
+                            value={editingProdUnit}
+                            onChange={(e) => setEditingProdUnit(e.target.value)}
+                            className="bg-[var(--background)] border border-[var(--border)] rounded-xl py-1.5 px-2 text-xs font-bold text-right text-indigo-600 dark:text-indigo-400"
+                            title="יחידת מדידה"
                           >
-                            <Check className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => setEditingProdId(null)}
-                            className="p-2 bg-[var(--foreground)]/5 text-slate-400 hover:bg-[var(--foreground)]/10 rounded-xl border border-[var(--border)] transition-all cursor-pointer"
-                            title="ביטול"
-                          >
-                            <X className="w-4 h-4" />
-                          </button>
+                            {MEASUREMENT_UNITS.map(u => <option key={u} value={u}>{u}</option>)}
+                          </select>
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => handleUpdateProduct(prod.id)}
+                              className="p-2 bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 rounded-xl border border-emerald-500/20 transition-all cursor-pointer"
+                              title="שמור"
+                            >
+                              <Check className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => setEditingProdId(null)}
+                              className="p-2 bg-[var(--foreground)]/5 text-slate-400 hover:bg-[var(--foreground)]/10 rounded-xl border border-[var(--border)] transition-all cursor-pointer"
+                              title="ביטול"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          </div>
                         </div>
                       ) : (
                         <>
@@ -731,10 +772,13 @@ export default function ShoppingPoolPage() {
                               <Package className="w-5 h-5" />
                             </div>
                             <div className="text-right">
-                              <div className="flex items-center gap-2">
+                              <div className="flex items-center gap-2 flex-wrap">
                                 <h3 className={`font-bold text-sm ${isInactive ? "line-through text-slate-400" : ""}`}>
                                   {prod.name}
                                 </h3>
+                                <span className="text-[9px] font-black px-2 py-0.5 rounded-md bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
+                                  {prod.defaultUnit || "יחידות"}
+                                </span>
                                 {isInactive && (
                                   <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-rose-500/10 text-rose-500 border border-rose-500/20">
                                     לא פעיל
@@ -783,6 +827,7 @@ export default function ShoppingPoolPage() {
                                 setEditingProdId(prod.id);
                                 setEditingProdName(prod.name);
                                 setEditingProdCat(prod.category);
+                                setEditingProdUnit(prod.defaultUnit || "יחידות");
                               }}
                               className="p-2 text-slate-400 hover:text-blue-500 hover:bg-blue-500/10 rounded-xl transition-all cursor-pointer"
                               title="ערוך מוצר"
