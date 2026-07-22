@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { ShoppingRequest, Product, InventoryItem } from "../types";
+import { findSimilarProduct } from "../lib/stringUtils";
 import { 
   Edit3, Settings, X, Plus, Minus, Trash2, Check, RotateCcw, Download, 
   Receipt, Star, Flame, ShoppingBag, CheckCircle2, Upload, Loader2, Search 
@@ -615,7 +616,8 @@ export function ShoppingModals({
                     {(() => {
                       const term = recurringSearchVal.trim().toLowerCase();
                       const matches = pool.filter((p) => p.name.toLowerCase().includes(term) && !p.isRecurring);
-                      const hasExact = pool.some((p) => p.name === recurringSearchVal.trim());
+                      const similar = findSimilarProduct(recurringSearchVal, pool);
+                      const hasExact = !!similar;
 
                       return (
                         <>
@@ -634,7 +636,7 @@ export function ShoppingModals({
                               </span>
                             </button>
                           ))}
-                          {!hasExact && (
+                          {!hasExact && isAdmin && (
                             <button
                               onClick={() => {
                                 const name = recurringSearchVal.trim();

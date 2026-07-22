@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { Product, ShoppingRequest } from "../types";
 import { Plus, Search, Star, X, Check, Flame, CheckCircle2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { findSimilarProduct } from "../lib/stringUtils";
 
 export const MEASUREMENT_UNITS = [
   "יחידות",
@@ -39,6 +40,8 @@ interface AddProductOverlayProps {
   inputVal: string;
   setInputVal: (val: string) => void;
   onAddProduct: (name: string, category?: string, priority?: "normal" | "urgent", quantity?: string) => void;
+  onRequestNewProduct: (name: string, category?: string, priority?: "normal" | "urgent", quantity?: string) => void;
+  isAdmin: boolean;
 }
 
 export function AddProductOverlay({
@@ -49,6 +52,8 @@ export function AddProductOverlay({
   inputVal,
   setInputVal,
   onAddProduct,
+  onRequestNewProduct,
+  isAdmin,
 }: AddProductOverlayProps) {
   const [addUrgent, setAddUrgent] = useState(false);
   const [addQty, setAddQty] = useState("1");
@@ -68,9 +73,23 @@ export function AddProductOverlay({
   const handleAddInput = () => {
     const name = inputVal.trim();
     if (!name) return;
-    const match = pool.find((p) => p.name === name);
-    const finalQty = addUnit === "יחידות" ? addQty : `${addQty} ${addUnit}`;
-    onAddProduct(name, match?.category ?? "כללי", addUrgent ? "urgent" : "normal", finalQty);
+    
+    // Check if the product already exists (using fuzzy matching)
+    const similarProduct = findSimilarProduct(name, pool);
+    if (similarProduct) {
+      // If it exists, add the existing product instead of creating a new one
+      const finalQty = addUnit === "יחידות" ? addQty : `${addQty} ${addUnit}`;
+      onAddProduct(similarProduct.name, similarProduct.category ?? "כללי", addUrgent ? "urgent" : "normal", finalQty);
+    } else {
+      const finalQty = addUnit === "יחידות" ? addQty : `${addQty} ${addUnit}`;
+      if (isAdmin) {
+        const match = pool.find((p) => p.name === name);
+        onAddProduct(name, match?.category ?? "כללי", addUrgent ? "urgent" : "normal", finalQty);
+      } else {
+        onRequestNewProduct(name, "כללי", addUrgent ? "urgent" : "normal", finalQty);
+      }
+    }
+    
     setInputVal("");
     setAddUrgent(false);
     onClose();
@@ -85,7 +104,7 @@ export function AddProductOverlay({
     )
     .slice(0, 20);
 
-  const exactMatch = pool.some((p) => p.name === inputVal.trim());
+  const exactMatch = !!findSimilarProduct(inputVal, pool);
   const alreadyInList = (name: string) =>
     requests.some((r) => r.name === name && r.status !== "archived" && r.status !== "deleted");
 
@@ -262,7 +281,9 @@ export function AddProductOverlay({
                 onClick={handleAddInput}
                 className="w-full flex items-center justify-between px-5 py-3.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 !text-white font-black text-sm shadow-md shadow-indigo-600/15 active:scale-[0.98] transition-all cursor-pointer border-none shrink-0"
               >
-                <span className="!text-white">הוסף "{inputVal}" חדש</span>
+                <span className="!text-white">
+                  {isAdmin ? `הוסף "${inputVal}" חדש` : `לא מצאת? בקש הוספת "${inputVal}"`}
+                </span>
                 <Plus className="w-5 h-5 !text-white" />
               </button>
             )}

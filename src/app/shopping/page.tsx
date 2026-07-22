@@ -10,7 +10,7 @@ import {
 } from "firebase/firestore";
 import { 
   ShoppingCart, Plus, Search, Loader2, ArrowRight, Download, 
-  Settings, Boxes, Star, ShoppingBag, Edit3, Receipt, RotateCcw
+  Settings, Boxes, Star, ShoppingBag, Edit3, Receipt, RotateCcw, Database
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { motion, AnimatePresence } from "framer-motion";
@@ -26,6 +26,7 @@ import { InventoryView } from "./components/InventoryView";
 import { ShoppingListView } from "./components/ShoppingListView";
 import { AddProductOverlay } from "./components/AddProductOverlay";
 import { ShoppingModals } from "./components/ShoppingModals";
+import { AdminProductRequestsModal } from "./components/AdminProductRequestsModal";
 
 const normalizeHebrewString = (str: string): string => {
   if (!str) return "";
@@ -118,6 +119,9 @@ export default function ShoppingPage() {
 
   // Star Products State
   const [showManageStarModal, setShowManageStarModal] = useState(false);
+  
+  // Admin Product Requests Modal State
+  const [showAdminRequestsModal, setShowAdminRequestsModal] = useState(false);
 
   const inputRef = useRef<HTMLInputElement>(null);
   const mobileInputRef = useRef<HTMLInputElement>(null);
@@ -306,6 +310,43 @@ export default function ShoppingPage() {
       showToast(`התווספו ${addedCount} מוצרים חסרים לרשימת הקניות! 🛒`, "success");
     } else {
       showToast("כל המוצרים החסרים כבר קיימים ברשימת הקניות.", "warning");
+    }
+  };
+
+  // User request a new product to be added to the pool by admin
+  const requestNewProduct = async (
+    name: string,
+    category = "כללי",
+    priority: "normal" | "urgent" = "normal",
+    quantity = "1"
+  ) => {
+    const cleanName = name.trim();
+    if (!cleanName) return;
+
+    try {
+      await addDoc(collection(db, "product_requests_queue"), {
+        name: cleanName,
+        category,
+        quantity,
+        priority,
+        status: "pending",
+        requestedBy: user?.uid,
+        requestedByName: user?.displayName || user?.email || "משתמש",
+        createdAt: new Date(),
+        listType,
+      });
+
+      sendPush({
+        role: ["admin"],
+        title: "📦 בקשה להוספת מוצר חדש",
+        body: `${user?.displayName || "משתמש"} מבקש להוסיף את "${cleanName}" למאגר המוצרים.`,
+        link: "/shopping",
+      });
+
+      showToast("הבקשה להוספת המוצר נשלחה למנהל. תודה!", "success");
+    } catch (e) {
+      console.error("Error submitting new product request:", e);
+      showToast("שגיאה בשליחת הבקשה.", "warning");
     }
   };
 
@@ -983,6 +1024,15 @@ export default function ShoppingPage() {
                   <Edit3 className="w-4 h-4 text-indigo-400" />
                   <span>ניהול קטגוריות</span>
                 </button>
+                {isAdmin && (
+                  <button
+                    onClick={() => setShowAdminRequestsModal(true)}
+                    className="px-4 py-2.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-500 hover:bg-amber-500/20 transition-all flex items-center gap-1.5 text-xs font-black cursor-pointer"
+                  >
+                    <Database className="w-4 h-4 text-amber-500" />
+                    <span>בקשות מוצרים</span>
+                  </button>
+                )}
                 <button
                   onClick={() => setReceiptScanOpen(true)}
                   className="px-3.5 py-2.5 rounded-2xl bg-rose-600 hover:bg-rose-700 !text-white text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
@@ -1134,6 +1184,18 @@ export default function ShoppingPage() {
           inputVal={inputVal}
           setInputVal={setInputVal}
           onAddProduct={addProduct}
+          onRequestNewProduct={requestNewProduct}
+          isAdmin={isAdmin}
+        />
+
+        {/* Admin Product Requests Modal */}
+        <AdminProductRequestsModal
+          isOpen={showAdminRequestsModal}
+          onClose={() => setShowAdminRequestsModal(false)}
+          pool={pool}
+          onAddProduct={async (name, cat) => {
+            await setDoc(doc(db, "product_pool", name.replace(/\//g, "-")), { name, category: cat }, { merge: true });
+          }}
         />
 
         {/* Application Modals */}

@@ -51,3 +51,13 @@ export interface InventoryLogEntry {
   updatedByName: string;
   timestamp: any;
 }
+
+export interface NewProductRequest {
+  id: string;
+  name: string;
+  category: string;
+  requestedBy: string;
+  requestedByName: string;
+  createdAt: any;
+  status: "pending" | "approved" | "rejected";
+}
