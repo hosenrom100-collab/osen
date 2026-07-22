@@ -45,6 +45,7 @@ interface Product {
   recurringQuantity?: string;
   trackInventory?: boolean;
   isActive?: boolean;
+  isStar?: boolean;
 }
 
 interface InventoryItem {
@@ -85,19 +86,6 @@ const CAT_SOLID: Record<string, string> = {
   "קפואים":               "bg-sky-500 border-sky-400",
   "כללי":                 "bg-slate-400 border-slate-300",
 };
-
-const STAR_PRODUCTS = [
-  { name: "חלב", category: "גבינות ומחלבה" },
-  { name: "לחם", category: "לחם ומאפים" },
-  { name: "קפה", category: "כללי" },
-  { name: "סוכר", category: "שימורים ובישול" },
-  { name: "נייר טואלט", category: "מוצרי נייר וחד פעמי" },
-  { name: "גבינה צהובה", category: "גבינות ומחלבה" },
-  { name: "ביצים", category: "גבינות ומחלבה" },
-  { name: "חמאה", category: "גבינות ומחלבה" },
-  { name: "שמן זית", category: "שימורים ובישול" },
-  { name: "שקיות אשפה", category: "חומרי ניקוי" },
-];
 
 const getLevenshteinDistance = (a: string, b: string): number => {
   const matrix = [];
@@ -237,6 +225,10 @@ export default function ShoppingPage() {
 
   // Category Filter State
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
+
+  // Manage Star Products Modal State
+  const [showManageStarModal, setShowManageStarModal] = useState(false);
+  const [starModalSearchVal, setStarModalSearchVal]   = useState("");
 
   const [categories, setCategories] = useState([
     "גבינות ומחלבה","לחם ומאפים","חומרי ניקוי",
@@ -620,6 +612,19 @@ export default function ShoppingPage() {
     } catch (e) {
       console.error("Error toggling trackInventory:", e);
       showToast("שגיאה בעדכון מעקב מלאי", "warning");
+    }
+  };
+
+  const toggleStarProduct = async (productId: string, currentIsStar?: boolean) => {
+    try {
+      await setDoc(doc(db, "product_pool", productId), {
+        isStar: !currentIsStar
+      }, { merge: true });
+      await fetchPool();
+      showToast(!currentIsStar ? "המוצר סומן כמוצר כוכב ⭐" : "המוצר הוסר ממוצרי הכוכב", "success");
+    } catch (e) {
+      console.error("Error toggling isStar:", e);
+      showToast("שגיאה בעדכון מוצר כוכב", "warning");
     }
   };
 
@@ -1782,41 +1787,48 @@ export default function ShoppingPage() {
                    />
                 </div>
 
-                 {/* Star / Favorite Quick-Add Chips */}
-                 <div className="mb-4 shrink-0">
-                    <div className="flex items-center gap-1 mb-2 text-amber-500 font-black text-[11px]">
-                       <Star className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
-                       <span>מוצרי כוכב – בלחיצה אחת:</span>
-                    </div>
-                    <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1">
-                       {STAR_PRODUCTS.map((starItem) => {
-                          const inList = alreadyInList(starItem.name);
-                          return (
-                             <button
-                               key={starItem.name}
-                               onClick={() => {
-                                  if (!inList) {
-                                     const finalQty = addUnit === "יחידות" ? addQty : `${addQty} ${addUnit}`;
-                                     addProduct(starItem.name, starItem.category, addUrgent ? "urgent" : "normal", finalQty);
-                                     setInputVal("");
-                                     setOverlayOpen(false);
-                                     setAddUrgent(false);
-                                  }
-                               }}
-                               disabled={inList}
-                               className={`px-3 py-1.5 rounded-xl text-xs font-bold shrink-0 flex items-center gap-1 transition-all active:scale-95 cursor-pointer border ${
-                                  inList 
-                                    ? "bg-[var(--foreground)]/5 text-[var(--muted)] border-transparent opacity-50 cursor-not-allowed" 
-                                    : "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20 hover:bg-amber-500/20 shadow-xs"
-                               }`}
-                             >
-                                {inList ? <Check className="w-3 h-3 text-emerald-500" /> : <Plus className="w-3 h-3 text-amber-500" />}
-                                <span>{starItem.name}</span>
-                             </button>
-                          );
-                       })}
-                    </div>
-                 </div>
+                 {/* Star / Favorite Quick-Add Chips (Only rendered when managers configured star products in pool) */}
+                 {(() => {
+                    const starProducts = pool.filter(p => p.isActive !== false && p.isStar === true);
+                    if (starProducts.length === 0) return null;
+
+                    return (
+                       <div className="mb-4 shrink-0">
+                          <div className="flex items-center gap-1 mb-2 text-amber-500 font-black text-[11px]">
+                             <Star className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
+                             <span>מוצרי כוכב – בלחיצה אחת:</span>
+                          </div>
+                          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1">
+                             {starProducts.map((starItem) => {
+                                const inList = alreadyInList(starItem.name);
+                                return (
+                                   <button
+                                     key={starItem.id}
+                                     onClick={() => {
+                                        if (!inList) {
+                                           const finalQty = addUnit === "יחידות" ? addQty : `${addQty} ${addUnit}`;
+                                           addProduct(starItem.name, starItem.category, addUrgent ? "urgent" : "normal", finalQty);
+                                           setInputVal("");
+                                           setOverlayOpen(false);
+                                           setAddUrgent(false);
+                                        }
+                                     }}
+                                     disabled={inList}
+                                     className={`px-3 py-1.5 rounded-xl text-xs font-bold shrink-0 flex items-center gap-1 transition-all active:scale-95 cursor-pointer border ${
+                                        inList 
+                                          ? "bg-[var(--foreground)]/5 text-[var(--muted)] border-transparent opacity-50 cursor-not-allowed" 
+                                          : "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20 hover:bg-amber-500/20 shadow-xs"
+                                     }`}
+                                   >
+                                      {inList ? <Check className="w-3 h-3 text-emerald-500" /> : <Plus className="w-3 h-3 text-amber-500" />}
+                                      <span>{starItem.name}</span>
+                                   </button>
+                                );
+                             })}
+                          </div>
+                       </div>
+                    );
+                 })()}
 
                 {/* Quantity and Unit Inputs */}
                 <div className="grid grid-cols-2 gap-3 mb-4 shrink-0" dir="rtl">
@@ -2584,6 +2596,20 @@ export default function ShoppingPage() {
                       <Edit3 className="w-5 h-5 text-indigo-500" />
                       <span>ניהול קטגוריות רכש</span>
                     </button>
+
+                    {(isAdmin || isManager || isLogistics) && (
+                      <button
+                        onClick={() => {
+                          setActionsMenuOpen(false);
+                          setShowManageStarModal(true);
+                        }}
+                        className="w-full py-4 px-4 bg-[var(--foreground)]/5 hover:bg-[var(--foreground)]/10 rounded-2xl border border-[var(--border)] text-sm font-bold transition-all flex items-center gap-3 justify-start cursor-pointer border-none"
+                      >
+                        <Star className="w-5 h-5 text-amber-500 fill-amber-500/20" />
+                        <span>ניהול מוצרי כוכב ⭐</span>
+                      </button>
+                    )}
+
                     <button
                       onClick={() => {
                         setActionsMenuOpen(false);
@@ -2753,6 +2779,91 @@ export default function ShoppingPage() {
                     </button>
 
                   </div>
+                </motion.div>
+              </div>
+            )}
+          </AnimatePresence>
+
+          {/* Manage Star Products Modal */}
+          <AnimatePresence>
+            {showManageStarModal && (
+              <div className="fixed inset-0 z-[130] flex items-center justify-center p-4">
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowManageStarModal(false)} className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+                <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
+                  className="relative bg-[var(--surface)] border border-[var(--border)] rounded-[2.5rem] w-full max-w-lg p-6 md:p-8 shadow-2xl text-right flex flex-col max-h-[90vh] overflow-hidden z-10" dir="rtl">
+                   
+                   <div className="flex items-center justify-between mb-4 shrink-0">
+                      <h3 className="text-lg md:text-xl font-black flex items-center gap-2">
+                        <Star className="w-5 h-5 text-amber-500 fill-amber-500" />
+                        <span>ניהול מוצרי כוכב (מתוך הפול)</span>
+                      </h3>
+                      <button onClick={() => setShowManageStarModal(false)} className="p-2 rounded-full hover:bg-[var(--foreground)]/5 text-[var(--muted)] border-none cursor-pointer">
+                        <X className="w-5 h-5" />
+                      </button>
+                   </div>
+
+                   <p className="text-xs text-[var(--muted)] font-bold mb-4 shrink-0">
+                     סמן מוצרים מתוך פול המוצרים הקיים כדי להציג אותם כצ׳יפים מהירים בחלונית הוספת מוצר.
+                   </p>
+
+                   {/* Search in pool */}
+                   <div className="relative mb-4 shrink-0">
+                      <Search className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--muted)]" />
+                      <input
+                         type="text"
+                         value={starModalSearchVal}
+                         onChange={e => setStarModalSearchVal(e.target.value)}
+                         placeholder="חיפוש מוצר בפול..."
+                         className="w-full bg-[var(--background)] border border-[var(--border)] rounded-2xl py-2.5 pr-11 pl-4 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+                      />
+                   </div>
+
+                   {/* Pool items list with Star toggle */}
+                   <div className="flex-1 overflow-y-auto divide-y divide-[var(--border)]/60 pr-1 no-scrollbar mb-4">
+                      {(() => {
+                         const term = starModalSearchVal.trim().toLowerCase();
+                         const filtered = pool.filter(p => p.isActive !== false && (!term || p.name.toLowerCase().includes(term) || p.category.toLowerCase().includes(term)));
+                         
+                         if (filtered.length === 0) {
+                           return (
+                             <div className="py-12 text-center opacity-40">
+                                <ShoppingBag className="w-10 h-10 mx-auto mb-2 text-[var(--muted)]" />
+                                <p className="text-xs font-black">לא נמצאו מוצרים תואמים בפול</p>
+                             </div>
+                           );
+                         }
+
+                         return filtered.map(p => {
+                           const isStar = !!p.isStar;
+                           return (
+                             <div key={p.id} className="py-3 flex items-center justify-between gap-4">
+                                <div className="flex flex-col items-start gap-1 min-w-0 flex-1">
+                                   <span className="text-xs font-bold text-[var(--foreground)] truncate">{p.name}</span>
+                                   <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-md ${CAT_COLOR[p.category] ?? CAT_COLOR["כללי"]}`}>{p.category}</span>
+                                </div>
+                                <button
+                                  onClick={() => toggleStarProduct(p.id, isStar)}
+                                  className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer border flex items-center gap-1.5 border-none ${
+                                    isStar
+                                      ? "bg-amber-500 text-white shadow-sm"
+                                      : "bg-[var(--foreground)]/5 text-[var(--muted)] hover:bg-[var(--foreground)]/10"
+                                  }`}
+                                >
+                                  <Star className={`w-3.5 h-3.5 ${isStar ? "fill-white" : ""}`} />
+                                  <span>{isStar ? "מוצר כוכב ⭐" : "+ הגדר ככוכב"}</span>
+                                </button>
+                             </div>
+                           );
+                         });
+                      })()}
+                   </div>
+
+                   <button
+                     onClick={() => setShowManageStarModal(false)}
+                     className="w-full py-4 bg-amber-500 hover:bg-amber-600 !text-white text-sm font-black rounded-2xl shadow-lg transition-all active:scale-[0.98] shrink-0 cursor-pointer border-none"
+                   >
+                     סיום
+                   </button>
                 </motion.div>
               </div>
             )}

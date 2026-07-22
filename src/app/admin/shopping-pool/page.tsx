@@ -4,7 +4,7 @@ import { RoleGuard } from "@/components/auth/RoleGuard";
 import { useState, useEffect } from "react";
 import { db } from "@/lib/firebase/config";
 import { collection, addDoc, getDocs, query, orderBy, where, doc, deleteDoc, writeBatch, getDoc, setDoc } from "firebase/firestore";
-import { Package, Plus, Trash2, Tag, Search, ArrowRight, Loader2, Settings, X, Download, Upload, Edit3, Check, Eye, EyeOff, Boxes, Layers, AlertTriangle } from "lucide-react";
+import { Package, Plus, Trash2, Tag, Search, ArrowRight, Loader2, Settings, X, Download, Upload, Edit3, Check, Eye, EyeOff, Boxes, Layers, AlertTriangle, Star } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
 import * as XLSX from "xlsx";
@@ -17,6 +17,7 @@ interface Product {
   recurringQuantity?: string;
   trackInventory?: boolean;
   isActive?: boolean;
+  isStar?: boolean;
 }
 
 const getLevenshteinDistance = (a: string, b: string): number => {
@@ -219,6 +220,16 @@ export default function ShoppingPoolPage() {
       setProducts(products.map(p => p.id === id ? { ...p, trackInventory: nextVal } : p));
     } catch (e) {
       console.error("Error updating trackInventory:", e);
+    }
+  };
+
+  const toggleProductStar = async (id: string, currentIsStar?: boolean) => {
+    const nextVal = !currentIsStar;
+    try {
+      await setDoc(doc(db, "product_pool", id), { isStar: nextVal }, { merge: true });
+      setProducts(products.map(p => p.id === id ? { ...p, isStar: nextVal } : p));
+    } catch (e) {
+      console.error("Error updating isStar:", e);
     }
   };
 
