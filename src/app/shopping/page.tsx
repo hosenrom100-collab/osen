@@ -588,6 +588,28 @@ export default function ShoppingPage() {
     }
   };
 
+  const archiveExportedSession = async (exportedItems: ShoppingRequest[]) => {
+    if (!exportedItems || exportedItems.length === 0) return;
+    try {
+      setLoading(true);
+      await Promise.all(
+        exportedItems.map((r) =>
+          updateDoc(doc(db, "shopping_requests", r.id), {
+            status: "archived",
+            archivedAt: new Date(),
+            archivedBy: user?.uid,
+          })
+        )
+      );
+      showToast(`איפוס הושלם! ${exportedItems.length} פריטים הועברו לארכיון.`, "success");
+    } catch (e) {
+      console.error("Error archiving exported session:", e);
+      showToast("שגיאה באיפוס הרשימה הנוכחית.", "warning");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const toggleTrackInventory = async (productId: string, currentTrack?: boolean) => {
     try {
       await setDoc(doc(db, "product_pool", productId), {
@@ -893,6 +915,14 @@ export default function ShoppingPage() {
       });
       await generateDocxWithLetterhead(doc, `רשימת_רכש_${format(new Date(), "yyyy-MM-dd")}.docx`);
       showToast("הופקה רשימת רכש והורדה בהצלחה!", "success");
+
+      if (canPurchase && activeSession.length > 0) {
+        setTimeout(() => {
+          if (confirm(`רשימת הרכש הופקה והורדה בהצלחה.\n\nהאם ברצונך לאפס ולנקות את ${activeSession.length} הפריטים שיוצאו ברשימה זו (העברה לארכיון) לקראת סבב הרכש הבא?`)) {
+            archiveExportedSession(activeSession);
+          }
+        }, 500);
+      }
     } catch (e) {
       console.error("Failed to generate procurement Word document", e);
       showToast("שגיאה בהפקת רשימת רכש.", "warning");
@@ -917,6 +947,14 @@ export default function ShoppingPage() {
       });
       await generateDocxWithLetterhead(doc, `רשימת_קניות_סופר_${format(new Date(), "yyyy-MM-dd")}.docx`);
       showToast("הופקה רשימה שוטפת והורדה בהצלחה!", "success");
+
+      if (canPurchase && activeSession.length > 0) {
+        setTimeout(() => {
+          if (confirm(`רשימת הסופר השוטפת הופקה והורדה בהצלחה.\n\nהאם ברצונך לאפס ולנקות את ${activeSession.length} הפריטים שיוצאו ברשימה זו (העברה לארכיון) לקראת הרכישה הבאה?`)) {
+            archiveExportedSession(activeSession);
+          }
+        }, 500);
+      }
     } catch (e) {
       console.error("Failed to generate ongoing Word document", e);
       showToast("שגיאה בהפקת רשימה שוטפת.", "warning");
@@ -2994,14 +3032,7 @@ function MobileItemRow({ item, onStatus, onEdit, onUpdateQuantity, canPurchase, 
                   )
                 )}
 
-                {isApproved && canPurchase && (
-                  <button
-                    onClick={() => onStatus(item.id, "purchased")}
-                    className="bg-indigo-600 hover:bg-indigo-500 !text-white rounded-xl px-4.5 py-2 text-xs font-black transition-all flex items-center justify-center gap-1 active:scale-95 shadow-md shadow-indigo-600/15 cursor-pointer border-none"
-                  >
-                    <ShoppingCart className="w-3.5 h-3.5 !text-white" /> קנה
-                  </button>
-                )}
+
               </div>
             </div>
           </motion.div>
