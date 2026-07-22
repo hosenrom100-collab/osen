@@ -83,6 +83,7 @@ const CAT_SOLID: Record<string, string> = {
   "טואלטיקה והיגיינה":   "bg-teal-500 border-teal-400",
   "שימורים ובישול":       "bg-slate-500 border-slate-400",
   "קפואים":               "bg-sky-500 border-sky-400",
+  "כללי":                 "bg-slate-400 border-slate-300",
 };
 
 const STAR_PRODUCTS = [
@@ -2744,7 +2745,7 @@ function CategorySection({ title, items, onStatus, onEdit, onUpdateQuantity, can
     <div className="mb-6 last:mb-0 px-4 md:px-0">
       <div className="flex items-center justify-between py-2 mb-3">
         <div className="flex items-center gap-2">
-          <div className={`w-1.5 h-5 rounded-full shadow-sm ${(CAT_SOLID[title] ?? CAT_SOLID["כללי"]).split(" ")[0]}`} />
+          <div className={`w-1.5 h-5 rounded-full shadow-sm ${((CAT_SOLID[title] || CAT_SOLID["כללי"] || "bg-slate-400").split(" ")[0])}`} />
           <h3 className="text-sm font-extrabold text-[var(--foreground)]">
             {title}
           </h3>
