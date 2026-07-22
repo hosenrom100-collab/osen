@@ -42,6 +42,8 @@ interface Product {
   category: string; 
   isRecurring?: boolean;
   recurringQuantity?: string;
+  trackInventory?: boolean;
+  isActive?: boolean;
 }
 
 interface InventoryItem {
@@ -168,6 +170,8 @@ export default function ShoppingPage() {
   const [editingInvItem, setEditingInvItem] = useState<{ productId: string; name: string; minStock: number; unit: string } | null>(null);
   const [editMinStock, setEditMinStock] = useState("1");
   const [editUnit, setEditUnit] = useState("יחידות");
+  const [showManageTrackModal, setShowManageTrackModal] = useState(false);
+  const [trackModalSearch, setTrackModalSearch] = useState("");
 
 
   // Receipt Scan Modal State
@@ -570,19 +574,51 @@ export default function ShoppingPage() {
     }
   };
 
+  const toggleTrackInventory = async (productId: string, currentTrack?: boolean) => {
+    try {
+      await setDoc(doc(db, "product_pool", productId), {
+        trackInventory: !currentTrack
+      }, { merge: true });
+      await fetchPool();
+      showToast(!currentTrack ? "המוצר סומן למעקב מלאי" : "המוצר הוסר ממעקב מלאי", "success");
+    } catch (e) {
+      console.error("Error toggling trackInventory:", e);
+      showToast("שגיאה בעדכון מעקב מלאי", "warning");
+    }
+  };
+
   const addProduct = async (name: string, category = "כללי", priority: "normal" | "urgent" = "normal", quantity = "1") => {
+    const cleanName = name.trim();
+    if (!cleanName) return;
+
+    if (cleanName.includes(",") || cleanName.includes("،")) {
+      showToast("יש להוסיף כל מוצר בנפרד ולא כמחרוזת של כמה מוצרים.", "warning");
+      return;
+    }
+    if (cleanName.length > 60) {
+      showToast("שם המוצר ארוך מדי. אנא קצר את שם המוצר.", "warning");
+      return;
+    }
+
     const activeRequestsList = requests.filter((r) => r.status !== "archived");
-    const similarName = findSimilarRequest(name, activeRequestsList);
+    const similarName = findSimilarRequest(cleanName, activeRequestsList);
     if (similarName) {
       showToast(`המוצר כבר הוזמן לרשימה בשם דומה: "${similarName}"! ניתן להגדיל את הכמות שלו ברשימה.`, "warning");
-      const match = pool.find((p) => p.name === similarName || p.name === name);
+      const match = pool.find((p) => p.name === similarName || p.name === cleanName);
       flash(match?.id ?? "dup");
       return;
     }
-    const docId = name.replace(/\//g, "-");
-    try { await setDoc(doc(db, "product_pool", docId), { name, category }, { merge: true }); } catch { /* ignore pool write fail for non-managers */ }
+    const docId = cleanName.replace(/\//g, "-");
+
+    // Write to product_pool ONLY if user has logistics / admin / manager permissions
+    if (canPurchase) {
+      try { 
+        await setDoc(doc(db, "product_pool", docId), { name: cleanName, category, isActive: true }, { merge: true }); 
+      } catch { /* ignore pool write fail */ }
+    }
+
     await addDoc(collection(db, "shopping_requests"), {
-      name, category, quantity, notes: "", priority, status: "approved",
+      name: cleanName, category, quantity, notes: "", priority, status: "approved",
       requestedBy: user?.uid, requestedByName: user?.displayName || user?.email || "משתמש",
       createdAt: new Date(),
       listType,
@@ -591,13 +627,13 @@ export default function ShoppingPage() {
       sendPush({
         role: ["admin", "manager", "logistics"],
         title: "🔥 בקשת רכש דחופה",
-        body: `${user?.displayName || "משתמש"}: ${name}`,
+        body: `${user?.displayName || "משתמש"}: ${cleanName}`,
         link: "/shopping",
       });
     }
     showToast("המוצר הוזמן בהצלחה! ניתן להגדיל את הכמות שלו ברשימה במידת הצורך.", "success");
     flash(docId);
-    if (!pool.some((p) => p.name === name)) fetchPool();
+    if (!pool.some((p) => p.name === cleanName) && canPurchase) fetchPool();
   };
 
   const flash = (id: string) => {
@@ -878,6 +914,7 @@ export default function ShoppingPage() {
   const archived = requests.filter((r) => r.status === "archived" && (listType === "large" ? r.listType === "large" : r.listType !== "large"));
 
   const suggestions = pool.filter((p) =>
+    p.isActive !== false &&
     inputVal.trim() &&
     (p.name.includes(inputVal.trim()) || p.category.includes(inputVal.trim()))
   ).slice(0, 20);
@@ -1317,16 +1354,23 @@ export default function ShoppingPage() {
                                <Boxes className="w-6 h-6 text-indigo-500" />
                                <span>ניהול מלאי מוצרים</span>
                             </h2>
-                            <p className="text-xs text-[var(--muted)] font-bold mt-1">מעקב ועדכון מלאי בזמן אמת עבור כל מוצרי חוסן</p>
+                            <p className="text-xs text-[var(--muted)] font-bold mt-1">מעקב ועדכון מלאי בזמן אמת עבור מוצרים נבחרים</p>
                          </div>
                          
-                         <div className="flex items-center gap-2">
+                         <div className="flex items-center gap-2 flex-wrap">
+                            <button
+                              onClick={() => setShowManageTrackModal(true)}
+                              className="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer shadow-sm shadow-indigo-600/20"
+                            >
+                              <Plus className="w-3.5 h-3.5" />
+                              <span>בחירת מוצרים למלאי</span>
+                            </button>
                             <button
                               onClick={() => setIsAddingCat(true)}
-                              className="px-3.5 py-2 rounded-xl bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer"
+                              className="px-3 py-2 rounded-xl bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer"
                             >
                               <Edit3 className="w-3.5 h-3.5" />
-                              <span>ניהול קטגוריות</span>
+                              <span>קטגוריות</span>
                             </button>
                          </div>
                       </div>
@@ -1339,8 +1383,10 @@ export default function ShoppingPage() {
                              inventoryFilter === "all" ? "bg-indigo-500/10 border-indigo-500/40 ring-2 ring-indigo-500/20" : "bg-[var(--foreground)]/[0.02] border-[var(--border)] hover:bg-[var(--foreground)]/5"
                            }`}
                          >
-                            <span className="text-[10px] font-black text-[var(--muted)] block">סה״כ מוצרים</span>
-                            <span className="text-xl font-black text-indigo-600 dark:text-indigo-400">{pool.length}</span>
+                            <span className="text-[10px] font-black text-[var(--muted)] block">מוצרים במעקב מלאי</span>
+                            <span className="text-xl font-black text-indigo-600 dark:text-indigo-400">
+                              {pool.filter(p => p.trackInventory === true).length}
+                            </span>
                          </button>
 
                          <button 
@@ -1354,7 +1400,7 @@ export default function ShoppingPage() {
                               אזל במלאי
                             </span>
                             <span className="text-xl font-black text-rose-600 dark:text-rose-400">
-                               {pool.filter(p => (inventoryMap[p.id]?.currentStock ?? 0) === 0).length}
+                               {pool.filter(p => p.trackInventory === true && (inventoryMap[p.id]?.currentStock ?? 0) === 0).length}
                             </span>
                          </button>
 
@@ -1367,6 +1413,7 @@ export default function ShoppingPage() {
                             <span className="text-[10px] font-black text-amber-500 block">מלאי נמוך</span>
                             <span className="text-xl font-black text-amber-600 dark:text-amber-400">
                                {pool.filter(p => {
+                                  if (p.trackInventory !== true) return false;
                                   const s = inventoryMap[p.id]?.currentStock ?? 0;
                                   const m = inventoryMap[p.id]?.minStock ?? 1;
                                   return s > 0 && s <= m;
@@ -1383,6 +1430,7 @@ export default function ShoppingPage() {
                             <span className="text-[10px] font-black text-emerald-500 block">תקין</span>
                             <span className="text-xl font-black text-emerald-600 dark:text-emerald-400">
                                {pool.filter(p => {
+                                  if (p.trackInventory !== true) return false;
                                   const s = inventoryMap[p.id]?.currentStock ?? 0;
                                   const m = inventoryMap[p.id]?.minStock ?? 1;
                                   return s > m;
@@ -1420,6 +1468,7 @@ export default function ShoppingPage() {
                    {/* Inventory Product Cards List */}
                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                       {pool.filter(p => {
+                         if (p.trackInventory !== true) return false;
                          if (activeCategory && p.category !== activeCategory) return false;
                          if (inventorySearch.trim()) {
                             const q = inventorySearch.trim().toLowerCase();
@@ -1476,6 +1525,13 @@ export default function ShoppingPage() {
                                         >
                                            <Settings className="w-3.5 h-3.5" />
                                         </button>
+                                        <button
+                                          onClick={() => toggleTrackInventory(p.id, p.trackInventory)}
+                                          className="p-1 rounded-lg hover:bg-rose-500/10 text-[var(--muted)] hover:text-rose-500 transition-all cursor-pointer"
+                                          title="הסר מניהול מלאי"
+                                        >
+                                           <X className="w-3.5 h-3.5" />
+                                        </button>
                                      </div>
                                   </div>
 
@@ -1528,10 +1584,20 @@ export default function ShoppingPage() {
                    </div>
 
                    {/* Empty state fallback */}
-                   {pool.length === 0 && (
-                      <div className="py-20 text-center opacity-40">
-                         <Boxes className="w-12 h-12 mx-auto mb-2" />
-                         <p className="text-sm font-black">אין מוצרים במאגר המלאי</p>
+                   {pool.filter(p => p.trackInventory === true).length === 0 && (
+                      <div className="py-16 text-center space-y-3 bg-[var(--surface)] border border-[var(--border)] rounded-[2rem] p-8">
+                         <Boxes className="w-12 h-12 mx-auto text-indigo-500/50" />
+                         <p className="text-base font-black">אין מוצרים במעקב מלאי כרגע</p>
+                         <p className="text-xs text-[var(--muted)] font-bold max-w-sm mx-auto">
+                            תוכל לבחור אילו מוצרים מהמאגר ברצונך לנהל לגביהם מלאי קבוע על ידי לחיצה על הכפתור למטה.
+                         </p>
+                         <button
+                           onClick={() => setShowManageTrackModal(true)}
+                           className="mt-2 inline-flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-black transition-all cursor-pointer shadow-lg shadow-indigo-600/20"
+                         >
+                            <Plus className="w-4 h-4" />
+                            <span>בחירת מוצרים למעקב מלאי</span>
+                         </button>
                       </div>
                    )}
                 </div>
@@ -1982,9 +2048,84 @@ export default function ShoppingPage() {
                       >
                         ביטול
                       </button>
-                   </div>
-                </motion.div>
-             </div>
+                    </div>
+                 </motion.div>
+              </div>
+           )}
+         </AnimatePresence>
+
+        {/* Manage Tracked Inventory Products Modal */}
+        <AnimatePresence>
+          {showManageTrackModal && (
+            <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowManageTrackModal(false)} className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+              <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} 
+                className="relative bg-[var(--surface)] border border-[var(--border)] rounded-[2.5rem] w-full max-w-lg p-6 md:p-8 shadow-2xl text-right flex flex-col max-h-[85vh]" dir="rtl">
+                 
+                 <div className="flex items-center justify-between mb-4 shrink-0">
+                    <h3 className="text-lg font-black flex items-center gap-2">
+                      <Boxes className="w-5 h-5 text-indigo-500" />
+                      <span>בחירת מוצרים לניהול מלאי</span>
+                    </h3>
+                    <button onClick={() => setShowManageTrackModal(false)} className="p-2 rounded-full hover:bg-[var(--foreground)]/5 text-[var(--muted)] cursor-pointer">
+                      <X className="w-5 h-5" />
+                    </button>
+                 </div>
+
+                 <p className="text-xs text-[var(--muted)] font-bold mb-4 shrink-0">
+                    סמן את המוצרים שעבורם ברצונך לעקוב ולנהל מלאי קבוע במערכת.
+                 </p>
+
+                 <div className="relative mb-4 shrink-0">
+                    <Search className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--muted)]" />
+                    <input 
+                      type="text" 
+                      value={trackModalSearch} 
+                      onChange={e => setTrackModalSearch(e.target.value)} 
+                      placeholder="חפש מוצר ברשימה..." 
+                      className="w-full bg-[var(--background)] border border-[var(--border)] rounded-xl py-2 pr-10 pl-3 text-xs font-bold focus:outline-none focus:border-indigo-500 text-[var(--foreground)]" 
+                    />
+                 </div>
+
+                 <div className="flex-1 overflow-y-auto pr-1 space-y-2 max-h-[50vh]">
+                    {pool.filter(p => {
+                       if (p.isActive === false) return false;
+                       if (!trackModalSearch.trim()) return true;
+                       const q = trackModalSearch.trim().toLowerCase();
+                       return p.name.toLowerCase().includes(q) || p.category.toLowerCase().includes(q);
+                    }).map(p => {
+                       const isTracked = p.trackInventory === true;
+                       return (
+                          <div key={p.id} className="flex items-center justify-between p-3 bg-[var(--background)] border border-[var(--border)] rounded-xl gap-2">
+                             <div className="flex flex-col items-start gap-1">
+                                <span className="text-xs font-bold">{p.name}</span>
+                                <CatBadge cat={p.category} />
+                             </div>
+                             <button
+                               onClick={() => toggleTrackInventory(p.id, p.trackInventory)}
+                               className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer border ${
+                                 isTracked
+                                   ? "bg-indigo-600 text-white border-indigo-600 shadow-sm"
+                                   : "bg-[var(--surface)] text-[var(--muted)] border-[var(--border)] hover:border-indigo-500"
+                               }`}
+                             >
+                               {isTracked ? "במלאי ✓" : "+ הוסף למלאי"}
+                             </button>
+                          </div>
+                       );
+                    })}
+                 </div>
+
+                 <div className="mt-4 pt-4 border-t border-[var(--border)] shrink-0 flex justify-end">
+                    <button 
+                      onClick={() => setShowManageTrackModal(false)}
+                      className="py-2.5 px-6 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-black transition-all cursor-pointer"
+                    >
+                      סיום
+                    </button>
+                 </div>
+              </motion.div>
+            </div>
           )}
         </AnimatePresence>
 
