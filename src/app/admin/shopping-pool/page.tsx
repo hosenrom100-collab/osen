@@ -553,14 +553,24 @@ export default function ShoppingPoolPage() {
           <div className="space-y-4">
             <div className="flex gap-3">
               <div className="relative flex-1">
-                <Search className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                <Search className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 pointer-events-none" />
                 <input
                   type="text"
                   placeholder="חיפוש מוצר..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-2xl py-3 pr-11 pl-4 text-sm focus:outline-none focus:border-blue-500 transition-all"
+                  className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-2xl py-3 pr-11 pl-10 text-sm focus:outline-none focus:border-blue-500 transition-all"
                 />
+                {searchTerm && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchTerm("")}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 p-1 rounded-full text-slate-400 hover:text-slate-200 hover:bg-white/10 transition-colors cursor-pointer border-none flex items-center justify-center"
+                    title="נקה חיפוש"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
               </div>
               <button 
                 onClick={() => setIsAdding(true)}

@@ -1622,14 +1622,24 @@ export default function ShoppingPage() {
                       {/* Search & Category Filter Controls */}
                       <div className="flex items-center gap-2 pt-2">
                          <div className="relative flex-1">
-                            <Search className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--muted)]" />
+                            <Search className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--muted)] pointer-events-none" />
                             <input 
                               type="text" 
                               value={inventorySearch} 
                               onChange={e => setInventorySearch(e.target.value)} 
                               placeholder="חפש מוצר במלאי..." 
-                              className="w-full bg-[var(--background)] border border-[var(--border)] rounded-xl py-2 pr-10 pl-3 text-xs font-bold focus:outline-none focus:border-indigo-500 text-[var(--foreground)]" 
+                              className="w-full bg-[var(--background)] border border-[var(--border)] rounded-xl py-2 pr-10 pl-9 text-xs font-bold focus:outline-none focus:border-indigo-500 text-[var(--foreground)]" 
                             />
+                            {inventorySearch && (
+                              <button
+                                type="button"
+                                onClick={() => setInventorySearch("")}
+                                className="absolute left-2.5 top-1/2 -translate-y-1/2 p-1 rounded-full text-[var(--muted)] hover:text-[var(--foreground)] hover:bg-[var(--foreground)]/10 transition-colors cursor-pointer border-none flex items-center justify-center"
+                                title="נקה חיפוש"
+                              >
+                                <X className="w-3.5 h-3.5" />
+                              </button>
+                            )}
                          </div>
 
                          <select
@@ -1823,7 +1833,7 @@ export default function ShoppingPage() {
                 animate={{ y: 0, opacity: 1 }} 
                 exit={{ y: "100%", opacity: 0.5 }}
                 transition={{ type: "spring", damping: 25, stiffness: 220 }}
-                className="relative w-full h-[95vh] md:h-auto md:max-w-xl bg-[var(--surface)] border-t md:border border-[var(--border)] rounded-t-[1.5rem] md:rounded-[2.5rem] p-5 md:p-6 shadow-2xl text-right flex flex-col overflow-hidden" 
+                className="relative w-full h-[92vh] md:max-h-[85vh] md:max-w-xl bg-[var(--surface)] border-t md:border border-[var(--border)] rounded-t-[1.5rem] md:rounded-[2.5rem] p-5 md:p-6 shadow-2xl text-right flex flex-col overflow-hidden" 
                 dir="rtl"
               >
                 {/* Pull handle indicator on mobile */}
@@ -1840,7 +1850,7 @@ export default function ShoppingPage() {
                 </div>
 
                 <div className="relative group mb-4 shrink-0">
-                   <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2 text-indigo-500">
+                   <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2 text-indigo-500 pointer-events-none">
                       <Plus className="w-5 h-5" />
                    </div>
                    <input
@@ -1853,8 +1863,18 @@ export default function ShoppingPage() {
                         if (e.key === "Escape") { setOverlayOpen(false); setAddUrgent(false); }
                      }}
                      placeholder="שם המוצר שברצונך להוסיף..."
-                     className="w-full bg-[var(--background)] border border-[var(--border)] rounded-2xl py-3 pr-11 pl-4 text-sm font-bold focus:outline-none focus:border-indigo-500/50 transition-all shadow-inner text-right placeholder:text-[var(--muted)]/40"
+                     className="w-full bg-[var(--background)] border border-[var(--border)] rounded-2xl py-3 pr-11 pl-10 text-sm font-bold focus:outline-none focus:border-indigo-500/50 transition-all shadow-inner text-right placeholder:text-[var(--muted)]/40"
                    />
+                   {inputVal && (
+                     <button
+                       type="button"
+                       onClick={() => setInputVal("")}
+                       className="absolute left-3 top-1/2 -translate-y-1/2 p-1 rounded-full text-[var(--muted)] hover:text-[var(--foreground)] hover:bg-[var(--foreground)]/10 transition-colors cursor-pointer border-none flex items-center justify-center"
+                       title="נקה חיפוש"
+                     >
+                       <X className="w-4 h-4" />
+                     </button>
+                   )}
                 </div>
 
                  {/* Star / Favorite Quick-Add Chips (Only rendered when managers configured star products in pool) */}
@@ -1945,7 +1965,7 @@ export default function ShoppingPage() {
                   </button>
                 </div>
 
-                <div className="flex-1 overflow-y-auto no-scrollbar space-y-2 pb-6">
+                <div className="flex-1 overflow-y-auto min-h-0 space-y-2 pb-6 pr-1 no-scrollbar">
                    {!exactMatch && inputVal.trim() && (
                       <button 
                          onClick={handleAddInput}
@@ -2375,14 +2395,24 @@ export default function ShoppingPage() {
                    <div className="mb-6 relative shrink-0">
                       <label className="text-[10px] font-black text-[var(--muted)] uppercase tracking-widest mb-1.5 block">הוסף מוצר לרשימה הקבועה</label>
                       <div className="relative">
-                         <Search className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--muted)]" />
+                         <Search className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--muted)] pointer-events-none" />
                          <input
                             type="text"
                             value={recurringSearchVal}
                             onChange={e => setRecurringSearchVal(e.target.value)}
                             placeholder="חיפוש או הוספת מוצר..."
-                            className="w-full bg-[var(--background)] border border-[var(--border)] rounded-2xl py-3 pr-11 pl-4 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                            className="w-full bg-[var(--background)] border border-[var(--border)] rounded-2xl py-3 pr-11 pl-10 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
                          />
+                         {recurringSearchVal && (
+                           <button
+                             type="button"
+                             onClick={() => setRecurringSearchVal("")}
+                             className="absolute left-3 top-1/2 -translate-y-1/2 p-1 rounded-full text-[var(--muted)] hover:text-[var(--foreground)] hover:bg-[var(--foreground)]/10 transition-colors cursor-pointer border-none flex items-center justify-center"
+                             title="נקה חיפוש"
+                           >
+                             <X className="w-4 h-4" />
+                           </button>
+                         )}
                       </div>
 
                       {/* Suggestions list */}
@@ -2891,18 +2921,28 @@ export default function ShoppingPage() {
 
                    {/* Search in pool */}
                    <div className="relative mb-4 shrink-0">
-                      <Search className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--muted)]" />
+                      <Search className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--muted)] pointer-events-none" />
                       <input
                          type="text"
                          value={starModalSearchVal}
                          onChange={e => setStarModalSearchVal(e.target.value)}
                          placeholder="חיפוש מוצר בפול..."
-                         className="w-full bg-[var(--background)] border border-[var(--border)] rounded-2xl py-2.5 pr-11 pl-4 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+                         className="w-full bg-[var(--background)] border border-[var(--border)] rounded-2xl py-2.5 pr-11 pl-10 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-amber-500/20"
                       />
+                      {starModalSearchVal && (
+                        <button
+                          type="button"
+                          onClick={() => setStarModalSearchVal("")}
+                          className="absolute left-3 top-1/2 -translate-y-1/2 p-1 rounded-full text-[var(--muted)] hover:text-[var(--foreground)] hover:bg-[var(--foreground)]/10 transition-colors cursor-pointer border-none flex items-center justify-center"
+                          title="נקה חיפוש"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      )}
                    </div>
 
                    {/* Pool items list with Star toggle */}
-                   <div className="flex-1 overflow-y-auto divide-y divide-[var(--border)]/60 pr-1 no-scrollbar mb-4">
+                   <div className="flex-1 overflow-y-auto min-h-0 divide-y divide-[var(--border)]/60 pr-1 no-scrollbar mb-4">
                       {(() => {
                          const term = starModalSearchVal.trim().toLowerCase();
                          const filtered = pool.filter(p => p.isActive !== false && (!term || p.name.toLowerCase().includes(term) || p.category.toLowerCase().includes(term)));
