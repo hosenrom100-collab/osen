@@ -5,7 +5,7 @@ import { ShoppingRequest, Product, InventoryItem } from "../types";
 import { findSimilarProduct } from "../lib/stringUtils";
 import { 
   Edit3, Settings, X, Plus, Minus, Trash2, Check, RotateCcw, Download, 
-  Receipt, Star, Flame, ShoppingBag, CheckCircle2, Upload, Loader2, Search 
+  Receipt, Star, Flame, ShoppingBag, CheckCircle2, Upload, Loader2, Search, MessageSquare 
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -628,12 +628,20 @@ export function ShoppingModals({
                                 onToggleRecurring(p.id, p.name, p.category, true);
                                 setRecurringSearchVal("");
                               }}
-                              className="w-full text-right px-4 py-3 text-xs font-bold hover:bg-[var(--foreground)]/5 flex items-center justify-between text-[var(--foreground)]"
+                              className="w-full text-right px-4 py-3 text-xs font-bold hover:bg-[var(--foreground)]/5 flex items-center justify-between gap-2 text-[var(--foreground)]"
                             >
-                              <span>{p.name}</span>
-                              <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-md ${CAT_COLOR[p.category] ?? CAT_COLOR["כללי"]}`}>
-                                {p.category}
-                              </span>
+                              <div className="flex items-center gap-2 flex-wrap min-w-0 flex-1">
+                                <span className="truncate">{p.name}</span>
+                                <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-md shrink-0 ${CAT_COLOR[p.category] ?? CAT_COLOR["כללי"]}`}>
+                                  {p.category}
+                                </span>
+                                {p.defaultNotes && p.defaultNotes.trim() !== "" && (
+                                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20 flex items-center gap-1 shrink-0">
+                                    <MessageSquare className="w-2.5 h-2.5 text-amber-500" />
+                                    <span className="truncate max-w-[120px]">{p.defaultNotes}</span>
+                                  </span>
+                                )}
+                              </div>
                             </button>
                           ))}
                           {!hasExact && isAdmin && (
@@ -667,15 +675,26 @@ export function ShoppingModals({
                   pool
                     .filter((p) => p.isRecurring)
                     .map((p) => (
-                      <div key={p.id} className="py-3 flex items-center justify-between gap-4">
+                      <div key={p.id} className="py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-4 border-b border-[var(--border)]/50 last:border-0">
                         <div className="min-w-0 flex-1">
-                          <span className="text-sm font-bold text-[var(--foreground)]">{p.name}</span>
-                          <span className={`mr-2 text-[9px] font-black px-1.5 py-0.5 rounded-md ${CAT_COLOR[p.category] ?? CAT_COLOR["כללי"]}`}>
-                            {p.category}
-                          </span>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-sm font-bold text-[var(--foreground)]">{p.name}</span>
+                            <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-md shrink-0 ${CAT_COLOR[p.category] ?? CAT_COLOR["כללי"]}`}>
+                              {p.category}
+                            </span>
+                            {p.defaultNotes && p.defaultNotes.trim() !== "" && (
+                              <span
+                                className="text-[9px] font-bold px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/30 flex items-center gap-1 max-w-full sm:max-w-[200px] truncate shadow-xs"
+                                title={`הערה קבועה: ${p.defaultNotes}`}
+                              >
+                                <MessageSquare className="w-2.5 h-2.5 text-amber-500 shrink-0" />
+                                <span className="truncate">{p.defaultNotes}</span>
+                              </span>
+                            )}
+                          </div>
                         </div>
 
-                        <div className="flex items-center gap-3 shrink-0">
+                        <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0">
                           <div className="flex items-center gap-1 bg-[var(--foreground)]/5 border border-[var(--border)] rounded-xl p-0.5 shadow-sm">
                             <button
                               onClick={() => onUpdateRecurringQuantity(p.id, p.recurringQuantity || "1", -1)}
