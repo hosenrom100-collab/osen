@@ -61,4 +61,5 @@ export interface NewProductRequest {
   requestedByName: string;
   createdAt: any;
   status: "pending" | "approved" | "rejected";
+  notes?: string;
 }

@@ -1211,8 +1211,23 @@ export default function ShoppingPage() {
           isOpen={showAdminRequestsModal}
           onClose={() => setShowAdminRequestsModal(false)}
           pool={pool}
-          onAddProduct={async (name, cat) => {
-            await setDoc(doc(db, "product_pool", name.replace(/\//g, "-")), { name, category: cat }, { merge: true });
+          categories={categories}
+          onAddProduct={async (name, cat, unit, notes) => {
+            const docId = name.replace(/\//g, "-");
+            await setDoc(
+              doc(db, "product_pool", docId),
+              {
+                name,
+                category: cat,
+                defaultUnit: unit || "",
+                defaultNotes: notes || "",
+                isActive: true,
+              },
+              { merge: true }
+            );
+          }}
+          onAddToShoppingList={async (name, cat, priority, qty, notes) => {
+            await addProduct(name, cat, priority, qty, notes);
           }}
         />
 
