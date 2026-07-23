@@ -383,14 +383,6 @@ export default function ShoppingPage() {
       showToast(`שים לב: למוצר "${cleanName}" יש כרגע ${invMatch.currentStock} ${invMatch.unit} במלאי!`, "warning");
     }
 
-    const docId = cleanName.replace(/\//g, "-");
-
-    if (canPurchase) {
-      try {
-        await setDoc(doc(db, "product_pool", docId), { name: cleanName, category, isActive: true }, { merge: true });
-      } catch {}
-    }
-
     await addDoc(collection(db, "shopping_requests"), {
       name: cleanName,
       category,
@@ -1204,8 +1196,6 @@ export default function ShoppingPage() {
           setEditItem={setEditItem}
           onUpdateItem={(id, name, cat, qty, notes, priority) => {
             updateDoc(doc(db, "shopping_requests", id), { name, category: cat, quantity: qty, notes, priority });
-            setDoc(doc(db, "product_pool", name.replace(/\//g, "-")), { name, category: cat }, { merge: true });
-            fetchPool();
           }}
           isAddingCat={isAddingCat}
           setIsAddingCat={setIsAddingCat}
