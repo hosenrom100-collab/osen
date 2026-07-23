@@ -1047,6 +1047,22 @@ export default function ShoppingPage() {
                   )}
                 </div>
 
+                {/* Admin Product Requests Direct Button */}
+                {isAdmin && (
+                  <button
+                    onClick={() => setShowAdminRequestsModal(true)}
+                    className="px-3.5 py-2 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 transition-all flex items-center gap-2 text-xs font-black cursor-pointer relative shadow-xs border-none"
+                  >
+                    <Database className="w-4 h-4 text-amber-500" />
+                    <span>בקשות מוצרים</span>
+                    {pendingRequestsCount > 0 && (
+                      <span className="bg-rose-500 text-white text-[10px] px-1.5 py-0.5 rounded-full font-black animate-pulse shadow-xs">
+                        {pendingRequestsCount}
+                      </span>
+                    )}
+                  </button>
+                )}
+
                 {/* Tools & Admin Dropdown */}
                 <div className="relative">
                   <button
@@ -1055,9 +1071,6 @@ export default function ShoppingPage() {
                   >
                     <Settings className="w-4 h-4 text-indigo-500" />
                     <span>כלים וניהול</span>
-                    {pendingRequestsCount > 0 && (
-                      <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
-                    )}
                     <ChevronDown className={`w-3.5 h-3.5 text-[var(--muted)] transition-transform ${toolsMenuOpen ? "rotate-180" : ""}`} />
                   </button>
 
@@ -1070,25 +1083,6 @@ export default function ShoppingPage() {
                         exit={{ opacity: 0, y: 8, scale: 0.95 }}
                         className="absolute left-0 top-full mt-2 w-56 bg-[var(--surface)] border border-[var(--border)] rounded-2xl shadow-xl p-2 z-50 flex flex-col gap-1 text-right"
                       >
-                        {isAdmin && (
-                          <button
-                            onClick={() => {
-                              setShowAdminRequestsModal(true);
-                              setToolsMenuOpen(false);
-                            }}
-                            className="w-full text-right px-3 py-2 rounded-xl text-xs font-bold hover:bg-[var(--foreground)]/5 flex items-center justify-between text-[var(--foreground)] cursor-pointer border-none bg-transparent"
-                          >
-                            <div className="flex items-center gap-2">
-                              <Database className="w-4 h-4 text-amber-500" />
-                              <span>בקשות מוצרים</span>
-                            </div>
-                            {pendingRequestsCount > 0 && (
-                              <span className="bg-rose-500 text-white text-[10px] px-1.5 py-0.2 rounded-full font-black">
-                                {pendingRequestsCount}
-                              </span>
-                            )}
-                          </button>
-                        )}
                         <button
                           onClick={() => {
                             setIsAddingCat(true);
