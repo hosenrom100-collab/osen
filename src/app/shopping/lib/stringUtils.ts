@@ -65,17 +65,24 @@ export function findSimilarProduct<T extends { name: string }>(
     if (inputWords.length === 0 || pWords.length === 0) return false;
 
     // A. Input is a complete subset of the Pool item (e.g. input "חסה" -> pool "חסה ערבית")
-    const inputIsSubset = inputWords.every(w => pWords.includes(w));
+    //    Only match if the input covers a significant portion of the product name
+    //    to avoid "שומשום" matching "לחמניות שומשום" (completely different products)
+    const inputIsSubset = inputWords.every(w => pWords.includes(w)) &&
+                          inputWords.length >= Math.ceil(pWords.length / 2);
     
     // B. Pool item is a complete subset of Input (e.g. input "חסה ערבית" -> pool "חסה")
-    const poolIsSubset = pWords.every(w => inputWords.includes(w));
+    const poolIsSubset = pWords.every(w => inputWords.includes(w)) &&
+                         pWords.length >= Math.ceil(inputWords.length / 2);
 
     // C. Single-word typo check (e.g. "עגבניה" vs "עגבנייה" if normalization misses it)
     const isTypo = inputWords.length === 1 && pWords.length === 1 && 
                    getLevenshteinDistance(inputWords[0], pWords[0]) <= 1;
 
     // D. Prefix match (e.g., "נייר א" -> "נייר אפיה") if it's very close
-    const isPrefix = pNorm.startsWith(normalizedInput) && normalizedInput.length > 3;
+    //    Require at least 60% character coverage to avoid short prefixes matching long names
+    const isPrefix = pNorm.startsWith(normalizedInput) && 
+                     normalizedInput.length > 3 &&
+                     normalizedInput.length >= pNorm.length * 0.6;
 
     return inputIsSubset || poolIsSubset || isTypo || isPrefix;
   });
