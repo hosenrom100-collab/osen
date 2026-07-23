@@ -76,17 +76,17 @@ export function AddProductOverlay({
     const name = inputVal.trim();
     if (!name) return;
     
-    // Check if the product already exists (using fuzzy matching)
-    const similarProduct = findSimilarProduct(name, pool);
-    if (similarProduct) {
-      // If it exists, add the existing product instead of creating a new one
-      const finalQty = addUnit === "יחידות" ? addQty : `${addQty} ${addUnit}`;
-      onAddProduct(similarProduct.name, similarProduct.category ?? "כללי", addUrgent ? "urgent" : "normal", finalQty, similarProduct.defaultNotes);
+    // Check if the product already exists with an exact name match (case-insensitive)
+    const exactPoolProduct = pool.find((p) => p.name.trim().toLowerCase() === name.toLowerCase());
+    const finalQty = addUnit === "יחידות" ? addQty : `${addQty} ${addUnit}`;
+
+    if (exactPoolProduct) {
+      // If exact product exists in pool, add directly to list
+      onAddProduct(exactPoolProduct.name, exactPoolProduct.category ?? "כללי", addUrgent ? "urgent" : "normal", finalQty, exactPoolProduct.defaultNotes);
     } else {
-      const finalQty = addUnit === "יחידות" ? addQty : `${addQty} ${addUnit}`;
+      // If it's a new product name, admin adds directly, regular user submits request to admin queue
       if (isAdmin) {
-        const match = pool.find((p) => p.name === name);
-        onAddProduct(name, match?.category ?? "כללי", addUrgent ? "urgent" : "normal", finalQty, match?.defaultNotes);
+        onAddProduct(name, "כללי", addUrgent ? "urgent" : "normal", finalQty);
       } else {
         onRequestNewProduct(name, "כללי", addUrgent ? "urgent" : "normal", finalQty);
       }
@@ -106,7 +106,7 @@ export function AddProductOverlay({
     )
     .slice(0, 20);
 
-  const exactMatch = !!findSimilarProduct(inputVal, pool);
+  const hasExactMatch = pool.some((p) => p.name.trim().toLowerCase() === inputVal.trim().toLowerCase());
   const alreadyInList = (name: string) =>
     requests.some((r) => r.name === name && r.status !== "archived" && r.status !== "deleted");
 
@@ -278,7 +278,7 @@ export function AddProductOverlay({
 
           {/* Suggestions & Add Custom Product List */}
           <div className="flex-1 overflow-y-auto min-h-0 space-y-2 pb-6 pr-1 no-scrollbar">
-            {!exactMatch && inputVal.trim() && (
+            {!hasExactMatch && inputVal.trim() && (
               <button
                 onClick={handleAddInput}
                 className="w-full flex items-center justify-between px-5 py-3.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 !text-white font-black text-sm shadow-md shadow-indigo-600/15 active:scale-[0.98] transition-all cursor-pointer border-none shrink-0"
