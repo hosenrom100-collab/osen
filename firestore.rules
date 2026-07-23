@@ -158,6 +158,27 @@ service cloud.firestore {
       allow read, write: if isAuthenticated();
     }
 
+    // Product Requests Queue
+    match /product_requests_queue/{docId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    // Inventory
+    match /inventory/{docId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    // Inventory Log
+    match /inventory_log/{docId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    // Receipts
+    match /receipts/{docId} {
+      allow read, write: if isAuthenticated();
+    }
+
+
     // Settings & Core Metadata
     match /settings/{docId} {
       allow read: if isAuthenticated();

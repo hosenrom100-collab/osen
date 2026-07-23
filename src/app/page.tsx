@@ -639,7 +639,7 @@ export default function Home() {
   quickActions.push({ 
     href: "/patients",   
     icon: Users,         
-    label: "משתתפים ותיקים", 
+    label: "משתתפים", 
     color: "text-blue-500 bg-blue-500/5 hover:bg-blue-500/10 border-blue-500/10 hover:border-blue-500/20" 
   });
 

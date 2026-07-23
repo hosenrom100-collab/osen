@@ -21,7 +21,7 @@ const CATEGORIES = [
     title: "ניהול משתתפים",
     color: "text-teal-500",
     modules: [
-      { title: "משתתפים",         desc: "מאגר משתתפים ותיקי חוסן",    icon: Users,         path: "/patients",                color: "text-teal-500 bg-teal-500/10",      roles: ["admin","manager","instructor","social_worker","logistics"] },
+      { title: "משתתפים",         desc: "מאגר משתתפים",             icon: Users,         path: "/patients",                color: "text-teal-500 bg-teal-500/10",      roles: ["admin","manager","instructor","social_worker","logistics"] },
       { title: "נוכחות משתתפים",  desc: "סימון נוכחות יומית",         icon: ClipboardList, path: "/admin/patient-attendance",  color: "text-emerald-500 bg-emerald-500/10",roles: ["admin","manager","instructor","employee","social_worker","logistics"] },
       { title: "מעקב תקופות שהות", desc: "הארכות ותוכניות שיקום",      icon: Calendar,      path: "/patients/tracking",        color: "text-teal-500 bg-teal-500/10",      roles: ["admin","manager","social_worker"] },
       { title: "תזכורות והארכות",  desc: "משתתפים הדורשים טיפול דחוף", icon: Bell,          path: "/admin/reminders",          color: "text-rose-500 bg-rose-500/10",      roles: ["admin","manager","social_worker"] },

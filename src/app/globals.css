@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
+
 /* ════════════════════════════════════════════════════════════════════
    TAILWIND v4 THEME TOKENS
    These become Tailwind utility classes: bg-background, text-foreground, etc.
