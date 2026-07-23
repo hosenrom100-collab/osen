@@ -11,7 +11,7 @@ import {
 import { 
   ShoppingCart, Plus, Search, Loader2, ArrowRight, Download, 
   Settings, Boxes, Star, ShoppingBag, Edit3, Receipt, RotateCcw, Database,
-  ChevronDown, FileText, FileSpreadsheet
+  ChevronDown, FileText, FileSpreadsheet, Trash2, AlertTriangle, X
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { motion, AnimatePresence } from "framer-motion";
@@ -95,6 +95,12 @@ export default function ShoppingPage() {
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
   const [toolsMenuOpen, setToolsMenuOpen] = useState(false);
   const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
+
+  // Reset Archive State
+  const [showResetArchiveModal, setShowResetArchiveModal] = useState(false);
+  const [archivePassword, setArchivePassword] = useState("");
+  const [passwordError, setPasswordError] = useState("");
+  const [isClearingArchive, setIsClearingArchive] = useState(false);
 
   // Inventory State
   const [inventoryMap, setInventoryMap] = useState<Record<string, InventoryItem>>({});
@@ -806,6 +812,43 @@ export default function ShoppingPage() {
     XLSX.writeFile(wb, `ארכיון_רכש_${new Date().toLocaleDateString("he-IL").replace(/\//g, "-")}.xlsx`);
   };
 
+  const handleConfirmResetArchive = async () => {
+    if (archivePassword.trim() !== "3015") {
+      setPasswordError("סיסמת מנהל שגויה!");
+      return;
+    }
+
+    setIsClearingArchive(true);
+    try {
+      const archivedItems = requests.filter((r) => r.status === "archived");
+      if (archivedItems.length === 0) {
+        showToast("הארכיון כבר ריק", "warning");
+        setShowResetArchiveModal(false);
+        return;
+      }
+
+      const batchSize = 450;
+      for (let i = 0; i < archivedItems.length; i += batchSize) {
+        const batch = writeBatch(db);
+        const chunk = archivedItems.slice(i, i + batchSize);
+        chunk.forEach((item) => {
+          batch.delete(doc(db, "shopping_requests", item.id));
+        });
+        await batch.commit();
+      }
+
+      showToast(`ארכיון הקניות אופס ונמחק בהצלחה! (${archivedItems.length} פריטים נמחקו)`, "success");
+      setShowResetArchiveModal(false);
+      setArchivePassword("");
+      setPasswordError("");
+    } catch (err) {
+      console.error(err);
+      showToast("שגיאה באיפוס הארכיון", "warning");
+    } finally {
+      setIsClearingArchive(false);
+    }
+  };
+
   const handleSaveReceipt = async (file: File, notes: string) => {
     const fileId = `${Date.now()}_${user?.uid}`;
     const storageRef = ref(storage, `receipts/${fileId}.jpg`);
@@ -823,21 +866,12 @@ export default function ShoppingPage() {
     showToast("החשבונית נשמרה בהצלחה בארכיון הקבלות!", "success");
   };
 
-  const clearAllArchive = async () => {
-    if (!canPurchase) return;
-    if (confirm("אזהרה: האם ברצונך למחוק ולאפס את כל ארכיון הקניות והבקשות הישנות?")) {
-      try {
-        setLoading(true);
-        const snap = await getDocs(collection(db, "shopping_requests"));
-        await Promise.all(snap.docs.map((d) => deleteDoc(doc(db, "shopping_requests", d.id))));
-        showToast("ארכיון הקניות נוקה בהצלחה!", "success");
-      } catch (e) {
-        console.error(e);
-      } finally {
-        setLoading(false);
-      }
-    }
+  const triggerClearArchiveModal = () => {
+    setArchivePassword("");
+    setPasswordError("");
+    setShowResetArchiveModal(true);
   };
+  const clearAllArchive = triggerClearArchiveModal;
 
   const activeRequests = requests.filter(
     (r) =>
@@ -1258,27 +1292,65 @@ export default function ShoppingPage() {
               ) : (
                 /* Archive View */
                 <div className="p-4 space-y-6">
-                  <h2 className="text-2xl font-black px-2 text-[var(--foreground)]">ארכיון רכישות</h2>
-                  {Object.entries(archiveByDate)
-                    .sort((a, b) => b[0].localeCompare(a[0]))
-                    .map(([date, items]) => (
-                      <div key={date} className="bg-[var(--surface)] border border-[var(--border)] rounded-[2rem] overflow-hidden shadow-sm">
-                        <div className="px-6 py-4 bg-[var(--foreground)]/5 border-b border-[var(--border)] flex items-center justify-between">
-                          <span className="text-sm font-bold text-[var(--foreground)]">{date}</span>
-                          <span className="text-xs font-black opacity-40">{items.length} מוצרים</span>
+                  <div className="flex items-center justify-between px-2 flex-wrap gap-3">
+                    <div>
+                      <h2 className="text-2xl font-black text-[var(--foreground)]">ארכיון רכישות</h2>
+                      <p className="text-xs text-[var(--muted)] font-semibold">היסטוריית קניות שנסגרו ונשמרו</p>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      {isAdmin && (
+                        <button
+                          onClick={exportXlsx}
+                          className="px-3.5 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer"
+                        >
+                          <FileSpreadsheet className="w-4 h-4 text-emerald-500" />
+                          <span>יצוא Excel</span>
+                        </button>
+                      )}
+                      {(isAdmin || isLogistics) && (
+                        <button
+                          onClick={() => {
+                            setArchivePassword("");
+                            setPasswordError("");
+                            setShowResetArchiveModal(true);
+                          }}
+                          className="px-3.5 py-2 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-500 hover:bg-rose-500/20 text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer shadow-xs border-none"
+                        >
+                          <Trash2 className="w-4 h-4 text-rose-500" />
+                          <span>איפוס וניקוי ארכיון</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {Object.keys(archiveByDate).length === 0 ? (
+                    <div className="py-20 text-center opacity-40">
+                      <ShoppingBag className="w-12 h-12 mx-auto mb-2 text-[var(--muted)]" />
+                      <p className="text-sm font-black">ארכיון הקניות ריק</p>
+                    </div>
+                  ) : (
+                    Object.entries(archiveByDate)
+                      .sort((a, b) => b[0].localeCompare(a[0]))
+                      .map(([date, items]) => (
+                        <div key={date} className="bg-[var(--surface)] border border-[var(--border)] rounded-[2rem] overflow-hidden shadow-sm">
+                          <div className="px-6 py-4 bg-[var(--foreground)]/5 border-b border-[var(--border)] flex items-center justify-between">
+                            <span className="text-sm font-bold text-[var(--foreground)]">{date}</span>
+                            <span className="text-xs font-black opacity-40">{items.length} מוצרים</span>
+                          </div>
+                          <div className="divide-y divide-[var(--border)]">
+                            {items.map((item) => (
+                              <div key={item.id} className="px-6 py-4 flex items-center justify-between">
+                                <span className="text-sm font-bold text-[var(--muted)]">{item.name}</span>
+                                <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-[var(--foreground)]/5 text-[var(--muted)]">
+                                  {item.category}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
                         </div>
-                        <div className="divide-y divide-[var(--border)]">
-                          {items.map((item) => (
-                            <div key={item.id} className="px-6 py-4 flex items-center justify-between">
-                              <span className="text-sm font-bold text-[var(--muted)]">{item.name}</span>
-                              <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-[var(--foreground)]/5 text-[var(--muted)]">
-                                {item.category}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
+                      ))
+                  )}
                 </div>
               )}
             </div>
@@ -1361,7 +1433,7 @@ export default function ShoppingPage() {
           onExportProcurementList={exportProcurementList}
           onExportOngoingList={exportOngoingList}
           onExportXlsx={exportXlsx}
-          onClearAllArchive={clearAllArchive}
+          onClearAllArchive={triggerClearArchiveModal}
           receiptScanOpen={receiptScanOpen}
           setReceiptScanOpen={setReceiptScanOpen}
           currentUser={user}
@@ -1373,6 +1445,90 @@ export default function ShoppingPage() {
           setShowManageTrackModal={setShowManageTrackModal}
           onToggleTrackInventory={toggleTrackInventory}
         />
+
+        {/* Reset Archive Modal */}
+        <AnimatePresence>
+          {showResetArchiveModal && (
+            <div className="fixed inset-0 z-[150] flex items-center justify-center p-4">
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setShowResetArchiveModal(false)}
+                className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+              />
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                className="relative bg-[var(--surface)] border border-[var(--border)] rounded-[2.5rem] w-full max-w-md p-6 shadow-2xl flex flex-col text-right"
+                dir="rtl"
+              >
+                <div className="flex items-center justify-between mb-4 border-b border-[var(--border)] pb-3">
+                  <h3 className="text-lg font-black text-rose-500 flex items-center gap-2">
+                    <AlertTriangle className="w-5 h-5 text-rose-500" />
+                    <span>ניקוי ואיפוס ארכיון הקניות</span>
+                  </h3>
+                  <button
+                    onClick={() => setShowResetArchiveModal(false)}
+                    className="p-1.5 rounded-full hover:bg-[var(--foreground)]/5 text-[var(--muted)] cursor-pointer"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <p className="text-xs text-[var(--foreground)]/80 font-medium leading-relaxed mb-4">
+                  פעולה זו תאפס ותמחוק לצמיתות את כל <strong>{requests.filter((r) => r.status === "archived").length}</strong> המוצרים שנשמרו בארכיון הקניות.
+                  <br />
+                  <span className="text-rose-500 font-bold">לא ניתן לשחזר פריטים שנמחקו לאחר המחיקה!</span>
+                </p>
+
+                <div className="mb-4">
+                  <label className="text-xs font-bold text-[var(--foreground)] mb-1.5 block">
+                    אנא הזן סיסמת מנהל לאישור:
+                  </label>
+                  <input
+                    type="password"
+                    value={archivePassword}
+                    onChange={(e) => {
+                      setArchivePassword(e.target.value);
+                      setPasswordError("");
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") handleConfirmResetArchive();
+                    }}
+                    placeholder="הזן סיסמת מנהל..."
+                    className="w-full bg-[var(--background)] border border-[var(--border)] rounded-xl py-2.5 px-3 text-sm font-bold focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 outline-none text-center tracking-widest text-[var(--foreground)]"
+                  />
+                  {passwordError && (
+                    <span className="text-xs text-rose-500 font-bold mt-1.5 block">{passwordError}</span>
+                  )}
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-3 border-t border-[var(--border)]">
+                  <button
+                    onClick={() => setShowResetArchiveModal(false)}
+                    className="px-4 py-2.5 rounded-xl text-xs font-bold bg-[var(--foreground)]/5 text-[var(--foreground)] hover:bg-[var(--foreground)]/10 transition-colors cursor-pointer border-none"
+                  >
+                    ביטול
+                  </button>
+                  <button
+                    onClick={handleConfirmResetArchive}
+                    disabled={isClearingArchive}
+                    className="px-4 py-2.5 rounded-xl text-xs font-black bg-rose-600 hover:bg-rose-700 !text-white transition-all shadow-md active:scale-95 cursor-pointer disabled:opacity-50 flex items-center gap-1.5 border-none"
+                  >
+                    {isClearingArchive ? (
+                      <Loader2 className="w-4 h-4 animate-spin text-white" />
+                    ) : (
+                      <Trash2 className="w-4 h-4 text-white" />
+                    )}
+                    <span>אפס ומחק ארכיון</span>
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
 
         {/* Global Toast Alert */}
         <AnimatePresence>
