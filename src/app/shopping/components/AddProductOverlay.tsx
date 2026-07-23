@@ -36,9 +36,9 @@ interface AddProductOverlayProps {
   isOpen: boolean;
   onClose: () => void;
   pool: Product[];
-  categories: string[];
+  categories?: string[];
   isAdmin: boolean;
-  inventoryMap: Record<string, InventoryItem>;
+  inventoryMap?: Record<string, InventoryItem>;
   onAddProduct: (name: string, category?: string, priority?: "normal" | "urgent", quantity?: string, notes?: string) => void;
   onRequestNewProduct: (name: string, category?: string, priority?: "normal" | "urgent", quantity?: string) => void;
   requests: ShoppingRequest[];

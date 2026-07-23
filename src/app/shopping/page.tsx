@@ -1196,6 +1196,8 @@ export default function ShoppingPage() {
           isOpen={overlayOpen}
           onClose={() => setOverlayOpen(false)}
           pool={pool}
+          categories={categories}
+          inventoryMap={inventoryMap}
           requests={requests}
           inputVal={inputVal}
           setInputVal={setInputVal}

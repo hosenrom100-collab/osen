@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ShoppingRequest, InventoryItem } from "../types";
+import { ShoppingRequest, InventoryItem, Product } from "../types";
 import { 
   ShoppingCart, Flame, Boxes, ShoppingBag, 
   ChevronDown, Check, Trash2, Edit3, Plus, Minus, CheckCircle2, RotateCcw, Package, AlertTriangle, X, MessageSquare 
@@ -268,7 +268,6 @@ export function ShoppingListView({
                       />
                     );
                   })}
-                  ))}
               </div>
             </div>
           )}
