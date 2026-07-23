@@ -355,7 +355,8 @@ export default function ShoppingPage() {
     name: string,
     category = "כללי",
     priority: "normal" | "urgent" = "normal",
-    quantity = "1"
+    quantity = "1",
+    notes = ""
   ) => {
     const cleanName = name.trim();
     if (!cleanName) return;
@@ -379,15 +380,23 @@ export default function ShoppingPage() {
     // Check if item has stock in inventory
     const norm = cleanName.toLowerCase();
     const invMatch = Object.values(inventoryMap).find((i) => (i?.name || "").trim().toLowerCase() === norm);
-    if (invMatch && invMatch.currentStock > 0 && isLogistics) {
-      showToast(`שים לב: למוצר "${cleanName}" יש כרגע ${invMatch.currentStock} ${invMatch.unit} במלאי!`, "warning");
+    if (invMatch && invMatch.currentStock > 0) {
+      if (!isAdmin && !isLogistics) {
+        showToast(`למוצר "${cleanName}" יש כרגע ${invMatch.currentStock} ${invMatch.unit || "יחידות"} במלאי המחסן - לא ניתן להוסיף לרשימת הקניות.`, "warning");
+        return;
+      } else {
+        showToast(`שים לב: למוצר "${cleanName}" יש כרגע ${invMatch.currentStock} ${invMatch.unit || "יחידות"} במלאי!`, "warning");
+      }
     }
+
+    const poolMatch = pool.find((p) => p.name.trim().toLowerCase() === norm);
+    const finalNotes = notes || poolMatch?.defaultNotes || "";
 
     await addDoc(collection(db, "shopping_requests"), {
       name: cleanName,
       category,
       quantity,
-      notes: "",
+      notes: finalNotes,
       priority,
       status: "approved",
       requestedBy: user?.uid,
@@ -975,14 +984,16 @@ export default function ShoppingPage() {
                   <span>ניהול מלאי</span>
                 </button>
               )}
-              <button
-                onClick={() => setView("archive")}
-                className={`px-4 py-2 rounded-xl text-xs font-black transition-all border-none cursor-pointer ${
-                  view === "archive" ? "bg-[var(--surface)] text-indigo-600 shadow-sm" : "text-[var(--muted)] bg-transparent"
-                }`}
-              >
-                ארכיון קניות
-              </button>
+              {(isAdmin || isLogistics) && (
+                <button
+                  onClick={() => setView("archive")}
+                  className={`px-4 py-2 rounded-xl text-xs font-black transition-all border-none cursor-pointer ${
+                    view === "archive" ? "bg-[var(--surface)] text-indigo-600 shadow-sm" : "text-[var(--muted)] bg-transparent"
+                  }`}
+                >
+                  ארכיון קניות
+                </button>
+              )}
             </div>
 
             {canPurchase && (
@@ -1073,13 +1084,15 @@ export default function ShoppingPage() {
 
             {listType === "supermarket" && (
               <div className="hidden md:flex items-center gap-2">
-                <button
-                  onClick={() => setIsEditingRecurring(true)}
-                  className="px-4 py-2.5 rounded-xl bg-[var(--foreground)]/5 border border-[var(--border)] text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer"
-                >
-                  <Settings className="w-4 h-4 text-[var(--muted)]" />
-                  <span>עריכת רשימה קבועה</span>
-                </button>
+                {(isAdmin || isLogistics) && (
+                  <button
+                    onClick={() => setIsEditingRecurring(true)}
+                    className="px-4 py-2.5 rounded-xl bg-[var(--foreground)]/5 border border-[var(--border)] text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <Settings className="w-4 h-4 text-[var(--muted)]" />
+                    <span>עריכת רשימה קבועה</span>
+                  </button>
+                )}
                 {canPurchase && (
                   <button
                     onClick={importRecurringList}
@@ -1111,6 +1124,8 @@ export default function ShoppingPage() {
                   activeCategory={activeCategory}
                   setActiveCategory={setActiveCategory}
                   canPurchase={canPurchase}
+                  isAdmin={isAdmin}
+                  isLogistics={isLogistics}
                   currentUser={user}
                   onChangeStatus={changeStatus}
                   onEditItem={setEditItem}

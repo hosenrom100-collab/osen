@@ -557,7 +557,7 @@ export function ShoppingModals({
 
       {/* ── RECURRING LIST EDIT MODAL ── */}
       <AnimatePresence>
-        {isEditingRecurring && (
+        {isEditingRecurring && (isAdmin || isLogistics) && (
           <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
             <motion.div
               initial={{ opacity: 0 }}
@@ -808,16 +808,18 @@ export function ShoppingModals({
               <div className="space-y-3 overflow-y-auto no-scrollbar pb-6">
                 {listType === "supermarket" && (
                   <>
-                    <button
-                      onClick={() => {
-                        setActionsMenuOpen(false);
-                        setIsEditingRecurring(true);
-                      }}
-                      className="w-full py-4 px-4 bg-[var(--foreground)]/5 hover:bg-[var(--foreground)]/10 rounded-2xl border border-[var(--border)] text-sm font-bold transition-all flex items-center gap-3 justify-start cursor-pointer border-none text-[var(--foreground)]"
-                    >
-                      <Settings className="w-5 h-5 text-indigo-500" />
-                      <span>עריכת רשימה קבועה (שבועית)</span>
-                    </button>
+                    {(isAdmin || isLogistics) && (
+                      <button
+                        onClick={() => {
+                          setActionsMenuOpen(false);
+                          setIsEditingRecurring(true);
+                        }}
+                        className="w-full py-4 px-4 bg-[var(--foreground)]/5 hover:bg-[var(--foreground)]/10 rounded-2xl border border-[var(--border)] text-sm font-bold transition-all flex items-center gap-3 justify-start cursor-pointer border-none text-[var(--foreground)]"
+                      >
+                        <Settings className="w-5 h-5 text-indigo-500" />
+                        <span>עריכת רשימה קבועה (שבועית)</span>
+                      </button>
+                    )}
 
                     {(isAdmin || isManager || isLogistics) && (
                       <button

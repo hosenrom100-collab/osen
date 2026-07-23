@@ -4,7 +4,7 @@ import { useState } from "react";
 import { ShoppingRequest, InventoryItem } from "../types";
 import { 
   ShoppingCart, Flame, Boxes, ShoppingBag, 
-  ChevronDown, Check, Trash2, Edit3, Plus, Minus, CheckCircle2, RotateCcw, Package, AlertTriangle, X 
+  ChevronDown, Check, Trash2, Edit3, Plus, Minus, CheckCircle2, RotateCcw, Package, AlertTriangle, X, MessageSquare 
 } from "lucide-react";
 import { motion, AnimatePresence, LayoutGroup } from "framer-motion";
 
@@ -42,6 +42,8 @@ interface ShoppingListViewProps {
   activeCategory: string | null;
   setActiveCategory: (cat: string | null) => void;
   canPurchase: boolean;
+  isAdmin?: boolean;
+  isLogistics?: boolean;
   currentUser: any;
   onChangeStatus: (id: string, next: any, extra?: any) => void;
   onEditItem: (item: ShoppingRequest) => void;
@@ -60,6 +62,8 @@ export function ShoppingListView({
   activeCategory,
   setActiveCategory,
   canPurchase,
+  isAdmin = false,
+  isLogistics = false,
   currentUser,
   onChangeStatus,
   onEditItem,
@@ -85,6 +89,8 @@ export function ShoppingListView({
     (r) => r.status === "deleted" && (listType === "large" ? r.listType === "large" : r.listType !== "large")
   );
 
+  const showAdminLogisticsStockInfo = isAdmin || isLogistics;
+
   // Check which requested items are ALREADY in inventory with stock > 0
   const itemsAlreadyInInventory = activeRequests.filter((r) => {
     if (!r.name) return false;
@@ -98,7 +104,7 @@ export function ShoppingListView({
       {/* ── Summary Bar for Logistics & Managers ── */}
       {canPurchase && (
         <div className="pt-3 pb-2 px-4 md:px-0">
-          <div className="grid grid-cols-3 gap-2 p-2 bg-[var(--surface)] border border-[var(--border)] rounded-2xl shadow-xs">
+          <div className={`grid ${showAdminLogisticsStockInfo ? "grid-cols-3" : "grid-cols-2"} gap-2 p-2 bg-[var(--surface)] border border-[var(--border)] rounded-2xl shadow-xs`}>
             <button
               onClick={() => setActiveCategory(null)}
               className="flex flex-col items-center justify-center py-2 px-1 rounded-xl bg-indigo-500/5 hover:bg-indigo-500/10 border border-indigo-500/10 transition-all cursor-pointer border-none"
@@ -126,21 +132,23 @@ export function ShoppingListView({
               </span>
             </button>
 
-            <button
-              onClick={onSwitchToInventoryView}
-              className="flex flex-col items-center justify-center py-2 px-1 rounded-xl bg-amber-500/5 hover:bg-amber-500/10 border border-amber-500/10 transition-all cursor-pointer border-none"
-            >
-              <span className="text-[10px] font-black text-amber-600 dark:text-amber-400 flex items-center gap-1">
-                <Boxes className="w-3 h-3" /> מלאי נמוך
-              </span>
-              <span className="text-base font-black text-[var(--foreground)]">
-                {
-                  Object.values(inventoryMap).filter(
-                    (inv) => inv.currentStock <= (inv.minStock ?? 1)
-                  ).length
-                }
-              </span>
-            </button>
+            {showAdminLogisticsStockInfo && (
+              <button
+                onClick={onSwitchToInventoryView}
+                className="flex flex-col items-center justify-center py-2 px-1 rounded-xl bg-amber-500/5 hover:bg-amber-500/10 border border-amber-500/10 transition-all cursor-pointer border-none"
+              >
+                <span className="text-[10px] font-black text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                  <Boxes className="w-3 h-3" /> מלאי נמוך
+                </span>
+                <span className="text-base font-black text-[var(--foreground)]">
+                  {
+                    Object.values(inventoryMap).filter(
+                      (inv) => inv.currentStock <= (inv.minStock ?? 1)
+                    ).length
+                  }
+                </span>
+              </button>
+            )}
           </div>
         </div>
       )}
@@ -202,6 +210,7 @@ export function ShoppingListView({
                       key={item.id}
                       item={item}
                       inStockQty={inStockQty}
+                      showStockBadge={showAdminLogisticsStockInfo}
                       onStatus={onChangeStatus}
                       onEdit={onEditItem}
                       onUpdateQuantity={onUpdateQuantity}
@@ -436,6 +445,7 @@ const formatQuantityAndUnit = (qtyStr: string) => {
 function ShoppingItemRow({
   item,
   inStockQty,
+  showStockBadge = false,
   onStatus,
   onEdit,
   onUpdateQuantity,
@@ -446,6 +456,7 @@ function ShoppingItemRow({
 }: {
   item: ShoppingRequest;
   inStockQty?: number;
+  showStockBadge?: boolean;
   onStatus: any;
   onEdit: any;
   onUpdateQuantity: any;
@@ -554,8 +565,8 @@ function ShoppingItemRow({
                   </span>
                 )}
 
-                {/* Stock Indicator Badge */}
-                {inStockQty !== undefined && (
+                {/* Stock Indicator Badge (Admin & Logistics Only) */}
+                {showStockBadge && inStockQty !== undefined && (
                   <span
                     className={`text-[9px] font-black px-1.5 py-0.5 rounded-md border flex items-center gap-1 ${
                       inStockQty > 0
@@ -566,6 +577,17 @@ function ShoppingItemRow({
                   >
                     <Boxes className="w-2.5 h-2.5" />
                     <span>{inStockQty > 0 ? `במלאי: ${inStockQty}` : "אזל במלאי"}</span>
+                  </span>
+                )}
+
+                {/* Note Indicator Badge */}
+                {item.notes && item.notes.trim() !== "" && (
+                  <span
+                    className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/30 flex items-center gap-1 max-w-[160px] truncate"
+                    title={`הערה: ${item.notes}`}
+                  >
+                    <MessageSquare className="w-2.5 h-2.5 text-amber-500 shrink-0" />
+                    <span className="truncate">{item.notes}</span>
                   </span>
                 )}
               </div>

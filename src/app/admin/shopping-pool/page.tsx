@@ -88,6 +88,9 @@ export default function ShoppingPoolPage() {
   const [editingProdName, setEditingProdName] = useState("");
   const [editingProdCat, setEditingProdCat] = useState("");
   const [editingProdUnit, setEditingProdUnit] = useState("יחידות");
+  const [editingProdNotes, setEditingProdNotes] = useState("");
+
+  const [newDefaultNotes, setNewDefaultNotes] = useState("");
 
   // Status Filter State
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive" | "inventory">("all");
@@ -256,9 +259,10 @@ export default function ShoppingPoolPage() {
       await setDoc(doc(db, "product_pool", id), {
         name: cleanName,
         category: editingProdCat,
-        defaultUnit: editingProdUnit
+        defaultUnit: editingProdUnit,
+        defaultNotes: editingProdNotes.trim(),
       }, { merge: true });
-      setProducts(products.map(p => p.id === id ? { ...p, name: cleanName, category: editingProdCat, defaultUnit: editingProdUnit } : p));
+      setProducts(products.map(p => p.id === id ? { ...p, name: cleanName, category: editingProdCat, defaultUnit: editingProdUnit, defaultNotes: editingProdNotes.trim() } : p));
       setEditingProdId(null);
     } catch (e) {
       console.error("Error updating product:", e);
@@ -465,12 +469,14 @@ export default function ShoppingPoolPage() {
         name: cleanName,
         category: newCategory,
         defaultUnit: newDefaultUnit,
+        defaultNotes: newDefaultNotes.trim(),
         isActive: true,
         trackInventory: false
       }, { merge: true });
-      setProducts([...products.filter(p => p.id !== docId), { id: docId, name: cleanName, category: newCategory, defaultUnit: newDefaultUnit, isActive: true, trackInventory: false }].sort((a,b) => a.name.localeCompare(b.name)));
+      setProducts([...products.filter(p => p.id !== docId), { id: docId, name: cleanName, category: newCategory, defaultUnit: newDefaultUnit, defaultNotes: newDefaultNotes.trim(), isActive: true, trackInventory: false }].sort((a,b) => a.name.localeCompare(b.name)));
       setNewName("");
       setNewDefaultUnit("יחידות");
+      setNewDefaultNotes("");
       setIsAdding(false);
     } catch (error) {
       console.error("Error adding product:", error);
@@ -690,6 +696,15 @@ export default function ShoppingPoolPage() {
                         {MEASUREMENT_UNITS.map(u => <option key={u} value={u}>{u}</option>)}
                       </select>
                     </div>
+                    <div>
+                      <input
+                        type="text"
+                        value={newDefaultNotes}
+                        onChange={(e) => setNewDefaultNotes(e.target.value)}
+                        placeholder="הערה קבועה ברירת מחדל (אופציונלי)..."
+                        className="w-full bg-[var(--background)] border border-[var(--border)] rounded-xl py-2 px-3 text-xs text-right focus:outline-none focus:border-blue-500"
+                      />
+                    </div>
                     <div className="flex gap-2">
                       <button type="submit" className="flex-1 bg-blue-600 py-2.5 rounded-xl text-xs font-bold text-white shadow-lg shadow-blue-600/20 cursor-pointer">
                         הוסף לפול
@@ -730,6 +745,13 @@ export default function ShoppingPoolPage() {
                               if (e.key === "Enter") handleUpdateProduct(prod.id);
                               if (e.key === "Escape") setEditingProdId(null);
                             }}
+                          />
+                          <input
+                            type="text"
+                            value={editingProdNotes}
+                            onChange={(e) => setEditingProdNotes(e.target.value)}
+                            placeholder="הערה קבועה..."
+                            className="flex-1 bg-[var(--background)] border border-[var(--border)] rounded-xl py-1.5 px-2 text-xs text-right focus:outline-none min-w-[100px]"
                           />
                           <select
                             value={editingProdCat}
@@ -779,6 +801,11 @@ export default function ShoppingPoolPage() {
                                 <span className="text-[9px] font-black px-2 py-0.5 rounded-md bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
                                   {prod.defaultUnit || "יחידות"}
                                 </span>
+                                {prod.defaultNotes && (
+                                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20">
+                                    הערה: {prod.defaultNotes}
+                                  </span>
+                                )}
                                 {isInactive && (
                                   <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-rose-500/10 text-rose-500 border border-rose-500/20">
                                     לא פעיל
@@ -828,6 +855,7 @@ export default function ShoppingPoolPage() {
                                 setEditingProdName(prod.name);
                                 setEditingProdCat(prod.category);
                                 setEditingProdUnit(prod.defaultUnit || "יחידות");
+                                setEditingProdNotes(prod.defaultNotes || "");
                               }}
                               className="p-2 text-slate-400 hover:text-blue-500 hover:bg-blue-500/10 rounded-xl transition-all cursor-pointer"
                               title="ערוך מוצר"
