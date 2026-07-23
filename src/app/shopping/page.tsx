@@ -6,11 +6,12 @@ import { db, storage } from "@/lib/firebase/config";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import {
   collection, addDoc, getDocs, query, orderBy, doc,
-  updateDoc, deleteDoc, onSnapshot, setDoc, getDoc, writeBatch,
+  updateDoc, deleteDoc, onSnapshot, setDoc, getDoc, writeBatch, where,
 } from "firebase/firestore";
 import { 
   ShoppingCart, Plus, Search, Loader2, ArrowRight, Download, 
-  Settings, Boxes, Star, ShoppingBag, Edit3, Receipt, RotateCcw, Database
+  Settings, Boxes, Star, ShoppingBag, Edit3, Receipt, RotateCcw, Database,
+  ChevronDown, FileText, FileSpreadsheet
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { motion, AnimatePresence } from "framer-motion";
@@ -91,6 +92,9 @@ export default function ShoppingPage() {
   const [listType, setListType] = useState<"supermarket" | "large">("supermarket");
   const [isEditingRecurring, setIsEditingRecurring] = useState(false);
   const [actionsMenuOpen, setActionsMenuOpen] = useState(false);
+  const [exportMenuOpen, setExportMenuOpen] = useState(false);
+  const [toolsMenuOpen, setToolsMenuOpen] = useState(false);
+  const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
 
   // Inventory State
   const [inventoryMap, setInventoryMap] = useState<Record<string, InventoryItem>>({});
@@ -170,6 +174,15 @@ export default function ShoppingPage() {
       unsubInv();
     };
   }, [user]);
+
+  useEffect(() => {
+    if (!isAdmin) return;
+    const qPending = query(collection(db, "product_requests_queue"), where("status", "==", "pending"));
+    const unsubPending = onSnapshot(qPending, (snap) => {
+      setPendingRequestsCount(snap.size);
+    });
+    return () => unsubPending();
+  }, [isAdmin]);
 
   const fetchPool = async () => {
     const snap = await getDocs(collection(db, "product_pool"));
@@ -952,12 +965,14 @@ export default function ShoppingPage() {
         </div>
 
         {/* ── Desktop Header ── */}
-        <header className="hidden md:flex items-center justify-between px-8 h-20 shrink-0 border-b border-[var(--border)] bg-[var(--surface)]/50 backdrop-blur-md z-30">
+        <header className="hidden md:flex items-center justify-between px-8 h-20 shrink-0 border-b border-[var(--border)] bg-[var(--surface)]/60 backdrop-blur-xl z-30">
+          {/* Right: Title & Search */}
           <div className="flex items-center gap-6">
-            <h1 className="text-2xl font-black flex items-center gap-3 text-[var(--foreground)]">
-              <span className="text-2xl">💗🥒</span> קניות וניהול מלאי
+            <h1 className="text-xl font-black flex items-center gap-2 text-[var(--foreground)] shrink-0">
+              <span className="text-xl">💗🥒</span> קניות וניהול מלאי
             </h1>
-            <div className="relative w-[360px]">
+
+            <div className="relative w-[340px]">
               <Search className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--muted)]" />
               <input
                 ref={inputRef}
@@ -965,88 +980,146 @@ export default function ShoppingPage() {
                 value={inputVal}
                 onChange={(e) => setInputVal(e.target.value)}
                 onFocus={() => setOverlayOpen(true)}
-                placeholder="חיפוש או הוספת מוצר..."
-                className="w-full bg-[var(--background)] border border-[var(--border)] rounded-2xl py-2.5 pr-11 pl-4 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all text-[var(--foreground)]"
+                placeholder="חיפוש או הוספת מוצר לרשימה..."
+                className="w-full bg-[var(--background)] border border-[var(--border)] rounded-2xl py-2.5 pr-11 pl-4 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all text-[var(--foreground)] shadow-xs"
               />
             </div>
           </div>
 
-          <div className="flex items-center gap-4">
-            <div className="flex bg-[var(--foreground)]/[0.04] p-1 rounded-2xl border border-[var(--border)] gap-1">
-              <button
-                onClick={() => setView("list")}
-                className={`px-4 py-2 rounded-xl text-xs font-black transition-all border-none cursor-pointer ${
-                  view === "list" ? "bg-[var(--surface)] text-indigo-600 shadow-sm" : "text-[var(--muted)] bg-transparent"
-                }`}
-              >
-                רשימה פעילה
-              </button>
-              {canPurchase && (
-                <button
-                  onClick={() => setView("inventory")}
-                  className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 border-none cursor-pointer ${
-                    view === "inventory" ? "bg-[var(--surface)] text-indigo-600 shadow-sm" : "text-[var(--muted)] bg-transparent"
-                  }`}
-                >
-                  <Boxes className="w-4 h-4" />
-                  <span>ניהול מלאי</span>
-                </button>
-              )}
-              {(isAdmin || isLogistics) && (
-                <button
-                  onClick={() => setView("archive")}
-                  className={`px-4 py-2 rounded-xl text-xs font-black transition-all border-none cursor-pointer ${
-                    view === "archive" ? "bg-[var(--surface)] text-indigo-600 shadow-sm" : "text-[var(--muted)] bg-transparent"
-                  }`}
-                >
-                  ארכיון קניות
-                </button>
-              )}
-            </div>
-
+          {/* Left: Action Toolbar & Dropdowns */}
+          <div className="flex items-center gap-3">
             {canPurchase && (
               <>
-                <button
-                  onClick={exportProcurementList}
-                  className="px-4 py-2.5 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-blue-400 hover:bg-blue-500/20 transition-all flex items-center gap-1.5 text-xs font-black cursor-pointer"
-                >
-                  <Download className="w-4 h-4 text-blue-400" />
-                  <span>יצוא רשימת רכש</span>
-                </button>
-                <button
-                  onClick={exportOngoingList}
-                  className="px-4 py-2.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/20 transition-all flex items-center gap-1.5 text-xs font-black cursor-pointer"
-                >
-                  <Download className="w-4 h-4 text-emerald-400" />
-                  <span>יצוא רשימה שוטפת</span>
-                </button>
-                {isAdmin && (
+                {/* Export Options Dropdown */}
+                <div className="relative">
                   <button
-                    onClick={exportXlsx}
-                    className="p-2.5 rounded-2xl bg-[var(--foreground)]/5 border border-[var(--border)] hover:bg-[var(--foreground)]/10 transition-all cursor-pointer"
+                    onClick={() => setExportMenuOpen(!exportMenuOpen)}
+                    className="px-3.5 py-2 rounded-xl bg-[var(--foreground)]/[0.03] border border-[var(--border)] hover:bg-[var(--foreground)]/[0.06] text-[var(--foreground)] transition-all flex items-center gap-2 text-xs font-bold cursor-pointer"
                   >
-                    <Download className="w-5 h-5 text-[var(--muted)]" />
+                    <Download className="w-4 h-4 text-indigo-500" />
+                    <span>ייצוא קבצים</span>
+                    <ChevronDown className={`w-3.5 h-3.5 text-[var(--muted)] transition-transform ${exportMenuOpen ? "rotate-180" : ""}`} />
                   </button>
-                )}
-                <button
-                  onClick={() => setIsAddingCat(true)}
-                  className="px-4 py-2.5 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 hover:bg-indigo-500/20 transition-all flex items-center gap-1.5 text-xs font-black cursor-pointer"
-                >
-                  <Edit3 className="w-4 h-4 text-indigo-400" />
-                  <span>ניהול קטגוריות</span>
-                </button>
-                {isAdmin && (
+
+                  {exportMenuOpen && (
+                    <>
+                      <div className="fixed inset-0 z-40" onClick={() => setExportMenuOpen(false)} />
+                      <motion.div
+                        initial={{ opacity: 0, y: 8, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 8, scale: 0.95 }}
+                        className="absolute left-0 top-full mt-2 w-56 bg-[var(--surface)] border border-[var(--border)] rounded-2xl shadow-xl p-2 z-50 flex flex-col gap-1 text-right"
+                      >
+                        <button
+                          onClick={() => {
+                            exportOngoingList();
+                            setExportMenuOpen(false);
+                          }}
+                          className="w-full text-right px-3 py-2 rounded-xl text-xs font-bold hover:bg-[var(--foreground)]/5 flex items-center gap-2 text-emerald-600 dark:text-emerald-400 cursor-pointer border-none bg-transparent"
+                        >
+                          <FileText className="w-4 h-4 text-emerald-500" />
+                          <span>יצוא רשימה שוטפת (Word)</span>
+                        </button>
+                        <button
+                          onClick={() => {
+                            exportProcurementList();
+                            setExportMenuOpen(false);
+                          }}
+                          className="w-full text-right px-3 py-2 rounded-xl text-xs font-bold hover:bg-[var(--foreground)]/5 flex items-center gap-2 text-blue-600 dark:text-blue-400 cursor-pointer border-none bg-transparent"
+                        >
+                          <FileText className="w-4 h-4 text-blue-500" />
+                          <span>יצוא רשימת רכש (Word)</span>
+                        </button>
+                        {isAdmin && (
+                          <button
+                            onClick={() => {
+                              exportXlsx();
+                              setExportMenuOpen(false);
+                            }}
+                            className="w-full text-right px-3 py-2 rounded-xl text-xs font-bold hover:bg-[var(--foreground)]/5 flex items-center gap-2 text-slate-700 dark:text-slate-300 border-t border-[var(--border)]/40 pt-2 cursor-pointer bg-transparent"
+                          >
+                            <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+                            <span>יצוא ארכיון מלא (Excel)</span>
+                          </button>
+                        )}
+                      </motion.div>
+                    </>
+                  )}
+                </div>
+
+                {/* Tools & Admin Dropdown */}
+                <div className="relative">
                   <button
-                    onClick={() => setShowAdminRequestsModal(true)}
-                    className="px-4 py-2.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-500 hover:bg-amber-500/20 transition-all flex items-center gap-1.5 text-xs font-black cursor-pointer"
+                    onClick={() => setToolsMenuOpen(!toolsMenuOpen)}
+                    className="px-3.5 py-2 rounded-xl bg-[var(--foreground)]/[0.03] border border-[var(--border)] hover:bg-[var(--foreground)]/[0.06] text-[var(--foreground)] transition-all flex items-center gap-2 text-xs font-bold cursor-pointer relative"
                   >
-                    <Database className="w-4 h-4 text-amber-500" />
-                    <span>בקשות מוצרים</span>
+                    <Settings className="w-4 h-4 text-indigo-500" />
+                    <span>כלים וניהול</span>
+                    {pendingRequestsCount > 0 && (
+                      <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
+                    )}
+                    <ChevronDown className={`w-3.5 h-3.5 text-[var(--muted)] transition-transform ${toolsMenuOpen ? "rotate-180" : ""}`} />
                   </button>
-                )}
+
+                  {toolsMenuOpen && (
+                    <>
+                      <div className="fixed inset-0 z-40" onClick={() => setToolsMenuOpen(false)} />
+                      <motion.div
+                        initial={{ opacity: 0, y: 8, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 8, scale: 0.95 }}
+                        className="absolute left-0 top-full mt-2 w-56 bg-[var(--surface)] border border-[var(--border)] rounded-2xl shadow-xl p-2 z-50 flex flex-col gap-1 text-right"
+                      >
+                        {isAdmin && (
+                          <button
+                            onClick={() => {
+                              setShowAdminRequestsModal(true);
+                              setToolsMenuOpen(false);
+                            }}
+                            className="w-full text-right px-3 py-2 rounded-xl text-xs font-bold hover:bg-[var(--foreground)]/5 flex items-center justify-between text-[var(--foreground)] cursor-pointer border-none bg-transparent"
+                          >
+                            <div className="flex items-center gap-2">
+                              <Database className="w-4 h-4 text-amber-500" />
+                              <span>בקשות מוצרים</span>
+                            </div>
+                            {pendingRequestsCount > 0 && (
+                              <span className="bg-rose-500 text-white text-[10px] px-1.5 py-0.2 rounded-full font-black">
+                                {pendingRequestsCount}
+                              </span>
+                            )}
+                          </button>
+                        )}
+                        <button
+                          onClick={() => {
+                            setIsAddingCat(true);
+                            setToolsMenuOpen(false);
+                          }}
+                          className="w-full text-right px-3 py-2 rounded-xl text-xs font-bold hover:bg-[var(--foreground)]/5 flex items-center gap-2 text-[var(--foreground)] cursor-pointer border-none bg-transparent"
+                        >
+                          <Edit3 className="w-4 h-4 text-indigo-500" />
+                          <span>ניהול קטגוריות</span>
+                        </button>
+                        {(isAdmin || isLogistics) && (
+                          <button
+                            onClick={() => {
+                              setIsEditingRecurring(true);
+                              setToolsMenuOpen(false);
+                            }}
+                            className="w-full text-right px-3 py-2 rounded-xl text-xs font-bold hover:bg-[var(--foreground)]/5 flex items-center gap-2 text-[var(--foreground)] border-t border-[var(--border)]/40 pt-2 cursor-pointer bg-transparent"
+                          >
+                            <Settings className="w-4 h-4 text-purple-500" />
+                            <span>עריכת רשימה קבועה</span>
+                          </button>
+                        )}
+                      </motion.div>
+                    </>
+                  )}
+                </div>
+
+                {/* Receipt Scan Primary Button */}
                 <button
                   onClick={() => setReceiptScanOpen(true)}
-                  className="px-3.5 py-2.5 rounded-2xl bg-rose-600 hover:bg-rose-700 !text-white text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
+                  className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-rose-600 to-rose-500 hover:from-rose-500 hover:to-rose-600 !text-white text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer shadow-sm active:scale-95 border-none"
                 >
                   <Receipt className="w-4 h-4 text-white" />
                   <span>סריקת קבלה</span>
@@ -1056,64 +1129,91 @@ export default function ShoppingPage() {
           </div>
         </header>
 
-        {/* ── Tab Switcher (Supermarket vs Large Procurement) ── */}
-        {view === "list" && !loading && (
-          <div className="hidden md:flex items-center justify-between px-3 py-2 bg-[var(--surface)] border-b border-[var(--border)] shrink-0 gap-3">
-            <div className="flex w-full md:w-auto bg-[var(--foreground)]/[0.04] p-1 rounded-xl border border-[var(--border)] relative shrink-0">
+        {/* ── Desktop Sub-Header Navigation Toolbar ── */}
+        <div className="hidden md:flex items-center justify-between px-8 py-2.5 bg-[var(--surface)] border-b border-[var(--border)] shrink-0 z-20">
+          {/* Views Segmented Switcher */}
+          <div className="flex bg-[var(--foreground)]/[0.04] p-1 rounded-xl border border-[var(--border)] gap-1">
+            <button
+              onClick={() => setView("list")}
+              className={`px-4 py-1.5 rounded-lg text-xs font-black transition-all border-none cursor-pointer flex items-center gap-1.5 ${
+                view === "list" ? "bg-[var(--surface)] text-indigo-600 dark:text-indigo-400 shadow-sm" : "text-[var(--muted)] bg-transparent"
+              }`}
+            >
+              <ShoppingCart className="w-3.5 h-3.5" />
+              <span>רשימה פעילה</span>
+            </button>
+
+            {canPurchase && (
               <button
-                onClick={() => {
-                  setListType("supermarket");
-                  setActiveCategory(null);
-                }}
-                className={`px-3 py-1.5 rounded-lg text-[11px] font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                  listType === "supermarket"
-                    ? "bg-[var(--surface)] text-indigo-500 shadow-sm border border-[var(--border)]"
-                    : "text-[var(--muted)]"
-                }`}
-              >
-                <ShoppingCart className="w-3.5 h-3.5" />
-                <span>קניות סופר</span>
-              </button>
-              <button
-                onClick={() => {
-                  setListType("large");
-                  setActiveCategory(null);
-                }}
-                className={`px-3 py-1.5 rounded-lg text-[11px] font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                  listType === "large"
-                    ? "bg-[var(--surface)] text-indigo-500 shadow-sm border border-[var(--border)]"
-                    : "text-[var(--muted)]"
+                onClick={() => setView("inventory")}
+                className={`px-4 py-1.5 rounded-lg text-xs font-black transition-all border-none cursor-pointer flex items-center gap-1.5 ${
+                  view === "inventory" ? "bg-[var(--surface)] text-indigo-600 dark:text-indigo-400 shadow-sm" : "text-[var(--muted)] bg-transparent"
                 }`}
               >
                 <Boxes className="w-3.5 h-3.5" />
-                <span>ציוד ורכש</span>
+                <span>ניהול מלאי</span>
               </button>
-            </div>
+            )}
 
-            {listType === "supermarket" && (
-              <div className="hidden md:flex items-center gap-2">
-                {(isAdmin || isLogistics) && (
-                  <button
-                    onClick={() => setIsEditingRecurring(true)}
-                    className="px-4 py-2.5 rounded-xl bg-[var(--foreground)]/5 border border-[var(--border)] text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer"
-                  >
-                    <Settings className="w-4 h-4 text-[var(--muted)]" />
-                    <span>עריכת רשימה קבועה</span>
-                  </button>
-                )}
-                {canPurchase && (
-                  <button
-                    onClick={importRecurringList}
-                    className="px-4 py-2.5 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-600 dark:text-purple-400 text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer"
-                  >
-                    <RotateCcw className="w-4 h-4 text-purple-500" />
-                    <span>שאיבת רשימה קבועה לסופר</span>
-                  </button>
-                )}
-              </div>
+            {(isAdmin || isLogistics) && (
+              <button
+                onClick={() => setView("archive")}
+                className={`px-4 py-1.5 rounded-lg text-xs font-black transition-all border-none cursor-pointer flex items-center gap-1.5 ${
+                  view === "archive" ? "bg-[var(--surface)] text-indigo-600 dark:text-indigo-400 shadow-sm" : "text-[var(--muted)] bg-transparent"
+                }`}
+              >
+                <FileText className="w-3.5 h-3.5" />
+                <span>ארכיון קניות</span>
+              </button>
             )}
           </div>
-        )}
+
+          {/* Sub-List Selector & Action */}
+          {view === "list" && !loading && (
+            <div className="flex items-center gap-3">
+              <div className="flex bg-[var(--foreground)]/[0.04] p-1 rounded-xl border border-[var(--border)]">
+                <button
+                  onClick={() => {
+                    setListType("supermarket");
+                    setActiveCategory(null);
+                  }}
+                  className={`px-3 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer border-none ${
+                    listType === "supermarket"
+                      ? "bg-[var(--surface)] text-indigo-600 dark:text-indigo-400 shadow-sm font-black"
+                      : "text-[var(--muted)] bg-transparent"
+                  }`}
+                >
+                  <ShoppingCart className="w-3.5 h-3.5" />
+                  <span>קניות סופר</span>
+                </button>
+                <button
+                  onClick={() => {
+                    setListType("large");
+                    setActiveCategory(null);
+                  }}
+                  className={`px-3 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer border-none ${
+                    listType === "large"
+                      ? "bg-[var(--surface)] text-indigo-600 dark:text-indigo-400 shadow-sm font-black"
+                      : "text-[var(--muted)] bg-transparent"
+                  }`}
+                >
+                  <Boxes className="w-3.5 h-3.5" />
+                  <span>ציוד ורכש</span>
+                </button>
+              </div>
+
+              {listType === "supermarket" && canPurchase && (
+                <button
+                  onClick={importRecurringList}
+                  className="px-3.5 py-1.5 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-600 dark:text-purple-300 hover:bg-purple-500/20 text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+                >
+                  <RotateCcw className="w-3.5 h-3.5 text-purple-500" />
+                  <span>שאיבת רשימה קבועה לסופר</span>
+                </button>
+              )}
+            </div>
+          )}
+        </div>
 
         {/* Main Content Body */}
         <main className="flex-1 overflow-hidden flex flex-col relative bg-[var(--background)]">
