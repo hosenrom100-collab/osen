@@ -1,11 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { ShoppingRequest, Product, InventoryItem } from "../types";
+import { ShoppingRequest, Product, InventoryItem, CutoffConfig } from "../types";
 import { findSimilarProduct } from "../lib/stringUtils";
 import { 
   Edit3, Settings, X, Plus, Minus, Trash2, Check, RotateCcw, Download, 
-  Receipt, Star, Flame, ShoppingBag, CheckCircle2, Upload, Loader2, Search, MessageSquare 
+  Receipt, Star, Flame, ShoppingBag, CheckCircle2, Upload, Loader2, Search, MessageSquare, Clock
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -87,6 +87,9 @@ interface ShoppingModalsProps {
   showManageTrackModal: boolean;
   setShowManageTrackModal: (val: boolean) => void;
   onToggleTrackInventory: (productId: string, currentTrack?: boolean) => void;
+
+  cutoffConfig?: CutoffConfig;
+  onSaveCutoffConfig?: (config: CutoffConfig) => Promise<void>;
 }
 
 export function ShoppingModals({
@@ -133,6 +136,8 @@ export function ShoppingModals({
   showManageTrackModal,
   setShowManageTrackModal,
   onToggleTrackInventory,
+  cutoffConfig,
+  onSaveCutoffConfig,
 }: ShoppingModalsProps) {
   // Local state for edit item
   const [editName, setEditName] = useState("");
@@ -145,6 +150,20 @@ export function ShoppingModals({
   const [newCatName, setNewCatName] = useState("");
   const [editingCatName, setEditingCatName] = useState<string | null>(null);
   const [editingCatNewValue, setEditingCatNewValue] = useState("");
+
+  // Local state for cutoff config
+  const [cutoffEnabled, setCutoffEnabled] = useState(cutoffConfig?.enabled ?? true);
+  const [cutoffDay, setCutoffDay] = useState(cutoffConfig?.day ?? 2);
+  const [cutoffTime, setCutoffTime] = useState(cutoffConfig?.time ?? "12:00");
+  const [isSavingCutoff, setIsSavingCutoff] = useState(false);
+
+  useEffect(() => {
+    if (cutoffConfig) {
+      setCutoffEnabled(cutoffConfig.enabled);
+      setCutoffDay(cutoffConfig.day);
+      setCutoffTime(cutoffConfig.time || "12:00");
+    }
+  }, [cutoffConfig]);
 
   // Local state for inventory settings
   const [editMinStock, setEditMinStock] = useState("1");
@@ -458,6 +477,71 @@ export function ShoppingModals({
                   })}
                 </div>
               </div>
+
+              {/* Cutoff Deadline Settings Section */}
+              {onSaveCutoffConfig && (
+                <div className="pt-3 border-t border-[var(--border)] mb-4 shrink-0 text-right" dir="rtl">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-black flex items-center gap-1.5 text-[var(--foreground)]">
+                      <Clock className="w-4 h-4 text-indigo-500" />
+                      מועד קציבה שבועי (Cutoff)
+                    </span>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={cutoffEnabled}
+                        onChange={(e) => setCutoffEnabled(e.target.checked)}
+                        className="sr-only peer"
+                      />
+                      <div className="w-9 h-5 bg-[var(--foreground)]/20 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
+                    </label>
+                  </div>
+
+                  {cutoffEnabled && (
+                    <div className="grid grid-cols-2 gap-2 mb-3">
+                      <div>
+                        <label className="text-[10px] font-bold text-[var(--muted)] mb-1 block">יום בשבוע:</label>
+                        <select
+                          value={cutoffDay}
+                          onChange={(e) => setCutoffDay(Number(e.target.value))}
+                          className="w-full bg-[var(--background)] border border-[var(--border)] rounded-xl py-2 px-2 text-xs font-bold text-[var(--foreground)]"
+                        >
+                          <option value={0}>יום ראשון</option>
+                          <option value={1}>יום שני</option>
+                          <option value={2}>יום שלישי</option>
+                          <option value={3}>יום רביעי</option>
+                          <option value={4}>יום חמישי</option>
+                          <option value={5}>יום שישי</option>
+                          <option value={6}>יום שבת</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="text-[10px] font-bold text-[var(--muted)] mb-1 block">שעת סגירה:</label>
+                        <input
+                          type="time"
+                          value={cutoffTime}
+                          onChange={(e) => setCutoffTime(e.target.value)}
+                          className="w-full bg-[var(--background)] border border-[var(--border)] rounded-xl py-2 px-2 text-xs font-bold text-center text-[var(--foreground)]"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  <button
+                    onClick={async () => {
+                      setIsSavingCutoff(true);
+                      await onSaveCutoffConfig({ enabled: cutoffEnabled, day: cutoffDay, time: cutoffTime });
+                      setIsSavingCutoff(false);
+                    }}
+                    disabled={isSavingCutoff}
+                    className="w-full py-2 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:hover:bg-indigo-900/60 text-indigo-600 dark:text-indigo-300 text-xs font-bold rounded-xl transition-all cursor-pointer border-none flex items-center justify-center gap-1.5"
+                  >
+                    {isSavingCutoff ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                    <span>שמור הגדרות קציבה</span>
+                  </button>
+                </div>
+              )}
 
               <button
                 onClick={() => setIsAddingCat(false)}

@@ -38,6 +38,8 @@ interface AddProductOverlayProps {
   pool: Product[];
   categories?: string[];
   isAdmin: boolean;
+  isLogistics?: boolean;
+  isFrozen?: boolean;
   inventoryMap?: Record<string, InventoryItem>;
   onAddProduct: (name: string, category?: string, priority?: "normal" | "urgent", quantity?: string, notes?: string) => void;
   onRequestNewProduct: (name: string, category?: string, priority?: "normal" | "urgent", quantity?: string) => void;
@@ -56,6 +58,8 @@ export function AddProductOverlay({
   onAddProduct,
   onRequestNewProduct,
   isAdmin,
+  isLogistics,
+  isFrozen,
 }: AddProductOverlayProps) {
   const [addUrgent, setAddUrgent] = useState(false);
   const [addQty, setAddQty] = useState("1");
@@ -72,7 +76,10 @@ export function AddProductOverlay({
 
   if (!isOpen) return null;
 
+  const isUserBlockedByFreeze = isFrozen && !isAdmin && !isLogistics;
+
   const handleAddInput = () => {
+    if (isUserBlockedByFreeze) return;
     const name = inputVal.trim();
     if (!name) return;
     
@@ -179,6 +186,14 @@ export function AddProductOverlay({
               </button>
             )}
           </div>
+
+          {/* Freeze Warning Banner for Regular Users */}
+          {isUserBlockedByFreeze && (
+            <div className="mb-4 p-3 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-300 text-xs font-bold flex items-center gap-2 text-right">
+              <span className="text-base">🔒</span>
+              <span>הרשימה מוקפאת כרגע לקראת רכש. הזנת מוצרים חדשים תתאפשר מחדש לאחר פתיחת סבב חדש.</span>
+            </div>
+          )}
 
           {/* Star / Favorite Quick-Add Chips */}
           {starProducts.length > 0 && (

@@ -63,3 +63,16 @@ export interface NewProductRequest {
   status: "pending" | "approved" | "rejected";
   notes?: string;
 }
+
+export interface CutoffConfig {
+  enabled: boolean;
+  day: number; // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+  time: string; // "HH:MM" format e.g. "12:00"
+}
+
+export interface CutoffStatus {
+  isEnabled: boolean;
+  isPassed: boolean;
+  formattedTarget: string;
+  timeLeftFormatted: string;
+}

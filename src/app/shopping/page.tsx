@@ -11,7 +11,7 @@ import {
 import { 
   ShoppingCart, Plus, Search, Loader2, ArrowRight, Download, 
   Settings, Boxes, Star, ShoppingBag, Edit3, Receipt, RotateCcw, Database,
-  ChevronDown, FileText, FileSpreadsheet, Trash2, AlertTriangle, X
+  ChevronDown, FileText, FileSpreadsheet, Trash2, AlertTriangle, X, Clock, AlertCircle, PackageCheck, Package
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { motion, AnimatePresence } from "framer-motion";
@@ -21,7 +21,9 @@ import { sendPush } from "@/lib/notify";
 import { generateShoppingListWord, generateDocxWithLetterhead } from "@/lib/word-generator";
 import { format } from "date-fns";
 
-import { ShoppingRequest, Product, InventoryItem } from "./types";
+import { ShoppingRequest, Product, InventoryItem, CutoffConfig } from "./types";
+import { getCutoffStatus } from "./lib/cutoffUtils";
+import { CycleClosureModal } from "./components/CycleClosureModal";
 import { logInventoryChange } from "./lib/inventory-logger";
 import { InventoryView } from "./components/InventoryView";
 import { ShoppingListView } from "./components/ShoppingListView";
@@ -102,6 +104,10 @@ export default function ShoppingPage() {
   const [passwordError, setPasswordError] = useState("");
   const [isClearingArchive, setIsClearingArchive] = useState(false);
 
+  // Cutoff & Cycle State
+  const [cutoffConfig, setCutoffConfig] = useState<CutoffConfig>({ enabled: true, day: 2, time: "12:00" });
+  const [showCycleClosureModal, setShowCycleClosureModal] = useState(false);
+
   // Inventory State
   const [inventoryMap, setInventoryMap] = useState<Record<string, InventoryItem>>({});
   const [editingInvItem, setEditingInvItem] = useState<{ productId: string; name: string; minStock: number; unit: string } | null>(null);
@@ -154,7 +160,10 @@ export default function ShoppingPage() {
     if (!user) return;
 
     getDoc(doc(db, "settings", "shopping")).then((s) => {
-      if (s.exists() && s.data().categories) setCategories(s.data().categories);
+      if (s.exists()) {
+        if (s.data().categories) setCategories(s.data().categories);
+        if (s.data().cutoffConfig) setCutoffConfig(s.data().cutoffConfig);
+      }
     });
 
     fetchPool();
@@ -373,7 +382,7 @@ export default function ShoppingPage() {
   const addProduct = async (
     name: string,
     category = "כללי",
-    priority: "normal" | "urgent" = "normal",
+    priority: "low" | "normal" | "urgent" = "normal",
     quantity = "1",
     notes = ""
   ) => {
@@ -727,6 +736,12 @@ export default function ShoppingPage() {
     }
   };
 
+  const handleSaveCutoffConfig = async (newConfig: CutoffConfig) => {
+    await setDoc(doc(db, "settings", "shopping"), { cutoffConfig: newConfig }, { merge: true });
+    setCutoffConfig(newConfig);
+    showToast("הגדרות מועד הקציבה השבועי עודכנו בהצלחה!", "success");
+  };
+
   const saveInventorySettings = async (productId: string, minStockVal: number, unitVal: string) => {
     try {
       await setDoc(
@@ -891,6 +906,14 @@ export default function ShoppingPage() {
     (acc[key] = acc[key] || []).push(item);
     return acc;
   }, {} as Record<string, ShoppingRequest[]>);
+
+  const currentActiveItems = requests.filter(
+    (r) =>
+      (r.status === "approved" || r.status === "pending" || r.status === "purchased") &&
+      (listType === "large" ? r.listType === "large" : r.listType !== "large")
+  );
+  const cutoffStatus = getCutoffStatus(cutoffConfig);
+  const isListFrozen = cutoffStatus.isEnabled && cutoffStatus.isPassed && currentActiveItems.length > 0;
 
   return (
     <RoleGuard allowedRoles={["admin", "manager", "instructor", "social_worker", "employee", "logistics"]} redirectTo="/">
@@ -1243,6 +1266,51 @@ export default function ShoppingPage() {
           )}
         </div>
 
+        {/* ── Top Status Banner (Weekly Cutoff & Freeze Notice) ── */}
+        {cutoffStatus.isEnabled && (
+          <div className="px-4 md:px-8 pt-3 shrink-0 z-10">
+            {isListFrozen ? (
+              <div className="p-3.5 rounded-2xl bg-gradient-to-r from-amber-500/15 via-rose-500/10 to-amber-500/15 border border-amber-500/30 flex items-center justify-between flex-wrap gap-3 shadow-sm text-right" dir="rtl">
+                <div className="flex items-center gap-3">
+                  <span className="p-2 rounded-xl bg-rose-500/20 text-rose-600 dark:text-rose-400 font-bold text-lg shrink-0">
+                    🔒
+                  </span>
+                  <div>
+                    <h4 className="text-xs font-black text-rose-600 dark:text-rose-400 flex items-center gap-1.5">
+                      <span>מועד הקציבה השבועי חלף ({cutoffStatus.formattedTarget})</span>
+                    </h4>
+                    <p className="text-[11px] font-bold text-[var(--foreground)]/80 mt-0.5">
+                      {isAdmin || isLogistics
+                        ? `הרשימה מוקפאת להזנות. קיימים ${currentActiveItems.length} מוצרים ב-${listType === "large" ? "ציוד ורכש" : "קניות סופר"} הממתינים לביצוע רכש וסגירה.`
+                        : `הרשימה הוקפאה להזנות לקראת ביצוע רכש. הזנות חדשות יתאפשרו מחדש לאחר פתיחת סבב חדש.`}
+                    </p>
+                  </div>
+                </div>
+
+                {(isAdmin || isLogistics) && (
+                  <button
+                    onClick={() => setShowCycleClosureModal(true)}
+                    className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 !text-white text-xs font-black transition-all shadow-md shadow-amber-500/20 flex items-center gap-1.5 cursor-pointer active:scale-95 border-none shrink-0"
+                  >
+                    <Package className="w-4 h-4 text-white" />
+                    <span>אכסן וסגור סבב קניות</span>
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div className="px-4 py-2 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-between text-xs font-bold text-indigo-700 dark:text-indigo-300 text-right" dir="rtl">
+                <div className="flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-indigo-500 animate-pulse" />
+                  <span>מועד סגירת הזנות לשבוע זה ({listType === "large" ? "ציוד ורכש" : "קניות סופר"}): <strong>{cutoffStatus.formattedTarget}</strong></span>
+                </div>
+                <span className="text-[11px] font-black bg-indigo-500/20 px-2.5 py-0.5 rounded-full text-indigo-800 dark:text-indigo-200">
+                  {cutoffStatus.timeLeftFormatted}
+                </span>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Main Content Body */}
         <main className="flex-1 overflow-hidden flex flex-col relative bg-[var(--background)]">
           <div className="flex-1 overflow-y-auto no-scrollbar">
@@ -1370,6 +1438,8 @@ export default function ShoppingPage() {
           onAddProduct={addProduct}
           onRequestNewProduct={requestNewProduct}
           isAdmin={isAdmin}
+          isLogistics={isLogistics}
+          isFrozen={isListFrozen}
         />
 
         {/* Admin Product Requests Modal */}
@@ -1394,6 +1464,38 @@ export default function ShoppingPage() {
           }}
           onAddToShoppingList={async (name, cat, priority, qty, notes) => {
             await addProduct(name, cat, priority, qty, notes);
+          }}
+        />
+
+        {/* Cycle Closure & Pre-Flight Review Modal */}
+        <CycleClosureModal
+          isOpen={showCycleClosureModal}
+          onClose={() => setShowCycleClosureModal(false)}
+          listType={listType}
+          requests={requests}
+          pool={pool}
+          categories={categories}
+          onAddProduct={async (name, cat, priority, qty, notes) => {
+            await addProduct(name, cat, priority, qty, notes);
+          }}
+          onExportAndArchive={async () => {
+            if (listType === "large") {
+              exportProcurementList();
+            } else {
+              exportOngoingList();
+            }
+            await archiveCurrentSession();
+            showToast("סבב הקניות יוצא בהצלחה והועבר לארכיון!", "success");
+          }}
+          onArchiveOnly={async () => {
+            await archiveCurrentSession();
+            showToast("סבב הקניות הועבר לארכיון והרשימה נוקתה לסבב חדש!", "success");
+          }}
+          onRemoveItem={async (id) => {
+            await deleteDoc(doc(db, "shopping_requests", id));
+          }}
+          onUpdateQuantity={async (id, newQty) => {
+            await updateDoc(doc(db, "shopping_requests", id), { quantity: newQty });
           }}
         />
 
@@ -1444,6 +1546,8 @@ export default function ShoppingPage() {
           showManageTrackModal={showManageTrackModal}
           setShowManageTrackModal={setShowManageTrackModal}
           onToggleTrackInventory={toggleTrackInventory}
+          cutoffConfig={cutoffConfig}
+          onSaveCutoffConfig={handleSaveCutoffConfig}
         />
 
         {/* Reset Archive Modal */}
