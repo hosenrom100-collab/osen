@@ -27,6 +27,7 @@ interface Product {
   name: string;
   category: string;
   defaultUnit?: string;
+  defaultNotes?: string;
   isRecurring?: boolean;
   recurringQuantity?: string;
   trackInventory?: boolean;
