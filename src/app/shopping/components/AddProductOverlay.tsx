@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Product, ShoppingRequest } from "../types";
+import { Product, ShoppingRequest, InventoryItem } from "../types";
 import { Plus, Search, Star, X, Check, Flame, CheckCircle2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { findSimilarProduct } from "../lib/stringUtils";
@@ -36,12 +36,14 @@ interface AddProductOverlayProps {
   isOpen: boolean;
   onClose: () => void;
   pool: Product[];
+  categories: string[];
+  isAdmin: boolean;
+  inventoryMap: Record<string, InventoryItem>;
+  onAddProduct: (name: string, category?: string, priority?: "normal" | "urgent", quantity?: string, notes?: string) => void;
+  onRequestNewProduct: (name: string, category?: string, priority?: "normal" | "urgent", quantity?: string) => void;
   requests: ShoppingRequest[];
   inputVal: string;
   setInputVal: (val: string) => void;
-  onAddProduct: (name: string, category?: string, priority?: "normal" | "urgent", quantity?: string) => void;
-  onRequestNewProduct: (name: string, category?: string, priority?: "normal" | "urgent", quantity?: string) => void;
-  isAdmin: boolean;
 }
 
 export function AddProductOverlay({
@@ -79,12 +81,12 @@ export function AddProductOverlay({
     if (similarProduct) {
       // If it exists, add the existing product instead of creating a new one
       const finalQty = addUnit === "יחידות" ? addQty : `${addQty} ${addUnit}`;
-      onAddProduct(similarProduct.name, similarProduct.category ?? "כללי", addUrgent ? "urgent" : "normal", finalQty);
+      onAddProduct(similarProduct.name, similarProduct.category ?? "כללי", addUrgent ? "urgent" : "normal", finalQty, similarProduct.defaultNotes);
     } else {
       const finalQty = addUnit === "יחידות" ? addQty : `${addQty} ${addUnit}`;
       if (isAdmin) {
         const match = pool.find((p) => p.name === name);
-        onAddProduct(name, match?.category ?? "כללי", addUrgent ? "urgent" : "normal", finalQty);
+        onAddProduct(name, match?.category ?? "כללי", addUrgent ? "urgent" : "normal", finalQty, match?.defaultNotes);
       } else {
         onRequestNewProduct(name, "כללי", addUrgent ? "urgent" : "normal", finalQty);
       }
@@ -195,7 +197,7 @@ export function AddProductOverlay({
                         if (!inList) {
                           const unitToUse = starItem.defaultUnit || addUnit;
                           const finalQty = unitToUse === "יחידות" ? addQty : `${addQty} ${unitToUse}`;
-                          onAddProduct(starItem.name, starItem.category, addUrgent ? "urgent" : "normal", finalQty);
+                          onAddProduct(starItem.name, starItem.category, addUrgent ? "urgent" : "normal", finalQty, starItem.defaultNotes);
                           setInputVal("");
                           onClose();
                           setAddUrgent(false);
@@ -297,7 +299,7 @@ export function AddProductOverlay({
                     if (!inList) {
                       const unitToUse = p.defaultUnit || addUnit;
                       const finalQty = unitToUse === "יחידות" ? addQty : `${addQty} ${unitToUse}`;
-                      onAddProduct(p.name, p.category, addUrgent ? "urgent" : "normal", finalQty);
+                      onAddProduct(p.name, p.category, addUrgent ? "urgent" : "normal", finalQty, p.defaultNotes);
                       setInputVal("");
                       onClose();
                       setAddUrgent(false);

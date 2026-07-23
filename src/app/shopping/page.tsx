@@ -730,13 +730,16 @@ export default function ShoppingPage() {
     try {
       const activeSession = requests.filter((r) => r.status !== "archived" && r.listType === "large");
       const sortedItems = [...activeSession].sort((a, b) => a.category.localeCompare(b.category));
-      const itemsToExport = sortedItems.map((r) => ({
-        name: r.name,
-        category: r.category,
-        quantity: r.quantity || "1",
-        notes: r.notes || "",
-        requestedByName: r.requestedByName || "",
-      }));
+      const itemsToExport = sortedItems.map((r) => {
+        const poolMatch = pool.find((p) => (p.name || "").trim().toLowerCase() === (r.name || "").trim().toLowerCase());
+        return {
+          name: r.name,
+          category: r.category,
+          quantity: r.quantity || "1",
+          notes: r.notes || poolMatch?.defaultNotes || "",
+          requestedByName: r.requestedByName || "",
+        };
+      });
       const dateStr = format(new Date(), "dd/MM/yyyy");
       const docx = generateShoppingListWord(itemsToExport, { date: dateStr, title: "רשימת רכש וציוד - חוות רום" });
       await generateDocxWithLetterhead(docx, `רשימת_רכש_${format(new Date(), "yyyy-MM-dd")}.docx`);
@@ -750,13 +753,16 @@ export default function ShoppingPage() {
     try {
       const activeSession = requests.filter((r) => r.status !== "archived" && r.listType !== "large");
       const sortedItems = [...activeSession].sort((a, b) => a.category.localeCompare(b.category));
-      const itemsToExport = sortedItems.map((r) => ({
-        name: r.name,
-        category: r.category,
-        quantity: r.quantity || "1",
-        notes: r.notes || "",
-        requestedByName: r.requestedByName || "",
-      }));
+      const itemsToExport = sortedItems.map((r) => {
+        const poolMatch = pool.find((p) => (p.name || "").trim().toLowerCase() === (r.name || "").trim().toLowerCase());
+        return {
+          name: r.name,
+          category: r.category,
+          quantity: r.quantity || "1",
+          notes: r.notes || poolMatch?.defaultNotes || "",
+          requestedByName: r.requestedByName || "",
+        };
+      });
       const dateStr = format(new Date(), "dd/MM/yyyy");
       const docx = generateShoppingListWord(itemsToExport, { date: dateStr, title: "רשימת קניות שוטפת סופר - חוות רום" });
       await generateDocxWithLetterhead(docx, `רשימת_קניות_סופר_${format(new Date(), "yyyy-MM-dd")}.docx`);
@@ -771,11 +777,13 @@ export default function ShoppingPage() {
       .filter((r) => r.status === "archived")
       .map((r) => {
         const d = r.createdAt?.toDate ? r.createdAt.toDate() : new Date(r.createdAt);
+        const poolMatch = pool.find((p) => (p.name || "").trim().toLowerCase() === (r.name || "").trim().toLowerCase());
         return {
           תאריך: d.toLocaleDateString("he-IL"),
           מוצר: r.name,
           קטגוריה: r.category,
           כמות: r.quantity || "1",
+          הערות: r.notes || poolMatch?.defaultNotes || "",
           מבקש: r.requestedByName,
         };
       });
@@ -1119,6 +1127,7 @@ export default function ShoppingPage() {
                 <ShoppingListView
                   requests={requests}
                   inventoryMap={inventoryMap}
+                  pool={pool}
                   categories={categories}
                   listType={listType}
                   activeCategory={activeCategory}

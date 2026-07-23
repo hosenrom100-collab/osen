@@ -37,6 +37,7 @@ const CAT_SOLID: Record<string, string> = {
 interface ShoppingListViewProps {
   requests: ShoppingRequest[];
   inventoryMap: Record<string, InventoryItem>;
+  pool?: Product[];
   categories: string[];
   listType: "supermarket" | "large";
   activeCategory: string | null;
@@ -57,6 +58,7 @@ interface ShoppingListViewProps {
 export function ShoppingListView({
   requests,
   inventoryMap,
+  pool = [],
   categories,
   listType,
   activeCategory,
@@ -204,6 +206,8 @@ export function ShoppingListView({
                   const norm = (item.name || "").trim().toLowerCase();
                   const invItem = Object.values(inventoryMap).find((inv) => (inv?.name || "").trim().toLowerCase() === norm);
                   const inStockQty = invItem?.currentStock;
+                  const poolMatch = pool?.find((p) => (p.name || "").trim().toLowerCase() === norm);
+                  const effectiveNotes = item.notes || poolMatch?.defaultNotes || "";
 
                   return (
                     <ShoppingItemRow
@@ -211,6 +215,7 @@ export function ShoppingListView({
                       item={item}
                       inStockQty={inStockQty}
                       showStockBadge={showAdminLogisticsStockInfo}
+                      effectiveNotes={effectiveNotes}
                       onStatus={onChangeStatus}
                       onEdit={onEditItem}
                       onUpdateQuantity={onUpdateQuantity}
@@ -239,18 +244,30 @@ export function ShoppingListView({
               <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl overflow-hidden shadow-sm divide-y divide-[var(--border)]/55">
                 {activeRequests
                   .filter((r) => !categories.includes(r.category))
-                  .map((item) => (
-                    <ShoppingItemRow
-                      key={item.id}
-                      item={item}
-                      onStatus={onChangeStatus}
-                      onEdit={onEditItem}
-                      onUpdateQuantity={onUpdateQuantity}
-                      canPurchase={canPurchase}
-                      currentUser={currentUser}
-                      onMoveToEquipment={onMoveToEquipment}
-                      onMoveToSupermarket={onMoveToSupermarket}
-                    />
+                  .map((item) => {
+                    const norm = (item.name || "").trim().toLowerCase();
+                    const invItem = Object.values(inventoryMap).find((inv) => (inv?.name || "").trim().toLowerCase() === norm);
+                    const inStockQty = invItem?.currentStock;
+                    const poolMatch = pool?.find((p) => (p.name || "").trim().toLowerCase() === norm);
+                    const effectiveNotes = item.notes || poolMatch?.defaultNotes || "";
+
+                    return (
+                      <ShoppingItemRow
+                        key={item.id}
+                        item={item}
+                        inStockQty={inStockQty}
+                        showStockBadge={showAdminLogisticsStockInfo}
+                        effectiveNotes={effectiveNotes}
+                        onStatus={onChangeStatus}
+                        onEdit={onEditItem}
+                        onUpdateQuantity={onUpdateQuantity}
+                        canPurchase={canPurchase}
+                        currentUser={currentUser}
+                        onMoveToEquipment={onMoveToEquipment}
+                        onMoveToSupermarket={onMoveToSupermarket}
+                      />
+                    );
+                  })}
                   ))}
               </div>
             </div>
@@ -446,6 +463,7 @@ function ShoppingItemRow({
   item,
   inStockQty,
   showStockBadge = false,
+  effectiveNotes,
   onStatus,
   onEdit,
   onUpdateQuantity,
@@ -457,6 +475,7 @@ function ShoppingItemRow({
   item: ShoppingRequest;
   inStockQty?: number;
   showStockBadge?: boolean;
+  effectiveNotes?: string;
   onStatus: any;
   onEdit: any;
   onUpdateQuantity: any;
@@ -469,6 +488,8 @@ function ShoppingItemRow({
   const [dragOffset, setDragOffset] = useState(0);
   const isApproved = item.status === "approved" || item.status === "pending";
   const isUrgent = item.priority === "urgent";
+
+  const notesToDisplay = effectiveNotes || item.notes;
 
   const handleDelete = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -581,13 +602,13 @@ function ShoppingItemRow({
                 )}
 
                 {/* Note Indicator Badge */}
-                {item.notes && item.notes.trim() !== "" && (
+                {notesToDisplay && notesToDisplay.trim() !== "" && (
                   <span
-                    className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/30 flex items-center gap-1 max-w-[160px] truncate"
-                    title={`הערה: ${item.notes}`}
+                    className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/30 flex items-center gap-1 max-w-[160px] truncate shadow-xs"
+                    title={`הערה: ${notesToDisplay}`}
                   >
                     <MessageSquare className="w-2.5 h-2.5 text-amber-500 shrink-0" />
-                    <span className="truncate">{item.notes}</span>
+                    <span className="truncate">{notesToDisplay}</span>
                   </span>
                 )}
               </div>
@@ -621,10 +642,10 @@ function ShoppingItemRow({
                 <div>
                   קטגוריה: <span className="font-bold text-[var(--foreground)]">{item.category}</span>
                 </div>
-                {item.notes && (
+                {notesToDisplay && (
                   <div className="col-span-2 border-t border-[var(--border)]/30 pt-2 mt-1">
                     <span className="font-bold text-[var(--foreground)]/70">הערות:</span>{" "}
-                    <span className="text-[var(--foreground)]/90">{item.notes}</span>
+                    <span className="text-[var(--foreground)]/90">{notesToDisplay}</span>
                   </div>
                 )}
               </div>
