@@ -576,14 +576,16 @@ export default function ShoppingPage() {
   };
 
   const archiveCurrentSession = async () => {
-    const sessionPurchased = requests.filter(
-      (r) => r.status === "purchased" && (listType === "large" ? r.listType === "large" : r.listType !== "large")
+    const sessionItemsToArchive = requests.filter(
+      (r) =>
+        (r.status === "purchased" || r.status === "approved" || r.status === "pending" || r.status === "deleted") &&
+        (listType === "large" ? r.listType === "large" : r.listType !== "large")
     );
-    if (sessionPurchased.length === 0) return;
+    if (sessionItemsToArchive.length === 0) return;
     try {
       setLoading(true);
       await Promise.all(
-        sessionPurchased.map((r) =>
+        sessionItemsToArchive.map((r) =>
           updateDoc(doc(db, "shopping_requests", r.id), {
             status: "archived",
             archivedAt: new Date(),
@@ -912,7 +914,7 @@ export default function ShoppingPage() {
       (r.status === "approved" || r.status === "pending" || r.status === "purchased") &&
       (listType === "large" ? r.listType === "large" : r.listType !== "large")
   );
-  const cutoffStatus = getCutoffStatus(cutoffConfig);
+  const cutoffStatus = getCutoffStatus(cutoffConfig, currentActiveItems);
   const isListFrozen = cutoffStatus.isEnabled && cutoffStatus.isPassed && currentActiveItems.length > 0;
 
   return (

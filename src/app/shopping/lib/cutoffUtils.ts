@@ -1,6 +1,6 @@
-import { CutoffConfig, CutoffStatus } from "../types";
+import { CutoffConfig, CutoffStatus, ShoppingRequest } from "../types";
 
-export function getCutoffStatus(config?: CutoffConfig): CutoffStatus {
+export function getCutoffStatus(config?: CutoffConfig, activeRequests?: ShoppingRequest[]): CutoffStatus {
   if (!config || !config.enabled) {
     return { isEnabled: false, isPassed: false, formattedTarget: "", timeLeftFormatted: "" };
   }
@@ -21,12 +21,23 @@ export function getCutoffStatus(config?: CutoffConfig): CutoffStatus {
 
   // If today is past the cutoff targetDate in the current week cycle
   if (now > targetDate) {
-    return {
-      isEnabled: true,
-      isPassed: true,
-      formattedTarget: `יום ${targetDayName} בשעה ${config.time || "12:00"}`,
-      timeLeftFormatted: "המועד חלף",
-    };
+    const hasActiveBeforeCutoff = activeRequests?.some((r) => {
+      if (!r.createdAt) return false;
+      const createdAt = r.createdAt.toDate ? r.createdAt.toDate() : new Date(r.createdAt);
+      return createdAt < targetDate;
+    });
+
+    if (hasActiveBeforeCutoff) {
+      return {
+        isEnabled: true,
+        isPassed: true,
+        formattedTarget: `יום ${targetDayName} בשעה ${config.time || "12:00"}`,
+        timeLeftFormatted: "המועד חלף",
+      };
+    } else {
+      // Roll over to next week's target date
+      targetDate.setDate(targetDate.getDate() + 7);
+    }
   }
 
   // Calculate time remaining
