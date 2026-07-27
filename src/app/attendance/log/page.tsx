@@ -15,9 +15,16 @@ interface AttendanceRecord {
   date: string;
   status: string;
   hosenType: string;
+  groupId: string;
 }
 
 interface Group {
+  id: string;
+  name: string;
+  programId?: string;
+}
+
+interface Program {
   id: string;
   name: string;
 }
@@ -28,6 +35,7 @@ function AttendanceLogPageContent() {
   const searchParams = useSearchParams();
   const [records, setRecords] = useState<AttendanceRecord[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
+  const [programs, setPrograms] = useState<Program[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterDate, setFilterDate] = useState("");
@@ -41,21 +49,34 @@ function AttendanceLogPageContent() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      // 1. Fetch groups
-      const groupsSnap = await getDocs(query(collection(db, "groups"), orderBy("name")));
+      // 1. Fetch groups & programs
+      const [groupsSnap, programsSnap] = await Promise.all([
+        getDocs(query(collection(db, "groups"), orderBy("name"))),
+        getDocs(collection(db, "programs")),
+      ]);
       const groupList: Group[] = [];
-      groupsSnap.forEach(doc => groupList.push({ id: doc.id, name: doc.data().name }));
+      groupsSnap.forEach(doc => groupList.push({ id: doc.id, name: doc.data().name, programId: doc.data().programId }));
       setGroups(groupList);
+
+      const programList: Program[] = [];
+      programsSnap.forEach(doc => programList.push({ id: doc.id, name: doc.data().name }));
+      setPrograms(programList);
+
+      const groupLabel = (group: Group) => {
+        const prog = programList.find(p => p.id === group.programId);
+        return prog && prog.name !== group.name ? `${prog.name} - ${group.name}` : group.name;
+      };
 
       // 2. Fetch patients
       const patientsSnap = await getDocs(collection(db, "patients"));
-      const patientsMap: Record<string, {name: string, hosenType: string}> = {};
+      const patientsMap: Record<string, {name: string, hosenType: string, groupId: string}> = {};
       patientsSnap.forEach(doc => {
         const data = doc.data();
         const group = groupList.find(g => g.id === data.hosenType);
         patientsMap[doc.id] = {
           name: data.firstName && data.lastName ? `${data.firstName} ${data.lastName}` : (data.fullName || data.name || doc.id),
-          hosenType: group ? group.name : (data.hosenType || "כללי")
+          hosenType: group ? groupLabel(group) : (data.hosenType || "כללי"),
+          groupId: data.hosenType || ""
         };
       });
 
@@ -66,14 +87,15 @@ function AttendanceLogPageContent() {
         const data = doc.data();
         if (data.status === "unset") return;
         
-        const patientInfo = patientsMap[data.patientId] || { name: "משתתף לא ידוע", hosenType: "unknown" };
+        const patientInfo = patientsMap[data.patientId] || { name: "משתתף לא ידוע", hosenType: "unknown", groupId: "" };
         allRecords.push({
           id: doc.id,
           patientId: data.patientId,
           patientName: patientInfo.name,
           date: data.date,
           status: data.status,
-          hosenType: patientInfo.hosenType
+          hosenType: patientInfo.hosenType,
+          groupId: patientInfo.groupId
         });
       });
 
@@ -88,7 +110,7 @@ function AttendanceLogPageContent() {
   const filtered = records.filter(r => {
     const matchesSearch = r.patientName.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesDate = filterDate ? r.date === filterDate : true;
-    const matchesHosen = filterHosen === "all" ? true : (r.hosenType === filterHosen || r.hosenType === groups.find(g => g.id === filterHosen)?.name);
+    const matchesHosen = filterHosen === "all" ? true : r.groupId === filterHosen;
     return matchesSearch && matchesDate && matchesHosen;
   });
 
@@ -138,7 +160,11 @@ function AttendanceLogPageContent() {
                 className="w-full bg-white/5 border border-white/10 rounded-xl py-2 pr-9 pl-3 text-[10px] font-bold focus:outline-none focus:border-blue-500 appearance-none"
               >
                 <option value="all">כל המסגרות</option>
-                {groups.map(g => <option key={g.id} value={g.id}>{g.name.startsWith("תוכנית") ? g.name : `תוכנית ${g.name}`}</option>)}
+                {groups.map(g => {
+                  const prog = programs.find(p => p.id === g.programId);
+                  const label = prog && prog.name !== g.name ? `${prog.name} - ${g.name}` : g.name;
+                  return <option key={g.id} value={g.id}>{label}</option>;
+                })}
               </select>
             </div>
           </div>
@@ -174,13 +200,7 @@ function AttendanceLogPageContent() {
                       <span className="text-[10px] text-slate-500 font-mono">{record.date}</span>
                       <div className="w-1 h-1 rounded-full bg-slate-700" />
                       <span className="text-[10px] text-blue-400 font-bold">
-                        {(() => {
-                          const display = groups.find(g => g.id === record.hosenType || g.name === record.hosenType)?.name || record.hosenType;
-                          if (display && display !== "כללי" && !display.startsWith("תוכנית")) {
-                            return `תוכנית ${display}`;
-                          }
-                          return display;
-                        })()}
+                        {record.hosenType}
                       </span>
                     </div>
                   </div>

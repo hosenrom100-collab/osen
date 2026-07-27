@@ -5,7 +5,7 @@ import { useState, useEffect, useRef } from "react";
 import { db } from "@/lib/firebase/config";
 import {
   doc, getDoc, updateDoc, collection, getDocs,
-  addDoc, deleteDoc, query, orderBy, where
+  addDoc, deleteDoc, query, orderBy, where, writeBatch
 } from "firebase/firestore";
 import {
   ArrowRight, Save, Trash2, Plus, Loader2, Calendar,
@@ -202,8 +202,51 @@ export default function ProgramDetailPage() {
   };
 
   const deleteGroup = async (id: string) => {
-    await deleteDoc(doc(db, "groups", id));
-    setGroups(gs => gs.filter(g => g.id !== id));
+    if (!window.confirm("מחיקת הקבוצה תסיר את השיוך אליה מכל המטופלים ואנשי הצוות המשויכים. להמשיך?")) return;
+    try {
+      const batch = writeBatch(db);
+      batch.delete(doc(db, "groups", id));
+
+      // Cascade: remove this group from every patient referencing it
+      const patientsSnap = await getDocs(query(collection(db, "patients"), where("groupIds", "array-contains", id)));
+      patientsSnap.forEach(p => {
+        const data = p.data();
+        const newGroupIds = (data.groupIds || []).filter((g: string) => g !== id);
+        const update: Record<string, any> = { groupIds: newGroupIds };
+        if (data.hosenType === id) update.hosenType = newGroupIds[0] || "";
+        batch.update(p.ref, update);
+      });
+
+      // Cascade: remove this group from every staff member referencing it
+      const [assignedSnap, preferredSnap] = await Promise.all([
+        getDocs(query(collection(db, "users"), where("assignedGroupIds", "array-contains", id))),
+        getDocs(query(collection(db, "users"), where("preferredGroupIds", "array-contains", id))),
+      ]);
+      const touchedUsers = new Map<string, any>();
+      assignedSnap.forEach(u => touchedUsers.set(u.id, u));
+      preferredSnap.forEach(u => touchedUsers.set(u.id, u));
+      touchedUsers.forEach(u => {
+        const data = u.data();
+        const update: Record<string, any> = {};
+        if (Array.isArray(data.assignedGroupIds) && data.assignedGroupIds.includes(id)) {
+          update.assignedGroupIds = data.assignedGroupIds.filter((g: string) => g !== id);
+        }
+        if (Array.isArray(data.preferredGroupIds) && data.preferredGroupIds.includes(id)) {
+          update.preferredGroupIds = data.preferredGroupIds.filter((g: string) => g !== id);
+        }
+        batch.update(u.ref, update);
+      });
+
+      await batch.commit();
+      setGroups(gs => gs.filter(g => g.id !== id));
+      setAllStaff(prev => prev.map(s =>
+        s.assignedGroupIds?.includes(id)
+          ? { ...s, assignedGroupIds: s.assignedGroupIds.filter((g: string) => g !== id) }
+          : s
+      ));
+    } catch (err) {
+      console.error("Error deleting group:", err);
+    }
   };
 
   const handleAddStaff = async () => {

@@ -2,8 +2,8 @@
 
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { 
-  Package, FileText, Trash2, Plus, X, AlertCircle, CheckCircle2, ShoppingBag, Edit2
+import {
+  Package, FileText, Trash2, Plus, X, AlertCircle, CheckCircle2, ShoppingBag, Edit2, Lock, ArrowRight, Loader2
 } from "lucide-react";
 import { ShoppingRequest, Product } from "../types";
 
@@ -46,6 +46,11 @@ export function CycleClosureModal({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingQtyVal, setEditingQtyVal] = useState("");
 
+  // Admin password gate before closing/archiving the cycle
+  const [pendingAction, setPendingAction] = useState<"export" | "archiveOnly" | null>(null);
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [confirmError, setConfirmError] = useState("");
+
   if (!isOpen) return null;
 
   const activeItems = requests.filter(
@@ -77,22 +82,31 @@ export function CycleClosureModal({
     }
   };
 
-  const handleExportAndClose = async () => {
-    setIsProcessing(true);
-    try {
-      await onExportAndArchive();
-      onClose();
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setIsProcessing(false);
-    }
+  const requestClose = (action: "export" | "archiveOnly") => {
+    setPendingAction(action);
+    setConfirmPassword("");
+    setConfirmError("");
   };
 
-  const handleArchiveOnly = async () => {
+  const cancelPendingAction = () => {
+    setPendingAction(null);
+    setConfirmPassword("");
+    setConfirmError("");
+  };
+
+  const handleConfirmedClose = async () => {
+    if (confirmPassword.trim() !== "3015") {
+      setConfirmError("סיסמת מנהל שגויה!");
+      return;
+    }
     setIsProcessing(true);
     try {
-      await onArchiveOnly();
+      if (pendingAction === "export") {
+        await onExportAndArchive();
+      } else if (pendingAction === "archiveOnly") {
+        await onArchiveOnly();
+      }
+      setPendingAction(null);
       onClose();
     } catch (err) {
       console.error(err);
@@ -272,40 +286,85 @@ export function CycleClosureModal({
 
           {/* Footer Summary & Action Buttons */}
           <div className="pt-4 border-t border-[var(--border)] shrink-0 space-y-3">
-            <div className="flex items-center justify-between text-xs font-bold text-[var(--muted)]">
-              <span>סה"כ {activeItems.length} מוצרים ב-{Object.keys(grouped).length} קטגוריות</span>
-              {activeItems.length > 0 && (
-                <span className="text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-                  <CheckCircle2 className="w-4 h-4" /> מוכן להדפסה וסגירה
-                </span>
-              )}
-            </div>
+            {pendingAction === null ? (
+              <>
+                <div className="flex items-center justify-between text-xs font-bold text-[var(--muted)]">
+                  <span>סה"כ {activeItems.length} מוצרים ב-{Object.keys(grouped).length} קטגוריות</span>
+                  {activeItems.length > 0 && (
+                    <span className="text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                      <CheckCircle2 className="w-4 h-4" /> מוכן להדפסה וסגירה
+                    </span>
+                  )}
+                </div>
 
-            <div className="flex items-center justify-end gap-2 flex-wrap">
-              <button
-                onClick={onClose}
-                className="px-4 py-2.5 rounded-xl text-xs font-bold bg-[var(--foreground)]/5 text-[var(--foreground)] hover:bg-[var(--foreground)]/10 transition-colors cursor-pointer border-none"
-              >
-                ביטול / המשך עריכה
-              </button>
+                <div className="flex items-center justify-end gap-2 flex-wrap">
+                  <button
+                    onClick={onClose}
+                    className="px-4 py-2.5 rounded-xl text-xs font-bold bg-[var(--foreground)]/5 text-[var(--foreground)] hover:bg-[var(--foreground)]/10 transition-colors cursor-pointer border-none"
+                  >
+                    ביטול / המשך עריכה
+                  </button>
 
-              <button
-                onClick={handleArchiveOnly}
-                disabled={isProcessing || activeItems.length === 0}
-                className="px-4 py-2.5 rounded-xl text-xs font-bold bg-slate-200 dark:bg-slate-800 text-slate-800 dark:text-slate-200 hover:bg-slate-300 dark:hover:bg-slate-700 transition-all cursor-pointer disabled:opacity-50 border-none"
-              >
-                סגור וארכב סבב בלבד
-              </button>
+                  <button
+                    onClick={() => requestClose("archiveOnly")}
+                    disabled={isProcessing || activeItems.length === 0}
+                    className="px-4 py-2.5 rounded-xl text-xs font-bold bg-slate-200 dark:bg-slate-800 text-slate-800 dark:text-slate-200 hover:bg-slate-300 dark:hover:bg-slate-700 transition-all cursor-pointer disabled:opacity-50 border-none"
+                  >
+                    סגור וארכב סבב בלבד
+                  </button>
 
-              <button
-                onClick={handleExportAndClose}
-                disabled={isProcessing || activeItems.length === 0}
-                className="px-5 py-2.5 rounded-xl text-xs font-black bg-indigo-600 hover:bg-indigo-500 !text-white transition-all shadow-lg shadow-indigo-600/20 active:scale-95 cursor-pointer disabled:opacity-50 flex items-center gap-2 border-none"
-              >
-                <FileText className="w-4 h-4 text-white" />
-                <span>ייצא רשימה להדפסה (Word) וסגור סבב</span>
-              </button>
-            </div>
+                  <button
+                    onClick={() => requestClose("export")}
+                    disabled={isProcessing || activeItems.length === 0}
+                    className="px-5 py-2.5 rounded-xl text-xs font-black bg-indigo-600 hover:bg-indigo-500 !text-white transition-all shadow-lg shadow-indigo-600/20 active:scale-95 cursor-pointer disabled:opacity-50 flex items-center gap-2 border-none"
+                  >
+                    <FileText className="w-4 h-4 text-white" />
+                    <span>ייצא רשימה להדפסה (Word) וסגור סבב</span>
+                  </button>
+                </div>
+              </>
+            ) : (
+              <div className="space-y-3">
+                <p className="text-xs text-[var(--foreground)]/80 font-medium leading-relaxed flex items-start gap-2">
+                  <Lock className="w-4 h-4 text-rose-500 shrink-0 mt-0.5" />
+                  <span>
+                    סגירת הסבב תעביר את כל <strong>{activeItems.length}</strong> הפריטים הפעילים לארכיון.
+                    {pendingAction === "export" && " בנוסף תופק רשימה להדפסה."} אנא הזן סיסמת מנהל לאישור.
+                  </span>
+                </p>
+                <div>
+                  <input
+                    type="password"
+                    autoFocus
+                    value={confirmPassword}
+                    onChange={(e) => { setConfirmPassword(e.target.value); setConfirmError(""); }}
+                    onKeyDown={(e) => { if (e.key === "Enter") handleConfirmedClose(); }}
+                    placeholder="הזן סיסמת מנהל..."
+                    className="w-full bg-[var(--background)] border border-[var(--border)] rounded-xl py-2.5 px-3 text-sm font-bold focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 outline-none text-center tracking-widest text-[var(--foreground)]"
+                  />
+                  {confirmError && (
+                    <span className="text-xs text-rose-500 font-bold mt-1.5 block">{confirmError}</span>
+                  )}
+                </div>
+                <div className="flex items-center justify-end gap-2">
+                  <button
+                    onClick={cancelPendingAction}
+                    className="px-4 py-2.5 rounded-xl text-xs font-bold bg-[var(--foreground)]/5 text-[var(--foreground)] hover:bg-[var(--foreground)]/10 transition-colors cursor-pointer border-none flex items-center gap-1.5"
+                  >
+                    <ArrowRight className="w-3.5 h-3.5" />
+                    חזור
+                  </button>
+                  <button
+                    onClick={handleConfirmedClose}
+                    disabled={isProcessing}
+                    className="px-5 py-2.5 rounded-xl text-xs font-black bg-rose-600 hover:bg-rose-700 !text-white transition-all shadow-lg active:scale-95 cursor-pointer disabled:opacity-50 flex items-center gap-2 border-none"
+                  >
+                    {isProcessing ? <Loader2 className="w-4 h-4 animate-spin text-white" /> : <Lock className="w-4 h-4 text-white" />}
+                    <span>אשר וסגור סבב</span>
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </motion.div>
       </div>

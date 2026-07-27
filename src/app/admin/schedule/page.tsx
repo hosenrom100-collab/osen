@@ -28,6 +28,12 @@ interface ActivityItem {
 interface Group {
   id: string;
   name: string;
+  programId?: string;
+}
+
+interface Program {
+  id: string;
+  name: string;
 }
 
 interface Location {
@@ -71,6 +77,7 @@ function ScheduleContent() {
   const [dutyInstructorName, setDutyInstructorName] = useState<string | null>(null);
   
   const [groups, setGroups] = useState<Group[]>([]);
+  const [programs, setPrograms] = useState<Program[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
   const [staff, setStaff] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
@@ -86,17 +93,20 @@ function ScheduleContent() {
     setLoading(true);
     try {
       // 1. Fetch metadata
-      const [groupsSnap, locsSnap, usersSnap] = await Promise.all([
+      const [groupsSnap, programsSnap, locsSnap, usersSnap] = await Promise.all([
         getDocs(collection(db, "groups")),
+        getDocs(collection(db, "programs")),
         getDocs(collection(db, "locations")),
         getDocs(collection(db, "users")),
       ]);
 
-      const groupsList = groupsSnap.docs.map(doc => ({ id: doc.id, name: doc.data().name }));
+      const groupsList = groupsSnap.docs.map(doc => ({ id: doc.id, name: doc.data().name, programId: doc.data().programId }));
+      const programsList = programsSnap.docs.map(doc => ({ id: doc.id, name: doc.data().name }));
       const locsList = locsSnap.docs.map(doc => ({ id: doc.id, name: doc.data().name }));
       const usersList = usersSnap.docs.map(doc => ({ id: doc.id, displayName: doc.data().displayName, email: doc.data().email }));
 
       setGroups(groupsList);
+      setPrograms(programsList);
       setLocations(locsList);
       setStaff(usersList);
 
@@ -143,6 +153,13 @@ function ScheduleContent() {
     router.replace(`/admin/schedule?group=${groupId}`);
   };
 
+  const getGroupLabel = (groupId: string) => {
+    const group = groups.find(g => g.id === groupId);
+    if (!group) return "";
+    const prog = programs.find(p => p.id === group.programId);
+    return prog && prog.name !== group.name ? `${prog.name} - ${group.name}` : group.name;
+  };
+
   const handleCopyForWhatsApp = () => {
     if (filteredActivities.length === 0) return;
     
@@ -154,7 +171,7 @@ function ScheduleContent() {
     let text = `📅 *לוז פעילות ל${formattedDate}*\n\n`;
     
     if (selectedGroup !== "all") {
-      const gName = groups.find(g => g.id === selectedGroup)?.name;
+      const gName = getGroupLabel(selectedGroup);
       if (gName) text += `👥 *קבוצה:* ${gName}\n`;
     }
     
@@ -308,7 +325,7 @@ function ScheduleContent() {
                       : "bg-[var(--foreground)]/5 border border-[var(--border)] text-[var(--muted)] hover:text-[var(--foreground)]"
                   }`}
                 >
-                  {g.name}
+                  {getGroupLabel(g.id)}
                 </button>
               ))}
             </div>
@@ -339,7 +356,7 @@ function ScheduleContent() {
           <div className="relative border-r-2 border-rose-500/25 mr-4 space-y-6 pl-2">
             {filteredActivities.map(act => {
               const loc = locations.find(l => l.id === act.locationId)?.name || "ללא מיקום";
-              const grp = act.groupId === "all" ? "כללי (כל הקבוצות)" : groups.find(g => g.id === act.groupId)?.name || "ללא קבוצה";
+              const grp = act.groupId === "all" ? "כללי (כל הקבוצות)" : (getGroupLabel(act.groupId) || "ללא קבוצה");
               const typeCls = TYPE_COLORS[act.type] || TYPE_COLORS.custom;
               const typeLabel = TYPE_NAMES[act.type] || TYPE_NAMES.custom;
 

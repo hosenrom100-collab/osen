@@ -93,12 +93,13 @@ export function ShoppingListView({
 
   const showAdminLogisticsStockInfo = isAdmin || isLogistics;
 
-  // Check which requested items are ALREADY in inventory with stock > 0
+  // Check which requested items are ALREADY in inventory with stock > 0 (tracked products only)
   const itemsAlreadyInInventory = activeRequests.filter((r) => {
     if (!r.name) return false;
     const norm = r.name.trim().toLowerCase();
     const invItem = Object.values(inventoryMap).find((inv) => (inv?.name || "").trim().toLowerCase() === norm);
-    return invItem && invItem.currentStock > 0;
+    const product = pool.find((p) => (p.name || "").trim().toLowerCase() === norm);
+    return product?.trackInventory === true && invItem && invItem.currentStock > 0;
   });
 
   return (
@@ -144,9 +145,10 @@ export function ShoppingListView({
                 </span>
                 <span className="text-base font-black text-[var(--foreground)]">
                   {
-                    Object.values(inventoryMap).filter(
-                      (inv) => inv.currentStock <= (inv.minStock ?? 1)
-                    ).length
+                    Object.values(inventoryMap).filter((inv) => {
+                      const product = pool.find((p) => p.id === inv.productId);
+                      return product?.trackInventory === true && inv.currentStock <= (inv.minStock ?? 1);
+                    }).length
                   }
                 </span>
               </button>
@@ -205,8 +207,8 @@ export function ShoppingListView({
                 {catItems.map((item) => {
                   const norm = (item.name || "").trim().toLowerCase();
                   const invItem = Object.values(inventoryMap).find((inv) => (inv?.name || "").trim().toLowerCase() === norm);
-                  const inStockQty = invItem?.currentStock;
                   const poolMatch = pool?.find((p) => (p.name || "").trim().toLowerCase() === norm);
+                  const inStockQty = poolMatch?.trackInventory === true ? invItem?.currentStock : undefined;
                   const effectiveNotes = item.notes || poolMatch?.defaultNotes || "";
 
                   return (
@@ -247,8 +249,8 @@ export function ShoppingListView({
                   .map((item) => {
                     const norm = (item.name || "").trim().toLowerCase();
                     const invItem = Object.values(inventoryMap).find((inv) => (inv?.name || "").trim().toLowerCase() === norm);
-                    const inStockQty = invItem?.currentStock;
                     const poolMatch = pool?.find((p) => (p.name || "").trim().toLowerCase() === norm);
+                    const inStockQty = poolMatch?.trackInventory === true ? invItem?.currentStock : undefined;
                     const effectiveNotes = item.notes || poolMatch?.defaultNotes || "";
 
                     return (

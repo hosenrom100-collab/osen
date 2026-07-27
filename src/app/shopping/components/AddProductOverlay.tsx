@@ -64,6 +64,7 @@ export function AddProductOverlay({
   const [addUrgent, setAddUrgent] = useState(false);
   const [addQty, setAddQty] = useState("1");
   const [addUnit, setAddUnit] = useState("יחידות");
+  const submittingRef = useRef(false);
 
   useEffect(() => {
     if (inputVal.trim()) {
@@ -74,15 +75,23 @@ export function AddProductOverlay({
     }
   }, [inputVal, pool]);
 
+  // Reset the submit guard whenever the overlay is (re)opened
+  useEffect(() => {
+    if (isOpen) submittingRef.current = false;
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   const isUserBlockedByFreeze = isFrozen && !isAdmin && !isLogistics;
 
   const handleAddInput = () => {
     if (isUserBlockedByFreeze) return;
+    // Guard against double-fire (Enter + click, double-tap) submitting the same item twice
+    if (submittingRef.current) return;
     const name = inputVal.trim();
     if (!name) return;
-    
+    submittingRef.current = true;
+
     // Check if the product already exists with an exact name match (case-insensitive)
     const exactPoolProduct = pool.find((p) => p.name.trim().toLowerCase() === name.toLowerCase());
     const finalQty = addUnit === "יחידות" ? addQty : `${addQty} ${addUnit}`;
@@ -98,7 +107,7 @@ export function AddProductOverlay({
         onRequestNewProduct(name, "כללי", addUrgent ? "urgent" : "normal", finalQty);
       }
     }
-    
+
     setInputVal("");
     setAddUrgent(false);
     onClose();
@@ -209,7 +218,8 @@ export function AddProductOverlay({
                     <button
                       key={starItem.id}
                       onClick={() => {
-                        if (!inList) {
+                        if (!inList && !submittingRef.current) {
+                          submittingRef.current = true;
                           const unitToUse = starItem.defaultUnit || addUnit;
                           const finalQty = unitToUse === "יחידות" ? addQty : `${addQty} ${unitToUse}`;
                           onAddProduct(starItem.name, starItem.category, addUrgent ? "urgent" : "normal", finalQty, starItem.defaultNotes);
@@ -311,7 +321,8 @@ export function AddProductOverlay({
                 <button
                   key={p.id}
                   onClick={() => {
-                    if (!inList) {
+                    if (!inList && !submittingRef.current) {
+                      submittingRef.current = true;
                       const unitToUse = p.defaultUnit || addUnit;
                       const finalQty = unitToUse === "יחידות" ? addQty : `${addQty} ${unitToUse}`;
                       onAddProduct(p.name, p.category, addUrgent ? "urgent" : "normal", finalQty, p.defaultNotes);

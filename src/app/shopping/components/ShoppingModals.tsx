@@ -74,6 +74,7 @@ interface ShoppingModalsProps {
   onExportOngoingList: () => void;
   onExportXlsx: () => void;
   onClearAllArchive: () => void;
+  onDeleteArchiveDay: () => void;
 
   receiptScanOpen: boolean;
   setReceiptScanOpen: (val: boolean) => void;
@@ -126,6 +127,7 @@ export function ShoppingModals({
   onExportOngoingList,
   onExportXlsx,
   onClearAllArchive,
+  onDeleteArchiveDay,
   receiptScanOpen,
   setReceiptScanOpen,
   currentUser,
@@ -995,6 +997,19 @@ export function ShoppingModals({
                   >
                     <Star className="w-5 h-5 text-amber-500 fill-amber-500/20" />
                     <span>ניהול מוצרי כוכב ⭐</span>
+                  </button>
+                )}
+
+                {(isAdmin || isManager || isLogistics) && (
+                  <button
+                    onClick={() => {
+                      setActionsMenuOpen(false);
+                      onDeleteArchiveDay();
+                    }}
+                    className="w-full py-4 px-4 bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 rounded-2xl text-sm font-bold transition-all flex items-center gap-3 justify-start cursor-pointer border-none"
+                  >
+                    <Trash2 className="w-5 h-5 text-rose-500" />
+                    <span>מחיקת יום ספציפי מהארכיון</span>
                   </button>
                 )}
 

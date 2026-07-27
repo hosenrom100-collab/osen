@@ -54,7 +54,8 @@ export function ScheduleEditorModal({ isOpen, onClose, onSaved, initialDate }: S
 
   // Metadata loaders
   const [locations, setLocations] = useState<{ id: string; name: string }[]>([]);
-  const [groups, setGroups] = useState<{ id: string; name: string }[]>([]);
+  const [groups, setGroups] = useState<{ id: string; name: string; programId?: string }[]>([]);
+  const [programs, setPrograms] = useState<{ id: string; name: string }[]>([]);
   const [staff, setStaff] = useState<{ id: string; name: string }[]>([]);
 
   // Repositories
@@ -105,14 +106,16 @@ export function ScheduleEditorModal({ isOpen, onClose, onSaved, initialDate }: S
 
   const fetchMetadata = async () => {
     try {
-      const [locsSnap, groupsSnap, usersSnap] = await Promise.all([
+      const [locsSnap, groupsSnap, programsSnap, usersSnap] = await Promise.all([
         getDocs(collection(db, "locations")),
         getDocs(collection(db, "groups")),
+        getDocs(collection(db, "programs")),
         getDocs(collection(db, "users"))
       ]);
 
       setLocations(locsSnap.docs.map(d => ({ id: d.id, name: d.data().name })));
-      setGroups(groupsSnap.docs.map(d => ({ id: d.id, name: d.data().name })));
+      setGroups(groupsSnap.docs.map(d => ({ id: d.id, name: d.data().name, programId: d.data().programId })));
+      setPrograms(programsSnap.docs.map(d => ({ id: d.id, name: d.data().name })));
 
       const staffList: any[] = [];
       usersSnap.forEach(d => {
@@ -833,9 +836,11 @@ export function ScheduleEditorModal({ isOpen, onClose, onSaved, initialDate }: S
                                  >
                                    <option value="all">כלל המשתתפים</option>
                                    <option value="staff_only">צוות בלבד</option>
-                                   {groups.map(g => (
-                                     <option key={g.id} value={g.id}>{g.name}</option>
-                                   ))}
+                                   {groups.map(g => {
+                                     const prog = programs.find(p => p.id === g.programId);
+                                     const label = prog && prog.name !== g.name ? `${prog.name} - ${g.name}` : g.name;
+                                     return <option key={g.id} value={g.id}>{label}</option>;
+                                   })}
                                  </select>
                                  <Layers className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400" />
                                </div>

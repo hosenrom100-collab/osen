@@ -30,6 +30,7 @@ import { ShoppingListView } from "./components/ShoppingListView";
 import { AddProductOverlay } from "./components/AddProductOverlay";
 import { ShoppingModals } from "./components/ShoppingModals";
 import { AdminProductRequestsModal } from "./components/AdminProductRequestsModal";
+import { DeleteArchiveDayModal } from "./components/DeleteArchiveDayModal";
 
 const normalizeHebrewString = (str: string): string => {
   if (!str) return "";
@@ -103,6 +104,7 @@ export default function ShoppingPage() {
   const [archivePassword, setArchivePassword] = useState("");
   const [passwordError, setPasswordError] = useState("");
   const [isClearingArchive, setIsClearingArchive] = useState(false);
+  const [showDeleteArchiveDayModal, setShowDeleteArchiveDayModal] = useState(false);
 
   // Cutoff & Cycle State
   const [cutoffConfig, setCutoffConfig] = useState<CutoffConfig>({ enabled: true, day: 2, time: "12:00" });
@@ -405,10 +407,11 @@ export default function ShoppingPage() {
       return;
     }
 
-    // Check if item has stock in inventory
+    // Check if item has stock in inventory (only relevant for products still marked for tracking)
     const norm = cleanName.toLowerCase();
+    const poolMatch = pool.find((p) => p.name.trim().toLowerCase() === norm);
     const invMatch = Object.values(inventoryMap).find((i) => (i?.name || "").trim().toLowerCase() === norm);
-    if (invMatch && invMatch.currentStock > 0) {
+    if (poolMatch?.trackInventory === true && invMatch && invMatch.currentStock > 0) {
       if (!isAdmin && !isLogistics) {
         showToast(`למוצר "${cleanName}" יש כרגע ${invMatch.currentStock} ${invMatch.unit || "יחידות"} במלאי המחסן - לא ניתן להוסיף לרשימת הקניות.`, "warning");
         return;
@@ -417,7 +420,6 @@ export default function ShoppingPage() {
       }
     }
 
-    const poolMatch = pool.find((p) => p.name.trim().toLowerCase() === norm);
     const finalNotes = notes || poolMatch?.defaultNotes || "";
 
     await addDoc(collection(db, "shopping_requests"), {
@@ -469,7 +471,8 @@ export default function ShoppingPage() {
             if (targetReq) {
               const normReqName = normalizeHebrewString(targetReq.name);
               const matchingProduct = pool.find((p) => normalizeHebrewString(p.name) === normReqName);
-              if (matchingProduct) {
+              // Only auto-update inventory for products actively marked for inventory tracking
+              if (matchingProduct && matchingProduct.trackInventory === true) {
                 const invItem = inventoryMap[matchingProduct.id];
                 const currStock = invItem?.currentStock ?? 0;
                 const parsedQty = parseFloat(targetReq.quantity) || 1;
@@ -501,6 +504,8 @@ export default function ShoppingPage() {
                   updatedBy: user?.uid || "",
                   updatedByName: user?.displayName || user?.email || "מערכת",
                 });
+
+                showToast(`מלאי "${matchingProduct.name}" עודכן אוטומטית: ${currStock} ← ${newStock} ${invItem?.unit ?? "יחידות"}`, "success");
               }
             }
 
@@ -863,6 +868,46 @@ export default function ShoppingPage() {
       showToast("שגיאה באיפוס הארכיון", "warning");
     } finally {
       setIsClearingArchive(false);
+    }
+  };
+
+  // Delete a single archived day (scoped strictly to status === "archived" for that date;
+  // never touches pending/approved/purchased items in the active list)
+  const handleDeleteArchiveDay = async (
+    dateKey: string,
+    password: string
+  ): Promise<{ success: boolean; error?: string }> => {
+    if (password !== "3015") {
+      return { success: false, error: "סיסמת מנהל שגויה!" };
+    }
+    try {
+      const toDelete = requests.filter((r) => {
+        if (r.status !== "archived") return false;
+        const raw = r.archivedAt ?? r.updatedAt ?? r.createdAt;
+        const d = raw?.toDate ? raw.toDate() : raw instanceof Date ? raw : null;
+        if (!d || isNaN(d.getTime())) return false;
+        return format(d, "yyyy-MM-dd") === dateKey;
+      });
+
+      if (toDelete.length === 0) {
+        showToast("לא נמצאו פריטים למחיקה ביום זה", "warning");
+        return { success: true };
+      }
+
+      const batchSize = 450;
+      for (let i = 0; i < toDelete.length; i += batchSize) {
+        const batch = writeBatch(db);
+        toDelete.slice(i, i + batchSize).forEach((item) => {
+          batch.delete(doc(db, "shopping_requests", item.id));
+        });
+        await batch.commit();
+      }
+
+      showToast(`נמחקו ${toDelete.length} פריטים מארכיון ${dateKey}`, "success");
+      return { success: true };
+    } catch (err) {
+      console.error(err);
+      return { success: false, error: "שגיאה במחיקת היום מהארכיון" };
     }
   };
 
@@ -1538,6 +1583,7 @@ export default function ShoppingPage() {
           onExportOngoingList={exportOngoingList}
           onExportXlsx={exportXlsx}
           onClearAllArchive={triggerClearArchiveModal}
+          onDeleteArchiveDay={() => setShowDeleteArchiveDayModal(true)}
           receiptScanOpen={receiptScanOpen}
           setReceiptScanOpen={setReceiptScanOpen}
           currentUser={user}
@@ -1550,6 +1596,14 @@ export default function ShoppingPage() {
           onToggleTrackInventory={toggleTrackInventory}
           cutoffConfig={cutoffConfig}
           onSaveCutoffConfig={handleSaveCutoffConfig}
+        />
+
+        {/* Delete Single Archive Day Modal */}
+        <DeleteArchiveDayModal
+          isOpen={showDeleteArchiveDayModal}
+          onClose={() => setShowDeleteArchiveDayModal(false)}
+          archivedRequests={requests.filter((r) => r.status === "archived")}
+          onDeleteDay={handleDeleteArchiveDay}
         />
 
         {/* Reset Archive Modal */}

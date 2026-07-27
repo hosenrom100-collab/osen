@@ -522,8 +522,10 @@ export default function Home() {
       return inPrefGroup || inPrefProgram;
     }
     if (showAll) return true;
-    if (primaryGroupId) return gId === primaryGroupId;
-    return assignedGroups.includes(gId);
+    // A staff member assigned to multiple programs/groups must still see every
+    // program relevant to them today; "primary group" only adds a pinned default,
+    // it must never suppress the rest of their real assignments.
+    return assignedGroups.includes(gId) || gId === primaryGroupId;
   };
   const visibleStats  = stats.filter(s => isGroupVisible(s.id) && s.total > 0);
   const totalPresent  = visibleStats.reduce((n, s) => n + s.present, 0);

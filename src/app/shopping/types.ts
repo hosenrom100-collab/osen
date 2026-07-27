@@ -12,6 +12,8 @@ export interface ShoppingRequest {
   listType?: "supermarket" | "large";
   updatedAt?: any;
   updatedBy?: string;
+  archivedAt?: any;
+  archivedBy?: string;
 }
 
 export interface Product {

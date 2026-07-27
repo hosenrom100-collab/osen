@@ -123,6 +123,15 @@ export default function AttendanceMatrixPage() {
     return groups.find(g => g.id === groupId)?.name || "-";
   };
 
+  // Same as getGroupName but prefixes the program name (e.g. "תוכנית - קבוצה")
+  // for contexts where patients from multiple programs are listed together.
+  const getGroupLabel = (groupId?: string) => {
+    const group = groups.find(g => g.id === groupId);
+    if (!group) return "-";
+    const prog = programs.find(p => p.id === group.programId);
+    return prog && prog.name !== group.name ? `${prog.name} - ${group.name}` : group.name;
+  };
+
   const todayStr = format(new Date(), "yyyy-MM-dd");
   const todayDayOfWeek = getDay(new Date());
 
@@ -331,7 +340,7 @@ export default function AttendanceMatrixPage() {
           ) : (
             filteredExpectedPatients.map(p => {
               const status = attendance[`${p.id}_${todayStr}`];
-              const groupName = getGroupName(p.hosenType);
+              const groupName = getGroupLabel(p.hosenType);
               const cleanPhone = formatPhoneForWhatsApp(p.phone);
               
               return (

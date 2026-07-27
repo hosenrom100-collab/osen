@@ -3,7 +3,7 @@
 import { RoleGuard } from "@/components/auth/RoleGuard";
 import { useState, useEffect } from "react";
 import { db } from "@/lib/firebase/config";
-import { collection, getDocs, addDoc, deleteDoc, doc, query, orderBy, updateDoc } from "firebase/firestore";
+import { collection, getDocs, addDoc, deleteDoc, doc, query, orderBy, updateDoc, where, writeBatch } from "firebase/firestore";
 import { Users, Plus, Trash2, ArrowRight, Loader2, Layers, Edit2, CheckCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
@@ -72,10 +72,43 @@ export default function GroupManagementPage() {
   };
 
   const removeGroup = async (id: string) => {
-    if (!confirm("האם אתה בטוח שברצונך למחוק קבוצה זו? שים לב: משתתפים המשויכים לקבוצה זו יזדקקו לשיוך מחדש.")) return;
-    
+    if (!confirm("האם אתה בטוח שברצונך למחוק קבוצה זו? שים לב: השיוך לקבוצה זו יוסר אוטומטית מכל המטופלים ואנשי הצוות המשויכים.")) return;
+
     try {
-      await deleteDoc(doc(db, "groups", id));
+      const batch = writeBatch(db);
+      batch.delete(doc(db, "groups", id));
+
+      // Cascade: remove this group from every patient referencing it
+      const patientsSnap = await getDocs(query(collection(db, "patients"), where("groupIds", "array-contains", id)));
+      patientsSnap.forEach(p => {
+        const data = p.data();
+        const newGroupIds = (data.groupIds || []).filter((g: string) => g !== id);
+        const update: Record<string, any> = { groupIds: newGroupIds };
+        if (data.hosenType === id) update.hosenType = newGroupIds[0] || "";
+        batch.update(p.ref, update);
+      });
+
+      // Cascade: remove this group from every staff member referencing it
+      const [assignedSnap, preferredSnap] = await Promise.all([
+        getDocs(query(collection(db, "users"), where("assignedGroupIds", "array-contains", id))),
+        getDocs(query(collection(db, "users"), where("preferredGroupIds", "array-contains", id))),
+      ]);
+      const touchedUsers = new Map<string, any>();
+      assignedSnap.forEach(u => touchedUsers.set(u.id, u));
+      preferredSnap.forEach(u => touchedUsers.set(u.id, u));
+      touchedUsers.forEach(u => {
+        const data = u.data();
+        const update: Record<string, any> = {};
+        if (Array.isArray(data.assignedGroupIds) && data.assignedGroupIds.includes(id)) {
+          update.assignedGroupIds = data.assignedGroupIds.filter((g: string) => g !== id);
+        }
+        if (Array.isArray(data.preferredGroupIds) && data.preferredGroupIds.includes(id)) {
+          update.preferredGroupIds = data.preferredGroupIds.filter((g: string) => g !== id);
+        }
+        batch.update(u.ref, update);
+      });
+
+      await batch.commit();
       setGroups(prev => prev.filter(g => g.id !== id));
     } catch (error) {
       console.error("Error deleting group:", error);
