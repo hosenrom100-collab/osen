@@ -5,7 +5,7 @@ import { RoleGuard } from "@/components/auth/RoleGuard";
 import {
   Users, ShieldCheck, ClipboardList, Package,
   Calendar, AlertCircle, MapPin, Layers,
-  ChevronLeft, Shield, Bell, MessageCircle, Briefcase, Settings, Receipt
+  ChevronLeft, Shield, Bell, MessageCircle, Briefcase, Settings, Receipt, Car
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -26,6 +26,7 @@ const CATEGORIES = [
       { title: "מעקב תקופות שהות", desc: "הארכות ותוכניות שיקום",      icon: Calendar,      path: "/patients/tracking",        color: "text-teal-500 bg-teal-500/10",      roles: ["admin","manager","social_worker"] },
       { title: "תזכורות והארכות",  desc: "משתתפים הדורשים טיפול דחוף", icon: Bell,          path: "/admin/reminders",          color: "text-rose-500 bg-rose-500/10",      roles: ["admin","manager","social_worker"] },
       { title: "מאגר עו״ס שיקום",  desc: "ניהול מלווי משרד הביטחון",  icon: Briefcase,     path: "/admin/rehab-workers",      color: "text-teal-500 bg-teal-500/10",      roles: ["admin","manager","social_worker"] },
+      { title: "אישורי נסיעות מרוכזים", desc: "הפקת אישורי נסיעה בכמות לפי תוכנית", icon: Car, path: "/admin/bulk-travel", color: "text-cyan-500 bg-cyan-500/10", roles: ["admin","manager","instructor","social_worker","employee","logistics"] },
     ],
   },
   {

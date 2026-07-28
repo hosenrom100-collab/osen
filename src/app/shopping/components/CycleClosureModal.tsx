@@ -6,6 +6,7 @@ import {
   Package, FileText, Trash2, Plus, X, AlertCircle, CheckCircle2, ShoppingBag, Edit2, Lock, ArrowRight, Loader2
 } from "lucide-react";
 import { ShoppingRequest, Product } from "../types";
+import { useFocusTrap } from "@/hooks/useFocusTrap";
 
 export interface CycleClosureModalProps {
   isOpen: boolean;
@@ -19,6 +20,7 @@ export interface CycleClosureModalProps {
   onArchiveOnly: () => Promise<void>;
   onRemoveItem: (id: string) => Promise<void>;
   onUpdateQuantity: (id: string, newQty: string) => Promise<void>;
+  onVerifyPassword: (password: string) => Promise<{ success: boolean; error?: string }>;
 }
 
 export function CycleClosureModal({
@@ -33,6 +35,7 @@ export function CycleClosureModal({
   onArchiveOnly,
   onRemoveItem,
   onUpdateQuantity,
+  onVerifyPassword,
 }: CycleClosureModalProps) {
   // Quick Add State (Last minute items)
   const [newName, setNewName] = useState("");
@@ -50,6 +53,9 @@ export function CycleClosureModal({
   const [pendingAction, setPendingAction] = useState<"export" | "archiveOnly" | null>(null);
   const [confirmPassword, setConfirmPassword] = useState("");
   const [confirmError, setConfirmError] = useState("");
+
+  const dialogTitleId = "cycle-closure-title";
+  const containerRef = useFocusTrap<HTMLDivElement>(isOpen);
 
   if (!isOpen) return null;
 
@@ -95,8 +101,9 @@ export function CycleClosureModal({
   };
 
   const handleConfirmedClose = async () => {
-    if (confirmPassword.trim() !== "3015") {
-      setConfirmError("סיסמת מנהל שגויה!");
+    const gateResult = await onVerifyPassword(confirmPassword.trim());
+    if (!gateResult.success) {
+      setConfirmError(gateResult.error || "סיסמת מנהל שגויה!");
       return;
     }
     setIsProcessing(true);
@@ -127,17 +134,25 @@ export function CycleClosureModal({
         />
 
         <motion.div
+          ref={containerRef}
           initial={{ opacity: 0, scale: 0.95, y: 10 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 10 }}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby={dialogTitleId}
+          tabIndex={-1}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") onClose();
+          }}
           className="relative bg-[var(--surface)] border border-[var(--border)] rounded-[2.5rem] w-full max-w-2xl p-6 md:p-8 shadow-2xl flex flex-col max-h-[90vh] overflow-hidden text-right"
           dir="rtl"
         >
           {/* Header */}
           <div className="flex items-center justify-between pb-4 border-b border-[var(--border)] shrink-0">
             <div>
-              <h3 className="text-xl font-black flex items-center gap-2 text-[var(--foreground)]">
-                <Package className="w-6 h-6 text-indigo-500" />
+              <h3 id={dialogTitleId} className="text-xl font-black flex items-center gap-2 text-[var(--foreground)]">
+                <Package className="w-6 h-6 text-indigo-500" aria-hidden="true" />
                 <span>סגירת סבב קניות וייצוא להדפסה</span>
               </h3>
               <p className="text-xs text-[var(--muted)] font-semibold mt-1">
@@ -333,17 +348,21 @@ export function CycleClosureModal({
                   </span>
                 </p>
                 <div>
+                  <label htmlFor="cycle-closure-password" className="sr-only">סיסמת מנהל</label>
                   <input
+                    id="cycle-closure-password"
                     type="password"
                     autoFocus
                     value={confirmPassword}
                     onChange={(e) => { setConfirmPassword(e.target.value); setConfirmError(""); }}
                     onKeyDown={(e) => { if (e.key === "Enter") handleConfirmedClose(); }}
                     placeholder="הזן סיסמת מנהל..."
+                    aria-invalid={!!confirmError}
+                    aria-describedby={confirmError ? "cycle-closure-password-error" : undefined}
                     className="w-full bg-[var(--background)] border border-[var(--border)] rounded-xl py-2.5 px-3 text-sm font-bold focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 outline-none text-center tracking-widest text-[var(--foreground)]"
                   />
                   {confirmError && (
-                    <span className="text-xs text-rose-500 font-bold mt-1.5 block">{confirmError}</span>
+                    <span id="cycle-closure-password-error" className="text-xs text-rose-500 font-bold mt-1.5 block">{confirmError}</span>
                   )}
                 </div>
                 <div className="flex items-center justify-end gap-2">

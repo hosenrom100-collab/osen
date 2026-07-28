@@ -1,38 +1,21 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo, memo } from "react";
+import { User } from "firebase/auth";
 import { ShoppingRequest, InventoryItem, Product } from "../types";
-import { 
-  ShoppingCart, Flame, Boxes, ShoppingBag, 
-  ChevronDown, Check, Trash2, Edit3, Plus, Minus, CheckCircle2, RotateCcw, Package, AlertTriangle, X, MessageSquare 
+import {
+  ShoppingCart, Flame, Boxes, ShoppingBag,
+  ChevronDown, Check, Trash2, Edit3, Plus, Minus, CheckCircle2, RotateCcw, Package, AlertTriangle, X, MessageSquare
 } from "lucide-react";
 import { motion, AnimatePresence, LayoutGroup } from "framer-motion";
+import { CAT_SOLID } from "../lib/constants";
+import { useConfirm } from "@/hooks/useConfirm";
 
-const CAT_COLOR: Record<string, string> = {
-  "גבינות ומחלבה":       "text-amber-500 bg-amber-500/10 border-amber-500/20",
-  "בשר ודגים":            "text-rose-500 bg-rose-500/10 border-rose-500/20",
-  "פירות וירקות":         "text-emerald-500 bg-emerald-500/10 border-emerald-500/20",
-  "לחם ומאפים":           "text-orange-500 bg-orange-500/10 border-orange-500/20",
-  "חומרי ניקוי":          "text-cyan-500 bg-cyan-500/10 border-cyan-500/20",
-  "מוצרי נייר וחד פעמי": "text-indigo-500 bg-indigo-500/10 border-indigo-500/20",
-  "טואלטיקה והיגיינה":   "text-teal-500 bg-teal-500/10 border-teal-500/20",
-  "שימורים ובישול":       "text-slate-500 bg-slate-500/10 border-slate-500/20",
-  "קפואים":               "text-sky-500 bg-sky-500/10 border-sky-500/20",
-  "כללי":                 "text-slate-400 bg-slate-400/10 border-slate-400/20",
-};
-
-const CAT_SOLID: Record<string, string> = {
-  "גבינות ומחלבה":       "bg-amber-500 border-amber-400",
-  "בשר ודגים":            "bg-rose-500 border-rose-400",
-  "פירות וירקות":         "bg-emerald-500 border-emerald-400",
-  "לחם ומאפים":           "bg-orange-500 border-orange-400",
-  "חומרי ניקוי":          "bg-cyan-500 border-cyan-400",
-  "מוצרי נייר וחד פעמי": "bg-indigo-500 border-indigo-400",
-  "טואלטיקה והיגיינה":   "bg-teal-500 border-teal-400",
-  "שימורים ובישול":       "bg-slate-500 border-slate-400",
-  "קפואים":               "bg-sky-500 border-sky-400",
-  "כללי":                 "bg-slate-400 border-slate-300",
-};
+type ShoppingStatus = ShoppingRequest["status"] | "permanently_delete";
+type OnChangeStatus = (id: string, next: ShoppingStatus, extra?: Record<string, unknown>) => void;
+type OnEditItem = (item: ShoppingRequest) => void;
+type OnUpdateQuantity = (id: string, currentQtyStr: string, increment: number) => void;
+type OnMoveList = (id: string) => void;
 
 interface ShoppingListViewProps {
   requests: ShoppingRequest[];
@@ -45,12 +28,12 @@ interface ShoppingListViewProps {
   canPurchase: boolean;
   isAdmin?: boolean;
   isLogistics?: boolean;
-  currentUser: any;
-  onChangeStatus: (id: string, next: any, extra?: any) => void;
-  onEditItem: (item: ShoppingRequest) => void;
-  onUpdateQuantity: (id: string, currentQtyStr: string, increment: number) => void;
-  onMoveToEquipment: (id: string) => void;
-  onMoveToSupermarket: (id: string) => void;
+  currentUser: User | null;
+  onChangeStatus: OnChangeStatus;
+  onEditItem: OnEditItem;
+  onUpdateQuantity: OnUpdateQuantity;
+  onMoveToEquipment: OnMoveList;
+  onMoveToSupermarket: OnMoveList;
   onShowArchivePrompt: () => void;
   onSwitchToInventoryView: () => void;
 }
@@ -78,6 +61,7 @@ export function ShoppingListView({
   const [purchasedCollapsed, setPurchasedCollapsed] = useState(true);
   const [deletedCollapsed, setDeletedCollapsed] = useState(true);
   const [showLogisticsNotice, setShowLogisticsNotice] = useState(true);
+  const { confirm, ConfirmDialog } = useConfirm();
 
   const activeRequests = requests.filter(
     (r) =>
@@ -93,12 +77,31 @@ export function ShoppingListView({
 
   const showAdminLogisticsStockInfo = isAdmin || isLogistics;
 
+  // Precomputed name -> item lookups (avoid re-scanning inventoryMap/pool for every row on every render)
+  const inventoryByName = useMemo(() => {
+    const map = new Map<string, InventoryItem>();
+    Object.values(inventoryMap).forEach((inv) => {
+      const norm = (inv?.name || "").trim().toLowerCase();
+      if (norm) map.set(norm, inv);
+    });
+    return map;
+  }, [inventoryMap]);
+
+  const poolByName = useMemo(() => {
+    const map = new Map<string, Product>();
+    pool.forEach((p) => {
+      const norm = (p.name || "").trim().toLowerCase();
+      if (norm) map.set(norm, p);
+    });
+    return map;
+  }, [pool]);
+
   // Check which requested items are ALREADY in inventory with stock > 0 (tracked products only)
   const itemsAlreadyInInventory = activeRequests.filter((r) => {
     if (!r.name) return false;
     const norm = r.name.trim().toLowerCase();
-    const invItem = Object.values(inventoryMap).find((inv) => (inv?.name || "").trim().toLowerCase() === norm);
-    const product = pool.find((p) => (p.name || "").trim().toLowerCase() === norm);
+    const invItem = inventoryByName.get(norm);
+    const product = poolByName.get(norm);
     return product?.trackInventory === true && invItem && invItem.currentStock > 0;
   });
 
@@ -206,8 +209,8 @@ export function ShoppingListView({
               <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl overflow-hidden shadow-sm divide-y divide-[var(--border)]/55">
                 {catItems.map((item) => {
                   const norm = (item.name || "").trim().toLowerCase();
-                  const invItem = Object.values(inventoryMap).find((inv) => (inv?.name || "").trim().toLowerCase() === norm);
-                  const poolMatch = pool?.find((p) => (p.name || "").trim().toLowerCase() === norm);
+                  const invItem = inventoryByName.get(norm);
+                  const poolMatch = poolByName.get(norm);
                   const inStockQty = poolMatch?.trackInventory === true ? invItem?.currentStock : undefined;
                   const effectiveNotes = item.notes || poolMatch?.defaultNotes || "";
 
@@ -248,8 +251,8 @@ export function ShoppingListView({
                   .filter((r) => !categories.includes(r.category))
                   .map((item) => {
                     const norm = (item.name || "").trim().toLowerCase();
-                    const invItem = Object.values(inventoryMap).find((inv) => (inv?.name || "").trim().toLowerCase() === norm);
-                    const poolMatch = pool?.find((p) => (p.name || "").trim().toLowerCase() === norm);
+                    const invItem = inventoryByName.get(norm);
+                    const poolMatch = poolByName.get(norm);
                     const inStockQty = poolMatch?.trackInventory === true ? invItem?.currentStock : undefined;
                     const effectiveNotes = item.notes || poolMatch?.defaultNotes || "";
 
@@ -336,21 +339,26 @@ export function ShoppingListView({
                       onClick={() => onChangeStatus(item.id, "approved")}
                       className="w-8 h-8 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center shadow-xs transition-all active:scale-75 border border-amber-500/20 cursor-pointer"
                       title="החזר לרשימה הפעילה"
+                      aria-label="החזר לרשימה הפעילה"
                     >
-                      <RotateCcw className="w-3.5 h-3.5 stroke-[2.5]" />
+                      <RotateCcw className="w-3.5 h-3.5 stroke-[2.5]" aria-hidden="true" />
                     </button>
 
                     {(item.requestedBy === currentUser?.uid || canPurchase) && (
                       <button
-                        onClick={() => {
-                          if (confirm(`האם ברצונך להעביר את "${item.name}" למוצרים שנמחקו?`)) {
-                            onChangeStatus(item.id, "deleted");
-                          }
+                        onClick={async () => {
+                          const ok = await confirm({
+                            title: "העברה למוצרים שנמחקו",
+                            message: `האם ברצונך להעביר את "${item.name}" למוצרים שנמחקו?`,
+                            type: "danger",
+                          });
+                          if (ok) onChangeStatus(item.id, "deleted");
                         }}
                         className="w-8 h-8 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 flex items-center justify-center shadow-xs transition-all active:scale-75 border border-rose-500/20 cursor-pointer"
                         title="העבר למוצרים שנמחקו"
+                        aria-label="העבר למוצרים שנמחקו"
                       >
-                        <Trash2 className="w-3.5 h-3.5" />
+                        <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
                       </button>
                     )}
                   </div>
@@ -381,7 +389,12 @@ export function ShoppingListView({
             {canPurchase && (
               <button
                 onClick={async () => {
-                  if (confirm("האם ברצונך למחוק לצמיתות את כל המוצרים שנמחקו?")) {
+                  const ok = await confirm({
+                    title: "מחיקה לצמיתות",
+                    message: "האם ברצונך למחוק לצמיתות את כל המוצרים שנמחקו?",
+                    type: "danger",
+                  });
+                  if (ok) {
                     await Promise.all(sessionDeleted.map((r) => onChangeStatus(r.id, "permanently_delete")));
                   }
                 }}
@@ -418,22 +431,27 @@ export function ShoppingListView({
                       onClick={() => onChangeStatus(item.id, "approved")}
                       className="px-3 py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 text-xs font-black flex items-center gap-1 shadow-xs transition-all active:scale-95 border border-amber-500/20 cursor-pointer"
                       title="החזר לרשימה הפעילה"
+                      aria-label="החזר לרשימה הפעילה"
                     >
-                      <RotateCcw className="w-3.5 h-3.5 stroke-[2.5]" />
+                      <RotateCcw className="w-3.5 h-3.5 stroke-[2.5]" aria-hidden="true" />
                       <span>החזר לרשימה</span>
                     </button>
 
                     {(item.requestedBy === currentUser?.uid || canPurchase) && (
                       <button
                         onClick={async () => {
-                          if (confirm(`האם ברצונך למחוק לצמיתות את "${item.name}"?`)) {
-                            onChangeStatus(item.id, "permanently_delete");
-                          }
+                          const ok = await confirm({
+                            title: "מחיקה לצמיתות",
+                            message: `האם ברצונך למחוק לצמיתות את "${item.name}"?`,
+                            type: "danger",
+                          });
+                          if (ok) onChangeStatus(item.id, "permanently_delete");
                         }}
                         className="p-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 flex items-center justify-center shadow-xs transition-all active:scale-95 border border-rose-500/20 cursor-pointer"
                         title="מחק לצמיתות"
+                        aria-label="מחק לצמיתות"
                       >
-                        <Trash2 className="w-3.5 h-3.5" />
+                        <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
                       </button>
                     )}
                   </div>
@@ -443,6 +461,7 @@ export function ShoppingListView({
           )}
         </div>
       )}
+      <ConfirmDialog />
     </div>
   );
 }
@@ -460,7 +479,7 @@ const formatQuantityAndUnit = (qtyStr: string) => {
   return { qty: qtyStr, unit: "יח׳" };
 };
 
-function ShoppingItemRow({
+const ShoppingItemRow = memo(function ShoppingItemRow({
   item,
   inStockQty,
   showStockBadge = false,
@@ -477,26 +496,34 @@ function ShoppingItemRow({
   inStockQty?: number;
   showStockBadge?: boolean;
   effectiveNotes?: string;
-  onStatus: any;
-  onEdit: any;
-  onUpdateQuantity: any;
+  onStatus: OnChangeStatus;
+  onEdit: OnEditItem;
+  onUpdateQuantity: OnUpdateQuantity;
   canPurchase: boolean;
-  currentUser: any;
-  onMoveToEquipment: any;
-  onMoveToSupermarket: any;
+  currentUser: User | null;
+  onMoveToEquipment: OnMoveList;
+  onMoveToSupermarket: OnMoveList;
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [dragOffset, setDragOffset] = useState(0);
   const isApproved = item.status === "approved" || item.status === "pending";
   const isUrgent = item.priority === "urgent";
+  const { confirm, ConfirmDialog } = useConfirm();
 
   const notesToDisplay = effectiveNotes || item.notes;
 
+  const confirmDeleteFromList = async () => {
+    const ok = await confirm({
+      title: "מחיקה מהרשימה",
+      message: `האם ברצונך למחוק את "${item.name}" מהרשימה?`,
+      type: "danger",
+    });
+    if (ok) onStatus(item.id, "deleted");
+  };
+
   const handleDelete = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (confirm(`האם ברצונך למחוק את "${item.name}" מהרשימה?`)) {
-      onStatus(item.id, "deleted");
-    }
+    confirmDeleteFromList();
   };
 
   const handleCheckboxClick = (e: React.MouseEvent) => {
@@ -536,9 +563,7 @@ function ShoppingItemRow({
             if (typeof navigator !== "undefined" && navigator.vibrate) navigator.vibrate(20);
             onStatus(item.id, "purchased");
           } else if (info.offset.x > 60) {
-            if (confirm(`האם ברצונך למחוק את "${item.name}" מהרשימה?`)) {
-              onStatus(item.id, "deleted");
-            }
+            confirmDeleteFromList();
           }
           setDragOffset(0);
         }}
@@ -657,8 +682,9 @@ function ShoppingItemRow({
                     onClick={() => onUpdateQuantity(item.id, item.quantity || "1", -1)}
                     className="w-8 h-8 rounded-lg flex items-center justify-center bg-[var(--surface)] hover:bg-[var(--foreground)]/10 text-[var(--muted)] hover:text-[var(--foreground)] border border-[var(--border)] transition-all active:scale-75 shadow-sm cursor-pointer"
                     title="הפחת כמות"
+                    aria-label="הפחת כמות"
                   >
-                    <Minus className="w-3.5 h-3.5 stroke-[3]" />
+                    <Minus className="w-3.5 h-3.5 stroke-[3]" aria-hidden="true" />
                   </button>
                   <div className="min-w-[36px] text-center px-1">
                     <span className="text-sm font-black text-[var(--foreground)]">{item.quantity || "1"}</span>
@@ -668,8 +694,9 @@ function ShoppingItemRow({
                     onClick={() => onUpdateQuantity(item.id, item.quantity || "1", 1)}
                     className="w-8 h-8 rounded-lg flex items-center justify-center bg-[var(--surface)] hover:bg-[var(--foreground)]/10 text-[var(--muted)] hover:text-[var(--foreground)] border border-[var(--border)] transition-all active:scale-75 shadow-sm cursor-pointer"
                     title="הוסף כמות"
+                    aria-label="הוסף כמות"
                   >
-                    <Plus className="w-3.5 h-3.5 stroke-[3]" />
+                    <Plus className="w-3.5 h-3.5 stroke-[3]" aria-hidden="true" />
                   </button>
                 </div>
 
@@ -678,16 +705,18 @@ function ShoppingItemRow({
                     onClick={() => onEdit(item)}
                     className="px-3 py-2 rounded-xl flex items-center justify-center gap-1 bg-[var(--foreground)]/[0.04] hover:bg-[var(--foreground)]/10 text-[var(--muted)] hover:text-[var(--foreground)] transition-all active:scale-95 border border-[var(--border)] text-xs font-bold cursor-pointer"
                     title="ערוך מוצר"
+                    aria-label="ערוך מוצר"
                   >
-                    <Edit3 className="w-3.5 h-3.5" /> עריכה
+                    <Edit3 className="w-3.5 h-3.5" aria-hidden="true" /> עריכה
                   </button>
 
                   <button
                     onClick={handleDelete}
                     className="px-3 py-2 rounded-xl flex items-center justify-center gap-1 bg-rose-500/5 hover:bg-rose-500/10 text-rose-500 border border-rose-500/10 transition-all active:scale-95 text-xs font-bold cursor-pointer"
                     title="מחק מהרשימה"
+                    aria-label="מחק מהרשימה"
                   >
-                    <Trash2 className="w-3.5 h-3.5" /> מחיקה
+                    <Trash2 className="w-3.5 h-3.5" aria-hidden="true" /> מחיקה
                   </button>
 
                   {canPurchase &&
@@ -696,16 +725,18 @@ function ShoppingItemRow({
                         onClick={() => onMoveToEquipment(item.id)}
                         className="px-3 py-2 rounded-xl flex items-center justify-center gap-1 bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/20 transition-all active:scale-95 text-xs font-bold cursor-pointer"
                         title="העבר לציוד ורכש"
+                        aria-label="העבר לציוד ורכש"
                       >
-                        <Package className="w-3.5 h-3.5" /> העבר לציוד ורכש
+                        <Package className="w-3.5 h-3.5" aria-hidden="true" /> העבר לציוד ורכש
                       </button>
                     ) : (
                       <button
                         onClick={() => onMoveToSupermarket(item.id)}
                         className="px-3 py-2 rounded-xl flex items-center justify-center gap-1 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 transition-all active:scale-95 text-xs font-bold cursor-pointer"
                         title="העבר לרשימת סופר"
+                        aria-label="העבר לרשימת סופר"
                       >
-                        <ShoppingCart className="w-3.5 h-3.5" /> העבר לרשימת סופר
+                        <ShoppingCart className="w-3.5 h-3.5" aria-hidden="true" /> העבר לרשימת סופר
                       </button>
                     ))}
                 </div>
@@ -714,6 +745,7 @@ function ShoppingItemRow({
           )}
         </AnimatePresence>
       </motion.div>
+      <ConfirmDialog />
     </div>
   );
-}
+});

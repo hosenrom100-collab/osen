@@ -1,4 +1,5 @@
 import { CutoffConfig, CutoffStatus, ShoppingRequest } from "../types";
+import { toDateOrNull } from "./dateUtils";
 
 export function getCutoffStatus(config?: CutoffConfig, activeRequests?: ShoppingRequest[]): CutoffStatus {
   if (!config || !config.enabled) {
@@ -22,9 +23,8 @@ export function getCutoffStatus(config?: CutoffConfig, activeRequests?: Shopping
   // If today is past the cutoff targetDate in the current week cycle
   if (now > targetDate) {
     const hasActiveBeforeCutoff = activeRequests?.some((r) => {
-      if (!r.createdAt) return false;
-      const createdAt = r.createdAt.toDate ? r.createdAt.toDate() : new Date(r.createdAt);
-      return createdAt < targetDate;
+      const createdAt = toDateOrNull(r.createdAt);
+      return createdAt !== null && createdAt < targetDate;
     });
 
     if (hasActiveBeforeCutoff) {

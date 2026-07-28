@@ -4,6 +4,9 @@ import { useState, useEffect } from "react";
 import { collection, query, where, onSnapshot, doc, updateDoc, setDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase/config";
 import { NewProductRequest, Product } from "../types";
+import { toDateOrNull } from "../lib/dateUtils";
+import { useConfirm } from "@/hooks/useConfirm";
+import { useAlert } from "@/hooks/useAlert";
 import { X, Check, Search, AlertTriangle, Database, Edit3, ShoppingCart, Lightbulb, ArrowRight, CornerDownLeft } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -31,6 +34,8 @@ export function AdminProductRequestsModal({
   // Editable fields per request
   const [editForms, setEditForms] = useState<Record<string, { name: string; category: string; defaultNotes: string; addToShoppingList: boolean }>>({});
   const [editingId, setEditingId] = useState<string | null>(null);
+  const { confirm, ConfirmDialog } = useConfirm();
+  const { alert, AlertDialog } = useAlert();
 
   useEffect(() => {
     if (!isOpen) return;
@@ -52,7 +57,7 @@ export function AdminProductRequestsModal({
         };
       });
 
-      list.sort((a, b) => (b.createdAt?.toMillis ? b.createdAt.toMillis() : 0) - (a.createdAt?.toMillis ? a.createdAt.toMillis() : 0));
+      list.sort((a, b) => (toDateOrNull(b.createdAt)?.getTime() ?? 0) - (toDateOrNull(a.createdAt)?.getTime() ?? 0));
       setRequests(list);
       setEditForms(forms);
     });
@@ -111,14 +116,15 @@ export function AdminProductRequestsModal({
       });
     } catch (err) {
       console.error(err);
-      alert("שגיאה באישור המוצר");
+      await alert({ title: "שגיאה", message: "שגיאה באישור המוצר", type: "danger" });
     } finally {
       setProcessing(null);
     }
   };
 
   const handleReject = async (reqId: string) => {
-    if (!confirm("האם למחוק/לדחות בקשה זו?")) return;
+    const ok = await confirm({ title: "דחיית בקשה", message: "האם למחוק/לדחות בקשה זו?", type: "danger" });
+    if (!ok) return;
     setProcessing(reqId);
     try {
       await updateDoc(doc(db, "product_requests_queue", reqId), {
@@ -145,7 +151,7 @@ export function AdminProductRequestsModal({
       });
     } catch (err) {
       console.error(err);
-      alert("שגיאה בשליחת המוצר הקיים לרשימה");
+      await alert({ title: "שגיאה", message: "שגיאה בשליחת המוצר הקיים לרשימה", type: "danger" });
     } finally {
       setProcessing(null);
     }
@@ -373,6 +379,8 @@ export function AdminProductRequestsModal({
             )}
           </div>
         </motion.div>
+        <ConfirmDialog />
+        <AlertDialog />
       </div>
     </AnimatePresence>
   );

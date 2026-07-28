@@ -4,33 +4,8 @@ import { useState, useRef, useEffect } from "react";
 import { Product, ShoppingRequest, InventoryItem } from "../types";
 import { Plus, Search, Star, X, Check, Flame, CheckCircle2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { findSimilarProduct } from "../lib/stringUtils";
-
-export const MEASUREMENT_UNITS = [
-  "יחידות",
-  "ק״ג",
-  "גרם",
-  "ליטר",
-  "מ״ל",
-  "אריזה",
-  "ארגז",
-  "בקבוק",
-  "פחית",
-  "שקית",
-];
-
-const CAT_COLOR: Record<string, string> = {
-  "גבינות ומחלבה":       "text-amber-500 bg-amber-500/10 border-amber-500/20",
-  "בשר ודגים":            "text-rose-500 bg-rose-500/10 border-rose-500/20",
-  "פירות וירקות":         "text-emerald-500 bg-emerald-500/10 border-emerald-500/20",
-  "לחם ומאפים":           "text-orange-500 bg-orange-500/10 border-orange-500/20",
-  "חומרי ניקוי":          "text-cyan-500 bg-cyan-500/10 border-cyan-500/20",
-  "מוצרי נייר וחד פעמי": "text-indigo-500 bg-indigo-500/10 border-indigo-500/20",
-  "טואלטיקה והיגיינה":   "text-teal-500 bg-teal-500/10 border-teal-500/20",
-  "שימורים ובישול":       "text-slate-500 bg-slate-500/10 border-slate-500/20",
-  "קפואים":               "text-sky-500 bg-sky-500/10 border-sky-500/20",
-  "כללי":                 "text-slate-400 bg-slate-400/10 border-slate-400/20",
-};
+import { rankSimilarProducts } from "../lib/stringUtils";
+import { MEASUREMENT_UNITS, CAT_COLOR } from "../lib/constants";
 
 interface AddProductOverlayProps {
   isOpen: boolean;
@@ -113,14 +88,7 @@ export function AddProductOverlay({
     onClose();
   };
 
-  const suggestions = pool
-    .filter(
-      (p) =>
-        p.isActive !== false &&
-        inputVal.trim() &&
-        (p.name.includes(inputVal.trim()) || p.category.includes(inputVal.trim()))
-    )
-    .slice(0, 20);
+  const suggestions = rankSimilarProducts(inputVal, pool.filter((p) => p.isActive !== false), 20);
 
   const hasExactMatch = pool.some((p) => p.name.trim().toLowerCase() === inputVal.trim().toLowerCase());
   const alreadyInList = (name: string) =>
@@ -172,6 +140,11 @@ export function AddProductOverlay({
             <input
               autoFocus
               type="text"
+              role="combobox"
+              aria-expanded={suggestions.length > 0}
+              aria-controls="add-product-suggestions"
+              aria-autocomplete="list"
+              aria-label="שם המוצר שברצונך להוסיף"
               value={inputVal}
               onChange={(e) => setInputVal(e.target.value)}
               onKeyDown={(e) => {
@@ -302,7 +275,12 @@ export function AddProductOverlay({
           </div>
 
           {/* Suggestions & Add Custom Product List */}
-          <div className="flex-1 overflow-y-auto min-h-0 space-y-2 pb-6 pr-1 no-scrollbar">
+          <div
+            id="add-product-suggestions"
+            role="listbox"
+            aria-label="הצעות מוצרים"
+            className="flex-1 overflow-y-auto min-h-0 space-y-2 pb-6 pr-1 no-scrollbar"
+          >
             {!hasExactMatch && inputVal.trim() && (
               <button
                 onClick={handleAddInput}
@@ -332,6 +310,8 @@ export function AddProductOverlay({
                     }
                   }}
                   disabled={inList}
+                  role="option"
+                  aria-selected={false}
                   className={`w-full flex items-center justify-between px-5 py-3 rounded-xl border border-[var(--border)] transition-all active:scale-[0.98] cursor-pointer text-right shrink-0 ${
                     inList
                       ? "opacity-35 bg-transparent cursor-not-allowed border-none"

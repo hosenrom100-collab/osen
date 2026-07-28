@@ -40,12 +40,19 @@ service cloud.firestore {
       );
     }
 
+    // Manager-equivalent for shopping/inventory flows — mirrors the client's
+    // `canPurchase` boundary (page.tsx), which includes logistics alongside admin/manager.
+    function isShoppingManager() {
+      return isManager() || hasRole('logistics');
+    }
+
     // ─── Global Rules ────────────────────────────────────────────────────────
 
     // Global Admin override - Give Admins full access to MOST things
-    // PRIVATE MESSAGES and their alerts are excluded from this override to protect participant privacy.
+    // PRIVATE MESSAGES and their alerts, and the server-only admin-password rate-limit
+    // store, are excluded from this override.
     match /{document=**} {
-      allow read, write: if isAdmin() && !(request.path[3] in ['messages', 'notifications']);
+      allow read, write: if isAdmin() && !(request.path[3] in ['messages', 'notifications', 'admin_password_attempts']);
     }
 
     // Users collection
@@ -150,32 +157,51 @@ service cloud.firestore {
 
     // Shopping Requests
     match /shopping_requests/{docId} {
-      allow read, write: if isAuthenticated();
+      allow read: if isAuthenticated();
+      allow create, update: if isStaff();
+      // Managers/logistics can delete anything; staff can only delete their own item
+      // (mirrors the ShoppingListView permanently-delete UI gate).
+      allow delete: if isShoppingManager() ||
+        (isStaff() && resource.data.requestedBy == request.auth.uid);
     }
 
     // Product Pool
     match /product_pool/{docId} {
-      allow read, write: if isAuthenticated();
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isShoppingManager();
     }
 
     // Product Requests Queue
     match /product_requests_queue/{docId} {
-      allow read, write: if isAuthenticated();
+      allow read: if isAuthenticated();
+      allow create: if isStaff();
+      allow update, delete: if isShoppingManager();
     }
 
     // Inventory
     match /inventory/{docId} {
-      allow read, write: if isAuthenticated();
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isShoppingManager();
     }
 
-    // Inventory Log
+    // Inventory Log (append-only audit trail)
     match /inventory_log/{docId} {
-      allow read, write: if isAuthenticated();
+      allow read: if isAuthenticated();
+      allow create: if isShoppingManager();
+      allow update, delete: if false;
     }
 
     // Receipts
     match /receipts/{docId} {
-      allow read, write: if isAuthenticated();
+      allow read: if isAuthenticated();
+      allow create: if isStaff();
+      allow update, delete: if isShoppingManager();
+    }
+
+    // Server-only rate-limit store for /api/admin/verify-password — accessed
+    // exclusively via the Firebase Admin SDK, which bypasses these rules.
+    match /admin_password_attempts/{uid} {
+      allow read, write: if false;
     }
 
 

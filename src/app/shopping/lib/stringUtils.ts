@@ -97,3 +97,129 @@ export function findSimilarProduct<T extends { name: string }>(
 
   return undefined;
 }
+
+/**
+ * Ranks pool products by relevance to a live search input, for the add-product
+ * suggestion dropdown. Reuses the same normalization/subset/typo/prefix signals as
+ * `findSimilarProduct`, but scores every candidate and returns the top matches instead
+ * of a single best guess — plus a low-score fallback on category-name substring match,
+ * so searching by category still surfaces relevant products.
+ */
+export function rankSimilarProducts<T extends { name: string; category?: string }>(
+  input: string,
+  pool: T[],
+  limit = 20
+): T[] {
+  const trimmed = input.trim();
+  if (!trimmed) return [];
+  const normalizedInput = normalizeProductName(trimmed);
+  const inputWords = normalizedInput.split(' ').filter((w) => w.length > 1);
+
+  const scored = pool.map((p) => {
+    const pNorm = normalizeProductName(p.name);
+    const pWords = pNorm.split(' ').filter((w) => w.length > 1);
+    let score = 0;
+
+    if (pNorm === normalizedInput) {
+      score = 100;
+    } else {
+      const inputIsSubset =
+        inputWords.length > 0 && pWords.length > 0 &&
+        inputWords.every((w) => pWords.includes(w)) &&
+        inputWords.length >= Math.ceil(pWords.length / 2);
+      const poolIsSubset =
+        inputWords.length > 0 && pWords.length > 0 &&
+        pWords.every((w) => inputWords.includes(w)) &&
+        pWords.length >= Math.ceil(inputWords.length / 2);
+      const isTypo =
+        inputWords.length === 1 && pWords.length === 1 &&
+        getLevenshteinDistanceStrict(inputWords[0], pWords[0]) <= 1;
+      const isPrefix =
+        pNorm.startsWith(normalizedInput) &&
+        normalizedInput.length > 3 &&
+        normalizedInput.length >= pNorm.length * 0.6;
+
+      if (inputIsSubset || poolIsSubset) score = 80;
+      else if (isTypo) score = 70;
+      else if (isPrefix) score = 60;
+      else if (pNorm.includes(normalizedInput)) score = 40;
+      else if (p.category && p.category.includes(trimmed)) score = 10;
+    }
+
+    return { item: p, score, len: p.name.length };
+  });
+
+  return scored
+    .filter((s) => s.score > 0)
+    .sort((a, b) => b.score - a.score || a.len - b.len)
+    .slice(0, limit)
+    .map((s) => s.item);
+}
+
+/**
+ * Looser Hebrew normalization used for hard duplicate-blocking checks (e.g. preventing
+ * a new shopping request from being created when a near-identical one is already active).
+ * Strips quote/geresh characters and a leading definite-article "ה" (for words > 3 chars),
+ * in addition to whitespace collapsing and lowercasing.
+ *
+ * Kept distinct from `normalizeProductName`/`findSimilarProduct` (used for the interactive
+ * add-product suggestion UI) because the two are tuned for different risk profiles: this one
+ * gates whether a write is allowed to happen at all, so its matching behavior is preserved
+ * as-is rather than swapped to the other algorithm.
+ */
+export function normalizeHebrewStrict(str: string): string {
+  if (!str) return "";
+  return str
+    .trim()
+    .replace(/["'׳״\-]/g, "")
+    .replace(/\s+/g, " ")
+    .toLowerCase()
+    .split(" ")
+    .map((word) => (word.startsWith("ה") && word.length > 3 ? word.substring(1) : word))
+    .join(" ");
+}
+
+export function getLevenshteinDistanceStrict(a: string, b: string): number {
+  const matrix: number[][] = [];
+  for (let i = 0; i <= b.length; i++) matrix[i] = [i];
+  for (let j = 0; j <= a.length; j++) matrix[0][j] = j;
+  for (let i = 1; i <= b.length; i++) {
+    for (let j = 1; j <= a.length; j++) {
+      if (b.charAt(i - 1) === a.charAt(j - 1)) {
+        matrix[i][j] = matrix[i - 1][j - 1];
+      } else {
+        matrix[i][j] = Math.min(
+          matrix[i - 1][j - 1] + 1,
+          matrix[i][j - 1] + 1,
+          matrix[i - 1][j] + 1
+        );
+      }
+    }
+  }
+  return matrix[b.length][a.length];
+}
+
+/**
+ * Finds an active request with a near-identical name (exact match after normalization,
+ * or a small Levenshtein distance scaled by name length) — used to hard-block duplicate
+ * shopping-list entries. See `normalizeHebrewStrict` for why this stays separate from
+ * `findSimilarProduct`.
+ */
+export function findSimilarRequestStrict(name: string, activeRequestsList: { name: string }[]): string | null {
+  const normName = normalizeHebrewStrict(name);
+  if (!normName) return null;
+
+  for (const r of activeRequestsList) {
+    const normActive = normalizeHebrewStrict(r.name);
+    if (normName === normActive) return r.name;
+
+    const distance = getLevenshteinDistanceStrict(normName, normActive);
+    const minLength = Math.min(normName.length, normActive.length);
+    const maxAllowedDistance = minLength >= 6 ? 2 : (minLength >= 4 ? 1 : 0);
+
+    if (distance <= maxAllowedDistance && minLength > 2) {
+      return r.name;
+    }
+  }
+  return null;
+}

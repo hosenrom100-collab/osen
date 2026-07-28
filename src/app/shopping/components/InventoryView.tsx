@@ -8,6 +8,8 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { getProductInventoryLogs } from "../lib/inventory-logger";
+import { toDateOrNull } from "../lib/dateUtils";
+import { useConfirm } from "@/hooks/useConfirm";
 
 const CAT_COLOR: Record<string, string> = {
   "גבינות ומחלבה":       "text-amber-500 bg-amber-500/10 border-amber-500/20",
@@ -57,7 +59,8 @@ export function InventoryView({
 }: InventoryViewProps) {
   const [inventoryFilter, setInventoryFilter] = useState<"all" | "out" | "low" | "ok">("all");
   const [inventorySearch, setInventorySearch] = useState("");
-  
+  const { confirm, ConfirmDialog } = useConfirm();
+
   // Batch Stock Count Mode State
   const [batchCountMode, setBatchCountMode] = useState(false);
   const [batchCategoryFilter, setBatchCategoryFilter] = useState<string>("all");
@@ -530,14 +533,15 @@ export function InventoryView({
                     </div>
 
                     <button
-                      onClick={() => {
+                      onClick={async () => {
                         if (openReqQty) return;
                         // Item isn't actually low/out — this would be an unusual manual restock,
                         // so ask for a moment of thought instead of adding it silently.
                         if (!isOut && !isLow) {
-                          const confirmed = confirm(
-                            `המוצר "${p.name}" תקין במלאי (${stock} ${unit}) ואינו דורש השלמה כרגע. להוסיף בכל זאת לרשימת הקניות?`
-                          );
+                          const confirmed = await confirm({
+                            title: "הוספה למרות מלאי תקין",
+                            message: `המוצר "${p.name}" תקין במלאי (${stock} ${unit}) ואינו דורש השלמה כרגע. להוסיף בכל זאת לרשימת הקניות?`,
+                          });
                           if (!confirmed) return;
                         }
                         onAddToShoppingList(p.name, p.category, unit);
@@ -618,9 +622,7 @@ export function InventoryView({
                   <div className="py-12 text-center text-xs font-bold text-[var(--muted)]">אין עדיין יומן שינויים למוצר זה</div>
                 ) : (
                   historyLogs.map((log) => {
-                    const dateStr = log.timestamp?.toDate
-                      ? log.timestamp.toDate().toLocaleString("he-IL")
-                      : new Date(log.timestamp).toLocaleString("he-IL");
+                    const dateStr = (toDateOrNull(log.timestamp) ?? new Date(0)).toLocaleString("he-IL");
 
                     const isPositive = log.delta > 0;
 
@@ -672,6 +674,7 @@ export function InventoryView({
           </div>
         )}
       </AnimatePresence>
+      <ConfirmDialog />
     </div>
   );
 }

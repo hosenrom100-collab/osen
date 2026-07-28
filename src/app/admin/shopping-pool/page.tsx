@@ -8,68 +8,11 @@ import { Package, Plus, Trash2, Tag, Search, ArrowRight, Loader2, Settings, X, D
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
 import * as XLSX from "xlsx";
-
-export const MEASUREMENT_UNITS = [
-  "יחידות",
-  "ק״ג",
-  "גרם",
-  "ליטר",
-  "מ״ל",
-  "אריזה",
-  "ארגז",
-  "בקבוק",
-  "פחית",
-  "שקית"
-];
-
-interface Product {
-  id: string;
-  name: string;
-  category: string;
-  defaultUnit?: string;
-  defaultNotes?: string;
-  isRecurring?: boolean;
-  recurringQuantity?: string;
-  trackInventory?: boolean;
-  isActive?: boolean;
-  isStar?: boolean;
-}
-
-const getLevenshteinDistance = (a: string, b: string): number => {
-  const matrix = [];
-  for (let i = 0; i <= b.length; i++) matrix[i] = [i];
-  for (let j = 0; j <= a.length; j++) matrix[0][j] = j;
-  for (let i = 1; i <= b.length; i++) {
-    for (let j = 1; j <= a.length; j++) {
-      if (b.charAt(i - 1) === a.charAt(j - 1)) {
-        matrix[i][j] = matrix[i - 1][j - 1];
-      } else {
-        matrix[i][j] = Math.min(
-          matrix[i - 1][j - 1] + 1,
-          matrix[i][j - 1] + 1,
-          matrix[i - 1][j] + 1
-        );
-      }
-    }
-  }
-  return matrix[b.length][a.length];
-};
-
-const normalizeHebrewString = (str: string): string => {
-  return str
-    .trim()
-    .replace(/["'׳״\-]/g, "")
-    .replace(/\s+/g, " ")
-    .toLowerCase()
-    .split(" ")
-    .map(word => {
-      if (word.startsWith("ה") && word.length > 3) {
-        return word.substring(1);
-      }
-      return word;
-    })
-    .join(" ");
-};
+import { MEASUREMENT_UNITS, DEFAULT_CATEGORIES } from "@/app/shopping/lib/constants";
+import { normalizeHebrewStrict, getLevenshteinDistanceStrict } from "@/app/shopping/lib/stringUtils";
+import { Product } from "@/app/shopping/types";
+import { useConfirm } from "@/hooks/useConfirm";
+import { useAlert } from "@/hooks/useAlert";
 
 export default function ShoppingPoolPage() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -102,11 +45,9 @@ export default function ShoppingPoolPage() {
 
   const router = useRouter();
 
-  const [categories, setCategories] = useState([
-    "גבינות ומחלבה","לחם ומאפים","חומרי ניקוי",
-    "מוצרי נייר וחד פעמי","שימורים ובישול","פירות וירקות",
-    "טואלטיקה והיגיינה","בשר ודגים","קפואים","כללי",
-  ]);
+  const [categories, setCategories] = useState<string[]>(DEFAULT_CATEGORIES);
+  const { confirm, ConfirmDialog } = useConfirm();
+  const { alert, AlertDialog } = useAlert();
 
   useEffect(() => {
     fetchProducts();
@@ -128,7 +69,7 @@ export default function ShoppingPoolPage() {
     const cleanCat = newCatInput.trim();
     if (!cleanCat) return;
     if (categories.includes(cleanCat)) {
-      alert("קטגוריה זו כבר קיימת!");
+      await alert({ title: "שגיאה", message: "קטגוריה זו כבר קיימת!" });
       return;
     }
     const updatedCats = [...categories, cleanCat];
@@ -138,7 +79,7 @@ export default function ShoppingPoolPage() {
       setNewCatInput("");
     } catch (err) {
       console.error("Error adding category:", err);
-      alert("שגיאה בהוספת קטגוריה");
+      await alert({ title: "שגיאה", message: "שגיאה בהוספת קטגוריה", type: "danger" });
     }
   };
 
@@ -149,7 +90,7 @@ export default function ShoppingPoolPage() {
       return;
     }
     if (categories.includes(trimmedNew)) {
-      alert("קטגוריה עם שם זה כבר קיימת!");
+      await alert({ title: "שגיאה", message: "קטגוריה עם שם זה כבר קיימת!" });
       return;
     }
     const updatedCats = categories.map(c => c === oldName ? trimmedNew : c);
@@ -169,30 +110,34 @@ export default function ShoppingPoolPage() {
       await syncCategoryInRequests(oldName, trimmedNew);
     } catch (err) {
       console.error("Error renaming category:", err);
-      alert("שגיאה בעדכון הקטגוריה");
+      await alert({ title: "שגיאה", message: "שגיאה בעדכון הקטגוריה", type: "danger" });
     }
   };
 
   const handleDeleteCategory = async (catToDelete: string) => {
     if (catToDelete === "כללי") {
-      alert("לא ניתן למחוק את קטגוריית ברירת המחדל 'כללי'");
+      await alert({ title: "לא ניתן", message: "לא ניתן למחוק את קטגוריית ברירת המחדל 'כללי'" });
       return;
     }
     const productsInCat = products.filter(p => p.category === catToDelete);
     if (productsInCat.length > 0) {
-      if (!confirm(`שים לב: ישנם ${productsInCat.length} מוצרים המשויכים לקטגוריה זו. אם תמחק אותה, מוצרים אלו יוצגו תחת 'כללי'. האם להמשיך?`)) {
-        return;
-      }
-      
+      const ok = await confirm({
+        title: "מחיקת קטגוריה",
+        message: `שים לב: ישנם ${productsInCat.length} מוצרים המשויכים לקטגוריה זו. אם תמחק אותה, מוצרים אלו יוצגו תחת 'כללי'. האם להמשיך?`,
+        type: "danger",
+      });
+      if (!ok) return;
+
       const batch = writeBatch(db);
       productsInCat.forEach(p => {
         batch.update(doc(db, "product_pool", p.id), { category: "כללי" });
       });
       await batch.commit();
-      
+
       setProducts(products.map(p => p.category === catToDelete ? { ...p, category: "כללי" } : p));
     } else {
-      if (!confirm(`האם למחוק את הקטגוריה '${catToDelete}'?`)) return;
+      const ok = await confirm({ title: "מחיקת קטגוריה", message: `האם למחוק את הקטגוריה '${catToDelete}'?`, type: "danger" });
+      if (!ok) return;
     }
 
     const updatedCats = categories.filter(c => c !== catToDelete);
@@ -205,7 +150,7 @@ export default function ShoppingPoolPage() {
       await syncCategoryInRequests(catToDelete, "כללי");
     } catch (err) {
       console.error("Error deleting category:", err);
-      alert("שגיאה במחיקת קטגוריה");
+      await alert({ title: "שגיאה", message: "שגיאה במחיקת קטגוריה", type: "danger" });
     }
   };
 
@@ -281,14 +226,14 @@ export default function ShoppingPoolPage() {
         const pairKey = [p1.id, p2.id].sort().join("::");
         if (seen.has(pairKey)) continue;
 
-        const n1 = normalizeHebrewString(p1.name);
-        const n2 = normalizeHebrewString(p2.name);
+        const n1 = normalizeHebrewStrict(p1.name);
+        const n2 = normalizeHebrewStrict(p2.name);
 
         if (n1 === n2) {
           pairs.push({ p1, p2 });
           seen.add(pairKey);
         } else {
-          const dist = getLevenshteinDistance(n1, n2);
+          const dist = getLevenshteinDistanceStrict(n1, n2);
           const minLen = Math.min(n1.length, n2.length);
           const maxDist = minLen >= 6 ? 2 : (minLen >= 4 ? 1 : 0);
           if (dist <= maxDist && minLen > 2) {
@@ -313,7 +258,8 @@ export default function ShoppingPoolPage() {
   };
 
   const handleBulkImport = async () => {
-    if (!confirm("האם לייבא את רשימת מוצרי הבסיס למערכת?")) return;
+    const ok = await confirm({ title: "ייבוא מוצרי בסיס", message: "האם לייבא את רשימת מוצרי הבסיס למערכת?" });
+    if (!ok) return;
     setLoading(true);
     const baseProducts = [
       ["גבינות ומחלבה", "גבינה לבנה 5%"], ["גבינות ומחלבה", "קוטג' 5%"], ["גבינות ומחלבה", "גבינה צהובה פרוסה"],
@@ -362,10 +308,10 @@ export default function ShoppingPoolPage() {
       }
       
       await fetchProducts();
-      alert(`הייבוא הסתיים! נוספו ${addedCount} מוצרים חדשים.`);
+      await alert({ title: "הייבוא הסתיים", message: `הייבוא הסתיים! נוספו ${addedCount} מוצרים חדשים.`, type: "success" });
     } catch (error) {
       console.error("Error importing:", error);
-      alert("שגיאה בייבוא. בדוק חיבור לאינטרנט או הרשאות.");
+      await alert({ title: "שגיאה", message: "שגיאה בייבוא. בדוק חיבור לאינטרנט או הרשאות.", type: "danger" });
     } finally {
       setLoading(false);
     }
@@ -410,14 +356,14 @@ export default function ShoppingPoolPage() {
         const data = XLSX.utils.sheet_to_json(ws) as any[];
 
         if (data.length === 0) {
-          alert("הקובץ ריק או לא תקין.");
+          await alert({ title: "קובץ לא תקין", message: "הקובץ ריק או לא תקין." });
           setLoading(false);
           return;
         }
 
         const hasProduct = data.some(row => row["מוצר"]);
         if (!hasProduct) {
-          alert("קובץ לא תקין. חובה להזין עמודת 'מוצר'.");
+          await alert({ title: "קובץ לא תקין", message: "קובץ לא תקין. חובה להזין עמודת 'מוצר'." });
           setLoading(false);
           return;
         }
@@ -442,11 +388,11 @@ export default function ShoppingPoolPage() {
         }
 
         await fetchProducts();
-        alert(`הייבוא מאקסל הסתיים בהצלחה! נוספו/עודכנו ${addedCount} מוצרים במאגר.`);
+        await alert({ title: "הייבוא הסתיים", message: `הייבוא מאקסל הסתיים בהצלחה! נוספו/עודכנו ${addedCount} מוצרים במאגר.`, type: "success" });
         e.target.value = "";
       } catch (err) {
         console.error("Error importing xlsx pool:", err);
-        alert("שגיאה בקריאת קובץ האקסל.");
+        await alert({ title: "שגיאה", message: "שגיאה בקריאת קובץ האקסל.", type: "danger" });
       } finally {
         setLoading(false);
       }
@@ -460,7 +406,7 @@ export default function ShoppingPoolPage() {
     if (!cleanName) return;
 
     if (cleanName.includes(",") || cleanName.includes("،")) {
-      alert("אין להוסיף כמה מוצרים מופרדים בפסיקים במכה אחת. יש להוסיף כל מוצר בנפרד!");
+      await alert({ title: "שגיאה", message: "אין להוסיף כמה מוצרים מופרדים בפסיקים במכה אחת. יש להוסיף כל מוצר בנפרד!" });
       return;
     }
 
@@ -485,7 +431,8 @@ export default function ShoppingPoolPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("האם למחוק מוצר זה מהפול?")) return;
+    const ok = await confirm({ title: "מחיקת מוצר", message: "האם למחוק מוצר זה מהפול?", type: "danger" });
+    if (!ok) return;
     try {
       await deleteDoc(doc(db, "product_pool", id));
       setProducts(products.filter(p => p.id !== id));
@@ -1082,6 +1029,8 @@ export default function ShoppingPoolPage() {
           )}
         </AnimatePresence>
       </main>
+      <ConfirmDialog />
+      <AlertDialog />
     </RoleGuard>
   );
 }

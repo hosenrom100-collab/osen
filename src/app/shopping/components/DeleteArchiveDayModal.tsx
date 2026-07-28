@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Calendar, Trash2, X, Loader2, Package, ArrowRight } from "lucide-react";
 import { format } from "date-fns";
 import { ShoppingRequest } from "../types";
+import { useFocusTrap } from "@/hooks/useFocusTrap";
 
 export interface DeleteArchiveDayModalProps {
   isOpen: boolean;
@@ -37,6 +38,9 @@ export function DeleteArchiveDayModal({ isOpen, onClose, archivedRequests, onDel
       .map(([date, count]) => ({ date, count }));
   }, [archivedRequests]);
 
+  const dialogTitleId = "delete-archive-day-title";
+  const containerRef = useFocusTrap<HTMLDivElement>(isOpen);
+
   if (!isOpen) return null;
 
   const resetLocalState = () => {
@@ -52,10 +56,6 @@ export function DeleteArchiveDayModal({ isOpen, onClose, archivedRequests, onDel
 
   const handleConfirmDelete = async () => {
     if (!selectedDate) return;
-    if (password.trim() !== "3015") {
-      setError("סיסמת מנהל שגויה!");
-      return;
-    }
     setDeleting(true);
     try {
       const result = await onDeleteDay(selectedDate, password.trim());
@@ -81,22 +81,31 @@ export function DeleteArchiveDayModal({ isOpen, onClose, archivedRequests, onDel
           className="absolute inset-0 bg-black/60 backdrop-blur-sm"
         />
         <motion.div
+          ref={containerRef}
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, scale: 0.95 }}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby={dialogTitleId}
+          tabIndex={-1}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") handleClose();
+          }}
           className="relative bg-[var(--surface)] border border-[var(--border)] rounded-[2.5rem] w-full max-w-md p-6 shadow-2xl flex flex-col max-h-[85vh] text-right"
           dir="rtl"
         >
           <div className="flex items-center justify-between mb-4 border-b border-[var(--border)] pb-3 shrink-0">
-            <h3 className="text-lg font-black text-rose-500 flex items-center gap-2">
-              <Calendar className="w-5 h-5 text-rose-500" />
+            <h3 id={dialogTitleId} className="text-lg font-black text-rose-500 flex items-center gap-2">
+              <Calendar className="w-5 h-5 text-rose-500" aria-hidden="true" />
               <span>מחיקת יום מהארכיון</span>
             </h3>
             <button
               onClick={handleClose}
+              aria-label="סגור"
               className="p-1.5 rounded-full hover:bg-[var(--foreground)]/5 text-[var(--muted)] cursor-pointer border-none bg-transparent"
             >
-              <X className="w-5 h-5" />
+              <X className="w-5 h-5" aria-hidden="true" />
             </button>
           </div>
 
@@ -138,19 +147,22 @@ export function DeleteArchiveDayModal({ isOpen, onClose, archivedRequests, onDel
               </p>
 
               <div>
-                <label className="text-xs font-bold text-[var(--foreground)] mb-1.5 block">
+                <label htmlFor="delete-archive-day-password" className="text-xs font-bold text-[var(--foreground)] mb-1.5 block">
                   אנא הזן סיסמת מנהל לאישור:
                 </label>
                 <input
+                  id="delete-archive-day-password"
                   type="password"
                   autoFocus
                   value={password}
                   onChange={(e) => { setPassword(e.target.value); setError(""); }}
                   onKeyDown={(e) => { if (e.key === "Enter") handleConfirmDelete(); }}
                   placeholder="הזן סיסמת מנהל..."
+                  aria-invalid={!!error}
+                  aria-describedby={error ? "delete-archive-day-password-error" : undefined}
                   className="w-full bg-[var(--background)] border border-[var(--border)] rounded-xl py-2.5 px-3 text-sm font-bold focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 outline-none text-center tracking-widest text-[var(--foreground)]"
                 />
-                {error && <span className="text-xs text-rose-500 font-bold mt-1.5 block">{error}</span>}
+                {error && <span id="delete-archive-day-password-error" className="text-xs text-rose-500 font-bold mt-1.5 block">{error}</span>}
               </div>
 
               <div className="flex items-center justify-end gap-2 pt-3 border-t border-[var(--border)]">

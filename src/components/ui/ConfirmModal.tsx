@@ -1,7 +1,9 @@
 "use client";
 
+import { useId } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { AlertCircle, X, Loader2 } from "lucide-react";
+import { useFocusTrap } from "@/hooks/useFocusTrap";
 
 interface ConfirmModalProps {
   isOpen: boolean;
@@ -13,6 +15,7 @@ interface ConfirmModalProps {
   cancelLabel?: string;
   type?: "danger" | "info" | "success";
   isLoading?: boolean;
+  hideCancel?: boolean;
 }
 
 export function ConfirmModal({
@@ -24,8 +27,13 @@ export function ConfirmModal({
   confirmLabel = "אישור",
   cancelLabel = "ביטול",
   type = "info",
-  isLoading = false
+  isLoading = false,
+  hideCancel = false
 }: ConfirmModalProps) {
+  const titleId = useId();
+  const messageId = useId();
+  const containerRef = useFocusTrap<HTMLDivElement>(isOpen);
+
   const colors = {
     danger: "bg-rose-500 text-white hover:bg-rose-600 shadow-rose-500/20",
     info: "bg-[var(--foreground)] text-[var(--background)] hover:opacity-90 shadow-black/10",
@@ -51,25 +59,35 @@ export function ConfirmModal({
           />
           
           <motion.div
+            ref={containerRef}
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby={titleId}
+            aria-describedby={messageId}
+            tabIndex={-1}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") onClose();
+            }}
             className="relative w-full max-w-sm bg-[var(--surface)] border border-[var(--border)] rounded-[2.5rem] p-8 shadow-2xl overflow-hidden"
           >
             <button
               onClick={onClose}
+              aria-label={cancelLabel}
               className="absolute top-6 left-6 p-2 rounded-xl hover:bg-[var(--foreground)]/5 text-[var(--muted)] transition-colors"
             >
-              <X className="w-5 h-5" />
+              <X className="w-5 h-5" aria-hidden="true" />
             </button>
 
             <div className="flex flex-col items-center text-center">
               <div className={`w-16 h-16 rounded-[2rem] flex items-center justify-center mb-6 ${iconColors[type]}`}>
-                <AlertCircle className="w-8 h-8" />
+                <AlertCircle className="w-8 h-8" aria-hidden="true" />
               </div>
 
-              <h3 className="text-xl font-black mb-3">{title}</h3>
-              <p className="text-sm text-[var(--muted)] font-bold leading-relaxed mb-8">
+              <h3 id={titleId} className="text-xl font-black mb-3">{title}</h3>
+              <p id={messageId} className="text-sm text-[var(--muted)] font-bold leading-relaxed mb-8">
                 {message}
               </p>
 
@@ -82,13 +100,15 @@ export function ConfirmModal({
                   {isLoading && <Loader2 className="w-4 h-4 animate-spin" />}
                   {confirmLabel}
                 </button>
-                <button
-                  onClick={onClose}
-                  disabled={isLoading}
-                  className="w-full py-4 rounded-2xl font-black text-sm uppercase tracking-widest text-[var(--muted)] hover:bg-[var(--foreground)]/5 transition-all"
-                >
-                  {cancelLabel}
-                </button>
+                {!hideCancel && (
+                  <button
+                    onClick={onClose}
+                    disabled={isLoading}
+                    className="w-full py-4 rounded-2xl font-black text-sm uppercase tracking-widest text-[var(--muted)] hover:bg-[var(--foreground)]/5 transition-all"
+                  >
+                    {cancelLabel}
+                  </button>
+                )}
               </div>
             </div>
             

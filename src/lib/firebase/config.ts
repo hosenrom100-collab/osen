@@ -1,6 +1,8 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
+import {
+  initializeFirestore, getFirestore, persistentLocalCache, persistentMultipleTabManager,
+} from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 import { getMessaging, isSupported } from "firebase/messaging";
 
@@ -16,7 +18,25 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 const auth = getAuth(app);
-const db = getFirestore(app);
+
+// Offline persistence (IndexedDB) with multi-tab support, so staff on an unreliable farm
+// connection keep seeing previously-loaded data and queued writes sync on reconnect.
+// Falls back to plain getFirestore on the server (no IndexedDB there) and if persistence
+// was already initialized by another module in this session.
+const db =
+  typeof window !== "undefined"
+    ? (() => {
+        try {
+          return initializeFirestore(app, {
+            localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
+          });
+        } catch {
+          // Firestore was already initialized elsewhere (e.g. Fast Refresh) — reuse it.
+          return getFirestore(app);
+        }
+      })()
+    : getFirestore(app);
+
 const storage = getStorage(app);
 const googleProvider = new GoogleAuthProvider();
 

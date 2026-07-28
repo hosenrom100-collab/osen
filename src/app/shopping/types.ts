@@ -1,3 +1,5 @@
+import { Timestamp } from "firebase/firestore";
+
 export interface ShoppingRequest {
   id: string;
   name: string;
@@ -6,13 +8,13 @@ export interface ShoppingRequest {
   status: "pending" | "approved" | "purchased" | "archived" | "deleted";
   requestedBy: string;
   requestedByName: string;
-  createdAt: any;
+  createdAt: Timestamp | Date;
   notes?: string;
   priority?: "low" | "normal" | "urgent";
   listType?: "supermarket" | "large";
-  updatedAt?: any;
+  updatedAt?: Timestamp | Date;
   updatedBy?: string;
-  archivedAt?: any;
+  archivedAt?: Timestamp | Date;
   archivedBy?: string;
 }
 
@@ -37,7 +39,7 @@ export interface InventoryItem {
   currentStock: number;
   minStock: number;
   unit: string;
-  lastUpdated?: any;
+  lastUpdated?: Timestamp | Date;
   lastUpdatedBy?: string;
   lastUpdatedByName?: string;
 }
@@ -52,7 +54,7 @@ export interface InventoryLogEntry {
   reason: "manual" | "purchased" | "reorder" | "count" | "consumed";
   updatedBy: string;
   updatedByName: string;
-  timestamp: any;
+  timestamp: Timestamp | Date;
 }
 
 export interface NewProductRequest {
@@ -61,7 +63,7 @@ export interface NewProductRequest {
   category: string;
   requestedBy: string;
   requestedByName: string;
-  createdAt: any;
+  createdAt: Timestamp | Date;
   status: "pending" | "approved" | "rejected";
   notes?: string;
 }
