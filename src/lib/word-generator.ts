@@ -1409,7 +1409,7 @@ export const generateShoppingListWord = (
 
   children.push(createParagraph("בברכה,", { spacingAfter: 60 }));
   children.push(createParagraph("מירב סארמילי", { bold: true, spacingAfter: 30 }));
-  children.push(createParagraph("מנהלת תפעול, חוות רום", { spacingAfter: 30 }));
+  children.push(createParagraph("מנהלת תפעול מרכז חוסן חוות רום", { spacingAfter: 30 }));
 
   return createDocxDocument(children, metadata.logoHeaderData, metadata.logoFooterData);
 };
