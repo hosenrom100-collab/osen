@@ -5,7 +5,7 @@ import { RoleGuard } from "@/components/auth/RoleGuard";
 import { db, storage } from "@/lib/firebase/config";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import {
-  collection, addDoc, getDocs, query, orderBy, doc,
+  collection, addDoc, query, orderBy, doc,
   updateDoc, deleteDoc, onSnapshot, setDoc, getDoc, writeBatch, where,
 } from "firebase/firestore";
 import { 
@@ -31,6 +31,7 @@ import { AddProductOverlay } from "./components/AddProductOverlay";
 import { ShoppingModals } from "./components/ShoppingModals";
 import { AdminProductRequestsModal } from "./components/AdminProductRequestsModal";
 import { DeleteArchiveDayModal } from "./components/DeleteArchiveDayModal";
+import { SmartReorderModal, SmartReorderItem } from "./components/SmartReorderModal";
 
 const normalizeHebrewString = (str: string): string => {
   if (!str) return "";
@@ -114,6 +115,8 @@ export default function ShoppingPage() {
   const [inventoryMap, setInventoryMap] = useState<Record<string, InventoryItem>>({});
   const [editingInvItem, setEditingInvItem] = useState<{ productId: string; name: string; minStock: number; unit: string } | null>(null);
   const [showManageTrackModal, setShowManageTrackModal] = useState(false);
+  const [showSmartReorderModal, setShowSmartReorderModal] = useState(false);
+  const [smartReorderItems, setSmartReorderItems] = useState<SmartReorderItem[]>([]);
 
   // Receipt Modal State
   const [receiptScanOpen, setReceiptScanOpen] = useState(false);
@@ -168,7 +171,12 @@ export default function ShoppingPage() {
       }
     });
 
-    fetchPool();
+    const unsubPool = onSnapshot(collection(db, "product_pool"), (snap) => {
+      const list: Product[] = [];
+      snap.forEach((d) => list.push({ id: d.id, ...d.data() } as Product));
+      list.sort((a, b) => a.category.localeCompare(b.category) || a.name.localeCompare(b.name));
+      setPool(list);
+    });
 
     const q = query(collection(db, "shopping_requests"), orderBy("createdAt", "desc"));
     const unsub = onSnapshot(q, (snap) => {
@@ -187,6 +195,7 @@ export default function ShoppingPage() {
     });
 
     return () => {
+      unsubPool();
       unsub();
       unsubInv();
     };
@@ -200,14 +209,6 @@ export default function ShoppingPage() {
     });
     return () => unsubPending();
   }, [isAdmin]);
-
-  const fetchPool = async () => {
-    const snap = await getDocs(collection(db, "product_pool"));
-    const list: Product[] = [];
-    snap.forEach((d) => list.push({ id: d.id, ...d.data() } as Product));
-    list.sort((a, b) => a.category.localeCompare(b.category) || a.name.localeCompare(b.name));
-    setPool(list);
-  };
 
   // Inventory Stock Updates with Firestore & Logging
   const updateInventoryStock = async (
@@ -298,49 +299,68 @@ export default function ShoppingPage() {
     }
   };
 
-  // Smart Reorder (Adds all items with stock <= minStock to Shopping List)
-  const handleSmartReorder = async () => {
+  // Smart Reorder — Step 1: build a review list (no writes yet). Items already
+  // sitting in the active shopping list are excluded so they can't be duplicated.
+  const buildSmartReorderReview = (): SmartReorderItem[] => {
     const trackedProducts = pool.filter((p) => p.trackInventory === true);
-    const lowOrOutItems = trackedProducts.filter((p) => {
-      const s = inventoryMap[p.id]?.currentStock ?? 0;
-      const m = inventoryMap[p.id]?.minStock ?? 1;
-      return s <= m;
-    });
+    const activeRequestsList = requests.filter((r) => r.status !== "archived" && r.status !== "deleted");
 
-    if (lowOrOutItems.length === 0) {
+    return trackedProducts
+      .filter((p) => {
+        const s = inventoryMap[p.id]?.currentStock ?? 0;
+        const m = inventoryMap[p.id]?.minStock ?? 1;
+        return s <= m && !findSimilarRequest(p.name, activeRequestsList);
+      })
+      .map((p) => {
+        const inv = inventoryMap[p.id];
+        const currentStock = inv?.currentStock ?? 0;
+        const minStock = inv?.minStock ?? 1;
+        return {
+          productId: p.id,
+          name: p.name,
+          category: p.category || "כללי",
+          unit: inv?.unit || p.defaultUnit || "יחידות",
+          currentStock,
+          minStock,
+          // Suggest restocking back up to the minimum threshold, not a flat "1"
+          suggestedQty: Math.max(1, minStock - currentStock),
+        };
+      });
+  };
+
+  const openSmartReorderReview = () => {
+    const reviewItems = buildSmartReorderReview();
+    if (reviewItems.length === 0) {
       showToast("כל המוצרים במעקב נמצאים ברמת מלאי תקינה!", "success");
       return;
     }
+    setSmartReorderItems(reviewItems);
+    setShowSmartReorderModal(true);
+  };
 
-    const activeRequestsList = requests.filter((r) => r.status !== "archived" && r.status !== "deleted");
-
-    let addedCount = 0;
-    for (const item of lowOrOutItems) {
-      const inv = inventoryMap[item.id];
-      const unit = inv?.unit || item.defaultUnit || "יחידות";
-
-      if (!findSimilarRequest(item.name, activeRequestsList)) {
-        await addDoc(collection(db, "shopping_requests"), {
-          name: item.name,
-          category: item.category || "כללי",
-          quantity: `1 ${unit}`,
-          notes: `הוזמן אוטומטית (מלאי חסר: ${inv?.currentStock ?? 0}/${inv?.minStock ?? 1})`,
-          priority: (inv?.currentStock ?? 0) === 0 ? "urgent" : "normal",
-          status: "approved",
-          requestedBy: user?.uid,
-          requestedByName: user?.displayName || "Smart Reorder",
-          createdAt: new Date(),
-          listType: "supermarket",
-        });
-        addedCount++;
-      }
+  // Smart Reorder — Step 2: user has reviewed/adjusted the list and confirmed it explicitly.
+  const confirmSmartReorder = async (
+    selected: { productId: string; name: string; category: string; unit: string; quantity: number; currentStock: number; minStock: number }[]
+  ) => {
+    for (const item of selected) {
+      const isOut = item.currentStock === 0;
+      await addDoc(collection(db, "shopping_requests"), {
+        name: item.name,
+        category: item.category,
+        quantity: `${item.quantity} ${item.unit}`,
+        notes: isOut
+          ? `הוזמן אוטומטית (אזל במלאי)`
+          : `הוזמן אוטומטית (מלאי נמוך: ${item.currentStock}/${item.minStock})`,
+        priority: isOut ? "urgent" : "normal",
+        status: "approved",
+        requestedBy: user?.uid,
+        requestedByName: user?.displayName || "Smart Reorder",
+        createdAt: new Date(),
+        listType: "supermarket",
+      });
     }
 
-    if (addedCount > 0) {
-      showToast(`התווספו ${addedCount} מוצרים חסרים לרשימת הקניות! 🛒`, "success");
-    } else {
-      showToast("כל המוצרים החסרים כבר קיימים ברשימת הקניות.", "warning");
-    }
+    showToast(`התווספו ${selected.length} מוצרים לרשימת הקניות! 🛒`, "success");
   };
 
   // User request a new product to be added to the pool by admin
@@ -445,7 +465,6 @@ export default function ShoppingPage() {
     }
 
     showToast("המוצר הוזמן בהצלחה!", "success");
-    if (!pool.some((p) => p.name === cleanName) && canPurchase) fetchPool();
   };
 
   const changeStatus = useCallback(
@@ -618,7 +637,6 @@ export default function ShoppingPage() {
         },
         { merge: true }
       );
-      await fetchPool();
     } catch (e) {
       console.error(e);
     }
@@ -629,7 +647,6 @@ export default function ShoppingPage() {
     const nextVal = Math.max(1, currentVal + increment);
     try {
       await updateDoc(doc(db, "product_pool", productId), { recurringQuantity: String(nextVal) });
-      await fetchPool();
     } catch (e) {
       console.error(e);
     }
@@ -681,7 +698,6 @@ export default function ShoppingPage() {
   const toggleTrackInventory = async (productId: string, currentTrack?: boolean) => {
     try {
       await setDoc(doc(db, "product_pool", productId), { trackInventory: !currentTrack }, { merge: true });
-      await fetchPool();
       showToast(!currentTrack ? "המוצר סומן למעקב מלאי" : "המוצר הוסר ממעקב מלאי", "success");
     } catch (e) {
       console.error(e);
@@ -691,7 +707,6 @@ export default function ShoppingPage() {
   const toggleStarProduct = async (productId: string, currentIsStar?: boolean) => {
     try {
       await setDoc(doc(db, "product_pool", productId), { isStar: !currentIsStar }, { merge: true });
-      await fetchPool();
       showToast(!currentIsStar ? "המוצר סומן כמוצר כוכב ⭐" : "המוצר הוסר ממוצרי הכוכב", "success");
     } catch (e) {
       console.error(e);
@@ -1398,7 +1413,7 @@ export default function ShoppingPage() {
                   onUpdateStock={updateInventoryStock}
                   onBatchUpdateStock={batchUpdateStock}
                   onAddToShoppingList={(name, category, unit) => addProduct(name, category, "normal", unit ? `1 ${unit}` : "1")}
-                  onSmartReorder={handleSmartReorder}
+                  onSmartReorder={openSmartReorderReview}
                   onOpenManageTrackModal={() => setShowManageTrackModal(true)}
                   onOpenCategoryModal={() => setIsAddingCat(true)}
                   onOpenSettingsModal={setEditingInvItem}
@@ -1544,6 +1559,13 @@ export default function ShoppingPage() {
           onUpdateQuantity={async (id, newQty) => {
             await updateDoc(doc(db, "shopping_requests", id), { quantity: newQty });
           }}
+        />
+
+        <SmartReorderModal
+          isOpen={showSmartReorderModal}
+          onClose={() => setShowSmartReorderModal(false)}
+          items={smartReorderItems}
+          onConfirm={confirmSmartReorder}
         />
 
         {/* Application Modals */}

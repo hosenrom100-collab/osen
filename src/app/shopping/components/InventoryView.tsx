@@ -530,16 +530,30 @@ export function InventoryView({
                     </div>
 
                     <button
-                      onClick={() => onAddToShoppingList(p.name, p.category, unit)}
-                      className={`px-3 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer shadow-sm active:scale-95 ${
-                        isOut || isLow
-                          ? "bg-indigo-600 hover:bg-indigo-500 !text-white"
-                          : "bg-[var(--foreground)]/5 hover:bg-[var(--foreground)]/10 text-[var(--foreground)] border border-[var(--border)]"
+                      onClick={() => {
+                        if (openReqQty) return;
+                        // Item isn't actually low/out — this would be an unusual manual restock,
+                        // so ask for a moment of thought instead of adding it silently.
+                        if (!isOut && !isLow) {
+                          const confirmed = confirm(
+                            `המוצר "${p.name}" תקין במלאי (${stock} ${unit}) ואינו דורש השלמה כרגע. להוסיף בכל זאת לרשימת הקניות?`
+                          );
+                          if (!confirmed) return;
+                        }
+                        onAddToShoppingList(p.name, p.category, unit);
+                      }}
+                      disabled={!!openReqQty}
+                      className={`px-3 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 shadow-sm active:scale-95 ${
+                        openReqQty
+                          ? "bg-[var(--foreground)]/5 text-[var(--muted)] border border-transparent opacity-50 cursor-not-allowed"
+                          : isOut || isLow
+                          ? "bg-indigo-600 hover:bg-indigo-500 !text-white cursor-pointer"
+                          : "bg-[var(--foreground)]/5 hover:bg-[var(--foreground)]/10 text-[var(--foreground)] border border-[var(--border)] cursor-pointer"
                       }`}
-                      title="הוסף מוצר זה לרשימת הקניות"
+                      title={openReqQty ? "המוצר כבר ברשימת הקניות" : "הוסף מוצר זה לרשימת הקניות"}
                     >
-                      <ShoppingCart className="w-3.5 h-3.5" />
-                      <span>הוסף לקניות</span>
+                      {openReqQty ? <Check className="w-3.5 h-3.5" /> : <ShoppingCart className="w-3.5 h-3.5" />}
+                      <span>{openReqQty ? "כבר ברשימה" : "הוסף לקניות"}</span>
                     </button>
                   </div>
                 </div>
