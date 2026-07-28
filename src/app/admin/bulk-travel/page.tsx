@@ -13,7 +13,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import * as XLSX from "xlsx";
 import JSZip from "jszip";
-import { getDay, parseISO, format, subMonths } from "date-fns";
+import { getDay, parseISO, format, subMonths, isValid } from "date-fns";
 import { he } from "date-fns/locale";
 import { useAlert } from "@/hooks/useAlert";
 import { useConfirm } from "@/hooks/useConfirm";
@@ -129,9 +129,42 @@ function buildAttendanceDatesStr(qualifyingDates: string[], months: string[]): s
       .filter(d => d.startsWith(m))
       .map(d => parseInt(d.split("-")[2], 10));
     return daysInMonth.length > 0
-      ? `${daysInMonth.join(",")} לחודש ${monthName} ${year}`
+      ? `${daysInMonth.join(",")} לחודש ${monthName} ${year} (סה"כ ${daysInMonth.length} ימים)`
       : `לא נמצאו ימי נוכחות התואמים את ימי הפעילות לחודש ${monthName} ${year}`;
   }).join("\n");
+}
+
+// Full Hebrew textual date (e.g. "יום שלישי 4 מאי 2026") — avoids the RTL/LTR digit
+// reversal that a numeric dd/MM/yyyy or dd-MM-yyyy string triggers inside RTL text,
+// matching the convention already used for this field in patients/[id]/page.tsx.
+function buildLetterDateHebrew(d: Date): string {
+  const dayName = DAY_NAMES[getDay(d)];
+  const dayNum = d.getDate();
+  const monthName = HEBREW_MONTHS[d.getMonth()];
+  const yearNum = d.getFullYear();
+  return `יום ${dayName} ${dayNum} ${monthName} ${yearNum}`;
+}
+
+// dd.MM.yyyy (dots, not dashes/slashes) — matches the format used for this same
+// field in patients/[id]/page.tsx, which avoids the bidi reversal dashes trigger.
+function formatStartDateHebrew(raw?: string): string {
+  if (!raw) return "";
+  try {
+    const parsed = parseISO(raw);
+    return isValid(parsed) ? format(parsed, "dd.MM.yyyy") : raw;
+  } catch {
+    return raw;
+  }
+}
+
+// Replaces a numeric "9:00-15:00" dash-range with "9:00 עד 15:00" — a bare dash
+// between two LTR time tokens inside RTL text renders reversed; the Hebrew word
+// "עד" resets direction naturally and reads correctly.
+function formatHoursHebrew(hours?: string): string {
+  const h = (hours || "9:00-15:00").trim();
+  const idx = h.indexOf("-");
+  if (idx === -1) return h;
+  return `${h.slice(0, idx).trim()} עד ${h.slice(idx + 1).trim()}`;
 }
 
 function monthSuffixFromMonths(months: string[]): string {
@@ -338,18 +371,20 @@ export default function BulkTravelPage() {
     for (const row of rowsToGenerate) {
       try {
         const data: TravelReimbData = {
-          date: format(new Date(), "dd/MM/yyyy"),
+          date: buildLetterDateHebrew(new Date()),
           recipient: "עבור משרד הביטחון - אגף השיקום",
           firstName: row.firstName,
           lastName: row.fullLastName,
           idNumber: row.idNumber,
-          startDate: row.startDate || "",
+          startDate: formatStartDateHebrew(row.startDate),
           programName: selectedProgram.name,
           activityDays: getProgramDaysText(selectedProgram.activeDays),
-          activityHours: selectedProgram.activityHours,
+          activityHours: formatHoursHebrew(selectedProgram.activityHours),
           activityDetailText: selectedProgram.travelActivityDetail || reportSettings?.travelActivityDetail,
           attendanceDatesStr: buildAttendanceDatesStr(row.qualifyingDates, selectedMonths),
-          totalDays: String(row.qualifyingDates.length),
+          // totalDays intentionally omitted: the shared template renders it as "בחודש זה" (this month),
+          // which is misleading once multiple months are selected — each month's line above already
+          // carries its own subtotal via buildAttendanceDatesStr.
           ...BULK_SIGNATORY,
           managerName: reportSettings?.professionalManagerName,
           managerTitle: reportSettings?.professionalManagerTitle,
