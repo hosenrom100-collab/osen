@@ -339,7 +339,10 @@ export function useShoppingActions(
           addDoc(collection(db, "shopping_requests"), {
             name: item.name,
             category: item.category || "כללי",
-            quantity: item.recurringQuantity || "1",
+            quantity: buildQuantityString(
+              parseFloat(item.recurringQuantity || "1") || 1,
+              item.defaultUnit || "יחידות"
+            ),
             notes: "",
             priority: "normal",
             status: "approved",
