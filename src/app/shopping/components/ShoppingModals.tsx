@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react";
 import { ShoppingRequest, Product, InventoryItem, CutoffConfig } from "../types";
 import { findSimilarProduct } from "../lib/stringUtils";
+import { MEASUREMENT_UNITS } from "../lib/constants";
+import { parseQuantity, buildQuantityString } from "../lib/quantityUtils";
 import { 
   Edit3, Settings, X, Plus, Minus, Trash2, Check, RotateCcw, Download, 
   Receipt, Star, Flame, ShoppingBag, CheckCircle2, Upload, Loader2, Search, MessageSquare, Clock
@@ -145,6 +147,7 @@ export function ShoppingModals({
   const [editName, setEditName] = useState("");
   const [editCat, setEditCat] = useState("");
   const [editQty, setEditQty] = useState("");
+  const [editQtyUnit, setEditQtyUnit] = useState("יחידות");
   const [editNotes, setEditNotes] = useState("");
   const [editPriority, setEditPriority] = useState<"low" | "normal" | "urgent">("normal");
 
@@ -188,9 +191,11 @@ export function ShoppingModals({
 
   useEffect(() => {
     if (editItem) {
+      const { value, unit } = parseQuantity(editItem.quantity);
       setEditName(editItem.name);
       setEditCat(editItem.category);
-      setEditQty(editItem.quantity || "");
+      setEditQty(String(value));
+      setEditQtyUnit(unit);
       setEditNotes(editItem.notes || "");
       setEditPriority(editItem.priority || "normal");
     }
@@ -265,23 +270,38 @@ export function ShoppingModals({
                       type="text"
                       value={editQty}
                       onChange={(e) => setEditQty(e.target.value)}
-                      placeholder="למשל: 1, 2.5, 3"
+                      placeholder="למשל: 1, 2.5, 400"
                       className="w-full bg-[var(--background)] border border-[var(--border)] rounded-xl py-3 px-4 text-sm font-bold focus:outline-none focus:border-indigo-500/50 text-[var(--foreground)]"
                     />
                   </div>
                   <div>
                     <label className="text-[10px] font-black text-[var(--muted)] uppercase tracking-widest mb-1.5 block">
-                      עדיפות
+                      יחידה
                     </label>
                     <select
-                      value={editPriority}
-                      onChange={(e) => setEditPriority(e.target.value as any)}
+                      value={editQtyUnit}
+                      onChange={(e) => setEditQtyUnit(e.target.value)}
                       className="w-full bg-[var(--background)] border border-[var(--border)] rounded-xl py-3 px-4 text-sm font-bold focus:outline-none focus:border-indigo-500/50 text-[var(--foreground)]"
                     >
-                      <option value="normal">רגיל</option>
-                      <option value="urgent">דחוף 🔥</option>
+                      {MEASUREMENT_UNITS.map((u) => (
+                        <option key={u} value={u}>{u}</option>
+                      ))}
                     </select>
                   </div>
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-black text-[var(--muted)] uppercase tracking-widest mb-1.5 block">
+                    עדיפות
+                  </label>
+                  <select
+                    value={editPriority}
+                    onChange={(e) => setEditPriority(e.target.value as any)}
+                    className="w-full bg-[var(--background)] border border-[var(--border)] rounded-xl py-3 px-4 text-sm font-bold focus:outline-none focus:border-indigo-500/50 text-[var(--foreground)]"
+                  >
+                    <option value="normal">רגיל</option>
+                    <option value="urgent">דחוף 🔥</option>
+                  </select>
                 </div>
 
                 <div>
@@ -324,7 +344,9 @@ export function ShoppingModals({
                 <button
                   onClick={() => {
                     if (editItem) {
-                      onUpdateItem(editItem.id, editName, editCat, editQty, editNotes, editPriority);
+                      const numericQty = parseFloat(editQty.replace(",", ".")) || 1;
+                      const finalQty = buildQuantityString(numericQty, editQtyUnit);
+                      onUpdateItem(editItem.id, editName, editCat, finalQty, editNotes, editPriority);
                       setEditItem(null);
                     }
                   }}

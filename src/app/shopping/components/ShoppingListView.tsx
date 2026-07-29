@@ -10,6 +10,7 @@ import {
 import { motion, AnimatePresence, LayoutGroup } from "framer-motion";
 import { CAT_SOLID } from "../lib/constants";
 import { useConfirm } from "@/hooks/useConfirm";
+import { parseQuantity, formatUnitShort, getQuantityStep, steppedQuantity } from "../lib/quantityUtils";
 
 type ShoppingStatus = ShoppingRequest["status"] | "permanently_delete";
 type OnChangeStatus = (id: string, next: ShoppingStatus, extra?: Record<string, unknown>) => void;
@@ -467,16 +468,8 @@ export function ShoppingListView({
 }
 
 const formatQuantityAndUnit = (qtyStr: string) => {
-  if (!qtyStr) return { qty: "1.0", unit: "יח׳" };
-  const trimmed = qtyStr.trim();
-  const match = trimmed.match(/^([\d\.]+)\s*(.*)$/);
-  if (match) {
-    const qty = match[1];
-    let unit = match[2] || "יח׳";
-    if (unit === "יחידות") unit = "יח׳";
-    return { qty, unit };
-  }
-  return { qty: qtyStr, unit: "יח׳" };
+  const { value, unit } = parseQuantity(qtyStr);
+  return { qty: String(value), unit: formatUnitShort(unit) };
 };
 
 const ShoppingItemRow = memo(function ShoppingItemRow({
@@ -506,11 +499,28 @@ const ShoppingItemRow = memo(function ShoppingItemRow({
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [dragOffset, setDragOffset] = useState(0);
+  const [isEditingQty, setIsEditingQty] = useState(false);
+  const [qtyDraft, setQtyDraft] = useState("");
   const isApproved = item.status === "approved" || item.status === "pending";
   const isUrgent = item.priority === "urgent";
   const { confirm, ConfirmDialog } = useConfirm();
 
   const notesToDisplay = effectiveNotes || item.notes;
+  const { value: qtyValue, unit: qtyUnit } = parseQuantity(item.quantity);
+  const qtyStep = getQuantityStep(qtyUnit);
+
+  const startEditingQty = () => {
+    setQtyDraft(String(qtyValue));
+    setIsEditingQty(true);
+  };
+
+  const commitQtyEdit = () => {
+    setIsEditingQty(false);
+    const parsed = parseFloat(qtyDraft.replace(",", "."));
+    if (!Number.isNaN(parsed) && parsed > 0 && parsed !== qtyValue) {
+      onUpdateQuantity(item.id, item.quantity || "1", parsed - qtyValue);
+    }
+  };
 
   const confirmDeleteFromList = async () => {
     const ok = await confirm({
@@ -679,21 +689,45 @@ const ShoppingItemRow = memo(function ShoppingItemRow({
               <div className="flex items-center justify-between gap-2.5 flex-wrap">
                 <div className="flex items-center gap-1.5 bg-[var(--foreground)]/[0.03] border border-[var(--border)] rounded-xl p-1 shadow-sm shrink-0">
                   <button
-                    onClick={() => onUpdateQuantity(item.id, item.quantity || "1", -1)}
+                    onClick={() => onUpdateQuantity(item.id, item.quantity || "1", steppedQuantity(qtyValue, qtyStep, -1) - qtyValue)}
                     className="w-8 h-8 rounded-lg flex items-center justify-center bg-[var(--surface)] hover:bg-[var(--foreground)]/10 text-[var(--muted)] hover:text-[var(--foreground)] border border-[var(--border)] transition-all active:scale-75 shadow-sm cursor-pointer"
-                    title="הפחת כמות"
+                    title={`הפחת ל-${steppedQuantity(qtyValue, qtyStep, -1)} ${formatUnitShort(qtyUnit)}`}
                     aria-label="הפחת כמות"
                   >
                     <Minus className="w-3.5 h-3.5 stroke-[3]" aria-hidden="true" />
                   </button>
-                  <div className="min-w-[36px] text-center px-1">
-                    <span className="text-sm font-black text-[var(--foreground)]">{item.quantity || "1"}</span>
-                    <span className="text-[9px] text-[var(--muted)] block -mt-1 font-bold">יח׳</span>
+                  <div className="min-w-[44px] text-center px-1">
+                    {isEditingQty ? (
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        autoFocus
+                        value={qtyDraft}
+                        onChange={(e) => setQtyDraft(e.target.value)}
+                        onFocus={(e) => e.currentTarget.select()}
+                        onBlur={commitQtyEdit}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") e.currentTarget.blur();
+                          if (e.key === "Escape") setIsEditingQty(false);
+                        }}
+                        className="w-12 bg-[var(--background)] border border-indigo-500/40 rounded-lg text-sm font-black text-center outline-none text-[var(--foreground)]"
+                      />
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={startEditingQty}
+                        className="cursor-pointer hover:bg-[var(--foreground)]/5 rounded-lg px-0.5 -mx-0.5"
+                        title="הקלד/י כמות מדויקת"
+                      >
+                        <span className="text-sm font-black text-[var(--foreground)]">{qtyValue}</span>
+                      </button>
+                    )}
+                    <span className="text-[9px] text-[var(--muted)] block -mt-1 font-bold">{formatUnitShort(qtyUnit)}</span>
                   </div>
                   <button
-                    onClick={() => onUpdateQuantity(item.id, item.quantity || "1", 1)}
+                    onClick={() => onUpdateQuantity(item.id, item.quantity || "1", steppedQuantity(qtyValue, qtyStep, 1) - qtyValue)}
                     className="w-8 h-8 rounded-lg flex items-center justify-center bg-[var(--surface)] hover:bg-[var(--foreground)]/10 text-[var(--muted)] hover:text-[var(--foreground)] border border-[var(--border)] transition-all active:scale-75 shadow-sm cursor-pointer"
-                    title="הוסף כמות"
+                    title={`הוסף עד ${steppedQuantity(qtyValue, qtyStep, 1)} ${formatUnitShort(qtyUnit)}`}
                     aria-label="הוסף כמות"
                   >
                     <Plus className="w-3.5 h-3.5 stroke-[3]" aria-hidden="true" />

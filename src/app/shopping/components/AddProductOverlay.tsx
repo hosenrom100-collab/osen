@@ -39,20 +39,30 @@ export function AddProductOverlay({
   const [addUrgent, setAddUrgent] = useState(false);
   const [addQty, setAddQty] = useState("1");
   const [addUnit, setAddUnit] = useState("יחידות");
+  // Tracks whether the user explicitly picked a unit for this add session, so their
+  // choice isn't silently overridden by a product's default unit once they've set it.
+  const [unitTouched, setUnitTouched] = useState(false);
   const submittingRef = useRef(false);
 
   useEffect(() => {
+    if (unitTouched) return;
     if (inputVal.trim()) {
       const match = pool.find((p) => p.name.trim().toLowerCase() === inputVal.trim().toLowerCase());
       if (match && match.defaultUnit) {
         setAddUnit(match.defaultUnit);
       }
     }
-  }, [inputVal, pool]);
+  }, [inputVal, pool, unitTouched]);
 
-  // Reset the submit guard whenever the overlay is (re)opened
+  // Reset the qty/unit picker and the submit guard whenever the overlay is (re)opened,
+  // so a previous add's quantity/unit doesn't leak into the next one.
   useEffect(() => {
-    if (isOpen) submittingRef.current = false;
+    if (isOpen) {
+      submittingRef.current = false;
+      setAddQty("1");
+      setAddUnit("יחידות");
+      setUnitTouched(false);
+    }
   }, [isOpen]);
 
   if (!isOpen) return null;
@@ -193,7 +203,7 @@ export function AddProductOverlay({
                       onClick={() => {
                         if (!inList && !submittingRef.current) {
                           submittingRef.current = true;
-                          const unitToUse = starItem.defaultUnit || addUnit;
+                          const unitToUse = unitTouched ? addUnit : starItem.defaultUnit || addUnit;
                           const finalQty = unitToUse === "יחידות" ? addQty : `${addQty} ${unitToUse}`;
                           onAddProduct(starItem.name, starItem.category, addUrgent ? "urgent" : "normal", finalQty, starItem.defaultNotes);
                           setInputVal("");
@@ -237,7 +247,10 @@ export function AddProductOverlay({
               </label>
               <select
                 value={addUnit}
-                onChange={(e) => setAddUnit(e.target.value)}
+                onChange={(e) => {
+                  setAddUnit(e.target.value);
+                  setUnitTouched(true);
+                }}
                 className="w-full bg-[var(--background)] border border-[var(--border)] rounded-xl py-2.5 px-3 text-sm font-bold focus:outline-none focus:border-indigo-500/40 text-right cursor-pointer text-[var(--foreground)]"
               >
                 {MEASUREMENT_UNITS.map((u) => (
@@ -301,7 +314,7 @@ export function AddProductOverlay({
                   onClick={() => {
                     if (!inList && !submittingRef.current) {
                       submittingRef.current = true;
-                      const unitToUse = p.defaultUnit || addUnit;
+                      const unitToUse = unitTouched ? addUnit : p.defaultUnit || addUnit;
                       const finalQty = unitToUse === "יחידות" ? addQty : `${addQty} ${unitToUse}`;
                       onAddProduct(p.name, p.category, addUrgent ? "urgent" : "normal", finalQty, p.defaultNotes);
                       setInputVal("");
@@ -320,9 +333,19 @@ export function AddProductOverlay({
                 >
                   <div className="flex flex-col items-start gap-0.5">
                     <span className="text-sm font-bold text-[var(--foreground)]">{p.name}</span>
-                    <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-md ${CAT_COLOR[p.category] || CAT_COLOR["כללי"]}`}>
-                      {p.category}
-                    </span>
+                    <div className="flex items-center gap-1">
+                      <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-md ${CAT_COLOR[p.category] || CAT_COLOR["כללי"]}`}>
+                        {p.category}
+                      </span>
+                      {p.defaultUnit && p.defaultUnit !== "יחידות" && !unitTouched && (
+                        <span
+                          className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-indigo-500/10 text-indigo-500 border border-indigo-500/20"
+                          title="יחידת המידה שתישמר לפריט זה"
+                        >
+                          יתווסף ב{p.defaultUnit}
+                        </span>
+                      )}
+                    </div>
                   </div>
                   {inList ? <CheckCircle2 className="w-5 h-5 text-emerald-500" /> : <Plus className="w-4 h-4 text-[var(--muted)]" />}
                 </button>

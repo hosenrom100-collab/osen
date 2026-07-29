@@ -8,6 +8,7 @@ import { sendPush } from "@/lib/notify";
 import { ShoppingRequest, Product, InventoryItem, CutoffConfig } from "../types";
 import { logInventoryChange } from "../lib/inventory-logger";
 import { normalizeHebrewStrict, findSimilarRequestStrict } from "../lib/stringUtils";
+import { parseQuantity, buildQuantityString } from "../lib/quantityUtils";
 
 export function useShoppingActions(
   user: User | null,
@@ -229,9 +230,9 @@ export function useShoppingActions(
   );
 
   const updateQuantity = async (id: string, currentQtyStr: string, increment: number) => {
-    const currentVal = parseFloat(currentQtyStr) || 1;
-    const nextVal = Math.max(1, currentVal + increment);
-    const nextQty = String(nextVal);
+    const { value, unit } = parseQuantity(currentQtyStr);
+    const nextVal = Math.max(1, value + increment);
+    const nextQty = buildQuantityString(nextVal, unit);
     try {
       await updateDoc(doc(db, "shopping_requests", id), {
         quantity: nextQty,
