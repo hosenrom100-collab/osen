@@ -675,7 +675,7 @@ export default function AttendanceMatrixPage() {
   const months = Array.from({ length: 12 }, (_, i) => i);
 
   return (
-    <RoleGuard allowedRoles={["admin", "manager", "social_worker", "instructor", "employee"]}>
+    <RoleGuard allowedRoles={["admin", "manager", "social_worker", "instructor", "employee", "logistics"]}>
       <MobileFriendlyGuard
         title="ניהול נוכחות מותאם למחשב"
         description="מטריצת הנוכחות המלאה מיועדת למסכים רחבים. לנוחיותך, ריכזנו כאן את סיכום הנוכחים של היום ועדכון מהיר לנייד."
