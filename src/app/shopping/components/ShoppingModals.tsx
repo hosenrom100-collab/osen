@@ -62,6 +62,7 @@ interface ShoppingModalsProps {
   showArchivePrompt: boolean;
   setShowArchivePrompt: (val: boolean) => void;
   sessionPurchasedCount: number;
+  hasRemainingActiveItems?: boolean;
   onArchiveCurrentSession: () => void;
 
   actionsMenuOpen: boolean;
@@ -116,6 +117,7 @@ export function ShoppingModals({
   showArchivePrompt,
   setShowArchivePrompt,
   sessionPurchasedCount,
+  hasRemainingActiveItems,
   onArchiveCurrentSession,
   actionsMenuOpen,
   setActionsMenuOpen,
@@ -871,12 +873,16 @@ export function ShoppingModals({
                 </div>
                 <div>
                   <h3 className="text-lg font-black text-[var(--foreground)]">סיום הרכישה הנוכחית</h3>
-                  <p className="text-xs text-[var(--muted)] font-bold">כל המוצרים סומנו כנקנו!</p>
+                  <p className="text-xs text-[var(--muted)] font-bold">
+                    {hasRemainingActiveItems ? "חלק מהמוצרים נרכשו" : "כל המוצרים סומנו כנקנו!"}
+                  </p>
                 </div>
               </div>
 
               <p className="text-sm font-bold text-[var(--foreground)]/80 mb-6 leading-relaxed">
-                האם ברצונך להעביר את {sessionPurchasedCount} המוצרים שנקנו לארכיון הרכישות הכללי ולנקות את הרשימה הפעילה?
+                {hasRemainingActiveItems
+                  ? `האם ברצונך להעביר את ${sessionPurchasedCount} המוצרים שנקנו לארכיון הרכישות הכללי ולנקות אותם מהרשימה הפעילה? (שאר המוצרים שלא נקנו יישארו ברשימה)`
+                  : `האם ברצונך להעביר את ${sessionPurchasedCount} המוצרים שנקנו לארכיון הרכישות הכללי ולנקות את הרשימה הפעילה?`}
               </p>
 
               <div className="flex gap-3">

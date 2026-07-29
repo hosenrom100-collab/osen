@@ -262,10 +262,12 @@ export function useShoppingActions(
     }
   };
 
-  const archiveCurrentSession = async () => {
+  const archiveCurrentSession = async (onlyPurchased = false) => {
     const sessionItemsToArchive = requests.filter(
       (r) =>
-        (r.status === "purchased" || r.status === "approved" || r.status === "pending" || r.status === "deleted") &&
+        (onlyPurchased
+          ? r.status === "purchased" || r.status === "deleted"
+          : r.status === "purchased" || r.status === "approved" || r.status === "pending" || r.status === "deleted") &&
         (listType === "large" ? r.listType === "large" : r.listType !== "large")
     );
     if (sessionItemsToArchive.length === 0) return;

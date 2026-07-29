@@ -759,7 +759,8 @@ export default function ShoppingPage() {
           showArchivePrompt={showArchivePrompt}
           setShowArchivePrompt={setShowArchivePrompt}
           sessionPurchasedCount={sessionPurchased.length}
-          onArchiveCurrentSession={archiveCurrentSession}
+          hasRemainingActiveItems={activeRequests.length > 0}
+          onArchiveCurrentSession={() => archiveCurrentSession(true)}
           actionsMenuOpen={actionsMenuOpen}
           setActionsMenuOpen={setActionsMenuOpen}
           listType={listType}
