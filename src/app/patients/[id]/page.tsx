@@ -273,7 +273,7 @@ export default function PatientDetailPage() {
 
   // Enriched parameters for stay certificate
   const [stayProgramTrack, setStayProgramTrack] = useState("שיקום תעסוקתי");
-  const [stayFundingSource, setStayFundingSource] = useState("משרד הביטחון / סל שיקום");
+  const [stayFundingSource, setStayFundingSource] = useState("");
   const [staySpecialRemarks, setStaySpecialRemarks] = useState("");
 
   const [reportSettings, setReportSettings] = useState<{
@@ -288,7 +288,10 @@ export default function PatientDetailPage() {
 
   // Periodic report specific states (Transient, not saved to DB)
   const [showPeriodicModal, setShowPeriodicModal] = useState(false);
-  const [periodicStep, setPeriodicStep] = useState<"survey" | "form" | "preview">("survey");
+  const [periodicStep, setPeriodicStep] = useState<"input" | "preview">("input");
+  const [periodicFormRevealed, setPeriodicFormRevealed] = useState(false);
+  const [periodicEnriching, setPeriodicEnriching] = useState(false);
+  const [periodicEnrichNotes, setPeriodicEnrichNotes] = useState("");
   const [periodicReportType, setPeriodicReportType] = useState<"דו\"ח השמה" | "דו\"ח עזיבה" | "דו\"ח חצי שנתי" | "דו\"ח סיכום תקופה" | "בקשה להארכה">("דו\"ח השמה");
   const [periodicLetterDate, setPeriodicLetterDate] = useState("");
   const [periodicIdNumber, setPeriodicIdNumber] = useState("");
@@ -326,7 +329,9 @@ export default function PatientDetailPage() {
   const [functionalFreeText, setFunctionalFreeText] = useState("");
 
   // Pre-evaluation survey step & shared participant profile (reused across functional / periodic / rehab-plan wizards)
-  const [functionalStep, setFunctionalStep] = useState<"survey" | "editor">("survey");
+  const [functionalFormRevealed, setFunctionalFormRevealed] = useState(false);
+  const [functionalEnriching, setFunctionalEnriching] = useState(false);
+  const [functionalEnrichNotes, setFunctionalEnrichNotes] = useState("");
   const [profile, setProfile] = useState<ParticipantProfile>(EMPTY_PROFILE);
 
   // Rehab plan specific states (Transient, not saved to DB)
@@ -697,7 +702,7 @@ export default function PatientDetailPage() {
     setStaySignatoryTitle(signatureTitle || "מנהלת תפעול מרכז חוסן");
     setStaySignatoryOrg("חוות רום");
     setStayProgramTrack("");
-    setStayFundingSource("משרד הביטחון / סל שיקום");
+    setStayFundingSource("");
     setStaySpecialRemarks("");
   };
 
@@ -1328,7 +1333,8 @@ export default function PatientDetailPage() {
     setFunctionalSignatoryOrg("חוות רום - מרכז חוסן");
     
     // Reset Survey step & editor text areas (shared "profile" is intentionally NOT reset here)
-    setFunctionalStep("survey");
+    setFunctionalFormRevealed(false);
+    setFunctionalEnrichNotes("");
     setFunctionalTextArea("");
     setSymptomsTextArea("");
     setFamilyTextArea("");
@@ -1346,7 +1352,31 @@ export default function PatientDetailPage() {
     setFamilyTextArea(sections.familyText);
     setProgressTextArea(sections.progressText);
     setRecommendationsTextArea(sections.recommendationsText);
-    setFunctionalStep("editor");
+    setFunctionalFormRevealed(true);
+  };
+
+  const enrichFunctionalSurvey = async () => {
+    if (!patient) return;
+    setFunctionalEnriching(true);
+    try {
+      const res = await fetch("/api/report-enrich", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ profile, reportKind: "functional", additionalNotes: functionalEnrichNotes }),
+      });
+      if (!res.ok) throw new Error("enrich failed");
+      const data = await res.json();
+      setFunctionalTextArea(data.functionalText);
+      setSymptomsTextArea(data.symptomsText);
+      setFamilyTextArea(data.familyText);
+      setProgressTextArea(data.progressText);
+      setRecommendationsTextArea(data.recommendationsText);
+      setFunctionalFormRevealed(true);
+    } catch {
+      applyFunctionalSurvey();
+    } finally {
+      setFunctionalEnriching(false);
+    }
   };
 
   const executeFunctionalWordGeneration = async () => {
@@ -1402,7 +1432,9 @@ export default function PatientDetailPage() {
   const initPeriodicFields = () => {
     if (!patient) return;
 
-    setPeriodicStep("survey");
+    setPeriodicStep("input");
+    setPeriodicFormRevealed(false);
+    setPeriodicEnrichNotes("");
 
     // Date: today
     const today = new Date();
@@ -1466,7 +1498,30 @@ export default function PatientDetailPage() {
       }
     }
     setPeriodicRecommendations(defaultRec);
-    setPeriodicStep("form");
+    setPeriodicFormRevealed(true);
+  };
+
+  const enrichPeriodicSurvey = async () => {
+    if (!patient) return;
+    setPeriodicEnriching(true);
+    try {
+      const res = await fetch("/api/report-enrich", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ profile, reportKind: "periodic", periodicReportType, additionalNotes: periodicEnrichNotes }),
+      });
+      if (!res.ok) throw new Error("enrich failed");
+      const data = await res.json();
+      setPeriodicRehabDescription(data.rehabDescription);
+      setPeriodicSummaryProcess(data.summaryProcess);
+      setPeriodicRecommendations(data.recommendations);
+      setPeriodicNextPeriodGoal(data.nextPeriodGoal);
+      setPeriodicFormRevealed(true);
+    } catch {
+      applyPeriodicSurvey();
+    } finally {
+      setPeriodicEnriching(false);
+    }
   };
 
   const executePeriodicWordGeneration = async () => {
@@ -1640,8 +1695,6 @@ export default function PatientDetailPage() {
                 </div>
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[8px] md:text-[10px] text-slate-400 font-bold uppercase tracking-widest">
                   <span className="text-emerald-600/80">{fullGroupName}</span>
-                  <span className="w-0.5 h-0.5 rounded-full bg-slate-200" />
-                  <span className="shrink-0">{patient.idNumber}</span>
                 </div>
               </div>
             </div>
@@ -1759,17 +1812,6 @@ export default function PatientDetailPage() {
           {/* ── Tabs ── */}
           <div className="flex bg-[var(--foreground)]/5 p-1.5 rounded-2xl border border-[var(--border)] mb-6 w-full md:w-fit overflow-x-auto no-scrollbar touch-pan-x gap-1">
              {(() => {
-               const pIds = patient?.programIds || (patient?.programId ? [patient.programId] : []);
-               const patientProgs = programs.filter(p => pIds.includes(p.id));
-               const hasExclusions = patientProgs.some(p => 
-                 p.excludeRehabPlan || 
-                 p.excludeConfidentialityWaiver || 
-                 p.excludePersonalDetailsForm || 
-                 p.excludeExtensionSent || 
-                 p.excludeExtensionReceived || 
-                 p.excludeSummaryReport
-               );
-
                return [
                  { id: "overview", label: "סקירה", icon: Info },
                  { id: "attendance", label: "נוכחות", icon: History },
@@ -1777,7 +1819,6 @@ export default function PatientDetailPage() {
                  { id: "reports", label: "דוחות", icon: FileText },
                ].filter(tab => {
                  if (role === "logistics" && (tab.id === "overview" || tab.id === "reports")) return false;
-                 if (tab.id === "reports" && hasExclusions) return false;
                  return true;
                }).map((tab) => (
                  <button 
@@ -1830,10 +1871,6 @@ export default function PatientDetailPage() {
                              <div>
                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-0.5">שם מלא</p>
                                <p className="font-bold text-slate-700">{patient.firstName} {patient.lastName}</p>
-                             </div>
-                             <div>
-                               <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-0.5">מספר ת.ז.</p>
-                               <p className="font-bold text-slate-700">{patient.idNumber || "—"}</p>
                              </div>
                              <div>
                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-0.5">טלפון</p>
@@ -4009,29 +4046,19 @@ export default function PatientDetailPage() {
                         הפקת דו״ח תקופתי
                       </h3>
                       <p className="text-[9px] md:text-[10px] text-slate-400 font-bold uppercase tracking-wider">
-                        {periodicStep === "survey" && "שלב א׳: שאלון הערכה מהיר להתאמת תוכן"}
-                        {periodicStep === "form" && "שלב ב׳: עריכת פרטי הדו״ח התקופתי"}
-                        {periodicStep === "preview" && "שלב ג׳: תצוגה מקדימה ואישור סופי"}
+                        {periodicStep === "input" && "שלב א׳: שאלון ופרטי הדו״ח"}
+                        {periodicStep === "preview" && "שלב ב׳: תצוגה מקדימה ואישור סופי"}
                       </p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
                     {periodicStep === "preview" && (
                       <button
-                        onClick={() => setPeriodicStep("form")}
+                        onClick={() => setPeriodicStep("input")}
                         className="px-3 py-1.5 hover:bg-slate-100 text-violet-600 rounded-xl text-xs font-black transition-all border border-slate-200 flex items-center gap-1 cursor-pointer border-none shrink-0"
                       >
                         <ArrowLeft className="w-3.5 h-3.5 rotate-180" />
                         חזור לעריכה
-                      </button>
-                    )}
-                    {periodicStep === "form" && (
-                      <button
-                        onClick={() => setPeriodicStep("survey")}
-                        className="px-3 py-1.5 hover:bg-slate-100 text-violet-600 rounded-xl text-xs font-black transition-all border border-slate-200 flex items-center gap-1 cursor-pointer border-none shrink-0"
-                      >
-                        <ArrowLeft className="w-3.5 h-3.5 rotate-180" />
-                        חזור לשאלון
                       </button>
                     )}
                     <button
@@ -4046,26 +4073,24 @@ export default function PatientDetailPage() {
                 {/* Stepper Indicator */}
                 <div className="flex items-center justify-center gap-2 mb-6 select-none max-w-md mx-auto">
                   {[
-                    { step: "survey", label: "שאלון" },
-                    { step: "form", label: "עריכה" },
+                    { step: "input", label: "שאלון ופרטים" },
                     { step: "preview", label: "תצוגה מקדימה" }
                   ].map((s, idx, arr) => (
                     <div key={s.step} className="flex items-center">
                       <button
                         type="button"
                         onClick={() => {
-                          if (s.step === "survey") setPeriodicStep("survey");
-                          else if (s.step === "form" && (periodicStep === "form" || periodicStep === "preview")) setPeriodicStep("form");
+                          if (s.step === "input") setPeriodicStep("input");
                           else if (s.step === "preview" && periodicStep === "preview") setPeriodicStep("preview");
                         }}
-                        disabled={s.step === "preview" && periodicStep === "survey"}
+                        disabled={s.step === "preview" && periodicStep !== "preview"}
                         className="flex items-center gap-1.5 cursor-pointer bg-transparent border-none outline-none p-0 disabled:opacity-40 disabled:cursor-not-allowed"
                       >
                         <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-black transition-all ${
-                          periodicStep === s.step 
-                            ? "bg-violet-500 text-white shadow-sm shadow-violet-500/20" 
-                            : s.step === "survey" || (s.step === "form" && periodicStep === "preview")
-                              ? "bg-violet-100 text-violet-700" 
+                          periodicStep === s.step
+                            ? "bg-violet-500 text-white shadow-sm shadow-violet-500/20"
+                            : s.step === "input"
+                              ? "bg-violet-100 text-violet-700"
                               : "bg-slate-100 text-slate-400"
                         }`}>
                           {idx + 1}
@@ -4078,9 +4103,7 @@ export default function PatientDetailPage() {
                       </button>
                       {idx < arr.length - 1 && (
                         <div className={`w-8 md:w-12 h-0.5 mx-2 rounded ${
-                          (s.step === "survey" && (periodicStep === "form" || periodicStep === "preview"))
-                            ? "bg-violet-200"
-                            : "bg-slate-100"
+                          periodicStep === "preview" ? "bg-violet-200" : "bg-slate-100"
                         }`} />
                       )}
                     </div>
@@ -4089,103 +4112,147 @@ export default function PatientDetailPage() {
 
                 {/* Step Content */}
                 <div className="space-y-4 max-h-[50vh] overflow-y-auto px-1 scrollbar-thin">
-                  {periodicStep === "survey" ? (
+                  {periodicStep === "input" ? (
+                    <div className="space-y-6">
                     <ParticipantSurveyStep
                       profile={profile}
                       onChange={setProfile}
                       onSubmit={applyPeriodicSurvey}
                       onCancel={() => setShowPeriodicModal(false)}
+                      onEnrich={enrichPeriodicSurvey}
+                      enriching={periodicEnriching}
+                      notes={periodicEnrichNotes}
+                      onNotesChange={setPeriodicEnrichNotes}
                     />
-                  ) : periodicStep === "form" ? (
-                    <div className="space-y-4">
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div className="space-y-1.5">
-                          <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">סוג הדו״ח:</label>
-                          <select
-                            value={periodicReportType}
-                            onChange={(e: any) => setPeriodicReportType(e.target.value)}
-                            className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-2.5 text-xs outline-none focus:border-violet-500 transition-all font-bold"
-                          >
-                            <option value="דו&quot;ח השמה">דו״ח השמה</option>
-                            <option value="דו&quot;ח עזיבה">דו״ח עזיבה</option>
-                            <option value="דו&quot;ח חצי שנתי">דו״ח חצי שנתי</option>
-                            <option value="דו&quot;ח סיכום תקופה">דו״ח סיכום תקופה</option>
-                            <option value="בקשה להארכה">בקשה להארכה</option>
-                          </select>
-                        </div>
-                        <div className="space-y-1.5">
-                          <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">תאריך המכתב:</label>
-                          <input
-                            type="text"
-                            value={periodicLetterDate}
-                            onChange={(e) => setPeriodicLetterDate(e.target.value)}
-                            className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-2.5 text-xs outline-none focus:border-violet-500 transition-all font-bold"
-                          />
-                        </div>
-                        <div className="space-y-1.5">
-                          <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">תעודת זהות:</label>
-                          <input
-                            type="text"
-                            placeholder="000000000"
-                            value={periodicIdNumber}
-                            onChange={(e) => setPeriodicIdNumber(e.target.value)}
-                            className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-2.5 text-xs outline-none focus:border-violet-500 transition-all font-bold"
-                          />
-                        </div>
+                    {periodicFormRevealed && (
+                    <div className="space-y-4 border-t border-slate-100 pt-4">
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">סוג הדו״ח:</label>
+                        <select
+                          value={periodicReportType}
+                          onChange={(e: any) => setPeriodicReportType(e.target.value)}
+                          className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-2.5 text-xs outline-none focus:border-violet-500 transition-all font-bold"
+                        >
+                          <option value="דו&quot;ח השמה">דו״ח השמה</option>
+                          <option value="דו&quot;ח עזיבה">דו״ח עזיבה</option>
+                          <option value="דו&quot;ח חצי שנתי">דו״ח חצי שנתי</option>
+                          <option value="דו&quot;ח סיכום תקופה">דו״ח סיכום תקופה</option>
+                          <option value="בקשה להארכה">בקשה להארכה</option>
+                        </select>
                       </div>
 
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div className="space-y-1.5">
-                          <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">עבור (נמען):</label>
-                          <input
-                            type="text"
-                            value={periodicRecipient}
-                            onChange={(e) => setPeriodicRecipient(e.target.value)}
-                            className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-2.5 text-xs outline-none focus:border-violet-500 transition-all font-bold"
-                          />
-                        </div>
-                        <div className="space-y-1.5">
-                          <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">עו״ס במשרד הביטחון:</label>
-                          <input
-                            type="text"
-                            value={periodicRehabWorker}
-                            onChange={(e) => setPeriodicRehabWorker(e.target.value)}
-                            className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-2.5 text-xs outline-none focus:border-violet-500 transition-all font-bold"
-                          />
-                        </div>
-                        <div className="space-y-1.5">
-                          <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">לשכת מחוז השיקום:</label>
-                          <input
-                            type="text"
-                            value={periodicRehabDistrict}
-                            onChange={(e) => setPeriodicRehabDistrict(e.target.value)}
-                            className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-2.5 text-xs outline-none focus:border-violet-500 transition-all font-bold"
-                          />
-                        </div>
-                      </div>
+                      <details className="bg-slate-50 border border-slate-200 rounded-2xl p-3 group">
+                        <summary className="cursor-pointer text-[10px] font-black uppercase tracking-wider text-slate-500 select-none">
+                          פרטים טכניים (נמען, מזהים, תאריכים)
+                        </summary>
+                        <div className="mt-3 space-y-4">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-1.5">
+                              <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">תאריך המכתב:</label>
+                              <input
+                                type="text"
+                                value={periodicLetterDate}
+                                onChange={(e) => setPeriodicLetterDate(e.target.value)}
+                                className="w-full bg-white border border-slate-200 rounded-2xl px-4 py-2.5 text-xs outline-none focus:border-violet-500 transition-all font-bold"
+                              />
+                            </div>
+                            <div className="space-y-1.5">
+                              <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">תעודת זהות:</label>
+                              <input
+                                type="text"
+                                placeholder="000000000"
+                                value={periodicIdNumber}
+                                onChange={(e) => setPeriodicIdNumber(e.target.value)}
+                                className="w-full bg-white border border-slate-200 rounded-2xl px-4 py-2.5 text-xs outline-none focus:border-violet-500 transition-all font-bold"
+                              />
+                            </div>
+                          </div>
 
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-1.5">
-                          <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">מתייחס לתקופה מתאריך:</label>
-                          <input
-                            type="text"
-                            placeholder="לדוגמה: 01.06.2026"
-                            value={periodicPeriodStart}
-                            onChange={(e) => setPeriodicPeriodStart(e.target.value)}
-                            className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-2.5 text-xs outline-none focus:border-violet-500 transition-all font-bold"
-                          />
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div className="space-y-1.5">
+                              <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">עבור (נמען):</label>
+                              <input
+                                type="text"
+                                value={periodicRecipient}
+                                onChange={(e) => setPeriodicRecipient(e.target.value)}
+                                className="w-full bg-white border border-slate-200 rounded-2xl px-4 py-2.5 text-xs outline-none focus:border-violet-500 transition-all font-bold"
+                              />
+                            </div>
+                            <div className="space-y-1.5">
+                              <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">עו״ס במשרד הביטחון:</label>
+                              <input
+                                type="text"
+                                value={periodicRehabWorker}
+                                onChange={(e) => setPeriodicRehabWorker(e.target.value)}
+                                className="w-full bg-white border border-slate-200 rounded-2xl px-4 py-2.5 text-xs outline-none focus:border-violet-500 transition-all font-bold"
+                              />
+                            </div>
+                            <div className="space-y-1.5">
+                              <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">לשכת מחוז השיקום:</label>
+                              <input
+                                type="text"
+                                value={periodicRehabDistrict}
+                                onChange={(e) => setPeriodicRehabDistrict(e.target.value)}
+                                className="w-full bg-white border border-slate-200 rounded-2xl px-4 py-2.5 text-xs outline-none focus:border-violet-500 transition-all font-bold"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-1.5">
+                              <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">מתייחס לתקופה מתאריך:</label>
+                              <input
+                                type="text"
+                                placeholder="לדוגמה: 01.06.2026"
+                                value={periodicPeriodStart}
+                                onChange={(e) => setPeriodicPeriodStart(e.target.value)}
+                                className="w-full bg-white border border-slate-200 rounded-2xl px-4 py-2.5 text-xs outline-none focus:border-violet-500 transition-all font-bold"
+                              />
+                            </div>
+                            <div className="space-y-1.5">
+                              <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">עד תאריך:</label>
+                              <input
+                                type="text"
+                                placeholder="לדוגמה: 30.06.2026"
+                                value={periodicPeriodEnd}
+                                onChange={(e) => setPeriodicPeriodEnd(e.target.value)}
+                                className="w-full bg-white border border-slate-200 rounded-2xl px-4 py-2.5 text-xs outline-none focus:border-violet-500 transition-all font-bold"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-1.5">
+                              <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">ימי פעילות:</label>
+                              <input
+                                type="text"
+                                value={periodicWorkDays}
+                                onChange={(e) => setPeriodicWorkDays(e.target.value)}
+                                className="w-full bg-white border border-slate-200 rounded-2xl px-4 py-2.5 text-xs outline-none focus:border-violet-500 transition-all font-bold"
+                              />
+                            </div>
+                            <div className="space-y-1.5">
+                              <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">שעות פעילות:</label>
+                              <input
+                                type="text"
+                                value={periodicWorkHours}
+                                onChange={(e) => setPeriodicWorkHours(e.target.value)}
+                                className="w-full bg-white border border-slate-200 rounded-2xl px-4 py-2.5 text-xs outline-none focus:border-violet-500 transition-all font-bold"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="space-y-1.5">
+                            <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">שם עו״ס החווה (חתימה):</label>
+                            <input
+                              type="text"
+                              value={periodicFarmSocialWorker}
+                              onChange={(e) => setPeriodicFarmSocialWorker(e.target.value)}
+                              className="w-full bg-white border border-slate-200 rounded-2xl px-4 py-2.5 text-xs outline-none focus:border-violet-500 transition-all font-bold"
+                            />
+                          </div>
                         </div>
-                        <div className="space-y-1.5">
-                          <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">עד תאריך:</label>
-                          <input
-                            type="text"
-                            placeholder="לדוגמה: 30.06.2026"
-                            value={periodicPeriodEnd}
-                            onChange={(e) => setPeriodicPeriodEnd(e.target.value)}
-                            className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-2.5 text-xs outline-none focus:border-violet-500 transition-all font-bold"
-                          />
-                        </div>
-                      </div>
+                      </details>
 
                       <div className="space-y-1.5">
                         <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">1. תיאור תוכנית השיקום:</label>
@@ -4227,34 +4294,14 @@ export default function PatientDetailPage() {
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div className="space-y-1.5">
-                          <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">2. מקום ההשמה:</label>
-                          <input
-                            type="text"
-                            value={periodicPlacementLocation}
-                            onChange={(e) => setPeriodicPlacementLocation(e.target.value)}
-                            className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-2.5 text-xs outline-none focus:border-violet-500 transition-all font-bold"
-                          />
-                        </div>
-                        <div className="space-y-1.5">
-                          <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">3. ימי פעילות:</label>
-                          <input
-                            type="text"
-                            value={periodicWorkDays}
-                            onChange={(e) => setPeriodicWorkDays(e.target.value)}
-                            className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-2.5 text-xs outline-none focus:border-violet-500 transition-all font-bold"
-                          />
-                        </div>
-                        <div className="space-y-1.5">
-                          <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">שעות פעילות:</label>
-                          <input
-                            type="text"
-                            value={periodicWorkHours}
-                            onChange={(e) => setPeriodicWorkHours(e.target.value)}
-                            className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-2.5 text-xs outline-none focus:border-violet-500 transition-all font-bold"
-                          />
-                        </div>
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">2. מקום ההשמה:</label>
+                        <input
+                          type="text"
+                          value={periodicPlacementLocation}
+                          onChange={(e) => setPeriodicPlacementLocation(e.target.value)}
+                          className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-2.5 text-xs outline-none focus:border-violet-500 transition-all font-bold"
+                        />
                       </div>
 
                       <div className="space-y-1.5">
@@ -4319,16 +4366,8 @@ export default function PatientDetailPage() {
                           className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-2.5 text-xs outline-none focus:border-violet-500 transition-all font-bold min-h-[60px] text-right resize-y"
                         />
                       </div>
-
-                      <div className="space-y-1.5 border-t border-slate-100 pt-3 mt-2">
-                        <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">שם עו״ס החווה (חתימה):</label>
-                        <input
-                          type="text"
-                          value={periodicFarmSocialWorker}
-                          onChange={(e) => setPeriodicFarmSocialWorker(e.target.value)}
-                          className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-2.5 text-xs outline-none focus:border-violet-500 transition-all font-bold"
-                        />
-                      </div>
+                    </div>
+                    )}
                     </div>
                   ) : (
                     <div className="space-y-3 py-2">
@@ -4391,11 +4430,12 @@ export default function PatientDetailPage() {
 
                 {/* Footer Controls */}
                 <div className="pt-6 border-t border-slate-100 flex flex-row gap-3">
-                  {periodicStep === "form" && (
+                  {periodicStep === "input" && (
                     <>
                       <button
                         onClick={() => setPeriodicStep("preview")}
-                        className="flex-1 bg-violet-500 hover:bg-violet-600 text-white py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-[0.98] cursor-pointer border-none"
+                        disabled={!periodicFormRevealed}
+                        className="flex-1 bg-violet-500 hover:bg-violet-600 disabled:opacity-40 disabled:cursor-not-allowed text-white py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-[0.98] cursor-pointer border-none"
                       >
                         המשך לתצוגה מקדימה
                       </button>
@@ -4419,7 +4459,7 @@ export default function PatientDetailPage() {
                         הורד קובץ Word
                       </button>
                       <button
-                        onClick={() => setPeriodicStep("form")}
+                        onClick={() => setPeriodicStep("input")}
                         className="flex-1 bg-slate-50 hover:bg-slate-100 border border-slate-200 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer"
                       >
                         חזור
@@ -4462,22 +4502,11 @@ export default function PatientDetailPage() {
                         מחולל דו״ח תפקודי אינטראקטיבי
                       </h3>
                       <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
-                        {functionalStep === "survey"
-                          ? "שלב א׳: שאלון הערכה מהיר להתאמת תוכן הדו״ח"
-                          : "שלב ב׳: בחירת היגדים ועריכת הדו״ח הסופי"}
+                        שאלון הערכה ועריכת הדו״ח
                       </p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    {functionalStep === "editor" && (
-                      <button
-                        onClick={() => setFunctionalStep("survey")}
-                        className="px-3 py-1.5 hover:bg-slate-100 text-violet-600 rounded-xl text-xs font-black transition-all border border-slate-200 flex items-center gap-1 cursor-pointer border-none shrink-0"
-                      >
-                        <ArrowLeft className="w-3.5 h-3.5 rotate-180" />
-                        חזור לשאלון
-                      </button>
-                    )}
                     <button
                       onClick={() => setShowFunctionalModal(false)}
                       className="p-2 hover:bg-slate-100 rounded-xl transition-all cursor-pointer border-none"
@@ -4488,19 +4517,23 @@ export default function PatientDetailPage() {
                 </div>
 
                 {/* Modal Body */}
-                {functionalStep === "survey" ? (
+                <div className="flex-1 overflow-y-auto space-y-6 px-1 scrollbar-thin">
                   <ParticipantSurveyStep
                     profile={profile}
                     onChange={setProfile}
                     onSubmit={applyFunctionalSurvey}
                     onCancel={() => setShowFunctionalModal(false)}
+                    onEnrich={enrichFunctionalSurvey}
+                    enriching={functionalEnriching}
+                    notes={functionalEnrichNotes}
+                    onNotesChange={setFunctionalEnrichNotes}
                   />
-                ) : (
+                  {functionalFormRevealed && (
                   <>
-                    <div className="flex-1 overflow-hidden grid grid-cols-1 lg:grid-cols-12 gap-6 min-h-0">
-                      
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 border-t border-slate-100 pt-6">
+
                       {/* Right side: Selection steps (lg:col-span-7) */}
-                      <div className="lg:col-span-7 overflow-y-auto space-y-5 px-1 scrollbar-thin">
+                      <div className="lg:col-span-7 lg:h-[60vh] overflow-y-auto space-y-5 px-1 scrollbar-thin">
                         
                         {/* Section 1: Letter details */}
                         <div className="bg-slate-50 border border-slate-200/60 rounded-2xl p-4 space-y-3">
@@ -4623,7 +4656,7 @@ export default function PatientDetailPage() {
                       </div>
 
                       {/* Left side: Live compiled preview text area (lg:col-span-5) */}
-                      <div className="lg:col-span-5 flex flex-col h-full bg-slate-50 border border-slate-200 rounded-3xl p-4 overflow-hidden">
+                      <div className="lg:col-span-5 flex flex-col h-[60vh] bg-slate-50 border border-slate-200 rounded-3xl p-4 overflow-hidden">
                         <div className="flex items-center justify-between mb-2 shrink-0">
                           <h4 className="text-xs font-black text-slate-950 flex items-center gap-1.5 font-bold">
                             <Edit3 className="w-3.5 h-3.5 text-violet-500" />
@@ -4658,7 +4691,8 @@ export default function PatientDetailPage() {
                       </button>
                     </div>
                   </>
-                )}
+                  )}
+                </div>
 
               </motion.div>
             </div>
