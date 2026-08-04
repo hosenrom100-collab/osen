@@ -58,7 +58,7 @@ export default function Home() {
   const router = useRouter();
 
   const [groups,          setGroups]          = useState<{ id: string; name: string }[]>([]);
-  const [programs,        setPrograms]        = useState<{ id: string; name: string }[]>([]);
+  const [programs,        setPrograms]        = useState<any[]>([]);
   const [stats,           setStats]           = useState<GroupStat[]>([]);
   const [presentPatients, setPresentPatients] = useState<PresentPat[]>([]);
   const [activities,      setActivities]      = useState<ScheduleAct[]>([]);
@@ -152,7 +152,17 @@ export default function Home() {
         getDocs(query(collection(db, "programs"), orderBy("name")))
       ]);
       const groupListAll  = groupsSnap.docs.map(d => ({ id: d.id, ...d.data() } as any));
-      const progListAll   = progsSnap.docs.map(d => ({ id: d.id, name: d.data().name as string, activeDays: d.data().activeDays || [] }));
+      const progListAll   = progsSnap.docs.map(d => ({ 
+        id: d.id, 
+        name: d.data().name as string, 
+        activeDays: d.data().activeDays || [],
+        excludeRehabPlan: d.data().excludeRehabPlan || false,
+        excludeConfidentialityWaiver: d.data().excludeConfidentialityWaiver || false,
+        excludePersonalDetailsForm: d.data().excludePersonalDetailsForm || false,
+        excludeExtensionSent: d.data().excludeExtensionSent || false,
+        excludeExtensionReceived: d.data().excludeExtensionReceived || false,
+        excludeSummaryReport: d.data().excludeSummaryReport || false
+      }));
       
       const currentDayNum = new Date().getDay();
       const activeProgList = progListAll.filter(p => !p.activeDays || p.activeDays.length === 0 || p.activeDays.includes(currentDayNum));
@@ -255,7 +265,18 @@ export default function Home() {
           }
         });
         try {
-          if (p.startDate) {
+          const pIds = p.programIds || (p.programId ? [p.programId] : []);
+          const patientProgs = progListAll.filter(prog => pIds.includes(prog.id));
+          const skipAutoCalc = patientProgs.some(prog => 
+            prog.excludeRehabPlan || 
+            prog.excludeConfidentialityWaiver || 
+            prog.excludePersonalDetailsForm || 
+            prog.excludeExtensionSent || 
+            prog.excludeExtensionReceived || 
+            prog.excludeSummaryReport
+          );
+
+          if (!skipAutoCalc && p.startDate) {
             const start = parseISO(p.startDate);
             const standard3m = addMonths(start, 3);
             const standard6m = addMonths(start, 6);

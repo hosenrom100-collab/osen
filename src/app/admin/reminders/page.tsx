@@ -32,40 +32,8 @@ interface Patient {
   rehabPlanCompleted?: boolean;
   disabilityCommitteeDate?: string;
   disabilityCommitteePassed?: boolean;
-}
-
-function effectiveEndDate(p: Patient): Date | null {
-  if (p.startDate) {
-    try {
-      const start = parseISO(p.startDate);
-      if (isValid(start)) {
-        const standard3m = addMonths(start, 3);
-        const standard6m = addMonths(start, 6);
-        let end = p.extensionReceived ? standard6m : standard3m;
-        
-        if (p.endDate) {
-          const dbEnd = parseISO(p.endDate);
-          if (isValid(dbEnd)) {
-            const dbEndStr = format(dbEnd, "yyyy-MM-dd");
-            const std3mStr = format(standard3m, "yyyy-MM-dd");
-            const std6mStr = format(standard6m, "yyyy-MM-dd");
-            if (dbEndStr !== std3mStr && dbEndStr !== std6mStr) {
-              end = dbEnd;
-            }
-          }
-        }
-        return end;
-      }
-    } catch { return null; }
-  }
-  if (p.endDate) { try { const d = parseISO(p.endDate); return isValid(d) ? d : null; } catch { return null; } }
-  return null;
-}
-
-function daysLeft(p: Patient): number | null {
-  const end = effectiveEndDate(p);
-  if (!end) return null;
-  return differenceInDays(end, new Date());
+  programId?: string;
+  programIds?: string[];
 }
 
 function fmtDate(s: string | undefined | null, fallback = "—") {
@@ -88,19 +56,83 @@ export default function RemindersPage() {
   const isSocialWorker = role === "social_worker" && !roles.some(r => ["admin","manager"].includes(r));
 
   const [patients,  setPatients]  = useState<Patient[]>([]);
+  const [programs,  setPrograms]  = useState<any[]>([]);
   const [workers,   setWorkers]   = useState<Record<string, string>>({});
   const [loading,   setLoading]   = useState(true);
   const [saving,    setSaving]    = useState<string | null>(null);
+
+  function effectiveEndDate(p: Patient): Date | null {
+    const pIds = p.programIds || (p.programId ? [p.programId] : []);
+    const patientProgs = programs.filter(prog => pIds.includes(prog.id));
+    const skipAutoCalc = patientProgs.some(prog => 
+      prog.excludeRehabPlan || 
+      prog.excludeConfidentialityWaiver || 
+      prog.excludePersonalDetailsForm || 
+      prog.excludeExtensionSent || 
+      prog.excludeExtensionReceived || 
+      prog.excludeSummaryReport
+    );
+
+    if (skipAutoCalc) {
+      if (p.endDate) {
+        try { const d = parseISO(p.endDate); return isValid(d) ? d : null; }
+        catch { return null; }
+      }
+      return null;
+    }
+
+    if (p.startDate) {
+      try {
+        const start = parseISO(p.startDate);
+        if (isValid(start)) {
+          const standard3m = addMonths(start, 3);
+          const standard6m = addMonths(start, 6);
+          let end = p.extensionReceived ? standard6m : standard3m;
+          
+          if (p.endDate) {
+            const dbEnd = parseISO(p.endDate);
+            if (isValid(dbEnd)) {
+              const dbEndStr = format(dbEnd, "yyyy-MM-dd");
+              const std3mStr = format(standard3m, "yyyy-MM-dd");
+              const std6mStr = format(standard6m, "yyyy-MM-dd");
+              if (dbEndStr !== std3mStr && dbEndStr !== std6mStr) {
+                end = dbEnd;
+              }
+            }
+          }
+          return end;
+        }
+      } catch { return null; }
+    }
+    if (p.endDate) { try { const d = parseISO(p.endDate); return isValid(d) ? d : null; } catch { return null; } }
+    return null;
+  }
+
+  function daysLeft(p: Patient): number | null {
+    const end = effectiveEndDate(p);
+    if (!end) return null;
+    return differenceInDays(end, new Date());
+  }
 
   useEffect(() => {
     async function load() {
       setLoading(true);
       try {
-        const [pSnap, uSnap] = await Promise.all([
+        const [pSnap, uSnap, prSnap] = await Promise.all([
           getDocs(query(collection(db, "patients"), orderBy("firstName"))),
           getDocs(collection(db, "users")),
+          getDocs(collection(db, "programs")),
         ]);
         setPatients(pSnap.docs.map(d => ({ id: d.id, ...d.data() } as Patient)));
+        setPrograms(prSnap.docs.map(d => ({
+          id: d.id,
+          excludeRehabPlan: d.data().excludeRehabPlan,
+          excludeConfidentialityWaiver: d.data().excludeConfidentialityWaiver,
+          excludePersonalDetailsForm: d.data().excludePersonalDetailsForm,
+          excludeExtensionSent: d.data().excludeExtensionSent,
+          excludeExtensionReceived: d.data().excludeExtensionReceived,
+          excludeSummaryReport: d.data().excludeSummaryReport,
+        })));
         const wm: Record<string, string> = {};
         uSnap.forEach(d => { wm[d.id] = d.data().displayName || d.data().name || d.data().email || "—"; });
         setWorkers(wm);
@@ -118,9 +150,16 @@ export default function RemindersPage() {
       ? active.filter(p => p.assignedWorkerId === user?.uid)
       : active;
     return list
-      .filter(p => { const d = daysLeft(p); return d !== null && d <= 30; })
+      .filter(p => {
+        const pIds = p.programIds || (p.programId ? [p.programId] : []);
+        const patientProgs = programs.filter(prog => pIds.includes(prog.id));
+        if (patientProgs.some(prog => prog.excludeExtensionSent || prog.excludeExtensionReceived)) return false;
+
+        const d = daysLeft(p);
+        return d !== null && d <= 30;
+      })
       .sort((a, b) => (daysLeft(a) ?? 0) - (daysLeft(b) ?? 0));
-  }, [active, isSocialWorker, user?.uid]);
+  }, [active, isSocialWorker, user?.uid, programs]);
 
   const urgent = useMemo(() => upcoming.filter(p => { const d = daysLeft(p); return d !== null && d <= 14 && !p.extensionSent; }), [upcoming]);
 
