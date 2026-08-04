@@ -34,46 +34,11 @@ interface Patient {
   extensionSentAt?: string;
   extensionReceived?: boolean;
   extensionReceivedAt?: string;
+  programId?: string;
+  programIds?: string[];
 }
 
 type FilterType = "all" | "urgent" | "norehab" | "mine";
-
-function effectiveEndDate(p: Patient): Date | null {
-  if (p.startDate) {
-    try {
-      const start = parseISO(p.startDate);
-      if (isValid(start)) {
-        const standard3m = addMonths(start, 3);
-        const standard6m = addMonths(start, 6);
-        let end = p.extensionReceived ? standard6m : standard3m;
-        
-        if (p.endDate) {
-          const dbEnd = parseISO(p.endDate);
-          if (isValid(dbEnd)) {
-            const dbEndStr = format(dbEnd, "yyyy-MM-dd");
-            const std3mStr = format(standard3m, "yyyy-MM-dd");
-            const std6mStr = format(standard6m, "yyyy-MM-dd");
-            if (dbEndStr !== std3mStr && dbEndStr !== std6mStr) {
-              end = dbEnd;
-            }
-          }
-        }
-        return end;
-      }
-    } catch { return null; }
-  }
-  if (p.endDate) {
-    try { const d = parseISO(p.endDate); return isValid(d) ? d : null; }
-    catch { return null; }
-  }
-  return null;
-}
-
-function daysLeft(p: Patient): number | null {
-  const end = effectiveEndDate(p);
-  if (!end) return null;
-  return differenceInDays(end, new Date());
-}
 
 function UrgencyChip({ days }: { days: number | null }) {
   if (days === null)
@@ -104,6 +69,7 @@ export default function PatientTrackingPage() {
   const isSocialWorker = role === "social_worker" || (roles.includes("social_worker") && !roles.some(r => ["admin","manager"].includes(r)));
 
   const [patients,  setPatients]  = useState<Patient[]>([]);
+  const [programs,  setPrograms]  = useState<any[]>([]);
   const [workers,   setWorkers]   = useState<Record<string, string>>({});
   const [groups,    setGroups]    = useState<Record<string, string>>({});
   const [loading,   setLoading]   = useState(true);
@@ -114,16 +80,82 @@ export default function PatientTrackingPage() {
   const [editingEndDateId, setEditingEndDateId] = useState<string | null>(null);
   const [editEndDateVal,   setEditEndDateVal]   = useState("");
 
+  function effectiveEndDate(p: Patient): Date | null {
+    const pIds = p.programIds || (p.programId ? [p.programId] : []);
+    const patientProgs = programs.filter(prog => pIds.includes(prog.id));
+    const skipAutoCalc = patientProgs.some(prog => 
+      prog.excludeRehabPlan || 
+      prog.excludeConfidentialityWaiver || 
+      prog.excludePersonalDetailsForm || 
+      prog.excludeExtensionSent || 
+      prog.excludeExtensionReceived || 
+      prog.excludeSummaryReport
+    );
+
+    if (skipAutoCalc) {
+      if (p.endDate) {
+        try { const d = parseISO(p.endDate); return isValid(d) ? d : null; }
+        catch { return null; }
+      }
+      return null;
+    }
+
+    if (p.startDate) {
+      try {
+        const start = parseISO(p.startDate);
+        if (isValid(start)) {
+          const standard3m = addMonths(start, 3);
+          const standard6m = addMonths(start, 6);
+          let end = p.extensionReceived ? standard6m : standard3m;
+          
+          if (p.endDate) {
+            const dbEnd = parseISO(p.endDate);
+            if (isValid(dbEnd)) {
+              const dbEndStr = format(dbEnd, "yyyy-MM-dd");
+              const std3mStr = format(standard3m, "yyyy-MM-dd");
+              const std6mStr = format(standard6m, "yyyy-MM-dd");
+              if (dbEndStr !== std3mStr && dbEndStr !== std6mStr) {
+                end = dbEnd;
+              }
+            }
+          }
+          return end;
+        }
+      } catch { return null; }
+    }
+    if (p.endDate) {
+      try { const d = parseISO(p.endDate); return isValid(d) ? d : null; }
+      catch { return null; }
+    }
+    return null;
+  }
+
+  function daysLeft(p: Patient): number | null {
+    const end = effectiveEndDate(p);
+    if (!end) return null;
+    return differenceInDays(end, new Date());
+  }
+
   useEffect(() => {
     async function load() {
       setLoading(true);
       try {
-        const [pSnap, gSnap, uSnap] = await Promise.all([
+        const [pSnap, gSnap, prSnap, uSnap] = await Promise.all([
           getDocs(query(collection(db, "patients"), orderBy("firstName"))),
           getDocs(collection(db, "groups")),
+          getDocs(collection(db, "programs")),
           getDocs(collection(db, "users")),
         ]);
         setPatients(pSnap.docs.map(d => ({ id: d.id, ...d.data() } as Patient)));
+        setPrograms(prSnap.docs.map(d => ({
+          id: d.id,
+          excludeRehabPlan: d.data().excludeRehabPlan,
+          excludeConfidentialityWaiver: d.data().excludeConfidentialityWaiver,
+          excludePersonalDetailsForm: d.data().excludePersonalDetailsForm,
+          excludeExtensionSent: d.data().excludeExtensionSent,
+          excludeExtensionReceived: d.data().excludeExtensionReceived,
+          excludeSummaryReport: d.data().excludeSummaryReport,
+        })));
         const gm: Record<string, string> = {};
         gSnap.forEach(d => { gm[d.id] = d.data().name; });
         setGroups(gm);
@@ -140,11 +172,25 @@ export default function PatientTrackingPage() {
 
   const stats = useMemo(() => {
     const scope = isSocialWorker ? active.filter(p => p.assignedWorkerId === user?.uid) : active;
-    const exp14 = scope.filter(p => { const d = daysLeft(p); return d !== null && d >= 0 && d <= 14; });
-    const exp7  = scope.filter(p => { const d = daysLeft(p); return d !== null && d >= 0 && d <= 7; });
+    const exp14 = scope.filter(p => {
+      const pIds = p.programIds || (p.programId ? [p.programId] : []);
+      if (programs.filter(prog => pIds.includes(prog.id)).some(prog => prog.excludeExtensionSent)) return false;
+      const d = daysLeft(p);
+      return d !== null && d >= 0 && d <= 14;
+    });
+    const exp7  = scope.filter(p => {
+      const pIds = p.programIds || (p.programId ? [p.programId] : []);
+      if (programs.filter(prog => pIds.includes(prog.id)).some(prog => prog.excludeExtensionSent)) return false;
+      const d = daysLeft(p);
+      return d !== null && d >= 0 && d <= 7;
+    });
     const urgent = exp14.filter(p => !p.extensionSent);
     const mine   = active.filter(p => p.assignedWorkerId === user?.uid);
-    const norehab = scope.filter(p => !p.rehabPlanCompleted);
+    const norehab = scope.filter(p => {
+      if (p.rehabPlanCompleted) return false;
+      const pIds = p.programIds || (p.programId ? [p.programId] : []);
+      return !programs.filter(prog => pIds.includes(prog.id)).some(prog => prog.excludeRehabPlan);
+    });
     return {
       total:   scope.length,
       exp14:   exp14.length,
@@ -153,27 +199,41 @@ export default function PatientTrackingPage() {
       mine:    mine.length,
       norehab: norehab.length,
     };
-  }, [active, user?.uid, isSocialWorker]);
+  }, [active, user?.uid, isSocialWorker, programs]);
 
   const filtered = useMemo(() => {
     let list = isSocialWorker ? active.filter(p => p.assignedWorkerId === user?.uid) : [...active];
     if (filter === "mine")    list = active.filter(p => p.assignedWorkerId === user?.uid);
-    else if (filter === "urgent")  list = list.filter(p => { const d = daysLeft(p); return d !== null && d <= 14 && d >= 0; });
-    else if (filter === "norehab") list = list.filter(p => !p.rehabPlanCompleted);
+    else if (filter === "urgent")  list = list.filter(p => {
+      const pIds = p.programIds || (p.programId ? [p.programId] : []);
+      if (programs.filter(prog => pIds.includes(prog.id)).some(prog => prog.excludeExtensionSent)) return false;
+      const d = daysLeft(p);
+      return d !== null && d <= 14 && d >= 0;
+    });
+    else if (filter === "norehab") list = list.filter(p => {
+      if (p.rehabPlanCompleted) return false;
+      const pIds = p.programIds || (p.programId ? [p.programId] : []);
+      return !programs.filter(prog => pIds.includes(prog.id)).some(prog => prog.excludeRehabPlan);
+    });
     return list.sort((a, b) => {
       const da = daysLeft(a) ?? 9999;
       const db_ = daysLeft(b) ?? 9999;
       return da - db_;
     });
-  }, [active, filter, isSocialWorker, user?.uid]);
+  }, [active, filter, isSocialWorker, user?.uid, programs]);
 
   // Urgent patients needing action (for the reminder banner)
   const urgentPatients = useMemo(() => {
     const scope = isSocialWorker ? active.filter(p => p.assignedWorkerId === user?.uid) : active;
     return scope
-      .filter(p => { const d = daysLeft(p); return d !== null && d >= 0 && d <= 14 && !p.extensionSent; })
+      .filter(p => {
+        const pIds = p.programIds || (p.programId ? [p.programId] : []);
+        if (programs.filter(prog => pIds.includes(prog.id)).some(prog => prog.excludeExtensionSent)) return false;
+        const d = daysLeft(p);
+        return d !== null && d >= 0 && d <= 14 && !p.extensionSent;
+      })
       .sort((a, b) => (daysLeft(a) ?? 0) - (daysLeft(b) ?? 0));
-  }, [active, user?.uid, isSocialWorker]);
+  }, [active, user?.uid, isSocialWorker, programs]);
 
   // Patients who need rehab plan completed after 14 days
   const rehabAlertPatients = useMemo(() => {
@@ -182,6 +242,10 @@ export default function PatientTrackingPage() {
       .filter(p => {
         if (p.rehabPlanCompleted) return false;
         if (!p.startDate) return false;
+
+        const pIds = p.programIds || (p.programId ? [p.programId] : []);
+        if (programs.filter(prog => pIds.includes(prog.id)).some(prog => prog.excludeRehabPlan)) return false;
+
         try {
           const start = parseISO(p.startDate);
           if (!isValid(start)) return false;
@@ -194,7 +258,7 @@ export default function PatientTrackingPage() {
         const db_ = b.startDate ? parseISO(b.startDate).getTime() : 0;
         return da - db_;
       });
-  }, [active, user?.uid, isSocialWorker]);
+  }, [active, user?.uid, isSocialWorker, programs]);
 
   async function markExtensionSent(patientId: string) {
     setSaving(patientId + "_sent");
@@ -469,6 +533,11 @@ export default function PatientTrackingPage() {
                         const endDate = effectiveEndDate(p);
                         const days    = daysLeft(p);
                         const isAuto  = !p.endDate && !!p.startDate;
+                        const pIds = p.programIds || (p.programId ? [p.programId] : []);
+                        const patientProgs = programs.filter(prog => pIds.includes(prog.id));
+                        const isRehabExcluded = patientProgs.some(prog => prog.excludeRehabPlan);
+                        const isExtSentExcluded = patientProgs.some(prog => prog.excludeExtensionSent);
+                        const isExtRecvExcluded = patientProgs.some(prog => prog.excludeExtensionReceived);
                         const rowBg = days !== null && days <= 7 && days >= 0
                           ? "bg-rose-500/[0.03]"
                           : days !== null && days <= 14 && days >= 0
@@ -537,7 +606,9 @@ export default function PatientTrackingPage() {
 
                             {/* Extension Sent */}
                             <td className="px-4 py-3">
-                              {p.extensionSent ? (
+                              {isExtSentExcluded ? (
+                                <span className="text-xs text-[var(--muted)] opacity-40">—</span>
+                              ) : p.extensionSent ? (
                                 <div className="flex flex-col gap-0.5">
                                   <span className="flex items-center gap-1 text-[10px] text-emerald-400 font-semibold">
                                     <Check className="w-3 h-3" /> נשלחה
@@ -560,7 +631,9 @@ export default function PatientTrackingPage() {
 
                             {/* Extension Received */}
                             <td className="px-4 py-3">
-                              {p.extensionReceived ? (
+                              {isExtRecvExcluded ? (
+                                <span className="text-xs text-[var(--muted)] opacity-40">—</span>
+                              ) : p.extensionReceived ? (
                                 <div className="flex flex-col gap-0.5">
                                   <span className="flex items-center gap-1 text-[10px] text-emerald-400 font-semibold">
                                     <CheckCircle2 className="w-3 h-3" /> התקבלה
@@ -583,14 +656,18 @@ export default function PatientTrackingPage() {
 
                             {/* Rehab completed */}
                             <td className="px-4 py-3">
-                              <button onClick={() => toggleCompleted(p)}
-                                className={`w-6 h-6 rounded-md border flex items-center justify-center transition-all ${
-                                  p.rehabPlanCompleted
-                                    ? "bg-teal-500 border-teal-500 shadow-[0_0_8px_rgba(20,184,166,0.4)]"
-                                    : "border-[var(--border)] hover:border-teal-500/50"
-                                }`}>
-                                {p.rehabPlanCompleted && <Check className="w-3.5 h-3.5 text-white" />}
-                              </button>
+                              {isRehabExcluded ? (
+                                <span className="text-xs text-[var(--muted)] opacity-40">—</span>
+                              ) : (
+                                <button onClick={() => toggleCompleted(p)}
+                                  className={`w-6 h-6 rounded-md border flex items-center justify-center transition-all ${
+                                    p.rehabPlanCompleted
+                                      ? "bg-teal-500 border-teal-500 shadow-[0_0_8px_rgba(20,184,166,0.4)]"
+                                      : "border-[var(--border)] hover:border-teal-500/50"
+                                  }`}>
+                                  {p.rehabPlanCompleted && <Check className="w-3.5 h-3.5 text-white" />}
+                                </button>
+                              )}
                             </td>
 
                             {/* Social worker */}

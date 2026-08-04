@@ -174,6 +174,12 @@ export default function PatientDetailPage() {
     activityHours?: string;
     participationActivityDetail?: string;
     travelActivityDetail?: string;
+    excludeRehabPlan?: boolean;
+    excludeConfidentialityWaiver?: boolean;
+    excludePersonalDetailsForm?: boolean;
+    excludeExtensionSent?: boolean;
+    excludeExtensionReceived?: boolean;
+    excludeSummaryReport?: boolean;
   }[]>([]);
   const [reportLoading, setReportLoading] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState(format(new Date(), "yyyy-MM"));
@@ -437,6 +443,12 @@ export default function PatientDetailPage() {
         activityHours: d.data().activityHours,
         participationActivityDetail: d.data().participationActivityDetail,
         travelActivityDetail: d.data().travelActivityDetail,
+        excludeRehabPlan: d.data().excludeRehabPlan,
+        excludeConfidentialityWaiver: d.data().excludeConfidentialityWaiver,
+        excludePersonalDetailsForm: d.data().excludePersonalDetailsForm,
+        excludeExtensionSent: d.data().excludeExtensionSent,
+        excludeExtensionReceived: d.data().excludeExtensionReceived,
+        excludeSummaryReport: d.data().excludeSummaryReport,
       })));
       setSocialWorkers(usersSnap.docs.map(d => ({ id: d.id, name: d.data().displayName || d.data().name || d.data().email })));
       setRehabWorkers(rehabWorkersSnap.docs.map(d => ({ id: d.id, ...d.data() } as RehabWorker)));
@@ -859,6 +871,27 @@ export default function PatientDetailPage() {
   };
 
   function effectiveEndDate(p: Patient): Date | null {
+    const pIds = p.programIds || (p.programId ? [p.programId] : []);
+    const patientProgs = programs.filter(prog => pIds.includes(prog.id));
+    const skipAutoCalc = patientProgs.some(prog => 
+      prog.excludeRehabPlan || 
+      prog.excludeConfidentialityWaiver || 
+      prog.excludePersonalDetailsForm || 
+      prog.excludeExtensionSent || 
+      prog.excludeExtensionReceived || 
+      prog.excludeSummaryReport
+    );
+
+    if (skipAutoCalc) {
+      if (p.endDate) {
+        try {
+          const d = parseISO(p.endDate);
+          return isValid(d) ? d : null;
+        } catch { return null; }
+      }
+      return null;
+    }
+
     if (p.startDate) {
       try {
         const start = parseISO(p.startDate);
@@ -1725,25 +1758,42 @@ export default function PatientDetailPage() {
 
           {/* ── Tabs ── */}
           <div className="flex bg-[var(--foreground)]/5 p-1.5 rounded-2xl border border-[var(--border)] mb-6 w-full md:w-fit overflow-x-auto no-scrollbar touch-pan-x gap-1">
-             {[
-               { id: "overview", label: "סקירה", icon: Info },
-               { id: "attendance", label: "נוכחות", icon: History },
-               { id: "certificates", label: "אישורים", icon: Shield },
-               { id: "reports", label: "דוחות", icon: FileText },
-             ].filter(tab => !(role === "logistics" && (tab.id === "overview" || tab.id === "reports"))).map((tab) => (
-               <button 
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id as any)}
-                className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-3 py-2.5 md:px-5 md:py-2.5 rounded-xl md:rounded-2xl text-xs font-black transition-all whitespace-nowrap border cursor-pointer select-none ${
-                  activeTab === tab.id 
-                    ? "bg-[var(--card-bg)] text-emerald-600 border-[var(--border)] shadow-sm" 
-                    : "bg-transparent text-[var(--foreground)]/50 hover:text-[var(--foreground)] border-transparent"
-                }`}
-               >
-                 <tab.icon className="w-4 h-4 md:w-3.5 md:h-3.5 shrink-0" />
-                 <span className="hidden sm:inline">{tab.label}</span>
-               </button>
-             ))}
+             {(() => {
+               const pIds = patient?.programIds || (patient?.programId ? [patient.programId] : []);
+               const patientProgs = programs.filter(p => pIds.includes(p.id));
+               const hasExclusions = patientProgs.some(p => 
+                 p.excludeRehabPlan || 
+                 p.excludeConfidentialityWaiver || 
+                 p.excludePersonalDetailsForm || 
+                 p.excludeExtensionSent || 
+                 p.excludeExtensionReceived || 
+                 p.excludeSummaryReport
+               );
+
+               return [
+                 { id: "overview", label: "סקירה", icon: Info },
+                 { id: "attendance", label: "נוכחות", icon: History },
+                 { id: "certificates", label: "אישורים", icon: Shield },
+                 { id: "reports", label: "דוחות", icon: FileText },
+               ].filter(tab => {
+                 if (role === "logistics" && (tab.id === "overview" || tab.id === "reports")) return false;
+                 if (tab.id === "reports" && hasExclusions) return false;
+                 return true;
+               }).map((tab) => (
+                 <button 
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id as any)}
+                  className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-3 py-2.5 md:px-5 md:py-2.5 rounded-xl md:rounded-2xl text-xs font-black transition-all whitespace-nowrap border cursor-pointer select-none ${
+                    activeTab === tab.id 
+                      ? "bg-[var(--card-bg)] text-emerald-600 border-[var(--border)] shadow-sm" 
+                      : "bg-transparent text-[var(--foreground)]/50 hover:text-[var(--foreground)] border-transparent"
+                  }`}
+                 >
+                   <tab.icon className="w-4 h-4 md:w-3.5 md:h-3.5 shrink-0" />
+                   <span className="hidden sm:inline">{tab.label}</span>
+                 </button>
+               ));
+             })()}
           </div>
 
           <AnimatePresence mode="wait">
@@ -2057,66 +2107,86 @@ export default function PatientDetailPage() {
                     })()}
 
                     {/* ── Documents & Plan Checklist ── */}
-                    <div className="bg-white border border-slate-200/60 rounded-xl p-3">
-                      <h4 className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-2.5">מסמכים ותוכניות</h4>
-                      <div className="grid grid-cols-3 gap-2">
-                      {[
-                        { label: "תוכנית שיקום", checked: !!patient.rehabPlanCompleted, onToggle: toggleRehabPlan },
-                        { label: "ויתור סודיות", checked: !!patient.confidentialityWaiverCompleted, onToggle: toggleConfidentialityWaiver },
-                        { label: "טופס פרטים אישיים", checked: !!patient.personalDetailsFormCompleted, onToggle: togglePersonalDetailsForm },
-                      ].map((item) => (
-                        <div
-                          key={item.label}
-                          className={`rounded-lg p-2 cursor-pointer transition-all select-none group border flex flex-col items-center text-center gap-1.5 ${
-                            item.checked
-                              ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                              : "bg-slate-50/50 text-slate-500 border-slate-200 hover:border-emerald-300"
-                          }`}
-                          onClick={item.onToggle}
-                        >
-                          <div className={`w-5 h-5 rounded-md border flex items-center justify-center shrink-0 transition-all ${
-                            item.checked
-                              ? "bg-emerald-500 border-emerald-500 text-white"
-                              : "bg-white border-slate-300 group-hover:border-emerald-400"
-                          }`}>
-                            {item.checked && <X className="w-3.5 h-3.5 stroke-[3]" />}
+                    {(() => {
+                      const pIds = patient?.programIds || (patient?.programId ? [patient.programId] : []);
+                      const patientProgs = programs.filter(p => pIds.includes(p.id));
+                      const items = [
+                        { label: "תוכנית שיקום", checked: !!patient.rehabPlanCompleted, onToggle: toggleRehabPlan, exclude: patientProgs.some(p => p.excludeRehabPlan) },
+                        { label: "ויתור סודיות", checked: !!patient.confidentialityWaiverCompleted, onToggle: toggleConfidentialityWaiver, exclude: patientProgs.some(p => p.excludeConfidentialityWaiver) },
+                        { label: "טופס פרטים אישיים", checked: !!patient.personalDetailsFormCompleted, onToggle: togglePersonalDetailsForm, exclude: patientProgs.some(p => p.excludePersonalDetailsForm) },
+                      ].filter(item => !item.exclude);
+
+                      if (items.length === 0) return null;
+
+                      return (
+                        <div className="bg-white border border-slate-200/60 rounded-xl p-3">
+                          <h4 className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-2.5">מסמכים ותוכניות</h4>
+                          <div className={`grid ${items.length === 1 ? 'grid-cols-1' : items.length === 2 ? 'grid-cols-2' : 'grid-cols-3'} gap-2`}>
+                            {items.map((item) => (
+                              <div
+                                key={item.label}
+                                className={`rounded-lg p-2 cursor-pointer transition-all select-none group border flex flex-col items-center text-center gap-1.5 ${
+                                  item.checked
+                                    ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                    : "bg-slate-50/50 text-slate-500 border-slate-200 hover:border-emerald-300"
+                                }`}
+                                onClick={item.onToggle}
+                              >
+                                <div className={`w-5 h-5 rounded-md border flex items-center justify-center shrink-0 transition-all ${
+                                  item.checked
+                                    ? "bg-emerald-500 border-emerald-500 text-white"
+                                    : "bg-white border-slate-300 group-hover:border-emerald-400"
+                                }`}>
+                                  {item.checked && <X className="w-3.5 h-3.5 stroke-[3]" />}
+                                </div>
+                                <p className="text-[9px] font-bold leading-tight">{item.label}</p>
+                              </div>
+                            ))}
                           </div>
-                          <p className="text-[9px] font-bold leading-tight">{item.label}</p>
                         </div>
-                      ))}
-                      </div>
-                    </div>
+                      );
+                    })()}
 
                     {/* ── Report Markings ── */}
-                    <div className="bg-white border border-slate-200/60 rounded-xl p-3">
-                      <h4 className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-2.5">סימון דוחות</h4>
-                      <div className="grid grid-cols-3 gap-2">
-                      {[
-                        { label: "דוח אמצע והארכה", checked: !!patient.extensionSent, onToggle: toggleExtensionSent },
-                        { label: "התקבלה הארכה", checked: !!patient.extensionReceived, onToggle: toggleExtensionReceived },
-                        { label: "דוח סיכום", checked: !!patient.summaryReportCompleted, onToggle: toggleSummaryReportCompleted },
-                      ].map((item) => (
-                        <div
-                          key={item.label}
-                          className={`rounded-lg p-2 cursor-pointer transition-all select-none group border flex flex-col items-center text-center gap-1.5 ${
-                            item.checked
-                              ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                              : "bg-slate-50/50 text-slate-500 border-slate-200 hover:border-emerald-300"
-                          }`}
-                          onClick={item.onToggle}
-                        >
-                          <div className={`w-5 h-5 rounded-md border flex items-center justify-center shrink-0 transition-all ${
-                            item.checked
-                              ? "bg-emerald-500 border-emerald-500 text-white"
-                              : "bg-white border-slate-300 group-hover:border-emerald-400"
-                          }`}>
-                            {item.checked && <X className="w-3.5 h-3.5 stroke-[3]" />}
+                    {(() => {
+                      const pIds = patient?.programIds || (patient?.programId ? [patient.programId] : []);
+                      const patientProgs = programs.filter(p => pIds.includes(p.id));
+                      const items = [
+                        { label: "דוח אמצע והארכה", checked: !!patient.extensionSent, onToggle: toggleExtensionSent, exclude: patientProgs.some(p => p.excludeExtensionSent) },
+                        { label: "התקבלה הארכה", checked: !!patient.extensionReceived, onToggle: toggleExtensionReceived, exclude: patientProgs.some(p => p.excludeExtensionReceived) },
+                        { label: "דוח סיכום", checked: !!patient.summaryReportCompleted, onToggle: toggleSummaryReportCompleted, exclude: patientProgs.some(p => p.excludeSummaryReport) },
+                      ].filter(item => !item.exclude);
+
+                      if (items.length === 0) return null;
+
+                      return (
+                        <div className="bg-white border border-slate-200/60 rounded-xl p-3">
+                          <h4 className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-2.5">סימון דוחות</h4>
+                          <div className={`grid ${items.length === 1 ? 'grid-cols-1' : items.length === 2 ? 'grid-cols-2' : 'grid-cols-3'} gap-2`}>
+                            {items.map((item) => (
+                              <div
+                                key={item.label}
+                                className={`rounded-lg p-2 cursor-pointer transition-all select-none group border flex flex-col items-center text-center gap-1.5 ${
+                                  item.checked
+                                    ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                    : "bg-slate-50/50 text-slate-500 border-slate-200 hover:border-emerald-300"
+                                }`}
+                                onClick={item.onToggle}
+                              >
+                                <div className={`w-5 h-5 rounded-md border flex items-center justify-center shrink-0 transition-all ${
+                                  item.checked
+                                    ? "bg-emerald-500 border-emerald-500 text-white"
+                                    : "bg-white border-slate-300 group-hover:border-emerald-400"
+                                }`}>
+                                  {item.checked && <X className="w-3.5 h-3.5 stroke-[3]" />}
+                                </div>
+                                <p className="text-[9px] font-bold leading-tight">{item.label}</p>
+                              </div>
+                            ))}
                           </div>
-                          <p className="text-[9px] font-bold leading-tight">{item.label}</p>
                         </div>
-                      ))}
-                      </div>
-                    </div>
+                      );
+                    })()}
 
                     {/* ── Arrival Method ── */}
                     <div className="bg-white border border-slate-200/60 rounded-xl p-3">

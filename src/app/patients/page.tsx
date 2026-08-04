@@ -11,7 +11,7 @@ import {
   Loader2, ExternalLink, Calendar, Shield, Phone, Mail,
   Briefcase, CalendarDays, Check, ChevronDown, X,
   AlertCircle, Upload, Download, FileSpreadsheet,
-  CheckCircle2, AlertTriangle, RefreshCw
+  CheckCircle2, AlertTriangle, RefreshCw, CarFront
 } from "lucide-react";
 import * as XLSX from "xlsx";
 import { useRouter } from "next/navigation";
@@ -41,6 +41,7 @@ interface Patient {
   extensionReceivedAt?: string;
   rehabPlanCompleted?: boolean;
   summaryReportCompleted?: boolean;
+  arrivalMethod?: "private_car" | "taxi";
 }
 
 interface Group {
@@ -66,7 +67,7 @@ export default function PatientsPage() {
   const isLogistics = role === "logistics" || roles?.includes("logistics");
   const [patients, setPatients] = useState<Patient[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
-  const [programs, setPrograms] = useState<{ id: string; name: string }[]>([]);
+  const [programs, setPrograms] = useState<any[]>([]);
   const [rehabWorkers, setRehabWorkers] = useState<Record<string, RehabWorker>>({});
   const [staff, setStaff] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
@@ -417,7 +418,16 @@ export default function PatientsPage() {
         });
         setPatients(pts);
         setGroups(gSnap.docs.map(d => ({ id: d.id, ...d.data() } as any)));
-        setPrograms(prSnap.docs.map(d => ({ id: d.id, name: d.data().name })));
+        setPrograms(prSnap.docs.map(d => ({
+          id: d.id,
+          name: d.data().name,
+          excludeRehabPlan: d.data().excludeRehabPlan,
+          excludeConfidentialityWaiver: d.data().excludeConfidentialityWaiver,
+          excludePersonalDetailsForm: d.data().excludePersonalDetailsForm,
+          excludeExtensionSent: d.data().excludeExtensionSent,
+          excludeExtensionReceived: d.data().excludeExtensionReceived,
+          excludeSummaryReport: d.data().excludeSummaryReport,
+        })));
 
         const rehabMap: Record<string, RehabWorker> = {};
         rwSnap.forEach(d => {
@@ -442,6 +452,21 @@ export default function PatientsPage() {
   }, []);
 
   const getEffectiveEndDateStr = (p: Patient): string => {
+    const pIds = p.programIds || (p.programId ? [p.programId] : []);
+    const patientProgs = programs.filter(prog => pIds.includes(prog.id));
+    const skipAutoCalc = patientProgs.some(prog => 
+      prog.excludeRehabPlan || 
+      prog.excludeConfidentialityWaiver || 
+      prog.excludePersonalDetailsForm || 
+      prog.excludeExtensionSent || 
+      prog.excludeExtensionReceived || 
+      prog.excludeSummaryReport
+    );
+
+    if (skipAutoCalc) {
+      return p.endDate || "";
+    }
+
     if (p.startDate) {
       try {
         const start = new Date(p.startDate);
@@ -544,6 +569,18 @@ export default function PatientsPage() {
       setPatients(prev => prev.map(p => p.id === pId ? { ...p, summaryReportCompleted: nextVal } : p));
     } catch (err) {
       console.error("Error toggling summaryReportCompleted:", err);
+      alert("שגיאה בעדכון הסטטוס");
+    }
+  };
+
+  const handleToggleArrivalMethod = async (pId: string, currentVal: string | undefined, e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      const nextVal = currentVal === "private_car" ? null : "private_car";
+      await updateDoc(doc(db, "patients", pId), { arrivalMethod: nextVal });
+      setPatients(prev => prev.map(p => p.id === pId ? { ...p, arrivalMethod: nextVal || undefined } : p));
+    } catch (err) {
+      console.error("Error toggling arrivalMethod:", err);
       alert("שגיאה בעדכון הסטטוס");
     }
   };
@@ -681,6 +718,11 @@ export default function PatientsPage() {
       if (p.assignedWorkerId !== user?.uid) return false;
       if (p.rehabPlanCompleted) return false;
       if (!p.startDate) return false;
+
+      const pIds = p.programIds || (p.programId ? [p.programId] : []);
+      const patientProgs = programs.filter(prog => pIds.includes(prog.id));
+      if (patientProgs.some(prog => prog.excludeRehabPlan)) return false;
+
       try {
         const start = new Date(p.startDate);
         const diffDays = Math.floor((Date.now() - start.getTime()) / (1000 * 60 * 60 * 24));
@@ -689,7 +731,7 @@ export default function PatientsPage() {
         return false;
       }
     });
-  }, [patients, user?.uid]);
+  }, [patients, user?.uid, programs]);
 
   const goToPatient = (patientId: string) => {
     try {
@@ -1087,6 +1129,7 @@ export default function PatientsPage() {
                       <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-3 py-3 text-[9px] font-black uppercase tracking-widest text-[var(--muted)] z-10 shadow-[inset_0_-1px_0_var(--border)]">עו"ס מלווה</th>
                       {!isLogistics && <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-3 py-3 text-[9px] font-black uppercase tracking-widest text-[var(--muted)] z-10 shadow-[inset_0_-1px_0_var(--border)]">עו"ס שיקום (משרד הביטחון)</th>}
                       <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-3 py-3 text-[9px] font-black uppercase tracking-widest text-[var(--muted)] z-10 shadow-[inset_0_-1px_0_var(--border)]">תוכנית</th>
+                      <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-2 py-3 text-[9px] font-black uppercase tracking-widest text-[var(--muted)] text-center z-10 shadow-[inset_0_-1px_0_var(--border)]">רכב</th>
                       {!isLogistics && <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-3 py-3 text-[9px] font-black uppercase tracking-widest text-[var(--muted)] z-10 shadow-[inset_0_-1px_0_var(--border)]">תאריך התחלה</th>}
                       {!isLogistics && <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-3 py-3 text-[9px] font-black uppercase tracking-widest text-[var(--muted)] z-10 shadow-[inset_0_-1px_0_var(--border)]">תאריך סיום</th>}
                       {!isLogistics && <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-2 py-3 text-[9px] font-black uppercase tracking-widest text-[var(--muted)] text-center z-10 shadow-[inset_0_-1px_0_var(--border)]">תוכנית שיקום</th>}
@@ -1100,8 +1143,12 @@ export default function PatientsPage() {
                   <tbody className="divide-y divide-[var(--border)]">
                     {filtered.map((p) => {
                       const daysLeft = getDaysRemaining(p);
-                      const isExpiring3m = p.status === 'active' && daysLeft !== null && daysLeft <= 14 && !p.extensionReceived;
-                      const isExpiring6m = p.status === 'active' && daysLeft !== null && daysLeft <= 14 && p.extensionReceived;
+                      const pIds = p.programIds || (p.programId ? [p.programId] : []);
+                      const patientPrograms = programs.filter(prog => pIds.includes(prog.id));
+                      const skipExtensionAlert = patientPrograms.some(prog => prog.excludeExtensionSent);
+
+                      const isExpiring3m = p.status === 'active' && daysLeft !== null && daysLeft <= 14 && !p.extensionReceived && !skipExtensionAlert;
+                      const isExpiring6m = p.status === 'active' && daysLeft !== null && daysLeft <= 14 && p.extensionReceived && !skipExtensionAlert;
 
                       return (
                         <tr 
@@ -1208,64 +1255,95 @@ export default function PatientsPage() {
                               })()}
                             </span>
                           </td>
+                          <td className="px-2 py-3 text-center">
+                            <div className="flex justify-center">
+                              <button
+                                onClick={(e) => handleToggleArrivalMethod(p.id, p.arrivalMethod, e)}
+                                className={`w-6 h-6 rounded-lg border flex items-center justify-center transition-all ${
+                                  p.arrivalMethod === "private_car"
+                                    ? 'bg-emerald-500 border-emerald-600 text-white shadow-sm'
+                                    : 'border-[var(--border)] hover:border-emerald-500 bg-[var(--surface)] text-[var(--muted)]/50 hover:text-emerald-500 hover:scale-105'
+                                }`}
+                                title="מגיע עם רכב פרטי"
+                              >
+                                <CarFront className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </td>
                           {!isLogistics && (
                             <>
                               <td className="px-3 py-3 text-[11px] font-bold opacity-60">{formatDate(p.startDate)}</td>
                               <td className="px-3 py-3 text-[11px] font-bold opacity-60">{formatDate(getEffectiveEndDateStr(p))}</td>
                               <td className="px-2 py-3 text-center">
                                 <div className="flex justify-center">
-                                  <button
-                                    onClick={(e) => handleToggleRehabPlanCompleted(p.id, !!p.rehabPlanCompleted, e)}
-                                    className={`w-5 h-5 rounded border flex items-center justify-center transition-all ${
-                                      p.rehabPlanCompleted
-                                        ? 'bg-emerald-500 border-emerald-600 text-white'
-                                        : 'border-[var(--border)] hover:border-emerald-500 bg-[var(--surface)] hover:scale-105'
-                                    }`}
-                                  >
-                                    {p.rehabPlanCompleted && <Check className="w-3.5 h-3.5 stroke-[4]" />}
-                                  </button>
+                                  {patientPrograms.some(prog => prog.excludeRehabPlan) ? (
+                                    <span className="text-[11px] font-bold opacity-30">—</span>
+                                  ) : (
+                                    <button
+                                      onClick={(e) => handleToggleRehabPlanCompleted(p.id, !!p.rehabPlanCompleted, e)}
+                                      className={`w-5 h-5 rounded border flex items-center justify-center transition-all ${
+                                        p.rehabPlanCompleted
+                                          ? 'bg-emerald-500 border-emerald-600 text-white'
+                                          : 'border-[var(--border)] hover:border-emerald-500 bg-[var(--surface)] hover:scale-105'
+                                      }`}
+                                    >
+                                      {p.rehabPlanCompleted && <Check className="w-3.5 h-3.5 stroke-[4]" />}
+                                    </button>
+                                  )}
                                 </div>
                               </td>
                               <td className="px-2 py-3 text-center">
                                 <div className="flex justify-center">
-                                  <button
-                                    onClick={(e) => handleToggleExtensionSent(p.id, !!p.extensionSent, e)}
-                                    className={`w-5 h-5 rounded border flex items-center justify-center transition-all ${
-                                      p.extensionSent
-                                        ? 'bg-emerald-500 border-emerald-600 text-white'
-                                        : 'border-[var(--border)] hover:border-emerald-500 bg-[var(--surface)] hover:scale-105'
-                                    }`}
-                                  >
-                                    {p.extensionSent && <Check className="w-3.5 h-3.5 stroke-[4]" />}
-                                  </button>
+                                  {patientPrograms.some(prog => prog.excludeExtensionSent) ? (
+                                    <span className="text-[11px] font-bold opacity-30">—</span>
+                                  ) : (
+                                    <button
+                                      onClick={(e) => handleToggleExtensionSent(p.id, !!p.extensionSent, e)}
+                                      className={`w-5 h-5 rounded border flex items-center justify-center transition-all ${
+                                        p.extensionSent
+                                          ? 'bg-emerald-500 border-emerald-600 text-white'
+                                          : 'border-[var(--border)] hover:border-emerald-500 bg-[var(--surface)] hover:scale-105'
+                                      }`}
+                                    >
+                                      {p.extensionSent && <Check className="w-3.5 h-3.5 stroke-[4]" />}
+                                    </button>
+                                  )}
                                 </div>
                               </td>
                               <td className="px-2 py-3 text-center">
                                 <div className="flex justify-center">
-                                  <button
-                                    onClick={(e) => handleToggleExtensionReceived(p.id, !!p.extensionReceived, e)}
-                                    className={`w-5 h-5 rounded border flex items-center justify-center transition-all ${
-                                      p.extensionReceived 
-                                        ? 'bg-emerald-500 border-emerald-600 text-white' 
-                                        : 'border-[var(--border)] hover:border-emerald-500 bg-[var(--surface)] hover:scale-105'
-                                    }`}
-                                  >
-                                    {p.extensionReceived && <Check className="w-3.5 h-3.5 stroke-[4]" />}
-                                  </button>
+                                  {patientPrograms.some(prog => prog.excludeExtensionReceived) ? (
+                                    <span className="text-[11px] font-bold opacity-30">—</span>
+                                  ) : (
+                                    <button
+                                      onClick={(e) => handleToggleExtensionReceived(p.id, !!p.extensionReceived, e)}
+                                      className={`w-5 h-5 rounded border flex items-center justify-center transition-all ${
+                                        p.extensionReceived 
+                                          ? 'bg-emerald-500 border-emerald-600 text-white' 
+                                          : 'border-[var(--border)] hover:border-emerald-500 bg-[var(--surface)] hover:scale-105'
+                                      }`}
+                                    >
+                                      {p.extensionReceived && <Check className="w-3.5 h-3.5 stroke-[4]" />}
+                                    </button>
+                                  )}
                                 </div>
                               </td>
                               <td className="px-2 py-3 text-center">
                                 <div className="flex justify-center">
-                                  <button
-                                    onClick={(e) => handleToggleSummaryReportCompleted(p.id, !!p.summaryReportCompleted, e)}
-                                    className={`w-5 h-5 rounded border flex items-center justify-center transition-all ${
-                                      p.summaryReportCompleted
-                                        ? 'bg-emerald-500 border-emerald-600 text-white'
-                                        : 'border-[var(--border)] hover:border-emerald-500 bg-[var(--surface)] hover:scale-105'
-                                    }`}
-                                  >
-                                    {p.summaryReportCompleted && <Check className="w-3.5 h-3.5 stroke-[4]" />}
-                                  </button>
+                                  {patientPrograms.some(prog => prog.excludeSummaryReport) ? (
+                                    <span className="text-[11px] font-bold opacity-30">—</span>
+                                  ) : (
+                                    <button
+                                      onClick={(e) => handleToggleSummaryReportCompleted(p.id, !!p.summaryReportCompleted, e)}
+                                      className={`w-5 h-5 rounded border flex items-center justify-center transition-all ${
+                                        p.summaryReportCompleted
+                                          ? 'bg-emerald-500 border-emerald-600 text-white'
+                                          : 'border-[var(--border)] hover:border-emerald-500 bg-[var(--surface)] hover:scale-105'
+                                      }`}
+                                    >
+                                      {p.summaryReportCompleted && <Check className="w-3.5 h-3.5 stroke-[4]" />}
+                                    </button>
+                                  )}
                                 </div>
                               </td>
                             </>
@@ -1298,8 +1376,12 @@ export default function PatientsPage() {
             <div className="flex flex-col bg-[var(--surface)] border border-[var(--border)] rounded-2xl overflow-hidden mb-8 shadow-sm">
               {filtered.map((p) => {
                 const daysLeft = getDaysRemaining(p);
-                const isExpiring3m = p.status === 'active' && daysLeft !== null && daysLeft <= 14 && !p.extensionReceived;
-                const isExpiring6m = p.status === 'active' && daysLeft !== null && daysLeft <= 14 && p.extensionReceived;
+                const pIds = p.programIds || (p.programId ? [p.programId] : []);
+                const patientPrograms = programs.filter(prog => pIds.includes(prog.id));
+                const skipExtensionAlert = patientPrograms.some(prog => prog.excludeExtensionSent);
+
+                const isExpiring3m = p.status === 'active' && daysLeft !== null && daysLeft <= 14 && !p.extensionReceived && !skipExtensionAlert;
+                const isExpiring6m = p.status === 'active' && daysLeft !== null && daysLeft <= 14 && p.extensionReceived && !skipExtensionAlert;
 
                 return (
                   <motion.div 
@@ -1395,52 +1477,72 @@ export default function PatientsPage() {
                     {/* Quick Action Toggle Pills for Mobile */}
                     <div className="flex flex-wrap items-center gap-2 mt-1">
                       <button
-                        onClick={(e) => handleToggleRehabPlanCompleted(p.id, !!p.rehabPlanCompleted, e)}
+                        onClick={(e) => handleToggleArrivalMethod(p.id, p.arrivalMethod, e)}
                         className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-black transition-all border ${
-                          p.rehabPlanCompleted
+                          p.arrivalMethod === "private_car"
                             ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600 shadow-sm'
                             : 'bg-[var(--foreground)]/5 border-[var(--border)] text-[var(--muted)] hover:border-emerald-500/30'
                         }`}
                       >
-                        {p.rehabPlanCompleted ? <Check className="w-3.5 h-3.5 stroke-[3]" /> : <div className="w-3.5 h-3.5 rounded-full border border-[var(--muted)]/30" />}
-                        שיקום
+                        <CarFront className="w-3.5 h-3.5" />
+                        רכב
                       </button>
 
-                      <button
-                        onClick={(e) => handleToggleExtensionSent(p.id, !!p.extensionSent, e)}
-                        className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-black transition-all border ${
-                          p.extensionSent
-                            ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600 shadow-sm'
-                            : 'bg-[var(--foreground)]/5 border-[var(--border)] text-[var(--muted)] hover:border-emerald-500/30'
-                        }`}
-                      >
-                        {p.extensionSent ? <Check className="w-3.5 h-3.5 stroke-[3]" /> : <div className="w-3.5 h-3.5 rounded-full border border-[var(--muted)]/30" />}
-                        אמצע
-                      </button>
+                      {!patientPrograms.some(prog => prog.excludeRehabPlan) && (
+                        <button
+                          onClick={(e) => handleToggleRehabPlanCompleted(p.id, !!p.rehabPlanCompleted, e)}
+                          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-black transition-all border ${
+                            p.rehabPlanCompleted
+                              ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600 shadow-sm'
+                              : 'bg-[var(--foreground)]/5 border-[var(--border)] text-[var(--muted)] hover:border-emerald-500/30'
+                          }`}
+                        >
+                          {p.rehabPlanCompleted ? <Check className="w-3.5 h-3.5 stroke-[3]" /> : <div className="w-3.5 h-3.5 rounded-full border border-[var(--muted)]/30" />}
+                          שיקום
+                        </button>
+                      )}
 
-                      <button
-                        onClick={(e) => handleToggleExtensionReceived(p.id, !!p.extensionReceived, e)}
-                        className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-black transition-all border ${
-                          p.extensionReceived 
-                            ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600 shadow-sm' 
-                            : 'bg-[var(--foreground)]/5 border-[var(--border)] text-[var(--muted)] hover:border-emerald-500/30'
-                        }`}
-                      >
-                        {p.extensionReceived ? <Check className="w-3.5 h-3.5 stroke-[3]" /> : <div className="w-3.5 h-3.5 rounded-full border border-[var(--muted)]/30" />}
-                        הארכה
-                      </button>
+                      {!patientPrograms.some(prog => prog.excludeExtensionSent) && (
+                        <button
+                          onClick={(e) => handleToggleExtensionSent(p.id, !!p.extensionSent, e)}
+                          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-black transition-all border ${
+                            p.extensionSent
+                              ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600 shadow-sm'
+                              : 'bg-[var(--foreground)]/5 border-[var(--border)] text-[var(--muted)] hover:border-emerald-500/30'
+                          }`}
+                        >
+                          {p.extensionSent ? <Check className="w-3.5 h-3.5 stroke-[3]" /> : <div className="w-3.5 h-3.5 rounded-full border border-[var(--muted)]/30" />}
+                          אמצע
+                        </button>
+                      )}
 
-                      <button
-                        onClick={(e) => handleToggleSummaryReportCompleted(p.id, !!p.summaryReportCompleted, e)}
-                        className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-black transition-all border ${
-                          p.summaryReportCompleted
-                            ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600 shadow-sm'
-                            : 'bg-[var(--foreground)]/5 border-[var(--border)] text-[var(--muted)] hover:border-emerald-500/30'
-                        }`}
-                      >
-                        {p.summaryReportCompleted ? <Check className="w-3.5 h-3.5 stroke-[3]" /> : <div className="w-3.5 h-3.5 rounded-full border border-[var(--muted)]/30" />}
-                        סיכום
-                      </button>
+                      {!patientPrograms.some(prog => prog.excludeExtensionReceived) && (
+                        <button
+                          onClick={(e) => handleToggleExtensionReceived(p.id, !!p.extensionReceived, e)}
+                          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-black transition-all border ${
+                            p.extensionReceived 
+                              ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600 shadow-sm' 
+                              : 'bg-[var(--foreground)]/5 border-[var(--border)] text-[var(--muted)] hover:border-emerald-500/30'
+                          }`}
+                        >
+                          {p.extensionReceived ? <Check className="w-3.5 h-3.5 stroke-[3]" /> : <div className="w-3.5 h-3.5 rounded-full border border-[var(--muted)]/30" />}
+                          הארכה
+                        </button>
+                      )}
+
+                      {!patientPrograms.some(prog => prog.excludeSummaryReport) && (
+                        <button
+                          onClick={(e) => handleToggleSummaryReportCompleted(p.id, !!p.summaryReportCompleted, e)}
+                          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-black transition-all border ${
+                            p.summaryReportCompleted
+                              ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600 shadow-sm'
+                              : 'bg-[var(--foreground)]/5 border-[var(--border)] text-[var(--muted)] hover:border-emerald-500/30'
+                          }`}
+                        >
+                          {p.summaryReportCompleted ? <Check className="w-3.5 h-3.5 stroke-[3]" /> : <div className="w-3.5 h-3.5 rounded-full border border-[var(--muted)]/30" />}
+                          סיכום
+                        </button>
+                      )}
                     </div>
                   </motion.div>
                 );

@@ -24,6 +24,12 @@ interface Program {
   activityHours?: string;
   participationActivityDetail?: string;
   travelActivityDetail?: string;
+  excludeRehabPlan?: boolean;
+  excludeConfidentialityWaiver?: boolean;
+  excludePersonalDetailsForm?: boolean;
+  excludeExtensionSent?: boolean;
+  excludeExtensionReceived?: boolean;
+  excludeSummaryReport?: boolean;
 }
 
 interface Group {
@@ -63,17 +69,38 @@ export default function ProgramDetailPage() {
   const [editParticipationDetail, setEditParticipationDetail] = useState("");
   const [editTravelDetail,        setEditTravelDetail]        = useState("");
 
+  // Excluded parameters states
+  const [excludeRehabPlan, setExcludeRehabPlan] = useState(false);
+  const [excludeConfidentialityWaiver, setExcludeConfidentialityWaiver] = useState(false);
+  const [excludePersonalDetailsForm, setExcludePersonalDetailsForm] = useState(false);
+  const [excludeExtensionSent, setExcludeExtensionSent] = useState(false);
+  const [excludeExtensionReceived, setExcludeExtensionReceived] = useState(false);
+  const [excludeSummaryReport, setExcludeSummaryReport] = useState(false);
+
   // Refs for the auto-save closure (avoids stale state reads)
   const editNameRef = useRef(editName);
   const editDaysRef = useRef(editDays);
   const editHoursRef = useRef(editHours);
   const editParticipationDetailRef = useRef(editParticipationDetail);
   const editTravelDetailRef = useRef(editTravelDetail);
+  const excludeRehabPlanRef = useRef(excludeRehabPlan);
+  const excludeConfidentialityWaiverRef = useRef(excludeConfidentialityWaiver);
+  const excludePersonalDetailsFormRef = useRef(excludePersonalDetailsForm);
+  const excludeExtensionSentRef = useRef(excludeExtensionSent);
+  const excludeExtensionReceivedRef = useRef(excludeExtensionReceived);
+  const excludeSummaryReportRef = useRef(excludeSummaryReport);
+
   useEffect(() => { editNameRef.current = editName; }, [editName]);
   useEffect(() => { editDaysRef.current = editDays; }, [editDays]);
   useEffect(() => { editHoursRef.current = editHours; }, [editHours]);
   useEffect(() => { editParticipationDetailRef.current = editParticipationDetail; }, [editParticipationDetail]);
   useEffect(() => { editTravelDetailRef.current = editTravelDetail; }, [editTravelDetail]);
+  useEffect(() => { excludeRehabPlanRef.current = excludeRehabPlan; }, [excludeRehabPlan]);
+  useEffect(() => { excludeConfidentialityWaiverRef.current = excludeConfidentialityWaiver; }, [excludeConfidentialityWaiver]);
+  useEffect(() => { excludePersonalDetailsFormRef.current = excludePersonalDetailsForm; }, [excludePersonalDetailsForm]);
+  useEffect(() => { excludeExtensionSentRef.current = excludeExtensionSent; }, [excludeExtensionSent]);
+  useEffect(() => { excludeExtensionReceivedRef.current = excludeExtensionReceived; }, [excludeExtensionReceived]);
+  useEffect(() => { excludeSummaryReportRef.current = excludeSummaryReport; }, [excludeSummaryReport]);
 
   const autoSave = useAutoSave(async () => {
     const name = editNameRef.current.trim();
@@ -84,6 +111,12 @@ export default function ProgramDetailPage() {
       activityHours: editHoursRef.current.trim(),
       participationActivityDetail: editParticipationDetailRef.current.trim(),
       travelActivityDetail: editTravelDetailRef.current.trim(),
+      excludeRehabPlan: excludeRehabPlanRef.current,
+      excludeConfidentialityWaiver: excludeConfidentialityWaiverRef.current,
+      excludePersonalDetailsForm: excludePersonalDetailsFormRef.current,
+      excludeExtensionSent: excludeExtensionSentRef.current,
+      excludeExtensionReceived: excludeExtensionReceivedRef.current,
+      excludeSummaryReport: excludeSummaryReportRef.current,
     });
     setProgram(p => p ? {
       ...p,
@@ -91,7 +124,13 @@ export default function ProgramDetailPage() {
       activeDays: editDaysRef.current,
       activityHours: editHoursRef.current.trim(),
       participationActivityDetail: editParticipationDetailRef.current.trim(),
-      travelActivityDetail: editTravelDetailRef.current.trim()
+      travelActivityDetail: editTravelDetailRef.current.trim(),
+      excludeRehabPlan: excludeRehabPlanRef.current,
+      excludeConfidentialityWaiver: excludeConfidentialityWaiverRef.current,
+      excludePersonalDetailsForm: excludePersonalDetailsFormRef.current,
+      excludeExtensionSent: excludeExtensionSentRef.current,
+      excludeExtensionReceived: excludeExtensionReceivedRef.current,
+      excludeSummaryReport: excludeSummaryReportRef.current,
     } : p);
   }, 1200);
 
@@ -126,6 +165,12 @@ export default function ProgramDetailPage() {
       setEditHours(prog.activityHours || "9:00-15:00");
       setEditParticipationDetail(prog.participationActivityDetail || "");
       setEditTravelDetail(prog.travelActivityDetail || "");
+      setExcludeRehabPlan(!!prog.excludeRehabPlan);
+      setExcludeConfidentialityWaiver(!!prog.excludeConfidentialityWaiver);
+      setExcludePersonalDetailsForm(!!prog.excludePersonalDetailsForm);
+      setExcludeExtensionSent(!!prog.excludeExtensionSent);
+      setExcludeExtensionReceived(!!prog.excludeExtensionReceived);
+      setExcludeSummaryReport(!!prog.excludeSummaryReport);
 
       setGroups(groupsSnap.docs.map(d => ({ id: d.id, ...d.data() } as Group)));
 
@@ -162,6 +207,12 @@ export default function ProgramDetailPage() {
         activityHours: editHours.trim(),
         participationActivityDetail: editParticipationDetail.trim(),
         travelActivityDetail: editTravelDetail.trim(),
+        excludeRehabPlan,
+        excludeConfidentialityWaiver,
+        excludePersonalDetailsForm,
+        excludeExtensionSent,
+        excludeExtensionReceived,
+        excludeSummaryReport,
       });
       setProgram(p => p ? {
         ...p,
@@ -169,7 +220,13 @@ export default function ProgramDetailPage() {
         activeDays: editDays,
         activityHours: editHours.trim(),
         participationActivityDetail: editParticipationDetail.trim(),
-        travelActivityDetail: editTravelDetail.trim()
+        travelActivityDetail: editTravelDetail.trim(),
+        excludeRehabPlan,
+        excludeConfidentialityWaiver,
+        excludePersonalDetailsForm,
+        excludeExtensionSent,
+        excludeExtensionReceived,
+        excludeSummaryReport,
       } : p);
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
@@ -328,7 +385,13 @@ export default function ProgramDetailPage() {
     JSON.stringify(editDays) !== JSON.stringify(program.activeDays) ||
     editHours !== (program.activityHours || "9:00-15:00") ||
     editParticipationDetail !== (program.participationActivityDetail || "") ||
-    editTravelDetail !== (program.travelActivityDetail || "")
+    editTravelDetail !== (program.travelActivityDetail || "") ||
+    excludeRehabPlan !== !!program.excludeRehabPlan ||
+    excludeConfidentialityWaiver !== !!program.excludeConfidentialityWaiver ||
+    excludePersonalDetailsForm !== !!program.excludePersonalDetailsForm ||
+    excludeExtensionSent !== !!program.excludeExtensionSent ||
+    excludeExtensionReceived !== !!program.excludeExtensionReceived ||
+    excludeSummaryReport !== !!program.excludeSummaryReport
   );
 
   if (loading) {
@@ -446,6 +509,78 @@ export default function ProgramDetailPage() {
                   rows={3}
                   className="w-full bg-[var(--foreground)]/5 border border-[var(--border)] rounded-xl p-3 text-xs font-bold text-[var(--foreground)] focus:border-[var(--primary)] outline-none transition-colors resize-none leading-relaxed text-right"
                 />
+              </div>
+            </div>
+          </section>
+
+          {/* ── File Requirements Section ── */}
+          <section className="bg-[var(--card-bg)] border border-[var(--border)] rounded-[2rem] p-6 space-y-6 shadow-sm text-right">
+            <div>
+              <h3 className="text-sm font-black text-[var(--foreground)] mb-1">הגדרות תיק פונה</h3>
+              <p className="text-[10px] text-[var(--foreground)]/40 font-bold uppercase tracking-wider">סמן X עבור פרמטרים שאינם נדרשים בתוכנית זו (תוכניות המשך ללא ניהול מורחב)</p>
+            </div>
+
+            <div className="space-y-4">
+              {/* Documents & Plan Checklist */}
+              <div className="bg-[var(--foreground)]/[0.02] border border-[var(--border-subtle)] rounded-2xl p-4">
+                <h4 className="text-[10px] font-black uppercase tracking-widest text-[var(--foreground)]/40 mb-3">מסמכים ותוכניות</h4>
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { label: "תוכנית שיקום", checked: excludeRehabPlan, onToggle: () => { setExcludeRehabPlan(v => !v); autoSave.trigger(); } },
+                    { label: "ויתור סודיות", checked: excludeConfidentialityWaiver, onToggle: () => { setExcludeConfidentialityWaiver(v => !v); autoSave.trigger(); } },
+                    { label: "טופס פרטים אישיים", checked: excludePersonalDetailsForm, onToggle: () => { setExcludePersonalDetailsForm(v => !v); autoSave.trigger(); } },
+                  ].map((item) => (
+                    <div
+                      key={item.label}
+                      className={`rounded-xl p-3 cursor-pointer transition-all select-none group border flex flex-col items-center text-center gap-2 ${
+                        item.checked
+                          ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/30"
+                          : "bg-[var(--foreground)]/[0.02] text-[var(--foreground)]/50 border-[var(--border)] hover:border-emerald-500/40"
+                      }`}
+                      onClick={item.onToggle}
+                    >
+                      <div className={`w-5 h-5 rounded-md border flex items-center justify-center shrink-0 transition-all ${
+                        item.checked
+                          ? "bg-emerald-500 border-emerald-500 text-white"
+                          : "bg-[var(--background)] border-slate-300 group-hover:border-emerald-400"
+                      }`}>
+                        {item.checked && <X className="w-3.5 h-3.5 stroke-[3]" />}
+                      </div>
+                      <p className="text-[10px] font-black leading-tight">{item.label}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Report Markings */}
+              <div className="bg-[var(--foreground)]/[0.02] border border-[var(--border-subtle)] rounded-2xl p-4">
+                <h4 className="text-[10px] font-black uppercase tracking-widest text-[var(--foreground)]/40 mb-3">סימון דוחות</h4>
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { label: "דוח אמצע והארכה", checked: excludeExtensionSent, onToggle: () => { setExcludeExtensionSent(v => !v); autoSave.trigger(); } },
+                    { label: "התקבל הארכה", checked: excludeExtensionReceived, onToggle: () => { setExcludeExtensionReceived(v => !v); autoSave.trigger(); } },
+                    { label: "דוח סיכום", checked: excludeSummaryReport, onToggle: () => { setExcludeSummaryReport(v => !v); autoSave.trigger(); } },
+                  ].map((item) => (
+                    <div
+                      key={item.label}
+                      className={`rounded-xl p-3 cursor-pointer transition-all select-none group border flex flex-col items-center text-center gap-2 ${
+                        item.checked
+                          ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/30"
+                          : "bg-[var(--foreground)]/[0.02] text-[var(--foreground)]/50 border-[var(--border)] hover:border-emerald-500/40"
+                      }`}
+                      onClick={item.onToggle}
+                    >
+                      <div className={`w-5 h-5 rounded-md border flex items-center justify-center shrink-0 transition-all ${
+                        item.checked
+                          ? "bg-emerald-500 border-emerald-500 text-white"
+                          : "bg-[var(--background)] border-slate-300 group-hover:border-emerald-400"
+                      }`}>
+                        {item.checked && <X className="w-3.5 h-3.5 stroke-[3]" />}
+                      </div>
+                      <p className="text-[10px] font-black leading-tight">{item.label}</p>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           </section>
