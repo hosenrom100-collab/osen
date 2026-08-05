@@ -149,11 +149,15 @@ service cloud.firestore {
     // Shopping Requests
     match /shopping_requests/{docId} {
       allow read: if isAuthenticated();
-      allow create, update: if isStaff();
-      // Managers/logistics can delete anything; staff can only delete their own item
-      // (mirrors the ShoppingListView permanently-delete UI gate).
-      allow delete: if isShoppingManager() ||
-        (isStaff() && resource.data.requestedBy == request.auth.uid);
+      allow create: if isStaff();
+      // Managers, logistics, or creator can update quantities/fields
+      allow update: if isStaff() && (
+        isManager() || 
+        hasRole('logistics') || 
+        (resource != null && (resource.data.requestedBy == request.auth.uid || resource.data.createdBy == request.auth.uid))
+      );
+      // Only Admin or Logistics can delete products from the list
+      allow delete: if isAdmin() || hasRole('logistics');
     }
 
     // Product Pool

@@ -105,6 +105,7 @@ export function ShoppingListView({
     const product = poolByName.get(norm);
     return product?.trackInventory === true && invItem && invItem.currentStock > 0;
   });
+  const canDelete = isAdmin || isLogistics;
 
   return (
     <div dir="rtl">
@@ -226,6 +227,8 @@ export function ShoppingListView({
                       onEdit={onEditItem}
                       onUpdateQuantity={onUpdateQuantity}
                       canPurchase={canPurchase}
+                      isAdmin={isAdmin}
+                      isLogistics={isLogistics}
                       currentUser={currentUser}
                       onMoveToEquipment={onMoveToEquipment}
                       onMoveToSupermarket={onMoveToSupermarket}
@@ -268,6 +271,8 @@ export function ShoppingListView({
                         onEdit={onEditItem}
                         onUpdateQuantity={onUpdateQuantity}
                         canPurchase={canPurchase}
+                        isAdmin={isAdmin}
+                        isLogistics={isLogistics}
                         currentUser={currentUser}
                         onMoveToEquipment={onMoveToEquipment}
                         onMoveToSupermarket={onMoveToSupermarket}
@@ -345,7 +350,7 @@ export function ShoppingListView({
                       <RotateCcw className="w-3.5 h-3.5 stroke-[2.5]" aria-hidden="true" />
                     </button>
 
-                    {(item.requestedBy === currentUser?.uid || canPurchase) && (
+                    {canDelete && (
                       <button
                         onClick={async () => {
                           const ok = await confirm({
@@ -387,7 +392,7 @@ export function ShoppingListView({
               />
             </button>
 
-            {canPurchase && (
+            {canDelete && (
               <button
                 onClick={async () => {
                   const ok = await confirm({
@@ -438,7 +443,7 @@ export function ShoppingListView({
                       <span>החזר לרשימה</span>
                     </button>
 
-                    {(item.requestedBy === currentUser?.uid || canPurchase) && (
+                    {canDelete && (
                       <button
                         onClick={async () => {
                           const ok = await confirm({
@@ -481,6 +486,8 @@ const ShoppingItemRow = memo(function ShoppingItemRow({
   onEdit,
   onUpdateQuantity,
   canPurchase,
+  isAdmin = false,
+  isLogistics = false,
   currentUser,
   onMoveToEquipment,
   onMoveToSupermarket,
@@ -493,6 +500,8 @@ const ShoppingItemRow = memo(function ShoppingItemRow({
   onEdit: OnEditItem;
   onUpdateQuantity: OnUpdateQuantity;
   canPurchase: boolean;
+  isAdmin?: boolean;
+  isLogistics?: boolean;
   currentUser: User | null;
   onMoveToEquipment: OnMoveList;
   onMoveToSupermarket: OnMoveList;
