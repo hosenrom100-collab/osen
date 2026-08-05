@@ -498,7 +498,6 @@ const ShoppingItemRow = memo(function ShoppingItemRow({
   onMoveToSupermarket: OnMoveList;
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
-  const [dragOffset, setDragOffset] = useState(0);
   const [isEditingQty, setIsEditingQty] = useState(false);
   const [qtyDraft, setQtyDraft] = useState("");
   const isApproved = item.status === "approved" || item.status === "pending";
@@ -548,35 +547,8 @@ const ShoppingItemRow = memo(function ShoppingItemRow({
 
   return (
     <div className="relative overflow-hidden group">
-      {/* Background Actions Revealed On Swipe */}
-      <div className="absolute inset-0 flex items-center justify-between px-4 z-0 text-white font-bold text-xs">
-        <div className={`flex items-center gap-1.5 text-rose-500 font-black transition-opacity ${dragOffset > 20 ? "opacity-100" : "opacity-0"}`}>
-          <Trash2 className="w-4 h-4" />
-          <span>מחק</span>
-        </div>
-        {canPurchase && isApproved && (
-          <div className={`flex items-center gap-1.5 text-indigo-500 font-black transition-opacity ${dragOffset < -20 ? "opacity-100" : "opacity-0"}`}>
-            <ShoppingCart className="w-4 h-4" />
-            <span>סומן כנקנה ✓</span>
-          </div>
-        )}
-      </div>
-
       <motion.div
         layout
-        drag="x"
-        dragConstraints={{ left: canPurchase && isApproved ? -90 : 0, right: 90 }}
-        dragElastic={0.15}
-        onDrag={(_, info) => setDragOffset(info.offset.x)}
-        onDragEnd={(_, info) => {
-          if (info.offset.x < -60 && isApproved && canPurchase) {
-            if (typeof navigator !== "undefined" && navigator.vibrate) navigator.vibrate(20);
-            onStatus(item.id, "purchased");
-          } else if (info.offset.x > 60) {
-            confirmDeleteFromList();
-          }
-          setDragOffset(0);
-        }}
         onClick={() => setIsExpanded(!isExpanded)}
         className={`relative z-10 flex flex-col px-3 py-2.5 bg-[var(--surface)] even:bg-[var(--foreground)]/[0.012] transition-colors cursor-pointer select-none ${
           isExpanded ? "bg-[var(--foreground)]/[0.025]! ring-2 ring-indigo-500/20" : "hover:bg-[var(--foreground)]/[0.01]"

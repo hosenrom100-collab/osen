@@ -7,7 +7,7 @@ import { db } from "@/lib/firebase/config";
 import { collection, getDocs, getDoc, doc, query, where, orderBy, limit } from "firebase/firestore";
 import {
   ChevronLeft, Loader2, Upload, Users, Car,
-  FileSpreadsheet, FileArchive, CheckCircle2, AlertTriangle,
+  FileSpreadsheet, FileArchive, CheckCircle2, AlertTriangle, Download,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -299,7 +299,8 @@ export default function BulkTravelPage() {
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "תבנית");
     const suffix = monthSuffixFromMonths(selectedMonths);
-    XLSX.writeFile(wb, `תבנית_אישורי_נסיעות_${sanitizeFilenamePart(selectedProgram.name)}_${suffix}.xlsx`);
+    const createdAt = format(new Date(), "yyyy-MM-dd");
+    XLSX.writeFile(wb, `תבנית_אישורי_נסיעות_${sanitizeFilenamePart(selectedProgram.name)}_${suffix}_${createdAt}.xlsx`);
   }
 
   // ── Step 3: Import + reconcile ──
@@ -337,6 +338,25 @@ export default function BulkTravelPage() {
       }
     };
     reader.readAsBinaryString(file);
+  }
+
+  // ── Export updated template after merge (existing + newly-added participants) ──
+  function downloadUpdatedTemplate() {
+    if (!selectedProgram || mergedData.length === 0) return;
+    const sheetRows = mergedData.map(r => ({
+      "מזהה (אין לשנות)": r.patientId,
+      "שם פרטי": r.firstName,
+      "שם משפחה (במערכת)": r.lastNameSystem,
+      "שם משפחה מלא": r.fullLastName,
+      "מספר ת.ז.": r.idNumber,
+    }));
+    const ws = XLSX.utils.json_to_sheet(sheetRows);
+    ws["!cols"] = [{ wch: 24 }, { wch: 14 }, { wch: 18 }, { wch: 18 }, { wch: 14 }];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "תבנית");
+    const suffix = monthSuffixFromMonths(selectedMonths);
+    const createdAt = format(new Date(), "yyyy-MM-dd");
+    XLSX.writeFile(wb, `תבנית_אישורי_נסיעות_${sanitizeFilenamePart(selectedProgram.name)}_${suffix}_${createdAt}.xlsx`);
   }
 
   // ── Generate + zip ──
@@ -620,6 +640,13 @@ export default function BulkTravelPage() {
                 <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl overflow-hidden">
                   <div className="px-5 py-3 border-b border-[var(--border)] flex items-center justify-between">
                     <h2 className="text-xs font-black">תצוגה מקדימה ({matchedCount}/{mergedData.length} מוכנים להפקה)</h2>
+                    <button
+                      onClick={downloadUpdatedTemplate}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-black bg-[var(--foreground)]/5 border border-[var(--border)] rounded-lg hover:bg-[var(--foreground)]/10 transition-all"
+                    >
+                      <Download className="w-3.5 h-3.5 text-cyan-400" />
+                      הורדת תבנית מעודכנת
+                    </button>
                   </div>
                   <div className="overflow-x-auto">
                     <table className="w-full text-right text-sm">
