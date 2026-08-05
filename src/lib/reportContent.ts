@@ -18,6 +18,48 @@ function pickVariant(variants: string[], patientName: string): string {
   return variants[index];
 }
 
+/** Used when staff picked "unclear/mixed" for a category instead of forcing a false fixed choice -
+ *  points the reader to the free-text staff notes rather than inventing a canned description. */
+function mixedFallbackFragment(name: string, categoryLabel: string): string {
+  return `${categoryLabel} של {name} אינו מתואר במלואו על ידי אחת האפשרויות הקבועות בשאלון ומשקף תמונה מורכבת או משתנה; התיאור כאן מתבסס על הערכת הצוות המלווה.`;
+}
+
+function mixedShortPhrase(categoryLabel: string): string {
+  return `${categoryLabel} מעורב/משתנה (לפי הערכת הצוות)`;
+}
+
+function resolveCategoryFragment(
+  dict: Record<string, string[]>,
+  value: string,
+  name: string,
+  categoryLabel: string
+): string {
+  if (!value) return "";
+  if (value === "unclear") return mixedFallbackFragment(name, categoryLabel);
+  const variants = dict[value];
+  return variants && variants.length > 0 ? pickVariant(variants, name) : "";
+}
+
+function resolveMultiFragments(
+  dict: Record<string, string[]>,
+  values: string[],
+  name: string,
+  categoryLabel: string,
+  max: number = 2
+): string[] {
+  if (!values || values.length === 0) return [];
+  return values
+    .slice(0, max)
+    .map((v) => (v === "unclear" ? mixedFallbackFragment(name, categoryLabel) : dict[v] ? pickVariant(dict[v], name) : ""))
+    .filter((f): f is string => Boolean(f));
+}
+
+function resolveCategoryPhrase(dict: Record<string, string>, value: string, categoryLabel: string): string {
+  if (!value) return "";
+  if (value === "unclear") return mixedShortPhrase(categoryLabel);
+  return dict[value] || "";
+}
+
 export function composeParagraph(fragments: string[], patientName: string = ""): string {
   const validFragments = fragments
     .filter((f): f is string => Boolean(f && f.trim()))
@@ -80,6 +122,22 @@ const emotionalFunctionalFragments: Record<string, string[]> = {
     "מבחינה רגשית, {name} מציג כוחות התמודדות בריאים, יציבות נפשית טובה ופניות רבה ללמידה. הוא מסוגל להחזיק רצף משימות שלם ומבטא תחושת ביטחון ומסוגלות עצמית גוברת.",
     "שילובו של {name} בחווה מאופיין בחוויה רגשית מאוזנת ומאורגנת, המאפשרת לו לגשת לאתגרים תפקודיים וחברתיים מתוך עמדה פתוחה, יצרנית וסקרנית.",
     "נראה כי {name} חווה יציבות פנימית יציבה וחיבור טוב למשאביו האישיים, המהווים עבורו עוגן יציב ומשפיעים לטובה על איכות העבודה והתקשורת שלו עם הסובבים."
+  ],
+  irritable: [
+    "לצד זאת, ניכרת אצל {name} עצבנות מוגברת וסף תסכול נמוך יחסית, המתבטאים בתגובות חדות או קצרות רוח מול דרישות ומעברים בלתי צפויים.",
+    "{name} נוטה להגיב בכעס או בעצבנות למצבים מתסכלים, ודורש מהצוות תיווך רגוע ולא שיפוטי כדי למנוע הסלמה מיותרת.",
+  ],
+  flat: [
+    "ניכרת אצל {name} שטיחות רגשית מסוימת וקושי להביע תגובה רגשית ברורה למתרחש סביבו, המקשה על הצוות לזהות את מצבו הפנימי בזמן אמת.",
+    "{name} מתקשה לבטא רגש כלפי חוץ, ותגובותיו מצומצמות ומרוחקות יחסית גם ברגעים בעלי מטען רגשי, מה שמצריך תשומת לב מוגברת לאיתור מצוקה סמויה.",
+  ],
+  optimistic: [
+    "עם זאת, {name} מביע תקווה ואופטימיות ביחס לתהליך ולעתידו, נימה המשתקפת גם באופן שבו הוא ניגש למשימות ולאתגרים חדשים.",
+    "בולטת אצל {name} עמדה מלאת תקווה ואמונה בהתקדמות, המהווה משאב פנימי משמעותי לצד הקשיים האחרים המתוארים.",
+  ],
+  fluctuating_daily: [
+    "מצבו הרגשי של {name} משתנה מיום ליום בהתאם לאירועים ולנסיבות, כך שקשה לאפיין אותו במונח אחד קבוע - יש ימים טובים משמעותית וימים מאתגרים יותר.",
+    "ניכרת אצל {name} תלות ברורה בין מצב הרוח לבין אירועים יומיומיים, ולכן ההתייחסות הטיפולית מתעדכנת בהתאם לתמונה המשתנה מדי יום.",
   ],
 };
 
@@ -172,7 +230,11 @@ const emotionalSymptomFragments: Record<string, string> = {
   anxious: "חרדה גבוהה, דריכות סומטית ומתח שרירי מתמשך",
   depressed: "מצב רוח ירוד, חוסר חיוניות, פסיביות והסתגרות רגשית",
   unstable: "תנודתיות רגשית חריפה ומעברים חדים במצב הרוח",
+  irritable: "עצבנות מוגברת וסף תסכול נמוך",
+  flat: "שטיחות רגשית וקושי בהבעת רגש כלפי חוץ",
+  fluctuating_daily: "מצב רוח התלוי במידה ניכרת באירועי היומיום",
   stable: "",
+  optimistic: "",
 };
 
 const familyFamilyFragments: Record<string, string[]> = {
@@ -697,10 +759,10 @@ function farmAreasSentence(profile: ParticipantProfile, verbPhrase: string): str
 
 function composeFunctionalText(profile: ParticipantProfile, name: string): string {
   const fragments: string[] = [];
-  if (profile.emotional) fragments.push(pickVariant(emotionalFunctionalFragments[profile.emotional], name));
-  if (profile.regulation) fragments.push(pickVariant(regulationFunctionalFragments[profile.regulation], name));
-  if (profile.personality) fragments.push(pickVariant(personalityFunctionalFragments[profile.personality], name));
-  if (profile.trust) fragments.push(pickVariant(trustFunctionalFragments[profile.trust], name));
+  fragments.push(...resolveMultiFragments(emotionalFunctionalFragments, profile.emotional, name, "מצבו הרגשי"));
+  fragments.push(resolveCategoryFragment(regulationFunctionalFragments, profile.regulation, name, "הוויסות הרגשי והחושי"));
+  fragments.push(resolveCategoryFragment(personalityFunctionalFragments, profile.personality, name, "אופיו והסתגלותו"));
+  fragments.push(resolveCategoryFragment(trustFunctionalFragments, profile.trust, name, "רמת האמון שלו"));
   return composeParagraph(fragments, name);
 }
 
@@ -710,10 +772,12 @@ function composeSymptomsText(profile: ParticipantProfile, name: string): string 
     const phrase = symptomPhraseFragments[d];
     if (phrase) items.push(phrase);
   }
-  const regulationPhrase = profile.regulation ? regulationSymptomFragments[profile.regulation] : "";
+  const regulationPhrase = resolveCategoryPhrase(regulationSymptomFragments, profile.regulation, "תמונת הוויסות");
   if (regulationPhrase && !items.includes(regulationPhrase)) items.push(regulationPhrase);
-  const emotionalPhrase = profile.emotional ? emotionalSymptomFragments[profile.emotional] : "";
-  if (emotionalPhrase && !items.includes(emotionalPhrase)) items.push(emotionalPhrase);
+  for (const e of profile.emotional) {
+    const emotionalPhrase = e === "unclear" ? mixedShortPhrase("המצב הרגשי") : emotionalSymptomFragments[e];
+    if (emotionalPhrase && !items.includes(emotionalPhrase)) items.push(emotionalPhrase);
+  }
 
   const trimmed = items.slice(0, 5);
   if (trimmed.length === 0) {
@@ -731,30 +795,30 @@ function composeSymptomsText(profile: ParticipantProfile, name: string): string 
 
 function composeFamilyText(profile: ParticipantProfile, name: string): string {
   const fragments: string[] = [];
-  if (profile.family) fragments.push(pickVariant(familyFamilyFragments[profile.family], name));
-  if (profile.social) fragments.push(pickVariant(socialFamilyFragments[profile.social], name));
-  if (profile.trust) fragments.push(pickVariant(trustFamilyFragments[profile.trust], name));
+  fragments.push(resolveCategoryFragment(familyFamilyFragments, profile.family, name, "המצב המשפחתי"));
+  fragments.push(resolveCategoryFragment(socialFamilyFragments, profile.social, name, "המצב החברתי"));
+  fragments.push(resolveCategoryFragment(trustFamilyFragments, profile.trust, name, "רמת האמון שלו"));
   return composeParagraph(fragments, name);
 }
 
 function composeProgressText(profile: ParticipantProfile, name: string): string {
   const fragments: string[] = [];
-  if (profile.attendance) fragments.push(pickVariant(attendanceProgressFragments[profile.attendance], name));
+  fragments.push(resolveCategoryFragment(attendanceProgressFragments, profile.attendance, name, "הנוכחות וההתמדה"));
   for (const area of profile.farmAreas) {
     const variants = farmAreaProgressFragments[area];
     if (variants) fragments.push(pickVariant(variants, name));
   }
-  if (profile.social) fragments.push(pickVariant(socialProgressFragments[profile.social], name));
-  if (profile.personality) fragments.push(pickVariant(personalityProgressFragments[profile.personality], name));
+  fragments.push(resolveCategoryFragment(socialProgressFragments, profile.social, name, "התפקוד החברתי"));
+  fragments.push(resolveCategoryFragment(personalityProgressFragments, profile.personality, name, "אופיו והסתגלותו"));
   return composeParagraph(fragments, name);
 }
 
 function composeRecommendationsText(profile: ParticipantProfile, name: string): string {
   const fragments: string[] = [];
-  if (profile.futureDirection) fragments.push(pickVariant(futureDirectionRehabFragments[profile.futureDirection], name));
-  if (profile.processStage) fragments.push(pickVariant(processStageRehabFragments[profile.processStage], name));
-  if (profile.attendance) fragments.push(pickVariant(attendanceRecommendationFragments[profile.attendance], name));
-  if (profile.trust) fragments.push(pickVariant(trustRecommendationFragments[profile.trust], name));
+  fragments.push(resolveCategoryFragment(futureDirectionRehabFragments, profile.futureDirection, name, "הכיוון העתידי"));
+  fragments.push(resolveCategoryFragment(processStageRehabFragments, profile.processStage, name, "שלב התהליך"));
+  fragments.push(resolveCategoryFragment(attendanceRecommendationFragments, profile.attendance, name, "הנוכחות וההתמדה"));
+  fragments.push(resolveCategoryFragment(trustRecommendationFragments, profile.trust, name, "רמת האמון שלו"));
   return composeParagraph(fragments, name);
 }
 
@@ -793,27 +857,27 @@ function composeRehabDescription(profile: ParticipantProfile, reportType: Period
   const fragments: string[] = [];
   switch (reportType) {
     case "דו\"ח השמה":
-      if (profile.personality) fragments.push(pickVariant(personalityIntakeFragments[profile.personality], name));
-      if (profile.regulation) fragments.push(pickVariant(regulationIntakeFragments[profile.regulation], name));
-      if (profile.processStage) fragments.push(pickVariant(processStageIntakeFragments[profile.processStage], name));
-      if (profile.futureDirection) fragments.push(pickVariant(futureDirectionIntakeFragments[profile.futureDirection], name));
+      fragments.push(resolveCategoryFragment(personalityIntakeFragments, profile.personality, name, "אופיו והסתגלותו"));
+      fragments.push(resolveCategoryFragment(regulationIntakeFragments, profile.regulation, name, "הוויסות הרגשי והחושי"));
+      fragments.push(resolveCategoryFragment(processStageIntakeFragments, profile.processStage, name, "שלב התהליך"));
+      fragments.push(resolveCategoryFragment(futureDirectionIntakeFragments, profile.futureDirection, name, "הכיוון העתידי"));
       break;
     case "דו\"ח עזיבה":
-      if (profile.attendance) fragments.push(pickVariant(attendanceExitFragments[profile.attendance], name));
+      fragments.push(resolveCategoryFragment(attendanceExitFragments, profile.attendance, name, "הנוכחות וההתמדה"));
       fragments.push(farmAreasSentence(profile, "השתלב לאורך התהליך"));
-      if (profile.social) fragments.push(pickVariant(socialExitFragments[profile.social], name));
-      if (profile.regulation) fragments.push(pickVariant(regulationExitFragments[profile.regulation], name));
+      fragments.push(resolveCategoryFragment(socialExitFragments, profile.social, name, "התפקוד החברתי"));
+      fragments.push(resolveCategoryFragment(regulationExitFragments, profile.regulation, name, "הוויסות הרגשי והחושי"));
       break;
     case "דו\"ח חצי שנתי":
     case "דו\"ח סיכום תקופה":
-      if (profile.attendance) fragments.push(pickVariant(attendancePeriodFragments[profile.attendance], name));
+      fragments.push(resolveCategoryFragment(attendancePeriodFragments, profile.attendance, name, "הנוכחות וההתמדה"));
       fragments.push(farmAreasSentence(profile, "השתתף בתקופה הנסקרת"));
-      if (profile.social) fragments.push(pickVariant(socialProgressFragments[profile.social], name));
+      fragments.push(resolveCategoryFragment(socialProgressFragments, profile.social, name, "התפקוד החברתי"));
       break;
     case "בקשה להארכה":
-      if (profile.attendance) fragments.push(pickVariant(attendanceExtensionFragments[profile.attendance], name));
+      fragments.push(resolveCategoryFragment(attendanceExtensionFragments, profile.attendance, name, "הנוכחות וההתמדה"));
       fragments.push(farmAreasSentence(profile, "השתלב עד כה"));
-      if (profile.social) fragments.push(pickVariant(socialProgressFragments[profile.social], name));
+      fragments.push(resolveCategoryFragment(socialProgressFragments, profile.social, name, "התפקוד החברתי"));
       break;
   }
   return composeParagraph(fragments, name);
@@ -823,25 +887,25 @@ function composeSummaryProcess(profile: ParticipantProfile, reportType: Periodic
   const fragments: string[] = [];
   switch (reportType) {
     case "דו\"ח השמה":
-      if (profile.personality) fragments.push(pickVariant(personalityIntakeFragments[profile.personality], name));
-      if (profile.trust) fragments.push(pickVariant(trustFunctionalFragments[profile.trust], name));
-      if (profile.family) fragments.push(pickVariant(familyFamilyFragments[profile.family], name));
+      fragments.push(resolveCategoryFragment(personalityIntakeFragments, profile.personality, name, "אופיו והסתגלותו"));
+      fragments.push(resolveCategoryFragment(trustFunctionalFragments, profile.trust, name, "רמת האמון שלו"));
+      fragments.push(resolveCategoryFragment(familyFamilyFragments, profile.family, name, "המצב המשפחתי"));
       break;
     case "דו\"ח עזיבה":
-      if (profile.personality) fragments.push(pickVariant(personalityProgressFragments[profile.personality], name));
-      if (profile.social) fragments.push(pickVariant(socialExitFragments[profile.social], name));
-      if (profile.regulation) fragments.push(pickVariant(regulationExitFragments[profile.regulation], name));
+      fragments.push(resolveCategoryFragment(personalityProgressFragments, profile.personality, name, "אופיו והסתגלותו"));
+      fragments.push(resolveCategoryFragment(socialExitFragments, profile.social, name, "התפקוד החברתי"));
+      fragments.push(resolveCategoryFragment(regulationExitFragments, profile.regulation, name, "הוויסות הרגשי והחושי"));
       break;
     case "דו\"ח חצי שנתי":
     case "דו\"ח סיכום תקופה":
-      if (profile.personality) fragments.push(pickVariant(personalityPeriodFragments[profile.personality], name));
-      if (profile.regulation) fragments.push(pickVariant(regulationExitFragments[profile.regulation], name));
-      if (profile.social) fragments.push(pickVariant(socialProgressFragments[profile.social], name));
+      fragments.push(resolveCategoryFragment(personalityPeriodFragments, profile.personality, name, "אופיו והסתגלותו"));
+      fragments.push(resolveCategoryFragment(regulationExitFragments, profile.regulation, name, "הוויסות הרגשי והחושי"));
+      fragments.push(resolveCategoryFragment(socialProgressFragments, profile.social, name, "התפקוד החברתי"));
       break;
     case "בקשה להארכה":
       fragments.push(farmAreasSentence(profile, "מגלה מעורבות פעילה"));
-      if (profile.social) fragments.push(pickVariant(socialProgressFragments[profile.social], name));
-      if (profile.regulation) fragments.push(pickVariant(regulationExitFragments[profile.regulation], name));
+      fragments.push(resolveCategoryFragment(socialProgressFragments, profile.social, name, "התפקוד החברתי"));
+      fragments.push(resolveCategoryFragment(regulationExitFragments, profile.regulation, name, "הוויסות הרגשי והחושי"));
       break;
   }
   return composeParagraph(fragments, name);
@@ -851,23 +915,23 @@ function composeRecommendationsPeriodic(profile: ParticipantProfile, reportType:
   const fragments: string[] = [];
   switch (reportType) {
     case "דו\"ח השמה":
-      if (profile.futureDirection) fragments.push(pickVariant(futureDirectionIntakeFragments[profile.futureDirection], name));
-      if (profile.processStage) fragments.push(pickVariant(processStageIntakeFragments[profile.processStage], name));
+      fragments.push(resolveCategoryFragment(futureDirectionIntakeFragments, profile.futureDirection, name, "הכיוון העתידי"));
+      fragments.push(resolveCategoryFragment(processStageIntakeFragments, profile.processStage, name, "שלב התהליך"));
       break;
     case "דו\"ח עזיבה":
-      if (profile.futureDirection) fragments.push(pickVariant(futureDirectionExitFragments[profile.futureDirection], name));
-      if (profile.trust) fragments.push(pickVariant(trustRecommendationFragments[profile.trust], name));
+      fragments.push(resolveCategoryFragment(futureDirectionExitFragments, profile.futureDirection, name, "הכיוון העתידי"));
+      fragments.push(resolveCategoryFragment(trustRecommendationFragments, profile.trust, name, "רמת האמון שלו"));
       break;
     case "דו\"ח חצי שנתי":
     case "דו\"ח סיכום תקופה":
-      if (profile.futureDirection) fragments.push(pickVariant(futureDirectionRehabFragments[profile.futureDirection], name));
-      if (profile.processStage) fragments.push(pickVariant(processStageRehabFragments[profile.processStage], name));
-      if (profile.attendance) fragments.push(pickVariant(attendanceRecommendationFragments[profile.attendance], name));
+      fragments.push(resolveCategoryFragment(futureDirectionRehabFragments, profile.futureDirection, name, "הכיוון העתידי"));
+      fragments.push(resolveCategoryFragment(processStageRehabFragments, profile.processStage, name, "שלב התהליך"));
+      fragments.push(resolveCategoryFragment(attendanceRecommendationFragments, profile.attendance, name, "הנוכחות וההתמדה"));
       break;
     case "בקשה להארכה":
-      if (profile.processStage) fragments.push(pickVariant(processStageExtensionFragments[profile.processStage], name));
-      if (profile.futureDirection) fragments.push(pickVariant(futureDirectionRehabFragments[profile.futureDirection], name));
-      if (profile.trust) fragments.push(pickVariant(trustRecommendationFragments[profile.trust], name));
+      fragments.push(resolveCategoryFragment(processStageExtensionFragments, profile.processStage, name, "שלב התהליך"));
+      fragments.push(resolveCategoryFragment(futureDirectionRehabFragments, profile.futureDirection, name, "הכיוון העתידי"));
+      fragments.push(resolveCategoryFragment(trustRecommendationFragments, profile.trust, name, "רמת האמון שלו"));
       break;
   }
   return composeParagraph(fragments, name);
@@ -986,22 +1050,26 @@ export function composeRehabPlanSections(profile: ParticipantProfile, name: stri
   }
   const areasOfImprovement = areasOfImprovementRaw.slice(0, 4);
 
-  const goalVariants = profile.futureDirection ? futureDirectionGoalFragments[profile.futureDirection] : [];
-  const specificGoalRaw = goalVariants.length > 0 
-    ? pickVariant(goalVariants, name) 
-    : "גיבוש מטרה שיקומית מותאמת עבור {name}";
+  const specificGoalRaw =
+    profile.futureDirection === "unclear"
+      ? mixedFallbackFragment(name, "הכיוון העתידי")
+      : profile.futureDirection && futureDirectionGoalFragments[profile.futureDirection]?.length > 0
+        ? pickVariant(futureDirectionGoalFragments[profile.futureDirection], name)
+        : "גיבוש מטרה שיקומית מותאמת עבור {name}";
   const specificGoal = fillName(specificGoalRaw, name);
 
-  const waysToAchieveRaw: string[] = [];
-  if (profile.processStage) waysToAchieveRaw.push(processStageWaysPhrase[profile.processStage]);
-  if (profile.regulation) waysToAchieveRaw.push(regulationWaysPhrase[profile.regulation]);
-  if (profile.social) waysToAchieveRaw.push(socialWaysPhrase[profile.social]);
+  const waysToAchieveRaw: string[] = [
+    resolveCategoryPhrase(processStageWaysPhrase, profile.processStage, "שלב התהליך"),
+    resolveCategoryPhrase(regulationWaysPhrase, profile.regulation, "הוויסות הרגשי והחושי"),
+    resolveCategoryPhrase(socialWaysPhrase, profile.social, "התפקוד החברתי"),
+  ];
   const waysToAchieve = waysToAchieveRaw.filter(Boolean).slice(0, 4);
 
-  const sourcesOfSupportRaw: string[] = [];
-  if (profile.trust) sourcesOfSupportRaw.push(trustSupportPhrase[profile.trust]);
-  if (profile.family) sourcesOfSupportRaw.push(familySupportPhrase[profile.family]);
-  if (profile.social) sourcesOfSupportRaw.push(socialSupportPhrase[profile.social]);
+  const sourcesOfSupportRaw: string[] = [
+    resolveCategoryPhrase(trustSupportPhrase, profile.trust, "רמת האמון שלו"),
+    resolveCategoryPhrase(familySupportPhrase, profile.family, "המצב המשפחתי"),
+    resolveCategoryPhrase(socialSupportPhrase, profile.social, "התפקוד החברתי"),
+  ];
   const sourcesOfSupport = sourcesOfSupportRaw.filter(Boolean).slice(0, 3);
 
   return { areasOfImprovement, specificGoal, waysToAchieve, sourcesOfSupport };

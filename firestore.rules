@@ -65,15 +65,6 @@ service cloud.firestore {
       );
     }
 
-    // Personal Tasks
-    match /personal_tasks/{taskId} {
-      allow read, write: if isAuthenticated() && (
-        resource == null || 
-        resource.data.userId == request.auth.uid ||
-        request.resource.data.userId == request.auth.uid
-      );
-    }
-
     // Patients collection
     match /patients/{patientId} {
       // Participants can read only their own record. Staff can read all.

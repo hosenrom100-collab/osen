@@ -9,7 +9,7 @@ import {
   Shield, MapPin, Edit3, ChevronLeft, Clock,
   ClipboardList, Layers, X, Check, ChevronDown, Plus,
   AlertTriangle, Sparkles, Bell, Coffee, Utensils, ArrowLeftRight,
-  ShoppingCart, Share2, CarTaxiFront, Info
+  ShoppingCart, Share2
 } from "lucide-react";
 import Link from "next/link";
 import { db } from "@/lib/firebase/config";
@@ -80,7 +80,6 @@ export default function Home() {
   const [recentNotifications, setRecentNotifications] = useState<any[]>([]);
   const [unreadNotifCount, setUnreadNotifCount] = useState(0);
   const [activeShoppingCount, setActiveShoppingCount] = useState(0);
-  const [taxiPatients, setTaxiPatients] = useState<any[]>([]);
 
   const isStrictAdmin = isAdmin && !(roles || []).some(r => r === "social_worker" || r === "instructor" || r === "employee" || r === "logistics");
   const isStrictManager = isManager && !(roles || []).some(r => r === "social_worker" || r === "instructor" || r === "employee" || r === "logistics");
@@ -191,24 +190,12 @@ export default function Home() {
       groupList.forEach(g => statMap.set(g.id, { ...g, present: 0, absent: 0, total: 0 }));
 
       const present: PresentPat[] = [];
-      const taxis: any[] = [];
       let expiring3m = 0;
       let expiring6m = 0;
       pSnap.forEach(d => {
         const p   = d.data();
         const pId = d.id;
-        
-        if (p.arrivalMethod === "taxi") {
-          taxis.push({
-            id: pId,
-            firstName: p.firstName || "",
-            lastName: p.lastName || "",
-            status: p.status,
-            hosenType: p.hosenType || "",
-            isPresentToday: presentIds.has(pId),
-          });
-        }
-        
+
         // Collect all groups this patient belongs to
         const gIds: string[] = [];
         if (p.hosenType) {
@@ -299,13 +286,15 @@ export default function Home() {
 
             const diffDays = differenceInDays(effectiveEnd, today);
 
-            if (p.extensionReceived) {
-              if (diffDays <= 14) {
-                expiring6m++;
-              }
-            } else {
-              if (diffDays <= 14) {
-                expiring3m++;
+            if (p.assignedWorkerId === user?.uid) {
+              if (p.extensionReceived) {
+                if (diffDays <= 14) {
+                  expiring6m++;
+                }
+              } else {
+                if (diffDays <= 14) {
+                  expiring3m++;
+                }
               }
             }
           }
@@ -315,7 +304,6 @@ export default function Home() {
       setPresentPatients(present);
       setExpiring3mCount(expiring3m);
       setExpiring6mCount(expiring6m);
-      setTaxiPatients(taxis);
 
       // 3. Absences
       const [myAbsSnap, allAbsSnap] = await Promise.all([
@@ -658,9 +646,8 @@ export default function Home() {
               initial={{ opacity: 0, y: 15 }} 
               animate={{ opacity: 1, y: 0 }} 
               transition={{ duration: 0.4, delay: 0.05 }}
-              className="relative p-5 bg-[var(--card-bg,var(--surface))] border border-[var(--border)] rounded-3xl overflow-hidden hover:border-blue-500/40 transition-all duration-300 group shadow-lg"
+              className="relative p-5 bg-[var(--card-bg,var(--surface))] border border-[var(--border)] rounded-3xl overflow-hidden hover:border-blue-500/40 transition-all duration-300 group"
             >
-              <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 rounded-full blur-3xl pointer-events-none" />
               <div className="flex items-start justify-between">
                 <div className="space-y-1">
                   <p className="text-[10px] font-black uppercase tracking-wider text-[var(--muted)]">משתתפים פעילים</p>
@@ -681,9 +668,8 @@ export default function Home() {
               initial={{ opacity: 0, y: 15 }} 
               animate={{ opacity: 1, y: 0 }} 
               transition={{ duration: 0.4, delay: 0.1 }}
-              className="relative p-5 bg-[var(--card-bg,var(--surface))] border border-[var(--border)] rounded-3xl overflow-hidden hover:border-emerald-500/40 transition-all duration-300 group shadow-lg"
+              className="relative p-5 bg-[var(--card-bg,var(--surface))] border border-[var(--border)] rounded-3xl overflow-hidden hover:border-emerald-500/40 transition-all duration-300 group"
             >
-              <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 rounded-full blur-3xl pointer-events-none" />
               <div className="flex items-start justify-between">
                 <div className="space-y-1">
                   <p className="text-[10px] font-black uppercase tracking-wider text-[var(--muted)]">נוכחות היום</p>
@@ -712,9 +698,8 @@ export default function Home() {
               initial={{ opacity: 0, y: 15 }} 
               animate={{ opacity: 1, y: 0 }} 
               transition={{ duration: 0.4, delay: 0.15 }}
-              className="relative p-5 bg-[var(--card-bg,var(--surface))] border border-[var(--border)] rounded-3xl overflow-hidden hover:border-amber-500/40 transition-all duration-300 group shadow-lg"
+              className="relative p-5 bg-[var(--card-bg,var(--surface))] border border-[var(--border)] rounded-3xl overflow-hidden hover:border-amber-500/40 transition-all duration-300 group"
             >
-              <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 rounded-full blur-3xl pointer-events-none" />
               <div className="flex items-start justify-between">
                 <div className="space-y-1">
                   <p className="text-[10px] font-black uppercase tracking-wider text-[var(--muted)]">ממתינים לרישום</p>
@@ -752,8 +737,7 @@ export default function Home() {
       {/* ── AI Insights Feed ── */}
       {dataLoaded && (roles?.includes("social_worker") || role === "social_worker" || isAdmin || isManager) && (expiring3mCount > 0 || expiring6mCount > 0) && (
         <div className="px-4 md:px-6 mt-6 max-w-6xl mx-auto">
-          <div className="p-5 bg-[var(--card-bg,var(--surface))] border border-[var(--border)] rounded-3xl shadow-xl relative overflow-hidden">
-            <div className="absolute -top-12 -right-12 w-40 h-40 bg-blue-500/5 rounded-full blur-2xl pointer-events-none" />
+          <div className="p-5 bg-[var(--card-bg,var(--surface))] border border-[var(--border)] rounded-3xl relative overflow-hidden">
             
             <div className="flex items-center gap-2 mb-4">
               <Sparkles className="w-4 h-4 text-blue-400 animate-pulse" />
@@ -796,9 +780,9 @@ export default function Home() {
       {/* ── Main content ── */}
       <main className="px-4 md:px-6 py-5 pb-24">
         {isLogistics ? (
-          <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="max-w-6xl mx-auto grid grid-cols-1 gap-6">
             {/* ── Active Shopping Summary ── */}
-            <div className={`border border-[var(--border)] rounded-3xl overflow-hidden bg-[var(--card-bg,var(--surface))] shadow-xl flex flex-col justify-between ${activeShoppingCount === 0 ? "hidden md:flex" : ""}`}>
+            <div className={`border border-[var(--border)] rounded-3xl overflow-hidden bg-[var(--card-bg,var(--surface))] flex flex-col justify-between ${activeShoppingCount === 0 ? "hidden md:flex" : ""}`}>
               <div>
                 <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border)]">
                   <div className="flex items-center gap-2">
@@ -837,55 +821,6 @@ export default function Home() {
                 </div>
               </div>
             </div>
-
-            {/* ── Taxi Arrivals Card ── */}
-            <div className="border border-[var(--border)] rounded-3xl overflow-hidden bg-[var(--card-bg,var(--surface))] shadow-xl flex flex-col justify-between">
-              <div>
-                <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border)]">
-                  <div className="flex items-center gap-2">
-                    <CarTaxiFront className="w-4 h-4 text-amber-500" />
-                    <h2 className="text-sm font-black text-[var(--foreground)]">משתתפים שמגיעים במונית</h2>
-                  </div>
-                  <span className="text-[10px] bg-amber-500/10 text-amber-500 px-2.5 py-1 rounded-full font-bold">
-                    {taxiPatients.length} משתתפים
-                  </span>
-                </div>
-                <div className="p-5">
-                  {taxiPatients.length === 0 ? (
-                    <div className="text-center py-8 text-[var(--muted)] space-y-2">
-                      <Info className="w-8 h-8 mx-auto stroke-1 text-[var(--muted)] opacity-60" />
-                      <p className="text-xs font-black text-[var(--foreground)]">אין משתתפים המגיעים במונית</p>
-                      <p className="text-[10px] text-[var(--muted)] font-bold">לא סומנו משתתפים ששיטת ההגעה שלהם היא מונית</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1 no-scrollbar text-right">
-                      {taxiPatients.map(p => (
-                        <div key={p.id} className="p-3 bg-amber-500/5 border border-amber-500/10 rounded-2xl flex items-center justify-between hover:bg-amber-500/10 transition-all duration-200">
-                          <div className="flex items-center gap-2.5">
-                            <div className="w-8 h-8 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center font-black text-xs shrink-0">
-                              {p.firstName?.[0]}{p.lastName?.[0]}
-                            </div>
-                            <div>
-                              <p className="text-xs font-black text-[var(--foreground)]">{p.firstName} {p.lastName}</p>
-                              <p className="text-[9px] text-[var(--muted)] font-bold">מגיע במונית</p>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-1.5">
-                            <span className={`text-[10px] px-2 py-0.5 rounded-full font-black border ${
-                              p.isPresentToday 
-                                ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-500" 
-                                : "bg-slate-500/10 border-slate-500/20 text-[var(--muted)]"
-                            }`}>
-                              {p.isPresentToday ? "נוכח היום" : "טרם הגיע / לא סומן"}
-                            </span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
           </div>
         ) : (
           <div className="grid md:grid-cols-[1fr_300px] lg:grid-cols-[1fr_320px] gap-6 max-w-6xl mx-auto">
@@ -895,7 +830,7 @@ export default function Home() {
             {isStrictAdmin ? (
               <>
                 {/* ── Absence Approvals Summary ── */}
-                <div className="border border-[var(--border)] rounded-3xl overflow-hidden bg-[var(--card-bg,var(--surface))] shadow-xl">
+                <div className="border border-[var(--border)] rounded-3xl overflow-hidden bg-[var(--card-bg,var(--surface))]">
                   <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border)]">
                     <div className="flex items-center gap-2">
                       <Clock className="w-4 h-4 text-amber-500" />
@@ -934,7 +869,7 @@ export default function Home() {
                 </div>
 
                 {/* ── Active Shopping Summary ── */}
-                <div className={`border border-[var(--border)] rounded-3xl overflow-hidden bg-[var(--card-bg,var(--surface))] shadow-xl ${activeShoppingCount === 0 ? "hidden md:block" : ""}`}>
+                <div className={`border border-[var(--border)] rounded-3xl overflow-hidden bg-[var(--card-bg,var(--surface))] ${activeShoppingCount === 0 ? "hidden md:block" : ""}`}>
                   <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border)]">
                     <div className="flex items-center gap-2">
                       <ShoppingCart className="w-4 h-4 text-indigo-500" />
@@ -975,7 +910,7 @@ export default function Home() {
             ) : (
               <>
                 {/* ── Attendance by group — PRIMARY column ── */}
-                <div className="border border-[var(--border)] rounded-3xl overflow-hidden bg-[var(--card-bg,var(--surface))] shadow-xl">
+                <div className="border border-[var(--border)] rounded-3xl overflow-hidden bg-[var(--card-bg,var(--surface))]">
                   <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border)]">
                     <div className="flex items-center gap-2">
                       <CheckCircle className="w-4 h-4 text-emerald-500" />
@@ -1036,12 +971,12 @@ export default function Home() {
           {/* ── Sidebar — Quick actions ── */}
           <aside className="space-y-4 md:order-2">
             {/* ── Quick Actions ── */}
-            <div className="border border-[var(--border)] rounded-3xl overflow-hidden bg-[var(--card-bg,var(--surface))] p-5 space-y-4 shadow-xl">
+            <div className="border border-[var(--border)] rounded-3xl overflow-hidden bg-[var(--card-bg,var(--surface))] p-5 space-y-4">
               <h3 className="text-[10px] font-black uppercase tracking-widest text-[var(--foreground)]/40">פעולות מהירות</h3>
               <nav className="grid grid-cols-1 gap-2.5" aria-label="פעולות מהירות">
                 {quickActions.map(({ href, icon: Icon, label, color }) => (
                   <Link key={href} href={href}
-                    className={`flex items-center gap-3 px-4 py-3.5 rounded-2xl border text-xs font-black transition-all transform hover:scale-[1.01] hover:shadow-md active:scale-[0.99] ${color}`}>
+                    className={`flex items-center gap-3 px-4 py-3.5 rounded-2xl border text-xs font-black transition-colors ${color}`}>
                     <Icon className="w-4.5 h-4.5 shrink-0" />
                     <span>{label}</span>
                     {href === "/attendance" && totalMissing > 0 && (

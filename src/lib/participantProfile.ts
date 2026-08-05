@@ -1,19 +1,19 @@
 export interface ParticipantProfile {
-  emotional: "anxious" | "depressed" | "unstable" | "stable" | "";
-  family: "supported" | "complex" | "isolated" | "";
-  personality: "adaptive" | "difficulty" | "introverted" | "motivated" | "";
+  emotional: string[];
+  family: string;
+  personality: string;
   farmAreas: string[];
-  regulation: "stable" | "dysregulated" | "sensory" | "overwhelmed" | "";
-  social: "connected" | "isolated" | "needs_mediation" | "leader" | "";
-  trust: "trusting" | "suspicious" | "gradual" | "avoidant" | "";
-  attendance: "regular" | "absences" | "unstable" | "";
+  regulation: string;
+  social: string;
+  trust: string;
+  attendance: string;
   difficulties: string[];
-  futureDirection: "supported_employment" | "continued_therapeutic" | "gradual_independence" | "too_early" | "";
-  processStage: "early" | "stabilizing" | "transitioning" | "";
+  futureDirection: string;
+  processStage: string;
 }
 
 export const EMPTY_PROFILE: ParticipantProfile = {
-  emotional: "",
+  emotional: [],
   family: "",
   personality: "",
   farmAreas: [],
@@ -31,17 +31,32 @@ export interface SurveyOption {
   label: string;
 }
 
+/** Escape hatch for every single-select category: a rigid taxonomy can't cover every real
+ *  presentation, so this lets staff say "none of these fit" instead of forcing a false choice. */
+export const UNCLEAR_OPTION: SurveyOption = {
+  id: "unclear",
+  label: "מצב מעורב / לא מתאים לאף אפשרות – יש לפרט בהערות",
+};
+
+// Atomic, combinable emotional descriptors (multi-select) instead of one forced mutually-exclusive
+// bucket - real presentations are frequently mixed (e.g. anxious AND improving, or stable with flare-ups).
 export const EMOTIONAL_OPTIONS: SurveyOption[] = [
-  { id: "anxious", label: "חרדתי ומתוח" },
-  { id: "depressed", label: "דיכאוני ומסתגר" },
-  { id: "unstable", label: "תנודתי וסוער" },
-  { id: "stable", label: "יציב ומאוזן יחסית" },
+  { id: "anxious", label: "חרדה ומתח" },
+  { id: "depressed", label: "מצב רוח ירוד / נסיגה" },
+  { id: "unstable", label: "תנודתיות רגשית בין ימים" },
+  { id: "irritable", label: "עצבנות / כעס מוגבר" },
+  { id: "flat", label: "שטיחות רגשית / ניתוק" },
+  { id: "stable", label: "יציבות רגשית יחסית" },
+  { id: "optimistic", label: "אופטימיות ותקווה" },
+  { id: "fluctuating_daily", label: "משתנה מיום ליום, תלוי אירועים" },
+  UNCLEAR_OPTION,
 ];
 
 export const FAMILY_OPTIONS: SurveyOption[] = [
   { id: "supported", label: "עטוף ותומך מאוד" },
   { id: "complex", label: "מתוחה או מורכבת" },
   { id: "isolated", label: "בדידות / חוסר תמיכה" },
+  UNCLEAR_OPTION,
 ];
 
 export const PERSONALITY_OPTIONS: SurveyOption[] = [
@@ -49,6 +64,7 @@ export const PERSONALITY_OPTIONS: SurveyOption[] = [
   { id: "difficulty", label: "מתקשה להסתגל לשינויים" },
   { id: "introverted", label: "מופנם, ביישן וחששן" },
   { id: "motivated", label: "מוטיבציה גבוהה לעשייה" },
+  UNCLEAR_OPTION,
 ];
 
 export const FARM_AREA_OPTIONS: SurveyOption[] = [
@@ -66,6 +82,7 @@ export const REGULATION_OPTIONS: SurveyOption[] = [
   { id: "dysregulated", label: "קושי בויסות (כעס/עוררות)" },
   { id: "sensory", label: "רגישות חושית גבוהה (רעש/ריח)" },
   { id: "overwhelmed", label: "נטייה להצפה דיסוציאטיבית" },
+  UNCLEAR_OPTION,
 ];
 
 export const SOCIAL_OPTIONS: SurveyOption[] = [
@@ -73,6 +90,7 @@ export const SOCIAL_OPTIONS: SurveyOption[] = [
   { id: "isolated", label: "נוטה להתבודד ומעדיף לעבוד לבד" },
   { id: "needs_mediation", label: "מעוניין בקשר אך זקוק לתיווך" },
   { id: "leader", label: "מנהיג חיובי ויוזם שיתופי פעולה" },
+  UNCLEAR_OPTION,
 ];
 
 export const TRUST_OPTIONS: SurveyOption[] = [
@@ -80,12 +98,14 @@ export const TRUST_OPTIONS: SurveyOption[] = [
   { id: "suspicious", label: "חשדן ומתקשה לתת אמון" },
   { id: "gradual", label: "רוכש אמון בהדרגה ואיטיות" },
   { id: "avoidant", label: "נמנע מקשר קרוב או שיתוף רגשי" },
+  UNCLEAR_OPTION,
 ];
 
 export const ATTENDANCE_OPTIONS: SurveyOption[] = [
   { id: "regular", label: "נוכחות רציפה ומחויבות גבוהה" },
   { id: "absences", label: "חיסורים מרובים עקב מצב נפשי/פיזי" },
   { id: "unstable", label: "נוכחות תנודתית עם נסיונות גיוס עצמי" },
+  UNCLEAR_OPTION,
 ];
 
 export const DIFFICULTY_OPTIONS: SurveyOption[] = [
@@ -102,12 +122,14 @@ export const FUTURE_DIRECTION_OPTIONS: SurveyOption[] = [
   { id: "continued_therapeutic", label: "המשך טיפולי-שיקומי בחווה" },
   { id: "gradual_independence", label: "עצמאות והתנתקות הדרגתית" },
   { id: "too_early", label: "מוקדם מדי לקבוע כיוון" },
+  UNCLEAR_OPTION,
 ];
 
 export const PROCESS_STAGE_OPTIONS: SurveyOption[] = [
   { id: "early", label: "תחילת דרך והיכרות" },
   { id: "stabilizing", label: "באמצע תהליך והתייצבות" },
   { id: "transitioning", label: "לקראת מעבר או סיום" },
+  UNCLEAR_OPTION,
 ];
 
 export interface SurveyQuestionDef {
@@ -118,7 +140,7 @@ export interface SurveyQuestionDef {
 }
 
 export const SURVEY_QUESTIONS: SurveyQuestionDef[] = [
-  { key: "emotional", title: "1. מצב רגשי דומיננטי:", options: EMOTIONAL_OPTIONS, multi: false },
+  { key: "emotional", title: "1. מצב רגשי (ניתן לבחור כמה מאפיינים יחד):", options: EMOTIONAL_OPTIONS, multi: true },
   { key: "family", title: "2. תמיכה משפחתית:", options: FAMILY_OPTIONS, multi: false },
   { key: "personality", title: "3. הסתגלות למסגרת ואופי:", options: PERSONALITY_OPTIONS, multi: false },
   { key: "farmAreas", title: "4. תחומי פעילות בחווה:", options: FARM_AREA_OPTIONS, multi: true },
@@ -133,7 +155,7 @@ export const SURVEY_QUESTIONS: SurveyQuestionDef[] = [
 
 export function isProfileComplete(profile: ParticipantProfile): boolean {
   return (
-    profile.emotional !== "" &&
+    profile.emotional.length > 0 &&
     profile.family !== "" &&
     profile.personality !== "" &&
     profile.regulation !== "" &&

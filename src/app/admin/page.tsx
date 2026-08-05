@@ -113,7 +113,7 @@ export default function AdminDashboard() {
                         key={mod.title}
                         onClick={() => router.push(mod.path)}
                         title={mod.desc}
-                        className="group flex flex-col items-start gap-4 p-5 bg-[var(--surface)] border border-[var(--border)] rounded-2xl hover:border-[var(--muted)]/30 transition-all text-right active:scale-[0.98] shadow-lg shadow-[var(--foreground)]/[0.02]"
+                        className="group flex flex-col items-start gap-4 p-5 bg-[var(--surface)] border border-[var(--border)] rounded-2xl hover:border-[var(--muted)]/30 transition-colors text-right"
                       >
                         <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${bgCls} ${textCls} border border-transparent group-hover:border-current/10`}>
                           <mod.icon className="w-5 h-5" />
