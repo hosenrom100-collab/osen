@@ -30,6 +30,12 @@ interface Program {
   travelActivityDetail?: string;
 }
 
+interface Group {
+  id: string;
+  name: string;
+  programId?: string;
+}
+
 interface Patient {
   id: string;
   firstName: string;
@@ -186,10 +192,12 @@ export default function BulkTravelPage() {
 
   const [allPrograms, setAllPrograms] = useState<Program[]>([]);
   const [visiblePrograms, setVisiblePrograms] = useState<Program[]>([]);
+  const [allGroups, setAllGroups] = useState<Group[]>([]);
   const [loadingPrograms, setLoadingPrograms] = useState(true);
   const [reportSettings, setReportSettings] = useState<ReportSettings | null>(null);
 
   const [selectedProgramId, setSelectedProgramId] = useState<string>("");
+  const [selectedGroupId, setSelectedGroupId] = useState<string>("");
   const [selectedMonths, setSelectedMonths] = useState<string[]>([]);
   const [participants, setParticipants] = useState<BulkParticipant[]>([]);
   const [loadingParticipants, setLoadingParticipants] = useState(false);
@@ -201,25 +209,37 @@ export default function BulkTravelPage() {
 
   const selectedProgram = useMemo(() => allPrograms.find(p => p.id === selectedProgramId), [allPrograms, selectedProgramId]);
 
+  const programGroups = useMemo(() => {
+    if (!selectedProgramId) return [];
+    return allGroups.filter(g => g.programId === selectedProgramId);
+  }, [allGroups, selectedProgramId]);
+
   const trailingMonths = useMemo(() => Array.from({ length: 6 }).map((_, i) => {
     const d = subMonths(new Date(), i);
     return { value: format(d, "yyyy-MM"), label: format(d, "MMMM yyyy", { locale: he }) };
   }), []);
+
+  // Reset selectedGroupId when selectedProgramId changes
+  useEffect(() => {
+    setSelectedGroupId("");
+  }, [selectedProgramId]);
 
   // ── Load programs + settings ──
   useEffect(() => {
     async function loadInitialData() {
       setLoadingPrograms(true);
       try {
-        const [progsSnap, settingsSnap] = await Promise.all([
+        const [progsSnap, settingsSnap, groupsSnap] = await Promise.all([
           getDocs(collection(db, "programs")),
           getDoc(doc(db, "settings", "reports")),
+          getDocs(collection(db, "groups")),
         ]);
         const progs = progsSnap.docs
           .map(d => ({ id: d.id, ...d.data() } as Program))
           .filter(p => p.status !== "archived");
         setAllPrograms(progs);
         setVisiblePrograms(isManager ? progs : progs.filter(p => assignedProgramIds.includes(p.id)));
+        setAllGroups(groupsSnap.docs.map(d => ({ id: d.id, ...d.data() } as Group)));
         if (settingsSnap.exists()) setReportSettings(settingsSnap.data());
       } catch (e) {
         console.error(e);
@@ -231,7 +251,7 @@ export default function BulkTravelPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isManager, assignedProgramIds.join(",")]);
 
-  async function loadParticipants(programId: string, months: string[]) {
+  async function loadParticipants(programId: string, months: string[], groupId: string) {
     setLoadingParticipants(true);
     try {
       const program = allPrograms.find(p => p.id === programId);
@@ -239,12 +259,19 @@ export default function BulkTravelPage() {
 
       const pSnap = await getDocs(collection(db, "patients"));
       const patients = pSnap.docs
-        .map(d => ({ id: d.id, ...d.data() } as Patient))
+        .map(d => ({ id: d.id, ...d.data() } as Patient & { groupIds?: string[]; hosenType?: string }))
         .filter(p => {
           if (p.status !== "active") return false;
           if (p.arrivalMethod !== "private_car") return false;
           const pIds = p.programIds || (p.programId ? [p.programId] : []);
-          return pIds.includes(programId);
+          const belongsToProgram = pIds.includes(programId);
+          if (!belongsToProgram) return false;
+
+          if (groupId) {
+            const gIds = p.groupIds || (p.hosenType ? [p.hosenType] : []);
+            return gIds.includes(groupId);
+          }
+          return true;
         });
 
       if (patients.length === 0) { setParticipants([]); return; }
@@ -277,12 +304,12 @@ export default function BulkTravelPage() {
     }
   }
 
-  // ── Load participants when program/months change ──
+  // ── Load participants when program/group/months change ──
   useEffect(() => {
     if (!selectedProgramId || selectedMonths.length === 0) return;
-    loadParticipants(selectedProgramId, selectedMonths);
+    loadParticipants(selectedProgramId, selectedMonths, selectedGroupId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedProgramId, selectedMonths.join(",")]);
+  }, [selectedProgramId, selectedGroupId, selectedMonths.join(",")]);
 
   // ── Step 2: Excel template ──
   function downloadTemplate() {
@@ -524,6 +551,20 @@ export default function BulkTravelPage() {
                     </select>
                   )}
                 </div>
+
+                {selectedProgramId && programGroups.length > 0 && (
+                  <div>
+                    <label className="text-[10px] font-black uppercase tracking-wider text-[var(--muted)] mb-1.5 block">קבוצה (סינון אופציונלי)</label>
+                    <select
+                      value={selectedGroupId}
+                      onChange={e => setSelectedGroupId(e.target.value)}
+                      className="w-full bg-[var(--background)] border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm"
+                    >
+                      <option value="">כל הקבוצות</option>
+                      {programGroups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+                    </select>
+                  </div>
+                )}
 
                 <div>
                   <label className="text-[10px] font-black uppercase tracking-wider text-[var(--muted)] mb-1.5 block">חודש/ים</label>

@@ -233,7 +233,7 @@ export default function PatientDetailPage() {
   const [travelSelectedMonths, setTravelSelectedMonths] = useState<string[]>([]);
 
   // Enriched parameters for travel reimbursement
-  const [travelTransportationMethod, setTravelTransportationMethod] = useState("רכב פרטי / תחבורה ציבורית");
+  const [travelTransportationMethod, setTravelTransportationMethod] = useState("הגעה לחווה ברכב פרטי");
   const [travelTotalDays, setTravelTotalDays] = useState("");
   const [travelActivityHours, setTravelActivityHours] = useState("9:00-15:00");
 
@@ -870,7 +870,7 @@ export default function PatientDetailPage() {
       setTravelSignatoryName("מירב סארמילי");
       setTravelSignatoryTitle("מנהלת תפעול מרכז חוסן");
       setTravelSignatoryOrg("חוות רום");
-      setTravelTransportationMethod("רכב פרטי / תחבורה ציבורית");
+      setTravelTransportationMethod("הגעה לחווה ברכב פרטי");
       const combinedHours = Array.from(new Set(patientProgs.map(p => p.activityHours).filter(Boolean))).join(", ") || "9:00-15:00";
       setTravelActivityHours(combinedHours);
       
@@ -3036,8 +3036,7 @@ export default function PatientDetailPage() {
                           <div className="space-y-2 text-slate-700 leading-relaxed">
                             <p>הרינו לאשר בזאת כי {travelFirstName} {travelLastName} שולב בתהליך השיקום בחוות רום החל מתאריך {travelApprovalStartDate}.</p>
                             <p>הפעילות בתוכנית "{travelProgramName}" מתקיימת בימים {travelActivityDays.replace(/^(בימים|ביום)\s+/, "")} בין השעות {travelActivityHours}.</p>
-                            {travelTransportationMethod && <p>אופן ההגעה לחווה: {travelTransportationMethod}.</p>}
-                            {travelTotalDays && <p>סה"כ ימי הגעה בפועל בחודש זה: {travelTotalDays}.</p>}
+                            <p>אופן ההגעה לחווה: הגעה לחווה ברכב פרטי.</p>
                             <p className="italic text-slate-500 bg-white border border-slate-100 rounded-xl p-3 text-[11px] my-2">
                               {programs.find(p => p.id === (patient as any)?.programId)?.travelActivityDetail || reportSettings?.travelActivityDetail || "הפעילות השיקומית בחווה מקיפה מגוון תחומים ובהם: עבודה חקלאית יומיומית, מלאכות יד וגילוף, סדנאות יוגה וקבוצות שיח תמיכתיות."}
                             </p>

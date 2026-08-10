@@ -794,8 +794,7 @@ export const generateTravelReimbursementWord = (data: TravelReimbData): any => {
     // Body text
     createParagraph(`הרינו לאשר בזאת כי ${data.firstName} ${data.lastName} שולב בתהליך השיקום בחוות רום החל מתאריך ${data.startDate}.`, { spacingAfter: 180 }),
     createParagraph(`הפעילות בתוכנית "${data.programName}" מתקיימת בימים ${data.activityDays.replace(/^(בימים|ביום)\s+/, "")} בין השעות ${data.activityHours || "9:00-15:00"}.`, { spacingAfter: 180 }),
-    data.transportationMethod ? createParagraph(`אופן ההגעה לחווה: ${data.transportationMethod}.`, { spacingAfter: 180 }) : null,
-    data.totalDays ? createParagraph(`סה"כ ימי הגעה בפועל בחודש זה: ${data.totalDays}.`, { spacingAfter: 180 }) : null,
+    createParagraph("אופן ההגעה לחווה: הגעה לחווה ברכב פרטי.", { spacingAfter: 180 }),
     createParagraph(data.activityDetailText || "הפעילות השיקומית בחווה מקיפה מגוון תחומים ובהם: עבודה חקלאית יומיומית, מלאכות יד וגילוף, סדנאות יוגה וקבוצות שיח תמיכתיות.", { spacingAfter: 180 }),
     
     new Paragraph({
