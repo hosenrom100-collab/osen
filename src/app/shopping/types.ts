@@ -82,3 +82,27 @@ export interface CutoffStatus {
   formattedTarget: string;
   timeLeftFormatted: string;
 }
+
+export interface StoreAuthorizationItem {
+  productName: string;
+  quantity: string;
+  unit?: string;
+  approvedQuantity?: string;
+  status: "pending" | "approved" | "rejected";
+  notes?: string;
+}
+
+export interface StoreAuthorizationRequest {
+  id: string;
+  requestNumber: number;
+  requestedBy: string;
+  requestedByName: string;
+  items: StoreAuthorizationItem[];
+  status: "pending" | "approved" | "rejected";
+  createdAt: Timestamp | Date;
+  approvedAt?: Timestamp | Date;
+  approvedBy?: string | "";
+  approvedByName?: string | "";
+  pdfUrl?: string;
+  notes?: string;
+}

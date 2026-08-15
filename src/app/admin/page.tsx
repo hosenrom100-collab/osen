@@ -5,7 +5,8 @@ import { RoleGuard } from "@/components/auth/RoleGuard";
 import {
   Users, ShieldCheck, ClipboardList, Package,
   Calendar, AlertCircle, MapPin, Layers,
-  ChevronLeft, Shield, Bell, MessageCircle, Briefcase, Settings, Receipt, Car, Utensils
+  ChevronLeft, Shield, Bell, MessageCircle, Briefcase, Settings, Receipt, Car, Utensils,
+  ShoppingCart
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -42,6 +43,13 @@ const CATEGORIES = [
     color: "text-blue-500",
     modules: [
       { title: "תוכניות וקבוצות", desc: "ניהול תוכניות ולוחות זמנים", icon: Layers,        path: "/admin/programs",           color: "text-blue-500 bg-blue-500/10",      roles: ["admin","manager"] },
+    ],
+  },
+  {
+    title: "קנייה בסופר",
+    color: "text-blue-600",
+    modules: [
+      { title: "בקשות קנייה בסופר", desc: "אישור בקשות קנייה והנפקת אישורים", icon: ShoppingCart, path: "/admin/store-requests", color: "text-blue-600 bg-blue-600/10", roles: ["admin","manager","logistics"] },
     ],
   },
   {

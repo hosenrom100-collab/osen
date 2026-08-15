@@ -26,4 +26,6 @@ if (!admin.apps.length) {
 
 export const adminAuth = admin.auth();
 export const adminDb = admin.firestore();
+const bucketName = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET;
+export const bucket = bucketName ? admin.storage().bucket(bucketName) : null;
 export default admin;
