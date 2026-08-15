@@ -37,7 +37,8 @@ function formatDate(val: any): string {
 
 export async function generateStoreAuthorizationPDF(
   request: any,
-  requestId: string
+  requestId: string,
+  options?: { meravSignatureImage?: string }
 ): Promise<Buffer> {
   const doc = new jsPDF({
     orientation: "portrait",
@@ -239,27 +240,18 @@ export async function generateStoreAuthorizationPDF(
     yPosition += 8;
   }
 
-  // 9. Important Notice / Invoice Condition Box
+  // 9. Important Notice Box
   doc.setFillColor(254, 243, 199); // Amber 100
-  doc.rect(margin, yPosition, contentWidth, 18, "F");
+  doc.rect(margin, yPosition, contentWidth, 10, "F");
   doc.setDrawColor(245, 158, 11); // Amber 500
-  doc.rect(margin, yPosition, contentWidth, 18, "S");
+  doc.rect(margin, yPosition, contentWidth, 10, "S");
 
   doc.setFont("Heebo", "bold");
-  doc.setFontSize(9);
+  doc.setFontSize(9.5);
   doc.setTextColor(180, 83, 9);
-  doc.text(toRTL("⚠️ התנאי החשוב להכרה בהוצאה:"), pageWidth - margin - 4, yPosition + 5, { align: "right" });
+  doc.text(toRTL("⚠️ נא לצרף את האישור לחשבונית הקנייה."), pageWidth - margin - 4, yPosition + 6.5, { align: "right" });
 
-  doc.setFont("Heebo", "normal");
-  doc.setFontSize(8.5);
-  doc.text(
-    toRTL("עם המצאת הרכש, חובה לצרף חשבונית קנייה מקורית חתומה למסמך אישור זה עבור הנהלת החשבונות."),
-    pageWidth - margin - 4,
-    yPosition + 12,
-    { align: "right" }
-  );
-
-  yPosition += 26;
+  yPosition += 18;
 
   // 10. Official Signature Section - Merav Sarmili
   doc.setTextColor(0, 0, 0);
@@ -271,6 +263,29 @@ export async function generateStoreAuthorizationPDF(
   doc.setFontSize(10);
   doc.text(toRTL("מאושר וחתום ע\"י:"), sigX, yPosition, { align: "center" });
   yPosition += 5;
+
+  // Render signature image if available
+  if (options?.meravSignatureImage) {
+    try {
+      let sigBase64 = options.meravSignatureImage;
+      if (sigBase64.startsWith("data:image")) {
+        const commaIdx = sigBase64.indexOf(",");
+        if (commaIdx !== -1) {
+          sigBase64 = sigBase64.substring(commaIdx + 1);
+        }
+      }
+      const sigWidth = 45;
+      const sigHeight = 18;
+      // Center the signature above the name
+      doc.addImage(`data:image/png;base64,${sigBase64}`, "PNG", sigX - sigWidth / 2, yPosition, sigWidth, sigHeight);
+      yPosition += 20;
+    } catch (sigImgErr) {
+      console.error("Error rendering signature image in PDF:", sigImgErr);
+      yPosition += 5;
+    }
+  } else {
+    yPosition += 5;
+  }
 
   doc.setFont("Heebo", "bold");
   doc.setFontSize(11);
@@ -304,7 +319,7 @@ export async function generateStoreAuthorizationPDF(
         const footerHeight = footerWidth / (2481 / 745); // ~36mm
         const footerX = (pageWidth - footerWidth) / 2;
         
-        doc.addImage(`data:image/png;base64,${footerBuffer.toString("base64")}`, "PNG", footerX, pageHeight - footerHeight - 10, footerWidth, footerHeight);
+        doc.addImage(`data:image/png;base64,${footerBase64}`, "PNG", footerX, pageHeight - footerHeight - 10, footerWidth, footerHeight);
       }
     } catch (err) {
       console.error("Error embedding footer logo in PDF:", err);

@@ -3,6 +3,27 @@ import { adminDb } from "@/lib/firebase/admin";
 import { bucket } from "@/lib/firebase/admin";
 import { generateStoreAuthorizationPDF } from "@/lib/pdf/storeAuthorizationPdf";
 
+// Helper to fetch Merav's signature image from Firestore
+async function fetchMeravSignature(): Promise<string> {
+  let meravSignatureImage = "";
+  try {
+    const snap = await adminDb
+      .collection("users")
+      .where("displayName", "==", "מירב סארמילי")
+      .get();
+    
+    snap.forEach((d) => {
+      const uData = d.data();
+      if (uData.signatureImage) {
+        meravSignatureImage = uData.signatureImage;
+      }
+    });
+  } catch (err) {
+    console.error("Error fetching Merav signature:", err);
+  }
+  return meravSignatureImage;
+}
+
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -39,8 +60,11 @@ export async function POST(
       );
     }
 
+    // Fetch Merav's signature from user document
+    const meravSignatureImage = await fetchMeravSignature();
+
     // 2. Generate fresh PDF Buffer
-    const pdfBuffer = await generateStoreAuthorizationPDF(requestData, id);
+    const pdfBuffer = await generateStoreAuthorizationPDF(requestData, id, { meravSignatureImage });
 
     let finalPdfUrl = "";
 
@@ -120,8 +144,11 @@ export async function GET(
       return new Response("Unauthorized or pending request", { status: 400 });
     }
 
+    // Fetch Merav's signature from user document
+    const meravSignatureImage = await fetchMeravSignature();
+
     // Generate PDF buffer on the fly
-    const pdfBuffer = await generateStoreAuthorizationPDF(requestData, id);
+    const pdfBuffer = await generateStoreAuthorizationPDF(requestData, id, { meravSignatureImage });
 
     return new Response(new Uint8Array(pdfBuffer), {
       headers: {
