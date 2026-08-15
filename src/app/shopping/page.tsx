@@ -15,6 +15,7 @@ import {
 import { useAuth } from "@/context/AuthContext";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 import { ShoppingRequest } from "./types";
 import { CycleClosureModal } from "./components/CycleClosureModal";
@@ -210,6 +211,14 @@ export default function ShoppingPage() {
             </div>
 
             <div className="flex items-center gap-1.5 shrink-0">
+              <Link href="/store-authorization">
+                <button
+                  className="w-7 h-7 flex items-center justify-center rounded-xl bg-blue-500/10 border border-blue-500/30 active:scale-95 transition-all hover:bg-blue-500/20"
+                  title="בקשת קנייה בסופר"
+                >
+                  <ShoppingCart className="w-3.5 h-3.5 text-blue-600" />
+                </button>
+              </Link>
               {canPurchase && (
                 <button
                   onClick={() => setActionsMenuOpen(true)}

@@ -1,7 +1,10 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { RoleGuard } from "@/components/auth/RoleGuard";
+import { db } from "@/lib/firebase/config";
+import { collection, query, where, getDocs } from "firebase/firestore";
 import {
   Users, ShieldCheck, ClipboardList, Package,
   Calendar, AlertCircle, MapPin, Layers,
@@ -69,6 +72,27 @@ export default function AdminDashboard() {
   const router = useRouter();
   const roleLabel = ROLE_HE[role || ""] ?? role;
 
+  const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
+
+  useEffect(() => {
+    const fetchPendingRequests = async () => {
+      try {
+        const q = query(
+          collection(db, "storeAuthorizationRequests"),
+          where("status", "==", "pending")
+        );
+        const snapshot = await getDocs(q);
+        setPendingRequestsCount(snapshot.size);
+      } catch (error) {
+        console.error("Error fetching pending requests:", error);
+      }
+    };
+
+    fetchPendingRequests();
+    const interval = setInterval(fetchPendingRequests, 30000); // Refresh every 30 seconds
+    return () => clearInterval(interval);
+  }, []);
+
   const visibleCategories = CATEGORIES
     .map(cat => ({
       ...cat,
@@ -117,13 +141,19 @@ export default function AdminDashboard() {
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
                   {cat.modules.map(mod => {
                     const [textCls, bgCls] = mod.color.split(" ");
+                    const showBadge = mod.path === "/admin/store-requests" && pendingRequestsCount > 0;
                     return (
                       <button
                         key={mod.title}
                         onClick={() => router.push(mod.path)}
                         title={mod.desc}
-                        className="group flex flex-col items-start gap-4 p-5 bg-[var(--surface)] border border-[var(--border)] rounded-2xl hover:border-[var(--muted)]/30 transition-colors text-right"
+                        className="group flex flex-col items-start gap-4 p-5 bg-[var(--surface)] border border-[var(--border)] rounded-2xl hover:border-[var(--muted)]/30 transition-colors text-right relative"
                       >
+                        {showBadge && (
+                          <div className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] font-black rounded-full w-6 h-6 flex items-center justify-center">
+                            {pendingRequestsCount}
+                          </div>
+                        )}
                         <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${bgCls} ${textCls} border border-transparent group-hover:border-current/10`}>
                           <mod.icon className="w-5 h-5" />
                         </div>
