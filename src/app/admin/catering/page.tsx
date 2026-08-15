@@ -104,8 +104,7 @@ export default function CateringOrderPage() {
   });
   const [arrivalTime, setArrivalTime] = useState("12:00");
 
-  const [selectedBread, setSelectedBread] = useState("לחמניות");
-  const [customBread, setCustomBread] = useState("");
+  const [includeBread, setIncludeBread] = useState(true);
 
   const [generatingPdf, setGeneratingPdf] = useState(false);
   const reportRef = React.useRef<HTMLDivElement>(null);
@@ -353,8 +352,7 @@ export default function CateringOrderPage() {
     const dayOfWeek = getHebrewDayOfWeek(deliveryDate);
     const dateDisplay = dayOfWeek ? `${formatDeliveryDate(deliveryDate)} (${dayOfWeek})` : formatDeliveryDate(deliveryDate);
 
-    const breadText = selectedBread === "custom" ? customBread : selectedBread;
-    const breadSection = breadText && breadText !== "ללא לחם" ? `\n*לחם ומאפים:*\n- ${breadText}` : "";
+    const breadSection = includeBread ? `\n*לחם:* לחם` : "";
 
     return `*הזמנת קייטרינג שבועית - מרכז חוסן חוות רום*
 
@@ -516,6 +514,19 @@ ${saladsList || "_לא נבחרו סלטים_"}${breadSection}
                       className="w-full bg-[var(--background)] border border-[var(--border)] text-xs rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-amber-500 font-medium"
                     />
                   </div>
+                </div>
+
+                <div className="flex items-center gap-2 border-t border-[var(--border)]/50 pt-4">
+                  <input 
+                    type="checkbox" 
+                    id="includeBread"
+                    checked={includeBread}
+                    onChange={(e) => setIncludeBread(e.target.checked)}
+                    className="w-4 h-4 text-amber-500 bg-[var(--background)] border-[var(--border)] rounded focus:ring-amber-500 cursor-pointer"
+                  />
+                  <label htmlFor="includeBread" className="text-xs font-bold text-[var(--foreground)] cursor-pointer">
+                    להוסיף לחם להזמנה
+                  </label>
                 </div>
               </div>
 
@@ -1085,14 +1096,14 @@ ${saladsList || "_לא נבחרו סלטים_"}${breadSection}
                     </div>
                   </div>
 
-                  {/* Bread & Pastries */}
-                  {selectedBread !== "ללא לחם" && (
+                  {/* Bread */}
+                  {includeBread && (
                     <div style={{ border: "1px solid #e2e8f0", borderRadius: "12px", padding: "16px", backgroundColor: "#ffffff" }}>
                       <h4 style={{ fontSize: "12px", fontWeight: "900", color: "#b45309", marginTop: 0, marginBottom: "8px" }}>
-                        🍞 לחם ומאפים
+                        🍞 לחם
                       </h4>
                       <div style={{ fontSize: "12px", color: "#334155", fontWeight: "bold" }}>
-                        ✓ {selectedBread === "custom" ? customBread : selectedBread}
+                        ✓ לחם
                       </div>
                     </div>
                   )}
