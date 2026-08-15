@@ -12,7 +12,7 @@ import { StoreAuthorizationRequest } from "@/app/shopping/types";
 const statusLabels: Record<string, { label: string; color: string }> = {
   pending: { label: "בהמתנה", color: "text-yellow-700 bg-yellow-50" },
   approved: { label: "אושר", color: "text-green-700 bg-green-50" },
-  rejected: { label: "דחוי", color: "text-red-700 bg-red-50" },
+  rejected: { label: "נדחה", color: "text-red-700 bg-red-50" },
 };
 
 const getDate = (date: any): Date => {
@@ -158,7 +158,7 @@ export default function RequestDetailPage() {
                           : "bg-red-100 text-red-700"
                       }`}
                     >
-                      {item.status === "approved" ? "✓ אושר" : "✗ דחוי"}
+                      {item.status === "approved" ? "✓ אושר" : "✗ נדחה"}
                     </span>
                   )}
                 </div>

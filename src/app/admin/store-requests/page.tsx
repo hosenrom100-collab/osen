@@ -37,7 +37,7 @@ const statusColors: Record<string, { bg: string; text: string; icon: React.React
 const statusLabels: Record<string, string> = {
   pending: "בהמתנה",
   approved: "אושר",
-  rejected: "דחוי",
+  rejected: "נדחה",
 };
 
 const getDate = (date: any): Date => {
@@ -437,7 +437,7 @@ function RequestCard({
                           >
                             <option value="pending">בהמתנה</option>
                             <option value="approved">אושר</option>
-                            <option value="rejected">דחוי</option>
+                            <option value="rejected">נדחה</option>
                           </select>
                         </div>
                         <button
@@ -465,7 +465,7 @@ function RequestCard({
                                 : "bg-red-100 text-red-700"
                             }`}
                           >
-                            {item.status === "approved" ? "אושר" : "דחוי"}
+                            {item.status === "approved" ? "אושר" : "נדחה"}
                           </span>
                         )}
                       </div>

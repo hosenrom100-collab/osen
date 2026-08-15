@@ -34,7 +34,7 @@ const statusColors: Record<string, { bg: string; text: string; icon: React.React
 const statusLabels: Record<string, string> = {
   pending: "בהמתנה",
   approved: "אושר",
-  rejected: "דחוי",
+  rejected: "נדחה",
 };
 
 const getDate = (date: any): Date => {

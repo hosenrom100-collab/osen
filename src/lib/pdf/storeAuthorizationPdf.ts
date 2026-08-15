@@ -148,7 +148,7 @@ export async function generateStoreAuthorizationPDF(
     let x = margin;
 
     // Status
-    const statusLabel = item.status === "approved" ? "אושר" : item.status === "rejected" ? "דחוי" : "בהמתנה";
+    const statusLabel = item.status === "approved" ? "אושר" : item.status === "rejected" ? "נדחה" : "בהמתנה";
     doc.text(toRTL(statusLabel), x + colWidths[2] / 2, rowY, { align: "center" });
     x += colWidths[2];
 
