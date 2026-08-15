@@ -139,6 +139,8 @@ export default function CateringOrderPage() {
 
   const [generatingPdf, setGeneratingPdf] = useState(false);
   const reportRef = React.useRef<HTMLDivElement>(null);
+  
+  const [showArchive, setShowArchive] = useState(false);
 
   // Load Hosen groups & attendance statistics
   const fetchStats = async () => {
@@ -576,7 +578,7 @@ ${contactRole}`;
               {/* Delivery Details Card */}
               <div className="p-5 bg-[var(--surface)] border border-[var(--border)] rounded-2xl space-y-4">
                 <div className="flex items-center gap-2 border-b border-[var(--border)] pb-3">
-                  <Calendar className="w-4 h-4 text-amber-500" />
+                  <span className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black text-white bg-blue-500 shrink-0">1</span>
                   <h2 className="text-xs font-black uppercase tracking-wider">
                     פרטי אספקה ומשלוח
                   </h2>
@@ -665,10 +667,12 @@ ${contactRole}`;
               {/* Portion Calculator Card */}
               <div className="p-5 bg-[var(--surface)] border border-[var(--border)] rounded-2xl space-y-4">
                 <div className="flex items-center justify-between border-b border-[var(--border)] pb-3">
-                  <h2 className="text-xs font-black uppercase tracking-wider flex items-center gap-2">
-                    <Users className="w-4 h-4 text-amber-400" />
-                    כמות מנות (לפי נוכחות שבועית חרבות ברזל בוקר)
-                  </h2>
+                  <div className="flex items-center gap-2">
+                    <span className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black text-white bg-violet-500 shrink-0">2</span>
+                    <h2 className="text-xs font-black uppercase tracking-wider flex items-center gap-2">
+                      כמות מנות לקבוצות
+                    </h2>
+                  </div>
                   <span className="text-[9px] font-bold bg-amber-500/10 text-amber-500 px-2 py-0.5 rounded">
                     המלצה לפי ממוצע נוכחות
                   </span>
@@ -740,13 +744,15 @@ ${contactRole}`;
                 {/* 1. MEAT CATEGORY */}
                 <div className="p-5 bg-[var(--surface)] border border-[var(--border)] rounded-2xl space-y-4">
                   <div className="flex justify-between items-center border-b border-[var(--border)] pb-3">
-                    <div>
+                    <div className="flex items-center gap-2">
+                      <span className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black text-white bg-amber-500 shrink-0">3</span>
                       <h3 className="text-xs font-black uppercase tracking-wider">בשרים ומנות עיקריות (בחר 2)</h3>
-                      <p className="text-[9px] text-[var(--muted)] mt-0.5">יש לבחור בדיוק 2 מנות עיקריות מהתפריט</p>
                     </div>
-                    <span className={`text-[10px] font-black px-2.5 py-1 rounded-full ${meatsCount === 2 ? "bg-emerald-500/10 text-emerald-500" : "bg-amber-500/10 text-amber-500"}`}>
-                      נבחרו: {meatsCount}/2
-                    </span>
+                    {meatsCount === 2 ? (
+                      <span className="bg-emerald-500/10 text-emerald-500 text-[10px] px-2.5 py-0.5 rounded-full font-black">✓ הושלם</span>
+                    ) : (
+                      <span className="bg-amber-500/10 text-amber-500 text-[10px] px-2.5 py-0.5 rounded-full font-bold">נבחרו: {meatsCount}/2</span>
+                    )}
                   </div>
 
                   {/* Predefined items */}
@@ -825,13 +831,15 @@ ${contactRole}`;
                 {/* 2. SIDES CATEGORY */}
                 <div className="p-5 bg-[var(--surface)] border border-[var(--border)] rounded-2xl space-y-4">
                   <div className="flex justify-between items-center border-b border-[var(--border)] pb-3">
-                    <div>
+                    <div className="flex items-center gap-2">
+                      <span className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black text-white bg-amber-500 shrink-0">4</span>
                       <h3 className="text-xs font-black uppercase tracking-wider">תוספות חמות (בחר 2)</h3>
-                      <p className="text-[9px] text-[var(--muted)] mt-0.5">יש לבחור בדיוק 2 תוספות מהתפריט</p>
                     </div>
-                    <span className={`text-[10px] font-black px-2.5 py-1 rounded-full ${sidesCount === 2 ? "bg-emerald-500/10 text-emerald-500" : "bg-amber-500/10 text-amber-500"}`}>
-                      נבחרו: {sidesCount}/2
-                    </span>
+                    {sidesCount === 2 ? (
+                      <span className="bg-emerald-500/10 text-emerald-500 text-[10px] px-2.5 py-0.5 rounded-full font-black">✓ הושלם</span>
+                    ) : (
+                      <span className="bg-amber-500/10 text-amber-500 text-[10px] px-2.5 py-0.5 rounded-full font-bold">נבחרו: {sidesCount}/2</span>
+                    )}
                   </div>
 
                   {/* Predefined items */}
@@ -910,13 +918,15 @@ ${contactRole}`;
                 {/* 3. SALADS CATEGORY */}
                 <div className="p-5 bg-[var(--surface)] border border-[var(--border)] rounded-2xl space-y-4">
                   <div className="flex justify-between items-center border-b border-[var(--border)] pb-3">
-                    <div>
-                      <h3 className="text-xs font-black uppercase tracking-wider">סלטים (בחר 6)</h3>
-                      <p className="text-[9px] text-[var(--muted)] mt-0.5">יש לבחור בדיוק 6 סוגי סלטים מהרשימה</p>
+                    <div className="flex items-center gap-2">
+                      <span className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black text-white bg-amber-500 shrink-0">5</span>
+                      <h3 className="text-xs font-black uppercase tracking-wider">סלטים ולחם (בחר 6)</h3>
                     </div>
-                    <span className={`text-[10px] font-black px-2.5 py-1 rounded-full ${saladsCount === 6 ? "bg-emerald-500/10 text-emerald-500" : "bg-amber-500/10 text-amber-500"}`}>
-                      נבחרו: {saladsCount}/6
-                    </span>
+                    {saladsCount === 6 ? (
+                      <span className="bg-emerald-500/10 text-emerald-500 text-[10px] px-2.5 py-0.5 rounded-full font-black">✓ הושלם</span>
+                    ) : (
+                      <span className="bg-amber-500/10 text-amber-500 text-[10px] px-2.5 py-0.5 rounded-full font-bold">נבחרו: {saladsCount}/6</span>
+                    )}
                   </div>
 
                   {/* Predefined items */}
@@ -994,97 +1004,110 @@ ${contactRole}`;
 
                 {/* Catering Orders Archive Card */}
                 <div className="p-5 bg-[var(--surface)] border border-[var(--border)] rounded-2xl space-y-4">
-                  <div className="flex items-center gap-2 border-b border-[var(--border)] pb-3">
-                    <Archive className="w-4 h-4 text-violet-500" />
-                    <h2 className="text-xs font-black uppercase tracking-wider">
-                      🗄️ ארכיון הזמנות קייטרינג שבוצעו
-                    </h2>
-                  </div>
-
-                  {loadingArchive ? (
-                    <div className="flex items-center justify-center py-6 text-xs text-[var(--muted)] gap-2">
-                      <RefreshCw className="w-4 h-4 animate-spin text-violet-500" />
-                      טוען ארכיון הזמנות...
+                  <button 
+                    type="button"
+                    onClick={() => setShowArchive(!showArchive)}
+                    className="w-full flex items-center justify-between border-b border-[var(--border)] pb-3 text-right focus:outline-none"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Archive className="w-4 h-4 text-violet-500" />
+                      <h2 className="text-xs font-black uppercase tracking-wider">
+                        🗄️ ארכיון הזמנות קודמות (לחץ לצפייה)
+                      </h2>
                     </div>
-                  ) : archive.length === 0 ? (
-                    <div className="text-center py-8 text-[var(--muted)] text-xs font-bold">
-                      אין הזמנות קודמות בארכיון.
-                    </div>
-                  ) : (
-                    <div className="space-y-3 max-h-[400px] overflow-y-auto pr-1">
-                      {archive.map((order) => {
-                        const dayName = getHebrewDayOfWeek(order.deliveryDate);
-                        return (
-                          <div 
-                            key={order.id} 
-                            className="p-3.5 bg-[var(--background)] border border-[var(--border)] rounded-xl space-y-2 text-xs hover:border-[var(--muted)]/20 transition-colors"
-                          >
-                            <div className="flex justify-between items-start">
-                              <div>
-                                <p className="font-black text-[var(--foreground)]">
-                                  📅 {formatDeliveryDate(order.deliveryDate)} {dayName && `(${dayName})`}
-                                </p>
-                                <p className="text-[10px] text-[var(--muted)] font-bold mt-0.5">
-                                  ⏰ שעת הגעה: {order.arrivalTime} | 👤 הוזמן ע"י: {order.createdBy}
-                                </p>
-                              </div>
-                              <span className="text-[10px] font-black bg-amber-500/10 text-amber-500 px-2 py-0.5 rounded">
-                                {order.totalPortions} מנות
-                              </span>
-                            </div>
+                    <span className="text-xs text-[var(--muted)] font-black">
+                      {showArchive ? "▲ סגור" : "▼ פתח"}
+                    </span>
+                  </button>
 
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[10px] text-[var(--muted)] font-bold border-t border-[var(--border)]/50 pt-2">
-                              <div>
-                                <span className="text-[var(--foreground)] font-black">🥩 מנות:</span> {order.meats.join(", ")}
-                              </div>
-                              <div>
-                                <span className="text-[var(--foreground)] font-black">🍚 תוספות:</span> {order.sides.join(", ")}
-                              </div>
-                              <div className="sm:col-span-2">
-                                <span className="text-[var(--foreground)] font-black">🥗 סלטים:</span> {order.salads.join(", ")}
-                                {order.includeBread && " | 🍞 כולל לחם"}
-                              </div>
-                            </div>
+                  {showArchive && (
+                    <div className="space-y-4 pt-2">
+                      {loadingArchive ? (
+                        <div className="flex items-center justify-center py-6 text-xs text-[var(--muted)] gap-2">
+                          <RefreshCw className="w-4 h-4 animate-spin text-violet-500" />
+                          טוען ארכיון הזמנות...
+                        </div>
+                      ) : archive.length === 0 ? (
+                        <div className="text-center py-8 text-[var(--muted)] text-xs font-bold">
+                          אין הזמנות קודמות בארכיון.
+                        </div>
+                      ) : (
+                        <div className="space-y-3 max-h-[400px] overflow-y-auto pr-1">
+                          {archive.map((order) => {
+                            const dayName = getHebrewDayOfWeek(order.deliveryDate);
+                            return (
+                              <div 
+                                key={order.id} 
+                                className="p-3.5 bg-[var(--background)] border border-[var(--border)] rounded-xl space-y-2 text-xs hover:border-[var(--muted)]/20 transition-colors"
+                              >
+                                <div className="flex justify-between items-start">
+                                  <div>
+                                    <p className="font-black text-[var(--foreground)]">
+                                      📅 {formatDeliveryDate(order.deliveryDate)} {dayName && `(${dayName})`}
+                                    </p>
+                                    <p className="text-[10px] text-[var(--muted)] font-bold mt-0.5">
+                                      ⏰ שעת הגעה: {order.arrivalTime} | 👤 הוזמן ע"י: {order.createdBy}
+                                    </p>
+                                  </div>
+                                  <span className="text-[10px] font-black bg-amber-500/10 text-amber-500 px-2 py-0.5 rounded">
+                                    {order.totalPortions} מנות
+                                  </span>
+                                </div>
 
-                            <div className="flex items-center gap-2 pt-1.5 justify-end">
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setSelectedMeats(order.meats);
-                                  setSelectedSides(order.sides);
-                                  setSelectedSalads(order.salads);
-                                  setIncludeBread(order.includeBread);
-                                  setDeliveryDate(order.deliveryDate);
-                                  setArrivalTime(order.arrivalTime);
-                                  setPortions(order.portions);
-                                  setContactName(order.contactName || "מירב סארמילי");
-                                  setContactRole(order.contactRole || "מנהלת תפעול מרכז חוסן חוות רום");
-                                  setContactPhone(order.contactPhone || "052-609-1158");
-                                }}
-                                className="px-2.5 py-1 bg-amber-500/10 hover:bg-amber-500/20 text-amber-500 text-[10px] font-black rounded-lg transition-colors"
-                              >
-                                טען מחדש לטופס
-                              </button>
-                              <button
-                                type="button"
-                                onClick={async () => {
-                                  if (confirm("האם אתה בטוח שברצונך למחוק הזמנה זו מהארכיון?")) {
-                                    try {
-                                      await deleteDoc(doc(db, "catering_orders", order.id));
-                                      await fetchArchive();
-                                    } catch (err) {
-                                      console.error("Error deleting catering order:", err);
-                                    }
-                                  }
-                                }}
-                                className="px-2.5 py-1 bg-red-500/10 hover:bg-red-500/20 text-red-500 text-[10px] font-black rounded-lg transition-colors"
-                              >
-                                מחק
-                              </button>
-                            </div>
-                          </div>
-                        );
-                      })}
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[10px] text-[var(--muted)] font-bold border-t border-[var(--border)]/50 pt-2">
+                                  <div>
+                                    <span className="text-[var(--foreground)] font-black">🥩 מנות:</span> {order.meats.join(", ")}
+                                  </div>
+                                  <div>
+                                    <span className="text-[var(--foreground)] font-black">🍚 תוספות:</span> {order.sides.join(", ")}
+                                  </div>
+                                  <div className="sm:col-span-2">
+                                    <span className="text-[var(--foreground)] font-black">🥗 סלטים:</span> {order.salads.join(", ")}
+                                    {order.includeBread && " | 🍞 כולל לחם"}
+                                  </div>
+                                </div>
+
+                                <div className="flex items-center gap-2 pt-1.5 justify-end">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setSelectedMeats(order.meats);
+                                      setSelectedSides(order.sides);
+                                      setSelectedSalads(order.salads);
+                                      setIncludeBread(order.includeBread);
+                                      setDeliveryDate(order.deliveryDate);
+                                      setArrivalTime(order.arrivalTime);
+                                      setPortions(order.portions);
+                                      setContactName(order.contactName || "מירב סארמילי");
+                                      setContactRole(order.contactRole || "מנהלת תפעול מרכז חוסן חוות רום");
+                                      setContactPhone(order.contactPhone || "052-609-1158");
+                                    }}
+                                    className="px-2.5 py-1 bg-amber-500/10 hover:bg-amber-500/20 text-amber-500 text-[10px] font-black rounded-lg transition-colors"
+                                  >
+                                    טען מחדש לטופס
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={async () => {
+                                      if (confirm("האם אתה בטוח שברצונך למחוק הזמנה זו מהארכיון?")) {
+                                        try {
+                                          await deleteDoc(doc(db, "catering_orders", order.id));
+                                          await fetchArchive();
+                                        } catch (err) {
+                                          console.error("Error deleting catering order:", err);
+                                        }
+                                      }
+                                    }}
+                                    className="px-2.5 py-1 bg-red-500/10 hover:bg-red-500/20 text-red-500 text-[10px] font-black rounded-lg transition-colors"
+                                  >
+                                    מחק
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -1099,8 +1122,8 @@ ${contactRole}`;
               <div className="p-5 bg-[var(--surface)] border border-[var(--border)] rounded-2xl space-y-4 sticky top-20">
                 <div className="border-b border-[var(--border)] pb-3">
                   <h3 className="text-xs font-black uppercase tracking-wider flex items-center gap-2">
-                    <Clipboard className="w-4 h-4 text-amber-500" />
-                    תצוגה מקדימה להעתקה
+                    <span className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black text-white bg-emerald-500 shrink-0">6</span>
+                    סיכום ושליחה
                   </h3>
                 </div>
 
