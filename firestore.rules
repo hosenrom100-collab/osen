@@ -240,16 +240,16 @@ service cloud.firestore {
     // Store Authorization Requests (Supermarket Purchase Requests)
     match /storeAuthorizationRequests/{docId} {
       // Anyone authenticated can create a request
-      allow create: if isAuthenticated();
+      allow create: if request.auth != null;
 
       // User can read their own requests
-      allow read: if isAuthenticated() && (
+      allow read: if request.auth != null && (
         resource.data.requestedBy == request.auth.uid ||
         isShoppingManager()
       );
 
       // Managers and logistics can update (approve/reject/edit items)
-      allow update: if isAuthenticated() && isShoppingManager();
+      allow update: if request.auth != null && isShoppingManager();
 
       // Only admin/logistics can delete
       allow delete: if isShoppingManager();

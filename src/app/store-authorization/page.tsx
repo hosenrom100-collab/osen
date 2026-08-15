@@ -4,10 +4,7 @@ import { useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { RoleGuard } from "@/components/auth/RoleGuard";
 import { ConnectionStatusBanner } from "@/components/ui/ConnectionStatusBanner";
-import { db } from "@/lib/firebase/config";
-import {
-  collection, addDoc, query, where, getDocs, orderBy, limit,
-} from "firebase/firestore";
+
 import {
   Plus, Trash2, Send, Loader2, ShoppingCart, ArrowLeft, AlertCircle, CheckCircle,
 } from "lucide-react";
@@ -68,13 +65,6 @@ export default function StoreAuthorizationPage() {
     setIsSubmitting(true);
 
     try {
-      // Get next request number
-      const requestsRef = collection(db, "storeAuthorizationRequests");
-      const q = query(requestsRef, orderBy("requestNumber", "desc"), limit(1));
-      const snapshot = await getDocs(q);
-      const nextNumber = snapshot.empty ? 1001 : snapshot.docs[0].data().requestNumber + 1;
-
-      // Create request
       const cleanItems = items.map((item) => ({
         productName: item.productName.trim(),
         quantity: item.quantity.trim(),
@@ -82,15 +72,25 @@ export default function StoreAuthorizationPage() {
         status: "pending" as const,
       }));
 
-      await addDoc(requestsRef, {
-        requestNumber: nextNumber,
-        requestedBy: user.uid,
-        requestedByName: user.displayName || "משתמש ללא שם",
-        items: cleanItems,
-        status: "pending",
-        createdAt: new Date(),
-        notes: notes.trim() || "",
+      const res = await fetch("/api/store-requests", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          requestedBy: user.uid,
+          requestedByName: user.displayName || "משתמש ללא שם",
+          items: cleanItems,
+          notes: notes.trim() || "",
+        }),
       });
+
+      if (!res.ok) {
+        throw new Error("Failed to submit request");
+      }
+
+      const data = await res.json();
+      const nextNumber = data.requestNumber;
 
       setToast({ message: `בקשה #${nextNumber} נשלחה בהצלחה`, type: "success" });
       setTimeout(() => router.push("/store-authorization/requests"), 1500);
