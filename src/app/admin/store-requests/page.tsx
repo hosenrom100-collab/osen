@@ -85,17 +85,17 @@ export default function StoreRequestsPage() {
       const targetReq = requests.find((r) => r.id === requestId);
       let itemsToUpdate = editingRequest === requestId ? editedItems : targetReq?.items || [];
 
-      // Check if all items were set to rejected during editing
-      const hasApprovedItems = itemsToUpdate.some((item) => item.status === "approved" || !item.status);
-      if (!hasApprovedItems && itemsToUpdate.length > 0) {
+      // Check if manager explicitly set ALL items to rejected during editing
+      const allItemsExplicitlyRejected = itemsToUpdate.length > 0 && itemsToUpdate.every((item) => item.status === "rejected");
+      if (allItemsExplicitlyRejected) {
         await handleReject(requestId);
         return;
       }
 
-      // Automatically mark pending items as approved
+      // Mark all non-rejected items (pending or approved) as approved
       itemsToUpdate = itemsToUpdate.map((item) => ({
         ...item,
-        status: item.status || "approved",
+        status: item.status === "rejected" ? ("rejected" as const) : ("approved" as const),
       }));
 
       await updateDoc(doc(db, "storeAuthorizationRequests", requestId), {
