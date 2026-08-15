@@ -38,7 +38,7 @@ export async function generateStoreAuthorizationPDF(
   // Title
   doc.setFontSize(16);
   doc.setFont("Arial", "bold");
-  doc.text("אישור קנייה לסופר", pageWidth / 2, yPosition + 6, {
+  doc.text("אישור קנייה אד הוק", pageWidth / 2, yPosition + 6, {
     align: "center",
   });
   yPosition += 12;

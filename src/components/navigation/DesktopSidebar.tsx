@@ -65,7 +65,7 @@ export function DesktopSidebar() {
     ...(canApproveStoreRequests ? [{
       href: "/admin/store-requests",
       icon: ShoppingBag,
-      label: "אישור קניות בסופר",
+      label: "אישור קניות אד הוק",
       color: "text-blue-400",
       badge: pendingStoreCount
     }] : []),

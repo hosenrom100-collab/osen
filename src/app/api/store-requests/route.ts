@@ -65,9 +65,9 @@ export async function POST(request: NextRequest) {
         }
       });
 
-      const title = `🛒 בקשת אישור קנייה בסופר חדשה (בקשה #${nextNumber})`;
+      const title = `🛒 בקשת אישור קנייה אד הוק חדשה (בקשה #${nextNumber})`;
       const requestedByName = body.requestedByName || "עובד";
-      const notificationBody = `העובד/ת ${requestedByName} הגיש/ה בקשה חדשה לקנייה עצמאית בסופר. לחץ לצפייה, עריכה ואישור PDF.`;
+      const notificationBody = `העובד/ת ${requestedByName} הגיש/ה בקשה חדשה לקנייה אד הוק. לחץ לצפייה, עריכה ואישור PDF.`;
       const link = "/admin/store-requests";
 
       // 1. Save in notifications collection for in-app notification center

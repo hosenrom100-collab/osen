@@ -49,10 +49,10 @@ const CATEGORIES = [
     ],
   },
   {
-    title: "קנייה בסופר",
+    title: "קנייה אד הוק",
     color: "text-blue-600",
     modules: [
-      { title: "בקשות קנייה בסופר", desc: "אישור בקשות קנייה והנפקת אישורים", icon: ShoppingCart, path: "/admin/store-requests", color: "text-blue-600 bg-blue-600/10", roles: ["admin","manager","logistics"] },
+      { title: "בקשות קנייה אד הוק", desc: "אישור בקשות קנייה אד הוק והנפקת אישורים", icon: ShoppingCart, path: "/admin/store-requests", color: "text-blue-600 bg-blue-600/10", roles: ["admin","manager","logistics"] },
     ],
   },
   {

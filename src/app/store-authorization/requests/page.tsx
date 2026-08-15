@@ -94,7 +94,7 @@ export default function RequestsPage() {
           </Link>
           <div>
             <h1 className="text-xl font-bold">בקשותיי</h1>
-            <p className="text-sm text-slate-500">בקשות קנייה בסופר שלי</p>
+            <p className="text-sm text-slate-500">בקשות קנייה אד הוק שלי</p>
           </div>
         </div>
       </div>

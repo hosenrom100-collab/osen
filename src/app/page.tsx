@@ -874,12 +874,12 @@ export default function Home() {
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
-                      <p className="text-base font-black">בקשות אישור קנייה בסופר</p>
+                      <p className="text-base font-black">בקשות אישור קנייה אד הוק</p>
                       <span className="px-2.5 py-0.5 bg-red-500 text-white text-xs font-black rounded-full shadow-xs">
                         {pendingStoreAuthCount} ממתינות לאישור
                       </span>
                     </div>
-                    <p className="text-xs text-blue-100 font-medium mt-0.5">הוגשו בקשות לקנייה עצמאית בסופר הדורשות לבדוק ולאשר הנפקת אישור PDF</p>
+                    <p className="text-xs text-blue-100 font-medium mt-0.5">הוגשו בקשות לקנייה אד הוק הדורשות לבדוק ולאשר הנפקת אישור PDF</p>
                   </div>
                 </div>
                 <Link href="/admin/store-requests"

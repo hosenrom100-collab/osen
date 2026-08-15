@@ -295,10 +295,10 @@ export default function ShoppingPage() {
             <Link href="/store-authorization">
               <button
                 className="px-3.5 py-2 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-600 dark:text-blue-400 hover:bg-blue-500/20 transition-all flex items-center gap-2 text-xs font-black cursor-pointer relative shadow-xs"
-                title="בקשת קנייה עצמאית בסופר"
+                title="בקשת קנייה אד הוק"
               >
                 <ShoppingCart className="w-4 h-4 text-blue-500" />
-                <span>קנייה בסופר</span>
+                <span>קנייה אד הוק</span>
               </button>
             </Link>
 
@@ -306,10 +306,10 @@ export default function ShoppingPage() {
             <Link href="/store-authorization/requests">
               <button
                 className="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition-all flex items-center gap-1.5 text-xs font-black cursor-pointer shadow-xs border-none"
-                title="צפייה בבקשות הקנייה שלי והורדת אישורי PDF"
+                title="צפייה בבקשות הקנייה אד הוק שלי והורדת אישורי PDF"
               >
                 <FileText className="w-4 h-4 text-blue-500" />
-                <span>בקשותיי לסופר</span>
+                <span>בקשות אד הוק שלי</span>
               </button>
             </Link>
 
@@ -318,10 +318,10 @@ export default function ShoppingPage() {
               <Link href="/admin/store-requests">
                 <button
                   className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:from-blue-700 hover:to-indigo-700 transition-all flex items-center gap-2 text-xs font-black cursor-pointer relative shadow-sm border-none"
-                  title="ניהול ואישור בקשות קנייה עצמאית בסופר"
+                  title="ניהול ואישור בקשות קנייה אד הוק"
                 >
                   <ShoppingBag className="w-4 h-4 text-white" />
-                  <span>אישור קניות בסופר</span>
+                  <span>אישור קניות אד הוק</span>
                   {pendingStoreAuthCount > 0 && (
                     <span className="bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full font-black animate-pulse shadow-xs">
                       {pendingStoreAuthCount}
@@ -618,12 +618,12 @@ export default function ShoppingPage() {
                     </div>
                     <div>
                       <div className="flex items-center gap-2">
-                        <span className="font-black text-sm md:text-base">אישור קניות פיזיות בסופר</span>
+                        <span className="font-black text-sm md:text-base">אישור קניות אד הוק</span>
                         <span className="px-2.5 py-0.5 bg-red-500 text-white text-xs font-bold rounded-full">
                           {pendingStoreAuthCount} בקשות ממתינות
                         </span>
                       </div>
-                      <p className="text-xs text-blue-100 mt-0.5">עובדים הגישו בקשות לקנייה עצמאית בסופר הממתינות לאישורך והנפקת אישור</p>
+                      <p className="text-xs text-blue-100 mt-0.5">עובדים הגישו בקשות לקנייה אד הוק הממתינות לאישורך והנפקת אישור</p>
                     </div>
                   </div>
                   <Link href="/admin/store-requests">

@@ -114,9 +114,9 @@ export default function StoreAuthorizationPage() {
               <div>
                 <h1 className="text-xl font-bold flex items-center gap-2">
                   <ShoppingCart className="w-6 h-6 text-blue-600" />
-                  בקשת קנייה בסופר
+                  בקשת קנייה אד הוק
                 </h1>
-                <p className="text-sm text-amber-700 font-medium">⚠️ מקרים דחופים בלבד - קנייה עצמאית בסופר</p>
+                <p className="text-sm text-amber-700 font-medium">⚠️ מקרים דחופים בלבד - קנייה אד הוק</p>
               </div>
             </div>
             <Link href="/store-authorization/requests">

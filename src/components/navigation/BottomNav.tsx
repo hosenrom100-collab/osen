@@ -315,8 +315,8 @@ export function BottomNav() {
                       <ShoppingBag className="w-4 h-4" />
                     </div>
                     <div>
-                      <span className="font-black text-xs text-[var(--foreground)] block">אישור קניות בסופר</span>
-                      <span className="text-[10px] text-blue-600 dark:text-blue-400 font-bold">אישור בקשות קנייה עצמאית</span>
+                      <span className="font-black text-xs text-[var(--foreground)] block">אישור קניות אד הוק</span>
+                      <span className="text-[10px] text-blue-600 dark:text-blue-400 font-bold">אישור בקשות קנייה אד הוק</span>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">

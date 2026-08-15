@@ -119,7 +119,7 @@ export default function StoreRequestsPage() {
       if (reqData?.requestedBy) {
         sendPush({
           userId: reqData.requestedBy,
-          title: `✅ בקשת אישור הקנייה בסופר אושרה! (#${reqData.requestNumber})`,
+          title: `✅ בקשת אישור קנייה אד הוק אושרה! (#${reqData.requestNumber})`,
           body: `בקשת הקנייה שלך אושרה על ידי ${user?.displayName || "ההנהלה"}. אישור ה-PDF הרשמי מוכן להורדה.`,
           link: "/store-authorization/requests",
         });
@@ -160,7 +160,7 @@ export default function StoreRequestsPage() {
       if (reqData?.requestedBy) {
         sendPush({
           userId: reqData.requestedBy,
-          title: `❌ עדכון: בקשת אישור הקנייה בסופר נדחתה (#${reqData.requestNumber})`,
+          title: `❌ עדכון: בקשת אישור קנייה אד הוק נדחתה (#${reqData.requestNumber})`,
           body: `בקשת הקנייה שלך נדחתה על ידי ${user?.displayName || "ההנהלה"}. לחץ לצפייה בפרטים.`,
           link: "/store-authorization/requests",
         });
@@ -205,8 +205,8 @@ export default function StoreRequestsPage() {
               </button>
             </Link>
             <div>
-              <h1 className="text-xl font-bold">בקשות קנייה בסופר</h1>
-              <p className="text-sm text-slate-500">ניהול ואישור בקשות קנייה</p>
+              <h1 className="text-xl font-bold">בקשות קנייה אד הוק</h1>
+              <p className="text-sm text-slate-500">ניהול ואישור בקשות קנייה אד הוק</p>
             </div>
             {pendingRequests.length > 0 && (
               <div className="ml-auto bg-red-100 text-red-800 px-3 py-1 rounded-full text-sm font-medium">
