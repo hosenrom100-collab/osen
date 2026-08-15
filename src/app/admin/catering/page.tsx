@@ -80,6 +80,7 @@ interface CateringOrder {
   salads: string[];
   includeBread: boolean;
   portions: Record<string, number>;
+  defaultPortions?: Record<string, number>;
   totalPortions: number;
   createdAt?: any;
   createdBy?: string;
@@ -353,6 +354,7 @@ export default function CateringOrderPage() {
         salads: selectedSalads,
         includeBread,
         portions,
+        defaultPortions: portions,
         totalPortions,
         createdAt: serverTimestamp(),
         createdBy: user?.displayName || user?.email || "משתמש מערכת"
@@ -1211,7 +1213,7 @@ ${contactRole}`;
                                       setIncludeBread(order.includeBread);
                                       setDeliveryDate(order.deliveryDate);
                                       setArrivalTime(order.arrivalTime);
-                                      setPortions(order.portions);
+                                      setPortions(order.defaultPortions || order.portions);
                                       setContactName(order.contactName || "מירב סארמילי");
                                       setContactRole(order.contactRole || "מנהלת תפעול מרכז חוסן חוות רום");
                                       setContactPhone(order.contactPhone || "052-609-1158");
