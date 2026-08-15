@@ -135,7 +135,7 @@ export default function CateringOrderPage() {
 
   const [contactName, setContactName] = useState("מירב סארמילי");
   const [contactRole, setContactRole] = useState("מנהלת תפעול מרכז חוסן חוות רום");
-  const [contactPhone, setContactPhone] = useState("052-1234567");
+  const [contactPhone, setContactPhone] = useState("052-609-1158");
 
   const [generatingPdf, setGeneratingPdf] = useState(false);
   const reportRef = React.useRef<HTMLDivElement>(null);
@@ -624,7 +624,7 @@ ${contactRole}`;
                       type="tel" 
                       value={contactPhone}
                       onChange={(e) => setContactPhone(e.target.value)}
-                      placeholder="052-1234567"
+                      placeholder="052-609-1158"
                       className="w-full bg-[var(--background)] border border-[var(--border)] text-xs rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-amber-500 font-medium"
                     />
                   </div>
@@ -1053,7 +1053,7 @@ ${contactRole}`;
                                   setPortions(order.portions);
                                   setContactName(order.contactName || "מירב סארמילי");
                                   setContactRole(order.contactRole || "מנהלת תפעול מרכז חוסן חוות רום");
-                                  setContactPhone(order.contactPhone || "052-1234567");
+                                  setContactPhone(order.contactPhone || "052-609-1158");
                                 }}
                                 className="px-2.5 py-1 bg-amber-500/10 hover:bg-amber-500/20 text-amber-500 text-[10px] font-black rounded-lg transition-colors"
                               >
