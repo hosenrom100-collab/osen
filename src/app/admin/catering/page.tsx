@@ -132,6 +132,27 @@ export default function CateringOrderPage() {
   const [loadingArchive, setLoadingArchive] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [showArchive, setShowArchive] = useState(false);
+  const [activeMenuStep, setActiveMenuStep] = useState<"meats" | "sides" | "salads" | null>("meats");
+
+  // Auto-advance step logic
+  useEffect(() => {
+    if (selectedMeats.length === 2 && activeMenuStep === "meats") {
+      setActiveMenuStep("sides");
+    }
+  }, [selectedMeats.length, activeMenuStep]);
+
+  useEffect(() => {
+    if (selectedSides.length === 2 && activeMenuStep === "sides") {
+      setActiveMenuStep("salads");
+    }
+  }, [selectedSides.length, activeMenuStep]);
+
+  useEffect(() => {
+    if (selectedSalads.length === 6 && activeMenuStep === "salads") {
+      setActiveMenuStep(null);
+    }
+  }, [selectedSalads.length, activeMenuStep]);
 
   const [contactName, setContactName] = useState("מירב סארמילי");
   const [contactRole, setContactRole] = useState("מנהלת תפעול מרכז חוסן חוות רום");
@@ -139,8 +160,6 @@ export default function CateringOrderPage() {
 
   const [generatingPdf, setGeneratingPdf] = useState(false);
   const reportRef = React.useRef<HTMLDivElement>(null);
-  
-  const [showArchive, setShowArchive] = useState(false);
 
   // Load Hosen groups & attendance statistics
   const fetchStats = async () => {
@@ -201,40 +220,76 @@ export default function CateringOrderPage() {
         query(collection(db, "attendance"), where("date", ">=", dateStr))
       );
       
-      const dailyPresence: Record<string, Record<string, number>> = {};
-      matchedGroups.forEach(g => { dailyPresence[g.id] = {}; });
-      
+      const dailyAttendance: Record<string, Record<string, number>> = {};
       attendanceSnap.forEach(doc => {
         const data = doc.data();
-        const gId = data.contextId || data.groupId || data.hosenType;
+        const date = data.date;
+        const pId = data.patientId;
+        const status = data.status; // "present"
         
-        const matchedG = matchedGroups.find(g => g.id === gId || g.name === gId);
-        if (matchedG && data.status === "present") {
-          const targetId = matchedG.id;
-          dailyPresence[targetId][data.date] = (dailyPresence[targetId][data.date] || 0) + 1;
+        if (status === "present") {
+          if (!dailyAttendance[date]) {
+            dailyAttendance[date] = {};
+          }
+          dailyAttendance[date][pId] = 1;
         }
       });
 
-      // 5. Calculate statistics and suggest default portion counts
-      const calculatedStats: Record<string, GroupStats> = {};
-      const suggestedPortions: Record<string, number> = {};
-      
-      matchedGroups.forEach(g => {
-        const counts = Object.values(dailyPresence[g.id]);
-        const max = counts.length > 0 ? Math.max(...counts) : 0;
-        const avg = counts.length > 0 ? Math.round(counts.reduce((a, b) => a + b, 0) / counts.length * 10) / 10 : 0;
+      const patientGroupMap: Record<string, string[]> = {};
+      patientsSnap.forEach(doc => {
+        const p = doc.data();
+        const hType = p.hosenType;
+        const gIds = p.groupIds || [];
         
-        calculatedStats[g.id] = {
-          avg,
-          max,
-          activeCount: activeCounts[g.id] || 0
-        };
-        // Suggest rounded average as default portion count
-        suggestedPortions[g.id] = Math.max(0, Math.round(avg));
+        const belongsTo: string[] = [];
+        matchedGroups.forEach(g => {
+          const isMember = (hType === g.id || hType === g.name || gIds.includes(g.id));
+          if (isMember) {
+            belongsTo.push(g.id);
+          }
+        });
+        patientGroupMap[doc.id] = belongsTo;
       });
 
-      setStats(calculatedStats);
-      setPortions(suggestedPortions);
+      const groupDailyCounts: Record<string, Record<string, number>> = {};
+      matchedGroups.forEach(g => { groupDailyCounts[g.id] = {}; });
+
+      Object.entries(dailyAttendance).forEach(([date, presentPatients]) => {
+        matchedGroups.forEach(g => { groupDailyCounts[g.id][date] = 0; });
+        
+        Object.keys(presentPatients).forEach(pId => {
+          const belongsTo = patientGroupMap[pId] || [];
+          belongsTo.forEach(gId => {
+            if (groupDailyCounts[gId]) {
+              groupDailyCounts[gId][date]++;
+            }
+          });
+        });
+      });
+
+      const finalStats: Record<string, GroupStats> = {};
+      const initialPortions: Record<string, number> = {};
+
+      matchedGroups.forEach(g => {
+        const counts = Object.values(groupDailyCounts[g.id] || {});
+        const sum = counts.reduce((a, b) => a + b, 0);
+        const count = counts.length;
+        const avg = count > 0 ? Math.round(sum / count) : 0;
+        const max = counts.length > 0 ? Math.max(...counts) : 0;
+        const activeCount = activeCounts[g.id] || 0;
+
+        finalStats[g.id] = { avg, max, activeCount };
+        initialPortions[g.id] = avg > 0 ? avg : Math.round(activeCount * 0.7);
+      });
+
+      setStats(finalStats);
+      
+      // Only set default portions if they haven't been manually set or loaded from archive yet
+      setPortions(prev => {
+        const hasValues = Object.values(prev).some(v => v > 0);
+        return hasValues ? prev : initialPortions;
+      });
+
     } catch (e) {
       console.error(e);
       setErrorMsg("שגיאה בטעינת נתוני הנוכחות. שים לב שעדיין תוכל למלא הכל ידנית.");
@@ -283,6 +338,7 @@ export default function CateringOrderPage() {
   const saveOrder = async () => {
     if (!isSelectionValid) return;
     setSaving(true);
+    setErrorMsg("");
     setSaveSuccess(false);
     try {
       const totalPortions = Object.values(portions).reduce((a, b) => a + b, 0);
@@ -530,10 +586,10 @@ ${contactRole}`;
           <div className="absolute top-0 right-1/4 w-[500px] h-[500px] bg-amber-500/3 rounded-full blur-[120px]" />
         </div>
 
-        <div className="max-w-5xl mx-auto space-y-6 relative">
+        <div className="max-w-6xl mx-auto space-y-6 relative pb-24 lg:pb-6">
           
           {/* Header */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[var(--border)] pb-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[var(--border)] pb-4">
             <div className="flex items-center gap-4">
               <button 
                 onClick={() => router.push("/admin")}
@@ -547,9 +603,6 @@ ${contactRole}`;
                   <Utensils className="w-5 h-5 text-amber-500" />
                   הזמנת קייטרינג
                 </h1>
-                <p className="text-[var(--muted)] text-[10px] font-bold uppercase tracking-wider mt-0.5">
-                  הרכבת תפריט שבועי וסיכום מנות מבוסס נוכחות להעתקה לוואטסאפ
-                </p>
               </div>
             </div>
             
@@ -563,6 +616,31 @@ ${contactRole}`;
             </button>
           </div>
 
+          {/* Progress Indicator */}
+          {(() => {
+            const completedSteps = [
+              true, // Step 1 configured (delivery)
+              portions && Object.values(portions).some(v => v > 0), // Step 2 portions configured
+              meatsCount === 2, // Step 3 meats
+              sidesCount === 2, // Step 4 sides
+              saladsCount === 6, // Step 5 salads
+            ].filter(Boolean).length;
+            return (
+              <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
+                <div className="space-y-0.5">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-[var(--muted)]">התקדמות ההזמנה</span>
+                  <h3 className="text-xs font-black">הושלמו {completedSteps} מתוך 5 שלבים</h3>
+                </div>
+                <div className="flex-1 max-w-md w-full bg-[var(--background)] h-2 rounded-full overflow-hidden border border-[var(--border)] relative">
+                  <div 
+                    className="bg-emerald-500 h-full transition-all duration-500" 
+                    style={{ width: `${(completedSteps / 5) * 100}%` }}
+                  />
+                </div>
+              </div>
+            );
+          })()}
+
           {errorMsg && (
             <div className="flex items-center gap-2 p-3 bg-red-500/10 border border-red-500/20 text-red-500 rounded-xl text-xs font-bold">
               <AlertTriangle className="w-4 h-4 shrink-0" />
@@ -570,10 +648,10 @@ ${contactRole}`;
             </div>
           )}
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
             
-            {/* Left 2 Cols: Configuration */}
-            <div className="lg:col-span-2 space-y-6">
+            {/* Left Column: Configuration */}
+            <div className="order-2 lg:order-1 space-y-6">
               
               {/* Delivery Details Card */}
               <div className="p-5 bg-[var(--surface)] border border-[var(--border)] rounded-2xl space-y-4">
@@ -688,30 +766,26 @@ ${contactRole}`;
                     {groups.map(group => {
                       const groupStat = stats[group.id] || { avg: 0, max: 0, activeCount: 0 };
                       return (
-                        <div key={group.id} className="p-4 bg-[var(--background)] border border-[var(--border)] rounded-xl space-y-3">
-                          <div className="flex justify-between items-start">
-                            <span className="text-xs font-black">{group.name}</span>
-                            <span className="text-[9px] text-[var(--muted)] font-medium">
-                              רשומים פעילים: {groupStat.activeCount}
+                        <div key={group.id} className="p-3.5 bg-[var(--background)] border border-[var(--border)] rounded-xl space-y-2.5">
+                          <div className="flex justify-between items-center">
+                            <span className="text-xs font-black text-[var(--foreground)]">{group.name}</span>
+                            <span className="text-[9px] text-[var(--muted)] font-bold">
+                              רשומים: {groupStat.activeCount}
                             </span>
                           </div>
                           
-                          <div className="grid grid-cols-2 gap-2 text-[10px] text-[var(--muted)] font-medium">
-                            <div className="bg-[var(--surface)] p-1.5 rounded border border-[var(--border)]/50">
-                              ממוצע נוכחות: <strong className="text-[var(--foreground)]">{groupStat.avg}</strong>
-                            </div>
-                            <div className="bg-[var(--surface)] p-1.5 rounded border border-[var(--border)]/50">
-                              מקסימום נוכחות: <strong className="text-[var(--foreground)]">{groupStat.max}</strong>
-                            </div>
+                          <div className="text-[9px] text-[var(--muted)] font-semibold bg-[var(--surface)] px-2.5 py-1.5 rounded-lg border border-[var(--border)]/40 flex justify-between">
+                            <span>ממוצע: <strong className="text-[var(--foreground)]">{groupStat.avg}</strong></span>
+                            <span>מקס: <strong className="text-[var(--foreground)]">{groupStat.max}</strong></span>
                           </div>
                           
-                          <div className="flex items-center gap-3 pt-2">
-                            <label className="text-[10px] font-bold text-[var(--muted)] shrink-0">מנות להזמנה:</label>
-                            <div className="flex items-center border border-[var(--border)] bg-[var(--surface)] rounded-lg overflow-hidden w-full max-w-[120px]">
+                          <div className="flex items-center justify-between pt-1">
+                            <label className="text-[10px] font-black text-[var(--foreground)] shrink-0">מנות להזמנה:</label>
+                            <div className="flex items-center border border-[var(--border)] bg-[var(--surface)] rounded-lg overflow-hidden w-[100px]">
                               <button 
                                 type="button"
                                 onClick={() => handlePortionChange(group.id, (portions[group.id] || 0) - 1)}
-                                className="w-8 py-1 text-center hover:bg-[var(--foreground)]/5 text-xs font-bold transition-colors border-l border-[var(--border)]"
+                                className="w-7 py-1 text-center hover:bg-[var(--foreground)]/5 text-xs font-bold transition-colors border-l border-[var(--border)]"
                               >
                                 -
                               </button>
@@ -719,13 +793,13 @@ ${contactRole}`;
                                 type="number" 
                                 value={portions[group.id] ?? 0}
                                 onChange={(e) => handlePortionChange(group.id, parseInt(e.target.value) || 0)}
-                                className="w-full text-center bg-transparent border-none text-xs font-black focus:outline-none p-1"
+                                className="w-full text-center bg-transparent border-none text-xs font-black focus:outline-none p-0.5"
                                 min="0"
                               />
                               <button 
                                 type="button"
                                 onClick={() => handlePortionChange(group.id, (portions[group.id] || 0) + 1)}
-                                className="w-8 py-1 text-center hover:bg-[var(--foreground)]/5 text-xs font-bold transition-colors border-r border-[var(--border)]"
+                                className="w-7 py-1 text-center hover:bg-[var(--foreground)]/5 text-xs font-bold transition-colors border-r border-[var(--border)]"
                               >
                                 +
                               </button>
@@ -742,264 +816,324 @@ ${contactRole}`;
               <div className="space-y-6">
                 
                 {/* 1. MEAT CATEGORY */}
-                <div className="p-5 bg-[var(--surface)] border border-[var(--border)] rounded-2xl space-y-4">
-                  <div className="flex justify-between items-center border-b border-[var(--border)] pb-3">
+                <div className="p-4 bg-[var(--surface)] border border-[var(--border)] rounded-2xl space-y-4">
+                  <button
+                    type="button"
+                    onClick={() => setActiveMenuStep(activeMenuStep === "meats" ? null : "meats")}
+                    className="w-full flex justify-between items-center text-right focus:outline-none"
+                  >
                     <div className="flex items-center gap-2">
                       <span className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black text-white bg-amber-500 shrink-0">3</span>
                       <h3 className="text-xs font-black uppercase tracking-wider">בשרים ומנות עיקריות (בחר 2)</h3>
                     </div>
-                    {meatsCount === 2 ? (
-                      <span className="bg-emerald-500/10 text-emerald-500 text-[10px] px-2.5 py-0.5 rounded-full font-black">✓ הושלם</span>
-                    ) : (
-                      <span className="bg-amber-500/10 text-amber-500 text-[10px] px-2.5 py-0.5 rounded-full font-bold">נבחרו: {meatsCount}/2</span>
-                    )}
-                  </div>
+                    <div className="flex items-center gap-2">
+                      {meatsCount === 2 ? (
+                        <span className="bg-emerald-500/10 text-emerald-500 text-[10px] px-2.5 py-0.5 rounded-full font-black">✓ הושלם</span>
+                      ) : (
+                        <span className="bg-amber-500/10 text-amber-500 text-[10px] px-2.5 py-0.5 rounded-full font-bold">נבחרו: {meatsCount}/2</span>
+                      )}
+                      <span className="text-[10px] text-[var(--muted)] font-bold">
+                        {activeMenuStep === "meats" ? "▲" : "▼"}
+                      </span>
+                    </div>
+                  </button>
 
-                  {/* Predefined items */}
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                    {PREDEFINED_MEATS.map(item => {
-                      const isSelected = selectedMeats.includes(item);
-                      return (
-                        <button
-                          key={item}
-                          type="button"
-                          onClick={() => handleToggleMeat(item)}
-                          className={`flex items-center justify-between p-2.5 rounded-xl border text-right text-xs transition-all ${
-                            isSelected 
-                              ? "bg-amber-500/10 border-amber-500/30 text-amber-500 font-bold" 
-                              : "bg-[var(--background)] border-[var(--border)] hover:bg-[var(--foreground)]/5"
-                          }`}
+                  {activeMenuStep !== "meats" && selectedMeats.length > 0 && (
+                    <div className="text-[11px] text-[var(--muted)] font-semibold bg-[var(--background)] px-3 py-2 rounded-xl border border-[var(--border)]/50 flex flex-wrap gap-2">
+                      <span className="text-[var(--foreground)] font-black">הנבחרים:</span>
+                      {selectedMeats.join(", ")}
+                    </div>
+                  )}
+
+                  {activeMenuStep === "meats" && (
+                    <div className="space-y-4 pt-2 border-t border-[var(--border)]/30">
+                      {/* Predefined items */}
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                        {PREDEFINED_MEATS.map(item => {
+                          const isSelected = selectedMeats.includes(item);
+                          return (
+                            <button
+                              key={item}
+                              type="button"
+                              onClick={() => handleToggleMeat(item)}
+                              className={`flex items-center justify-between p-2.5 rounded-xl border text-right text-xs transition-all ${
+                                isSelected 
+                                  ? "bg-amber-500/10 border-amber-500/30 text-amber-500 font-bold" 
+                                  : "bg-[var(--background)] border-[var(--border)] hover:bg-[var(--foreground)]/5"
+                              }`}
+                            >
+                              <span className="truncate">{item}</span>
+                              {isSelected && <Check className="w-3.5 h-3.5 shrink-0 text-amber-500 mr-2" />}
+                            </button>
+                          );
+                        })}
+                        
+                        {/* Custom added items */}
+                        {customMeats.map(item => {
+                          const isSelected = selectedMeats.includes(item);
+                          return (
+                            <div
+                              key={item}
+                              className={`flex items-center justify-between p-1.5 pl-2.5 rounded-xl border text-xs transition-all ${
+                                isSelected 
+                                  ? "bg-amber-500/10 border-amber-500/30 text-amber-500 font-bold" 
+                                  : "bg-[var(--background)] border-[var(--border)]"
+                              }`}
+                            >
+                              <button
+                                type="button"
+                                onClick={() => handleToggleMeat(item)}
+                                className="flex-1 text-right truncate flex items-center justify-between py-1"
+                              >
+                                <span className="truncate">{item}</span>
+                                {isSelected && <Check className="w-3.5 h-3.5 shrink-0 text-amber-500 mr-2" />}
+                              </button>
+                              <button 
+                                type="button" 
+                                onClick={() => removeCustomMeat(item)}
+                                className="p-1 text-[var(--muted)] hover:text-red-500 transition-colors mr-1 shrink-0"
+                                title="מחק מנה שהוספה ידנית"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {/* Manual add input */}
+                      <form onSubmit={addCustomMeat} className="flex gap-2 pt-2 border-t border-[var(--border)]/50">
+                        <input 
+                          type="text" 
+                          placeholder="הוסף מנה עיקרית מותאמת אישית..."
+                          value={newMeat}
+                          onChange={(e) => setNewMeat(e.target.value)}
+                          className="w-full bg-[var(--background)] border border-[var(--border)] text-xs rounded-xl px-3 py-2 focus:outline-none focus:border-[var(--muted)]"
+                        />
+                        <button 
+                          type="submit"
+                          className="px-3 bg-amber-500 hover:bg-amber-600 text-white rounded-xl flex items-center justify-center transition-colors shrink-0"
+                          title="הוסף מנה"
                         >
-                          <span className="truncate">{item}</span>
-                          {isSelected && <Check className="w-3.5 h-3.5 shrink-0 text-amber-500 mr-2" />}
+                          <Plus className="w-4 h-4" />
                         </button>
-                      );
-                    })}
-                    
-                    {/* Custom added items */}
-                    {customMeats.map(item => {
-                      const isSelected = selectedMeats.includes(item);
-                      return (
-                        <div
-                          key={item}
-                          className={`flex items-center justify-between p-1.5 pl-2.5 rounded-xl border text-xs transition-all ${
-                            isSelected 
-                              ? "bg-amber-500/10 border-amber-500/30 text-amber-500 font-bold" 
-                              : "bg-[var(--background)] border-[var(--border)]"
-                          }`}
-                        >
-                          <button
-                            type="button"
-                            onClick={() => handleToggleMeat(item)}
-                            className="flex-1 text-right truncate flex items-center justify-between py-1"
-                          >
-                            <span className="truncate">{item}</span>
-                            {isSelected && <Check className="w-3.5 h-3.5 shrink-0 text-amber-500 mr-2" />}
-                          </button>
-                          <button 
-                            type="button" 
-                            onClick={() => removeCustomMeat(item)}
-                            className="p-1 text-[var(--muted)] hover:text-red-500 transition-colors mr-1 shrink-0"
-                            title="מחק מנה שהוספה ידנית"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  {/* Manual add input */}
-                  <form onSubmit={addCustomMeat} className="flex gap-2 pt-2 border-t border-[var(--border)]/50">
-                    <input 
-                      type="text" 
-                      placeholder="הוסף מנה עיקרית מותאמת אישית..."
-                      value={newMeat}
-                      onChange={(e) => setNewMeat(e.target.value)}
-                      className="w-full bg-[var(--background)] border border-[var(--border)] text-xs rounded-xl px-3 py-2 focus:outline-none focus:border-[var(--muted)]"
-                    />
-                    <button 
-                      type="submit"
-                      className="px-3 bg-amber-500 hover:bg-amber-600 text-white rounded-xl flex items-center justify-center transition-colors shrink-0"
-                      title="הוסף מנה"
-                    >
-                      <Plus className="w-4 h-4" />
-                    </button>
-                  </form>
+                      </form>
+                    </div>
+                  )}
                 </div>
 
                 {/* 2. SIDES CATEGORY */}
-                <div className="p-5 bg-[var(--surface)] border border-[var(--border)] rounded-2xl space-y-4">
-                  <div className="flex justify-between items-center border-b border-[var(--border)] pb-3">
+                <div className="p-4 bg-[var(--surface)] border border-[var(--border)] rounded-2xl space-y-4">
+                  <button
+                    type="button"
+                    onClick={() => setActiveMenuStep(activeMenuStep === "sides" ? null : "sides")}
+                    className="w-full flex justify-between items-center text-right focus:outline-none"
+                  >
                     <div className="flex items-center gap-2">
                       <span className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black text-white bg-amber-500 shrink-0">4</span>
                       <h3 className="text-xs font-black uppercase tracking-wider">תוספות חמות (בחר 2)</h3>
                     </div>
-                    {sidesCount === 2 ? (
-                      <span className="bg-emerald-500/10 text-emerald-500 text-[10px] px-2.5 py-0.5 rounded-full font-black">✓ הושלם</span>
-                    ) : (
-                      <span className="bg-amber-500/10 text-amber-500 text-[10px] px-2.5 py-0.5 rounded-full font-bold">נבחרו: {sidesCount}/2</span>
-                    )}
-                  </div>
+                    <div className="flex items-center gap-2">
+                      {sidesCount === 2 ? (
+                        <span className="bg-emerald-500/10 text-emerald-500 text-[10px] px-2.5 py-0.5 rounded-full font-black">✓ הושלם</span>
+                      ) : (
+                        <span className="bg-amber-500/10 text-amber-500 text-[10px] px-2.5 py-0.5 rounded-full font-bold">נבחרו: {sidesCount}/2</span>
+                      )}
+                      <span className="text-[10px] text-[var(--muted)] font-bold">
+                        {activeMenuStep === "sides" ? "▲" : "▼"}
+                      </span>
+                    </div>
+                  </button>
 
-                  {/* Predefined items */}
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                    {PREDEFINED_SIDES.map(item => {
-                      const isSelected = selectedSides.includes(item);
-                      return (
-                        <button
-                          key={item}
-                          type="button"
-                          onClick={() => handleToggleSide(item)}
-                          className={`flex items-center justify-between p-2.5 rounded-xl border text-right text-xs transition-all ${
-                            isSelected 
-                              ? "bg-amber-500/10 border-amber-500/30 text-amber-500 font-bold" 
-                              : "bg-[var(--background)] border-[var(--border)] hover:bg-[var(--foreground)]/5"
-                          }`}
+                  {activeMenuStep !== "sides" && selectedSides.length > 0 && (
+                    <div className="text-[11px] text-[var(--muted)] font-semibold bg-[var(--background)] px-3 py-2 rounded-xl border border-[var(--border)]/50 flex flex-wrap gap-2">
+                      <span className="text-[var(--foreground)] font-black">הנבחרים:</span>
+                      {selectedSides.join(", ")}
+                    </div>
+                  )}
+
+                  {activeMenuStep === "sides" && (
+                    <div className="space-y-4 pt-2 border-t border-[var(--border)]/30">
+                      {/* Predefined items */}
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                        {PREDEFINED_SIDES.map(item => {
+                          const isSelected = selectedSides.includes(item);
+                          return (
+                            <button
+                              key={item}
+                              type="button"
+                              onClick={() => handleToggleSide(item)}
+                              className={`flex items-center justify-between p-2.5 rounded-xl border text-right text-xs transition-all ${
+                                isSelected 
+                                  ? "bg-amber-500/10 border-amber-500/30 text-amber-500 font-bold" 
+                                  : "bg-[var(--background)] border-[var(--border)] hover:bg-[var(--foreground)]/5"
+                              }`}
+                            >
+                              <span className="truncate">{item}</span>
+                              {isSelected && <Check className="w-3.5 h-3.5 shrink-0 text-amber-500 mr-2" />}
+                            </button>
+                          );
+                        })}
+                        
+                        {/* Custom added items */}
+                        {customSides.map(item => {
+                          const isSelected = selectedSides.includes(item);
+                          return (
+                            <div
+                              key={item}
+                              className={`flex items-center justify-between p-1.5 pl-2.5 rounded-xl border text-xs transition-all ${
+                                isSelected 
+                                  ? "bg-amber-500/10 border-amber-500/30 text-amber-500 font-bold" 
+                                  : "bg-[var(--background)] border-[var(--border)]"
+                              }`}
+                            >
+                              <button
+                                type="button"
+                                onClick={() => handleToggleSide(item)}
+                                className="flex-1 text-right truncate flex items-center justify-between py-1"
+                              >
+                                <span className="truncate">{item}</span>
+                                {isSelected && <Check className="w-3.5 h-3.5 shrink-0 text-amber-500 mr-2" />}
+                              </button>
+                              <button 
+                                type="button" 
+                                onClick={() => removeCustomSide(item)}
+                                className="p-1 text-[var(--muted)] hover:text-red-500 transition-colors mr-1 shrink-0"
+                                title="מחק תוספת שהוספה ידנית"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {/* Manual add input */}
+                      <form onSubmit={addCustomSide} className="flex gap-2 pt-2 border-t border-[var(--border)]/50">
+                        <input 
+                          type="text" 
+                          placeholder="הוסף תוספת חמה מותאמת אישית..."
+                          value={newSide}
+                          onChange={(e) => setNewSide(e.target.value)}
+                          className="w-full bg-[var(--background)] border border-[var(--border)] text-xs rounded-xl px-3 py-2 focus:outline-none focus:border-[var(--muted)]"
+                        />
+                        <button 
+                          type="submit"
+                          className="px-3 bg-amber-500 hover:bg-amber-600 text-white rounded-xl flex items-center justify-center transition-colors shrink-0"
+                          title="הוסף תוספת"
                         >
-                          <span className="truncate">{item}</span>
-                          {isSelected && <Check className="w-3.5 h-3.5 shrink-0 text-amber-500 mr-2" />}
+                          <Plus className="w-4 h-4" />
                         </button>
-                      );
-                    })}
-                    
-                    {/* Custom added items */}
-                    {customSides.map(item => {
-                      const isSelected = selectedSides.includes(item);
-                      return (
-                        <div
-                          key={item}
-                          className={`flex items-center justify-between p-1.5 pl-2.5 rounded-xl border text-xs transition-all ${
-                            isSelected 
-                              ? "bg-amber-500/10 border-amber-500/30 text-amber-500 font-bold" 
-                              : "bg-[var(--background)] border-[var(--border)]"
-                          }`}
-                        >
-                          <button
-                            type="button"
-                            onClick={() => handleToggleSide(item)}
-                            className="flex-1 text-right truncate flex items-center justify-between py-1"
-                          >
-                            <span className="truncate">{item}</span>
-                            {isSelected && <Check className="w-3.5 h-3.5 shrink-0 text-amber-500 mr-2" />}
-                          </button>
-                          <button 
-                            type="button" 
-                            onClick={() => removeCustomSide(item)}
-                            className="p-1 text-[var(--muted)] hover:text-red-500 transition-colors mr-1 shrink-0"
-                            title="מחק תוספת שהוספה ידנית"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  {/* Manual add input */}
-                  <form onSubmit={addCustomSide} className="flex gap-2 pt-2 border-t border-[var(--border)]/50">
-                    <input 
-                      type="text" 
-                      placeholder="הוסף תוספת חמה מותאמת אישית..."
-                      value={newSide}
-                      onChange={(e) => setNewSide(e.target.value)}
-                      className="w-full bg-[var(--background)] border border-[var(--border)] text-xs rounded-xl px-3 py-2 focus:outline-none focus:border-[var(--muted)]"
-                    />
-                    <button 
-                      type="submit"
-                      className="px-3 bg-amber-500 hover:bg-amber-600 text-white rounded-xl flex items-center justify-center transition-colors shrink-0"
-                      title="הוסף תוספת"
-                    >
-                      <Plus className="w-4 h-4" />
-                    </button>
-                  </form>
+                      </form>
+                    </div>
+                  )}
                 </div>
 
                 {/* 3. SALADS CATEGORY */}
-                <div className="p-5 bg-[var(--surface)] border border-[var(--border)] rounded-2xl space-y-4">
-                  <div className="flex justify-between items-center border-b border-[var(--border)] pb-3">
+                <div className="p-4 bg-[var(--surface)] border border-[var(--border)] rounded-2xl space-y-4">
+                  <button
+                    type="button"
+                    onClick={() => setActiveMenuStep(activeMenuStep === "salads" ? null : "salads")}
+                    className="w-full flex justify-between items-center text-right focus:outline-none"
+                  >
                     <div className="flex items-center gap-2">
                       <span className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black text-white bg-amber-500 shrink-0">5</span>
                       <h3 className="text-xs font-black uppercase tracking-wider">סלטים ולחם (בחר 6)</h3>
                     </div>
-                    {saladsCount === 6 ? (
-                      <span className="bg-emerald-500/10 text-emerald-500 text-[10px] px-2.5 py-0.5 rounded-full font-black">✓ הושלם</span>
-                    ) : (
-                      <span className="bg-amber-500/10 text-amber-500 text-[10px] px-2.5 py-0.5 rounded-full font-bold">נבחרו: {saladsCount}/6</span>
-                    )}
-                  </div>
+                    <div className="flex items-center gap-2">
+                      {saladsCount === 6 ? (
+                        <span className="bg-emerald-500/10 text-emerald-500 text-[10px] px-2.5 py-0.5 rounded-full font-black">✓ הושלם</span>
+                      ) : (
+                        <span className="bg-amber-500/10 text-amber-500 text-[10px] px-2.5 py-0.5 rounded-full font-bold">נבחרו: {saladsCount}/6</span>
+                      )}
+                      <span className="text-[10px] text-[var(--muted)] font-bold">
+                        {activeMenuStep === "salads" ? "▲" : "▼"}
+                      </span>
+                    </div>
+                  </button>
 
-                  {/* Predefined items */}
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                    {PREDEFINED_SALADS.map(item => {
-                      const isSelected = selectedSalads.includes(item);
-                      return (
-                        <button
-                          key={item}
-                          type="button"
-                          onClick={() => handleToggleSalad(item)}
-                          className={`flex items-center justify-between p-2.5 rounded-xl border text-right text-xs transition-all ${
-                            isSelected 
-                              ? "bg-amber-500/10 border-amber-500/30 text-amber-500 font-bold" 
-                              : "bg-[var(--background)] border-[var(--border)] hover:bg-[var(--foreground)]/5"
-                          }`}
+                  {activeMenuStep !== "salads" && selectedSalads.length > 0 && (
+                    <div className="text-[11px] text-[var(--muted)] font-semibold bg-[var(--background)] px-3 py-2 rounded-xl border border-[var(--border)]/50 flex flex-wrap gap-2">
+                      <span className="text-[var(--foreground)] font-black">הנבחרים:</span>
+                      {selectedSalads.join(", ")}
+                    </div>
+                  )}
+
+                  {activeMenuStep === "salads" && (
+                    <div className="space-y-4 pt-2 border-t border-[var(--border)]/30">
+                      {/* Predefined items */}
+                      <div className="grid grid-cols-2 gap-2">
+                        {PREDEFINED_SALADS.map(item => {
+                          const isSelected = selectedSalads.includes(item);
+                          return (
+                            <button
+                              key={item}
+                              type="button"
+                              onClick={() => handleToggleSalad(item)}
+                              className={`flex items-center justify-between p-2 rounded-xl border text-right text-xs transition-all ${
+                                isSelected 
+                                  ? "bg-amber-500/10 border-amber-500/30 text-amber-500 font-bold" 
+                                  : "bg-[var(--background)] border-[var(--border)] hover:bg-[var(--foreground)]/5"
+                              }`}
+                            >
+                              <span className="truncate">{item}</span>
+                              {isSelected && <Check className="w-3.5 h-3.5 shrink-0 text-amber-500 mr-2" />}
+                            </button>
+                          );
+                        })}
+                        
+                        {/* Custom added items */}
+                        {customSalads.map(item => {
+                          const isSelected = selectedSalads.includes(item);
+                          return (
+                            <div
+                              key={item}
+                              className={`flex items-center justify-between p-1 pl-2 rounded-xl border text-xs transition-all ${
+                                isSelected 
+                                  ? "bg-amber-500/10 border-amber-500/30 text-amber-500 font-bold" 
+                                  : "bg-[var(--background)] border-[var(--border)]"
+                              }`}
+                            >
+                              <button
+                                type="button"
+                                onClick={() => handleToggleSalad(item)}
+                                className="flex-1 text-right truncate flex items-center justify-between py-1"
+                              >
+                                <span className="truncate">{item}</span>
+                                {isSelected && <Check className="w-3.5 h-3.5 shrink-0 text-amber-500 mr-2" />}
+                              </button>
+                              <button 
+                                type="button" 
+                                onClick={() => removeCustomSalad(item)}
+                                className="p-1 text-[var(--muted)] hover:text-red-500 transition-colors mr-1 shrink-0"
+                                title="מחק סלט שהוסף ידנית"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {/* Manual add input */}
+                      <form onSubmit={addCustomSalad} className="flex gap-2 pt-2 border-t border-[var(--border)]/50">
+                        <input 
+                          type="text" 
+                          placeholder="הוסף סלט מותאם אישית..."
+                          value={newSalad}
+                          onChange={(e) => setNewSalad(e.target.value)}
+                          className="w-full bg-[var(--background)] border border-[var(--border)] text-xs rounded-xl px-3 py-2 focus:outline-none focus:border-[var(--muted)]"
+                        />
+                        <button 
+                          type="submit"
+                          className="px-3 bg-amber-500 hover:bg-amber-600 text-white rounded-xl flex items-center justify-center transition-colors shrink-0"
+                          title="הוסף סלט"
                         >
-                          <span className="truncate">{item}</span>
-                          {isSelected && <Check className="w-3.5 h-3.5 shrink-0 text-amber-500 mr-2" />}
+                          <Plus className="w-4 h-4" />
                         </button>
-                      );
-                    })}
-                    
-                    {/* Custom added items */}
-                    {customSalads.map(item => {
-                      const isSelected = selectedSalads.includes(item);
-                      return (
-                        <div
-                          key={item}
-                          className={`flex items-center justify-between p-1.5 pl-2.5 rounded-xl border text-xs transition-all ${
-                            isSelected 
-                              ? "bg-amber-500/10 border-amber-500/30 text-amber-500 font-bold" 
-                              : "bg-[var(--background)] border-[var(--border)]"
-                          }`}
-                        >
-                          <button
-                            type="button"
-                            onClick={() => handleToggleSalad(item)}
-                            className="flex-1 text-right truncate flex items-center justify-between py-1"
-                          >
-                            <span className="truncate">{item}</span>
-                            {isSelected && <Check className="w-3.5 h-3.5 shrink-0 text-amber-500 mr-2" />}
-                          </button>
-                          <button 
-                            type="button" 
-                            onClick={() => removeCustomSalad(item)}
-                            className="p-1 text-[var(--muted)] hover:text-red-500 transition-colors mr-1 shrink-0"
-                            title="מחק סלט שהוסף ידנית"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  {/* Manual add input */}
-                  <form onSubmit={addCustomSalad} className="flex gap-2 pt-2 border-t border-[var(--border)]/50">
-                    <input 
-                      type="text" 
-                      placeholder="הוסף סלט מותאם אישית..."
-                      value={newSalad}
-                      onChange={(e) => setNewSalad(e.target.value)}
-                      className="w-full bg-[var(--background)] border border-[var(--border)] text-xs rounded-xl px-3 py-2 focus:outline-none focus:border-[var(--muted)]"
-                    />
-                    <button 
-                      type="submit"
-                      className="px-3 bg-amber-500 hover:bg-amber-600 text-white rounded-xl flex items-center justify-center transition-colors shrink-0"
-                      title="הוסף סלט"
-                    >
-                      <Plus className="w-4 h-4" />
-                    </button>
-                  </form>
+                      </form>
+                    </div>
+                  )}
                 </div>
 
                 {/* Catering Orders Archive Card */}
@@ -1116,10 +1250,10 @@ ${contactRole}`;
             </div>
 
             {/* Right Column: Output Preview */}
-            <div className="space-y-6">
+            <div className="order-1 lg:order-2 space-y-6">
               
               {/* Order Status & Copy Card */}
-              <div className="p-5 bg-[var(--surface)] border border-[var(--border)] rounded-2xl space-y-4 sticky top-20">
+              <div className="p-4 bg-[var(--surface)] border border-[var(--border)] rounded-2xl space-y-4 lg:sticky lg:top-20">
                 <div className="border-b border-[var(--border)] pb-3">
                   <h3 className="text-xs font-black uppercase tracking-wider flex items-center gap-2">
                     <span className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black text-white bg-emerald-500 shrink-0">6</span>
@@ -1150,42 +1284,19 @@ ${contactRole}`;
                 </div>
 
                 {/* Text preview box */}
-                <div className="p-3.5 bg-[var(--background)] border border-[var(--border)] rounded-xl text-[11px] font-medium font-sans whitespace-pre-wrap leading-relaxed max-h-[350px] overflow-y-auto select-all">
+                <div className="p-3 bg-[var(--background)] border border-[var(--border)] rounded-xl text-[11px] font-medium font-sans whitespace-pre-wrap leading-relaxed max-h-[200px] overflow-y-auto select-all">
                   {generateWhatsAppText()}
                 </div>
 
-                {/* Send Directly to WhatsApp Button */}
+                {/* Send Directly to WhatsApp Button (Desktop version - hidden on mobile) */}
                 <button
                   type="button"
                   onClick={sendToWhatsApp}
                   disabled={!isSelectionValid}
-                  className="w-full py-3 px-4 rounded-xl flex items-center justify-center gap-2 text-xs font-black transition-all bg-emerald-600 hover:bg-emerald-700 text-white active:scale-[0.98] disabled:opacity-50"
+                  className="hidden lg:flex w-full py-3 px-4 rounded-xl items-center justify-center gap-2 text-xs font-black transition-all bg-emerald-600 hover:bg-emerald-700 text-white active:scale-[0.98] disabled:opacity-50"
                 >
                   <Share2 className="w-4 h-4 text-white" />
                   שלח ישירות בוואטסאפ
-                </button>
-
-                {/* Copy Button */}
-                <button
-                  type="button"
-                  onClick={copyToClipboard}
-                  className={`w-full py-3 px-4 rounded-xl flex items-center justify-center gap-2 text-xs font-black transition-all ${
-                    copied 
-                      ? "bg-emerald-500 text-white" 
-                      : "bg-amber-500 hover:bg-amber-600 text-white active:scale-[0.98]"
-                  }`}
-                >
-                  {copied ? (
-                    <>
-                      <Check className="w-4 h-4" />
-                      הועתק בהצלחה!
-                    </>
-                  ) : (
-                    <>
-                      <Share2 className="w-4 h-4" />
-                      העתק להדבקה ידנית
-                    </>
-                  )}
                 </button>
 
                 {/* Save Order Button */}
@@ -1217,25 +1328,51 @@ ${contactRole}`;
                   )}
                 </button>
 
-                {/* PDF Download Button */}
-                <button
-                  type="button"
-                  onClick={downloadPDF}
-                  disabled={generatingPdf || !isSelectionValid}
-                  className="w-full py-3 px-4 rounded-xl flex items-center justify-center gap-2 text-xs font-black transition-all bg-[var(--surface)] border border-[var(--border)] hover:bg-[var(--foreground)]/5 text-[var(--foreground)] active:scale-[0.98] disabled:opacity-50"
-                >
-                  {generatingPdf ? (
-                    <>
-                      <RefreshCw className="w-4 h-4 animate-spin text-amber-500" />
-                      מייצר PDF...
-                    </>
-                  ) : (
-                    <>
-                      <FileText className="w-4 h-4 text-amber-500" />
-                      הורד כ-PDF (דף לוגו)
-                    </>
-                  )}
-                </button>
+                {/* Compact Copy & PDF buttons row */}
+                <div className="grid grid-cols-2 gap-2">
+                  {/* Copy Button */}
+                  <button
+                    type="button"
+                    onClick={copyToClipboard}
+                    className={`py-2.5 px-3 rounded-xl flex items-center justify-center gap-1.5 text-[10px] font-black transition-all ${
+                      copied 
+                        ? "bg-emerald-500 text-white" 
+                        : "bg-amber-500 hover:bg-amber-600 text-white active:scale-[0.98]"
+                    }`}
+                  >
+                    {copied ? (
+                      <>
+                        <Check className="w-3.5 h-3.5" />
+                        הועתק!
+                      </>
+                    ) : (
+                      <>
+                        <Clipboard className="w-3.5 h-3.5" />
+                        העתק טקסט
+                      </>
+                    )}
+                  </button>
+
+                  {/* PDF Download Button */}
+                  <button
+                    type="button"
+                    onClick={downloadPDF}
+                    disabled={generatingPdf || !isSelectionValid}
+                    className="py-2.5 px-3 rounded-xl flex items-center justify-center gap-1.5 text-[10px] font-black transition-all bg-[var(--surface)] border border-[var(--border)] hover:bg-[var(--foreground)]/5 text-[var(--foreground)] active:scale-[0.98] disabled:opacity-50"
+                  >
+                    {generatingPdf ? (
+                      <>
+                        <RefreshCw className="w-3.5 h-3.5 animate-spin text-amber-500" />
+                        מייצר...
+                      </>
+                    ) : (
+                      <>
+                        <FileText className="w-3.5 h-3.5 text-amber-500" />
+                        הורד PDF
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
 
             </div>
@@ -1409,6 +1546,19 @@ ${contactRole}`;
               </div>
             </div>
           </div>
+        </div>
+
+        {/* Mobile Floating Action Button (FAB) */}
+        <div className="lg:hidden fixed bottom-4 inset-x-4 z-40">
+          <button
+            type="button"
+            onClick={sendToWhatsApp}
+            disabled={!isSelectionValid}
+            className="w-full py-3.5 px-4 rounded-xl flex items-center justify-center gap-2 text-xs font-black bg-emerald-600 active:bg-emerald-700 text-white disabled:opacity-50 transition-all active:scale-[0.98] border border-emerald-500/20 shadow-lg"
+          >
+            <Share2 className="w-4 h-4 text-white" />
+            שלח ישירות בוואטסאפ
+          </button>
         </div>
       </main>
     </RoleGuard>
