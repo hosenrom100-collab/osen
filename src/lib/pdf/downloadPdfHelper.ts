@@ -34,11 +34,22 @@ export function openOrDownloadPdf(url: string, filename = "אישור_קנייה
     }
 
     // 2. Handle Standard HTTPS URLs
-    const win = window.open(url, "_blank");
+    let targetUrl = url;
+    try {
+      if (url.startsWith("http") && !url.includes("data:")) {
+        const urlObj = new URL(url);
+        urlObj.searchParams.set("t", Date.now().toString());
+        targetUrl = urlObj.toString();
+      }
+    } catch (urlErr) {
+      console.error("Error adding cache buster to PDF URL:", urlErr);
+    }
+
+    const win = window.open(targetUrl, "_blank");
     if (!win) {
       // Fallback if popup blocked
       const link = document.createElement("a");
-      link.href = url;
+      link.href = targetUrl;
       link.target = "_blank";
       link.download = filename;
       document.body.appendChild(link);

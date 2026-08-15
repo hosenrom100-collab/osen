@@ -77,6 +77,7 @@ export async function POST(
         await file.save(pdfBuffer, {
           metadata: {
             contentType: "application/pdf",
+            cacheControl: "private, no-cache, no-store, must-revalidate",
           },
         });
 
