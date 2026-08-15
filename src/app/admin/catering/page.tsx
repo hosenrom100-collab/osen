@@ -135,24 +135,24 @@ export default function CateringOrderPage() {
   const [showArchive, setShowArchive] = useState(false);
   const [activeMenuStep, setActiveMenuStep] = useState<"meats" | "sides" | "salads" | null>("meats");
 
-  // Auto-advance step logic
+  // Auto-advance step logic (only when not in edit mode)
   useEffect(() => {
     if (selectedMeats.length === 2 && activeMenuStep === "meats") {
       setActiveMenuStep("sides");
     }
-  }, [selectedMeats.length, activeMenuStep]);
+  }, [selectedMeats.length]);
 
   useEffect(() => {
     if (selectedSides.length === 2 && activeMenuStep === "sides") {
       setActiveMenuStep("salads");
     }
-  }, [selectedSides.length, activeMenuStep]);
+  }, [selectedSides.length]);
 
   useEffect(() => {
     if (selectedSalads.length === 6 && activeMenuStep === "salads") {
       setActiveMenuStep(null);
     }
-  }, [selectedSalads.length, activeMenuStep]);
+  }, [selectedSalads.length]);
 
   const [contactName, setContactName] = useState("מירב סארמילי");
   const [contactRole, setContactRole] = useState("מנהלת תפעול מרכז חוסן חוות רום");
