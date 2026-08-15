@@ -132,6 +132,8 @@ export default function StoreRequestsPage() {
 
   const handleReject = async (requestId: string) => {
     try {
+      const reqData = requests.find((r) => r.id === requestId);
+
       await updateDoc(doc(db, "storeAuthorizationRequests", requestId), {
         status: "rejected",
         approvedAt: new Date(),
@@ -154,6 +156,15 @@ export default function StoreRequestsPage() {
       );
 
       setEditingRequest(null);
+
+      if (reqData?.requestedBy) {
+        sendPush({
+          userId: reqData.requestedBy,
+          title: "עדכון לבקשת קנייה בסופר ❌",
+          body: `בקשה #${reqData.requestNumber} נדחתה על ידי ${user?.displayName || "מנהל"}. לחץ לצפייה בפרטים.`,
+          link: "/store-authorization/requests",
+        });
+      }
     } catch (error) {
       console.error("Error rejecting request:", error);
       alert("שגיאה בעדכון הבקשה");
