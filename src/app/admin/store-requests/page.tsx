@@ -6,11 +6,11 @@ import { RoleGuard } from "@/components/auth/RoleGuard";
 import { ConnectionStatusBanner } from "@/components/ui/ConnectionStatusBanner";
 import { db } from "@/lib/firebase/config";
 import {
-  collection, query, getDocs, orderBy, updateDoc, doc, deleteDoc,
+  collection, query, getDocs, orderBy, updateDoc, doc, deleteDoc, addDoc,
 } from "firebase/firestore";
 import {
   Clock, CheckCircle, XCircle, FileText, Loader2, ArrowLeft,
-  Download, ChevronDown, ChevronUp, Edit3, AlertCircle, Trash2,
+  Download, ChevronDown, ChevronUp, Edit3, AlertCircle, Trash2, Plus, X,
 } from "lucide-react";
 import Link from "next/link";
 import { StoreAuthorizationRequest, StoreAuthorizationItem } from "@/app/shopping/types";
@@ -59,6 +59,18 @@ export default function StoreRequestsPage() {
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
   const [storeNames, setStoreNames] = useState<Record<string, string>>({});
 
+  // Manual request states
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [users, setUsers] = useState<{ uid: string; displayName: string }[]>([]);
+  const [selectedUserId, setSelectedUserId] = useState("");
+  const [newStoreName, setNewStoreName] = useState("אברהם שיווק");
+  const [newNotes, setNewNotes] = useState("");
+  const [newItems, setNewItems] = useState<StoreAuthorizationItem[]>([]);
+  const [creatingRequest, setCreatingRequest] = useState(false);
+  const [newItemName, setNewItemName] = useState("");
+  const [newItemQty, setNewItemQty] = useState("");
+  const [newItemUnit, setNewItemUnit] = useState("");
+
   const showToast = (message: string, type: "success" | "error") => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 3000);
@@ -81,7 +93,7 @@ export default function StoreRequestsPage() {
   };
 
   useEffect(() => {
-    const fetchRequests = async () => {
+    const fetchRequestsAndUsers = async () => {
       try {
         const q = query(
           collection(db, "storeAuthorizationRequests"),
@@ -102,14 +114,22 @@ export default function StoreRequestsPage() {
           names[r.id] = r.storeName || "אברהם שיווק";
         });
         setStoreNames(names);
+
+        // Fetch users for employee dropdown
+        const usersSnap = await getDocs(collection(db, "users"));
+        const uList = usersSnap.docs.map((doc) => ({
+          uid: doc.id,
+          displayName: doc.data().displayName || doc.data().name || "עובד ללא שם",
+        }));
+        setUsers(uList.sort((a, b) => a.displayName.localeCompare(b.displayName)));
       } catch (error) {
-        console.error("Error fetching requests:", error);
+        console.error("Error fetching requests/users:", error);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchRequests();
+    fetchRequestsAndUsers();
   }, []);
 
   const handleApprove = async (requestId: string) => {
@@ -189,6 +209,105 @@ export default function StoreRequestsPage() {
       showToast("שגיאה בעדכון הבקשה", "error");
     } finally {
       setLoadingPdfId(null);
+    }
+  };
+
+  const handleAddManualItem = () => {
+    if (!newItemName.trim()) {
+      showToast("אנא הזן שם מוצר", "error");
+      return;
+    }
+    if (!newItemQty.trim()) {
+      showToast("אנא הזן כמות", "error");
+      return;
+    }
+    const item: StoreAuthorizationItem = {
+      productName: newItemName.trim(),
+      quantity: newItemQty.trim(),
+      unit: newItemUnit.trim() || undefined,
+      status: "approved" as const,
+    };
+    setNewItems((prev) => [...prev, item]);
+    setNewItemName("");
+    setNewItemQty("");
+    setNewItemUnit("");
+  };
+
+  const handleRemoveManualItem = (index: number) => {
+    setNewItems((prev) => prev.filter((_, idx) => idx !== index));
+  };
+
+  const handleCreateRequest = async () => {
+    if (!selectedUserId) {
+      showToast("אנא בחר עובד לשיוך האישור", "error");
+      return;
+    }
+    if (newItems.length === 0) {
+      showToast("אנא הוסף לפחות מוצר אחד לאישור", "error");
+      return;
+    }
+
+    setCreatingRequest(true);
+    try {
+      const selectedUser = users.find((u) => u.uid === selectedUserId);
+      const nextNum = requests.length > 0 ? Math.max(...requests.map((r) => r.requestNumber || 0)) + 1 : 1;
+
+      const newRequestData = {
+        requestNumber: nextNum,
+        requestedBy: selectedUserId,
+        requestedByName: selectedUser?.displayName || "עובד/ת",
+        storeName: newStoreName || "אברהם שיווק",
+        notes: newNotes || "",
+        items: newItems,
+        status: "approved" as const,
+        createdAt: new Date(),
+        approvedAt: new Date(),
+        approvedBy: user?.uid || "",
+        approvedByName: user?.displayName || "מנהל",
+      };
+
+      // 1. Save to Firestore
+      const docRef = await addDoc(collection(db, "storeAuthorizationRequests"), newRequestData);
+      const newRequestId = docRef.id;
+
+      // 2. Register store name locally
+      setStoreNames((prev) => ({ ...prev, [newRequestId]: newRequestData.storeName }));
+
+      // 3. Generate PDF
+      let finalPdfUrl = "";
+      try {
+        const pdfRes = await fetch(`/api/store-requests/${newRequestId}/generate-pdf`, {
+          method: "POST",
+        });
+        const pdfData = await pdfRes.json();
+        if (pdfData.pdfUrl) {
+          finalPdfUrl = pdfData.pdfUrl;
+        }
+      } catch (pdfErr) {
+        console.error("Error generating PDF for new manual request:", pdfErr);
+      }
+
+      // 4. Update state with new request
+      const createdRequest: StoreAuthorizationRequest = {
+        id: newRequestId,
+        ...newRequestData,
+        pdfUrl: finalPdfUrl || undefined,
+      };
+
+      setRequests((prev) => [createdRequest, ...prev]);
+      showToast("האישור היזום נוצר ואושר בהצלחה", "success");
+
+      // Reset form states
+      setSelectedUserId("");
+      setNewStoreName("אברהם שיווק");
+      setNewNotes("");
+      setNewItems([]);
+      setShowCreateModal(false);
+    } catch (err) {
+      console.error("Error creating manual request:", err);
+      showToast("שגיאה ביצירת האישור היזום", "error");
+    } finally {
+      setCreatingRequest(false);
     }
   };
 
@@ -294,11 +413,20 @@ export default function StoreRequestsPage() {
               <h1 className="text-xl font-bold">בקשות קנייה אד הוק</h1>
               <p className="text-sm text-slate-500">ניהול ואישור בקשות קנייה אד הוק</p>
             </div>
-            {pendingRequests.length > 0 && (
-              <div className="ml-auto bg-red-100 text-red-800 px-3 py-1 rounded-full text-sm font-medium">
-                {pendingRequests.length} בהמתנה
-              </div>
-            )}
+            <div className="ml-auto flex items-center gap-3">
+              {pendingRequests.length > 0 && (
+                <div className="bg-red-100 text-red-800 px-3 py-1 rounded-full text-sm font-medium">
+                  {pendingRequests.length} בהמתנה
+                </div>
+              )}
+              <button
+                onClick={() => setShowCreateModal(true)}
+                className="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 !text-white rounded-xl transition text-sm font-bold flex items-center gap-1.5 shadow-md active:scale-95 border-none cursor-pointer"
+              >
+                <Plus className="w-4 h-4 text-white" />
+                <span>הנפקת אישור חדש</span>
+              </button>
+            </div>
           </div>
         </div>
 
@@ -392,6 +520,173 @@ export default function StoreRequestsPage() {
           )}
         </div>
       </div>
+
+      {/* Create Manual Request Modal */}
+      {showCreateModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-xl max-h-[90vh] overflow-y-auto flex flex-col">
+            {/* Modal Header */}
+            <div className="p-5 border-b border-slate-100 flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-black text-slate-950">הנפקת אישור קנייה יזום</h2>
+                <p className="text-xs text-slate-500 mt-0.5">יצירה ואישור מיידי של בקשת קנייה לעובד</p>
+              </div>
+              <button
+                onClick={() => {
+                  setShowCreateModal(false);
+                  // Reset form
+                  setSelectedUserId("");
+                  setNewStoreName("אברהם שיווק");
+                  setNewNotes("");
+                  setNewItems([]);
+                }}
+                className="p-1.5 hover:bg-slate-100 text-slate-400 hover:text-slate-600 rounded-lg transition border-none cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 space-y-5 overflow-y-auto flex-1 text-right" dir="rtl">
+              {/* Employee Selection */}
+              <div>
+                <label className="block text-sm font-bold text-slate-800 mb-1.5">
+                  שיוך לעובד:
+                </label>
+                <select
+                  value={selectedUserId}
+                  onChange={(e) => setSelectedUserId(e.target.value)}
+                  className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+                >
+                  <option value="">-- בחר עובד --</option>
+                  {users.map((u) => (
+                    <option key={u.uid} value={u.uid}>
+                      {u.displayName}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Store Name */}
+              <div>
+                <label className="block text-sm font-bold text-slate-800 mb-1.5">
+                  שם החנות לאישור:
+                </label>
+                <input
+                  type="text"
+                  value={newStoreName}
+                  onChange={(e) => setNewStoreName(e.target.value)}
+                  className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+                  placeholder="אברהם שיווק"
+                />
+              </div>
+
+              {/* Notes */}
+              <div>
+                <label className="block text-sm font-bold text-slate-800 mb-1.5">
+                  הערות לאישור (אופציונלי):
+                </label>
+                <textarea
+                  value={newNotes}
+                  onChange={(e) => setNewNotes(e.target.value)}
+                  className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition min-h-[60px]"
+                  placeholder="לדוגמה: מיועד לאירוע צוות..."
+                />
+              </div>
+
+              {/* Add Product Form */}
+              <div className="border-t border-slate-100 pt-4">
+                <label className="block text-sm font-bold text-slate-800 mb-2">
+                  הוספת מוצרים לאישור:
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  <input
+                    type="text"
+                    value={newItemName}
+                    onChange={(e) => setNewItemName(e.target.value)}
+                    className="px-3 py-2 border border-slate-300 rounded-xl text-sm bg-slate-50 focus:bg-white"
+                    placeholder="שם המוצר"
+                  />
+                  <input
+                    type="text"
+                    value={newItemQty}
+                    onChange={(e) => setNewItemQty(e.target.value)}
+                    className="px-3 py-2 border border-slate-300 rounded-xl text-sm bg-slate-50 focus:bg-white"
+                    placeholder="כמות (לדוגמה: 2)"
+                  />
+                  <div className="flex gap-1">
+                    <input
+                      type="text"
+                      value={newItemUnit}
+                      onChange={(e) => setNewItemUnit(e.target.value)}
+                      className="flex-1 px-3 py-2 border border-slate-300 rounded-xl text-sm bg-slate-50 focus:bg-white"
+                      placeholder="יחידה (לדוגמה: יח')"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleAddManualItem}
+                      className="px-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition flex items-center justify-center border-none cursor-pointer"
+                      title="הוסף מוצר"
+                    >
+                      <Plus className="w-4 h-4 text-white" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Added Products List */}
+              {newItems.length > 0 && (
+                <div className="bg-slate-50 rounded-xl p-3 border border-slate-100 space-y-1.5">
+                  <p className="text-xs font-bold text-slate-600 mb-1">מוצרים שנוספו:</p>
+                  {newItems.map((item, idx) => (
+                    <div key={idx} className="flex justify-between items-center bg-white p-2 rounded-lg border border-slate-200 text-sm">
+                      <span className="font-semibold text-slate-800">
+                        {item.productName} ({item.quantity} {item.unit || ""})
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveManualItem(idx)}
+                        className="p-1 text-red-500 hover:text-red-700 hover:bg-red-50 rounded transition border-none cursor-pointer"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-5 border-t border-slate-100 flex gap-3">
+              <button
+                disabled={creatingRequest}
+                onClick={handleCreateRequest}
+                className="flex-1 py-3 bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 disabled:opacity-50 text-white rounded-xl font-bold text-sm flex items-center justify-center gap-2 shadow-md transition active:scale-95 border-none cursor-pointer"
+              >
+                {creatingRequest ? (
+                  <Loader2 className="w-4 h-4 animate-spin text-white" />
+                ) : (
+                  <CheckCircle className="w-4 h-4" />
+                )}
+                <span>{creatingRequest ? "מנפיק אישור..." : "הנפק ואשר אישור"}</span>
+              </button>
+              <button
+                disabled={creatingRequest}
+                onClick={() => {
+                  setShowCreateModal(false);
+                  setSelectedUserId("");
+                  setNewStoreName("אברהם שיווק");
+                  setNewNotes("");
+                  setNewItems([]);
+                }}
+                className="px-6 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold text-sm transition active:scale-95 border-none cursor-pointer"
+              >
+                ביטול
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </RoleGuard>
   );
 }
