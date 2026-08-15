@@ -19,6 +19,8 @@ interface FormItem extends StoreAuthorizationItem {
   id: string;
 }
 
+const UNITS = ["יחידה", "ק״ג", "גרם", "ליטר", "מ״ל", "מארז", "עטיפה", "קופסה", "שקית", "פחית"];
+
 export default function StoreAuthorizationPage() {
   const { user } = useAuth();
   const router = useRouter();
@@ -171,19 +173,24 @@ export default function StoreAuthorizationPage() {
                         />
                         <div className="grid grid-cols-2 gap-2">
                           <input
-                            type="text"
+                            type="number"
                             placeholder="כמות"
+                            min="0"
+                            step="0.1"
                             value={item.quantity}
                             onChange={(e) => updateItem(item.id, "quantity", e.target.value)}
                             className="px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            inputMode="decimal"
                           />
-                          <input
-                            type="text"
-                            placeholder="יחידה (ל. ד. ק)"
-                            value={item.unit || ""}
+                          <select
+                            value={item.unit || "יחידה"}
                             onChange={(e) => updateItem(item.id, "unit", e.target.value)}
-                            className="px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          />
+                            className="px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                          >
+                            {UNITS.map((u) => (
+                              <option key={u} value={u}>{u}</option>
+                            ))}
+                          </select>
                         </div>
                       </div>
                       <button
