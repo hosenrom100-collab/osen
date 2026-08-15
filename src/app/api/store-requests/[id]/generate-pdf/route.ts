@@ -31,6 +31,7 @@ export async function POST(
       );
     }
 
+    // 1. Enforce Approval Status: PDF can ONLY be generated for approved requests
     if (requestData.status !== "approved") {
       return NextResponse.json(
         { error: "Only approved requests can generate PDF" },
@@ -38,46 +39,71 @@ export async function POST(
       );
     }
 
-    // Generate PDF
-    const pdfBuffer = await generateStoreAuthorizationPDF(requestData, id);
-
-    if (!bucket) {
-      return NextResponse.json(
-        { error: "Storage not configured" },
-        { status: 500 }
-      );
+    // 2. ONE-TIME GENERATION ENFORCEMENT:
+    // If a PDF URL has already been generated for this request, reuse the existing single document!
+    if (requestData.pdfUrl) {
+      return NextResponse.json({
+        success: true,
+        pdfUrl: requestData.pdfUrl,
+        reused: true,
+      });
     }
 
-    // Upload to Firebase Storage
-    const fileName = `store-authorization-${requestData.requestNumber}-${Date.now()}.pdf`;
-    const file = bucket.file(`store-authorizations/${fileName}`);
+    // 3. Generate PDF Buffer
+    const pdfBuffer = await generateStoreAuthorizationPDF(requestData, id);
 
-    await file.save(pdfBuffer, {
-      metadata: {
-        contentType: "application/pdf",
-      },
-    });
+    let finalPdfUrl = "";
 
-    // Make file public and get URL
-    await file.makePublic();
-    const publicUrl = `https://storage.googleapis.com/${bucket.name}/store-authorizations/${fileName}`;
+    // 4. Try uploading to Firebase Storage bucket if configured
+    if (bucket) {
+      try {
+        const fileName = `store-authorization-${requestData.requestNumber || id}.pdf`;
+        const file = bucket.file(`store-authorizations/${fileName}`);
 
-    // Update document with PDF URL
+        await file.save(pdfBuffer, {
+          metadata: {
+            contentType: "application/pdf",
+          },
+        });
+
+        try {
+          await file.makePublic();
+          finalPdfUrl = `https://storage.googleapis.com/${bucket.name}/store-authorizations/${fileName}`;
+        } catch (pubErr) {
+          const [signedUrl] = await file.getSignedUrl({
+            action: "read",
+            expires: "03-09-2099",
+          });
+          finalPdfUrl = signedUrl;
+        }
+      } catch (uploadErr) {
+        console.error("Storage upload failed, falling back to base64 Data URL:", uploadErr);
+      }
+    }
+
+    // 5. Fallback if storage fails or is unconfigured: Data URL encoding
+    if (!finalPdfUrl) {
+      finalPdfUrl = `data:application/pdf;base64,${pdfBuffer.toString("base64")}`;
+    }
+
+    // 6. Lock and Save the single, immutable PDF URL to Firestore
     await adminDb
       .collection("storeAuthorizationRequests")
       .doc(id)
       .update({
-        pdfUrl: publicUrl,
+        pdfUrl: finalPdfUrl,
+        pdfGeneratedAt: new Date(),
       });
 
     return NextResponse.json({
       success: true,
-      pdfUrl: publicUrl,
+      pdfUrl: finalPdfUrl,
+      reused: false,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error generating PDF:", error);
     return NextResponse.json(
-      { error: "Failed to generate PDF" },
+      { error: error?.message || "Failed to generate PDF" },
       { status: 500 }
     );
   }
