@@ -106,6 +106,12 @@ export default function StoreAuthorizationPage() {
     <RoleGuard allowedRoles={["admin", "manager", "logistics", "instructor", "social_worker", "employee"]}>
       <ConnectionStatusBanner />
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 pb-20">
+        {/* Info Banner */}
+        <div className="bg-amber-50 border-b border-amber-200 px-4 py-3">
+          <div className="max-w-3xl mx-auto text-sm text-amber-900">
+            <p className="font-medium">⚠️ בקשה זו מיועדת <strong>למקרים דחופים בלבד</strong> עבור קנייה עצמאית בסופר של מוצרים שאינם בפול הקבוע</p>
+          </div>
+        </div>
         {/* Header */}
         <div className="sticky top-0 z-40 bg-white border-b border-slate-200 shadow-sm">
           <div className="max-w-3xl mx-auto px-4 py-4 flex items-center gap-3">
@@ -250,23 +256,12 @@ export default function StoreAuthorizationPage() {
 
             {/* Info Box */}
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-800">
-              <p className="font-medium mb-3">📋 מה זו בקשה זו?</p>
-              <p className="mb-3 text-blue-700">
-                בקשה זו מיועדת <strong>למקרים דחופים בלבד</strong> עבור קנייה <strong>עצמאית</strong> בסופר של מוצרים שאינם בפול הקבוע.
-              </p>
-
-              <p className="font-medium mb-2">ℹ️ תהליך האישור:</p>
-              <ul className="list-disc list-inside space-y-1 text-blue-700 mb-3">
-                <li>הבקשה נשלחת לאישור <strong>מירב סארמילי</strong> - מנהלת תפעול</li>
-                <li>מירב יכולה לשנות כמויות או לדחות מוצרים</li>
-                <li>לאחר אישור יונפק <strong>אישור כתוב</strong> לפי המוצרים שאושרו</li>
-                <li>האישור יחתום על ידי מירב עם מספר אישור ייחודי</li>
+              <p className="font-medium mb-2">💡 תהליך:</p>
+              <ul className="list-disc list-inside space-y-1 text-blue-700">
+                <li>הבקשה נשלחת לאישור מירב</li>
+                <li>יונפק אישור כתוב לפי המוצרים שאושרו</li>
+                <li>האישור יצורף לחשבונית הקנייה</li>
               </ul>
-
-              <div className="bg-amber-100 border border-amber-300 rounded p-2 mt-3">
-                <p className="text-amber-900 font-medium text-xs">⚠️ חשוב:</p>
-                <p className="text-amber-800 text-xs">האישור יצורף לחשבונית הקנייה מהסופר</p>
-              </div>
             </div>
           </form>
         </div>
