@@ -189,6 +189,22 @@ export default function StoreRequestsPage() {
     setEditedItems(editedItems.filter((_, i) => i !== index));
   };
 
+  const handleGeneratePdf = async (requestId: string) => {
+    try {
+      const res = await fetch(`/api/store-requests/${requestId}/generate-pdf`, { method: "POST" });
+      const data = await res.json();
+      if (data.pdfUrl) {
+        setRequests(requests.map((r) => (r.id === requestId ? { ...r, pdfUrl: data.pdfUrl } : r)));
+        window.open(data.pdfUrl, "_blank");
+      } else {
+        alert("שגיאה בהפקת ה-PDF");
+      }
+    } catch (err) {
+      console.error("Error generating PDF:", err);
+      alert("שגיאה בהפקת קובץ ה-PDF");
+    }
+  };
+
   const pendingRequests = requests.filter((r) => r.status === "pending");
   const processedRequests = requests.filter((r) => r.status !== "pending");
 
@@ -250,6 +266,7 @@ export default function StoreRequestsPage() {
                         onEditCancel={() => setEditingRequest(null)}
                         onItemChange={handleItemChange}
                         onRemoveItem={handleRemoveItem}
+                        onGeneratePdf={() => handleGeneratePdf(request.id)}
                       />
                     ))}
                   </div>
@@ -270,6 +287,7 @@ export default function StoreRequestsPage() {
                           setExpandedId(expandedId === request.id ? null : request.id)
                         }
                         isEditing={false}
+                        onGeneratePdf={() => handleGeneratePdf(request.id)}
                       />
                     ))}
                   </div>
@@ -295,6 +313,7 @@ interface RequestCardProps {
   onEditCancel?: () => void;
   onItemChange?: (index: number, field: keyof StoreAuthorizationItem, value: string) => void;
   onRemoveItem?: (index: number) => void;
+  onGeneratePdf?: () => void;
 }
 
 function RequestCard({
@@ -309,6 +328,7 @@ function RequestCard({
   onEditCancel,
   onItemChange,
   onRemoveItem,
+  onGeneratePdf,
 }: RequestCardProps) {
   const status = statusColors[request.status];
   const isPending = request.status === "pending";
@@ -496,18 +516,28 @@ function RequestCard({
             </div>
           )}
 
-          {/* Approved - Download Button */}
-          {request.status === "approved" && request.pdfUrl && (
-            <div className="flex gap-2">
-              <a
-                href={request.pdfUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex-1 px-4 py-2 bg-green-100 text-green-700 rounded hover:bg-green-200 transition font-medium flex items-center justify-center gap-2"
-              >
-                <Download className="w-4 h-4" />
-                הורד אישור PDF
-              </a>
+          {/* Approved - Download / Generate PDF Button */}
+          {request.status === "approved" && (
+            <div className="flex gap-2 mt-2">
+              {request.pdfUrl ? (
+                <a
+                  href={request.pdfUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 px-4 py-2.5 bg-gradient-to-r from-emerald-600 to-green-600 !text-white rounded-xl hover:from-emerald-700 hover:to-green-700 transition font-bold text-xs flex items-center justify-center gap-2 shadow-sm border-none"
+                >
+                  <Download className="w-4 h-4 text-white" />
+                  <span>הורד אישור PDF חתום (מירב סארמילי)</span>
+                </a>
+              ) : (
+                <button
+                  onClick={onGeneratePdf}
+                  className="flex-1 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 !text-white rounded-xl hover:from-blue-700 hover:to-indigo-700 transition font-bold text-xs flex items-center justify-center gap-2 shadow-sm cursor-pointer border-none"
+                >
+                  <FileText className="w-4 h-4 text-white" />
+                  <span>הפק והורד אישור PDF חתום</span>
+                </button>
+              )}
             </div>
           )}
         </div>
