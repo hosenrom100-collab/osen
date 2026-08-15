@@ -6,11 +6,11 @@ import { RoleGuard } from "@/components/auth/RoleGuard";
 import { ConnectionStatusBanner } from "@/components/ui/ConnectionStatusBanner";
 import { db } from "@/lib/firebase/config";
 import {
-  collection, query, getDocs, orderBy, updateDoc, doc,
+  collection, query, getDocs, orderBy, updateDoc, doc, deleteDoc,
 } from "firebase/firestore";
 import {
   Clock, CheckCircle, XCircle, FileText, Loader2, ArrowLeft,
-  Download, ChevronDown, ChevronUp, Edit3, AlertCircle,
+  Download, ChevronDown, ChevronUp, Edit3, AlertCircle, Trash2,
 } from "lucide-react";
 import Link from "next/link";
 import { StoreAuthorizationRequest, StoreAuthorizationItem } from "@/app/shopping/types";
@@ -61,6 +61,22 @@ export default function StoreRequestsPage() {
   const showToast = (message: string, type: "success" | "error") => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 3000);
+  };
+
+  const handleDeleteRequest = async (e: React.MouseEvent, requestId: string) => {
+    e.stopPropagation();
+    if (!window.confirm("האם אתה בטוח שברצונך למחוק לצמיתות בקשה זו מהשרת?")) return;
+    try {
+      await deleteDoc(doc(db, "storeAuthorizationRequests", requestId));
+      setRequests((prev) => prev.filter((r) => r.id !== requestId));
+      showToast("הבקשה נמחקה לצמיתות מהשרת", "success");
+      if (expandedId === requestId) {
+        setExpandedId(null);
+      }
+    } catch (err) {
+      console.error("Error deleting request:", err);
+      showToast("שגיאה במחיקת הבקשה", "error");
+    }
   };
 
   useEffect(() => {
@@ -329,6 +345,7 @@ export default function StoreRequestsPage() {
                         onRemoveItem={handleRemoveItem}
                         onGeneratePdf={() => handleGeneratePdf(request.id)}
                         loadingPdfId={loadingPdfId}
+                        onDelete={(e) => handleDeleteRequest(e, request.id)}
                       />
                     ))}
                   </div>
@@ -351,6 +368,7 @@ export default function StoreRequestsPage() {
                         isEditing={false}
                         onGeneratePdf={() => handleGeneratePdf(request.id)}
                         loadingPdfId={loadingPdfId}
+                        onDelete={(e) => handleDeleteRequest(e, request.id)}
                       />
                     ))}
                   </div>
@@ -378,6 +396,7 @@ interface RequestCardProps {
   onRemoveItem?: (index: number) => void;
   onGeneratePdf?: () => void;
   loadingPdfId?: string | null;
+  onDelete?: (e: React.MouseEvent) => void;
 }
 
 function RequestCard({
@@ -394,6 +413,7 @@ function RequestCard({
   onRemoveItem,
   onGeneratePdf,
   loadingPdfId,
+  onDelete,
 }: RequestCardProps) {
   const status = statusColors[request.status];
   const isPending = request.status === "pending";
@@ -432,11 +452,26 @@ function RequestCard({
                 </p>
               )}
             </div>
-            {isExpanded ? (
-              <ChevronUp className="w-5 h-5 text-slate-400" />
-            ) : (
-              <ChevronDown className="w-5 h-5 text-slate-400" />
-            )}
+            <div className="flex items-center gap-3">
+              {onDelete && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDelete(e);
+                  }}
+                  className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition active:scale-95 border-none cursor-pointer"
+                  title="מחק בקשה לצמיתות מהשרת"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              )}
+              {isExpanded ? (
+                <ChevronUp className="w-5 h-5 text-slate-400" />
+              ) : (
+                <ChevronDown className="w-5 h-5 text-slate-400" />
+              )}
+            </div>
           </div>
         </div>
       </div>

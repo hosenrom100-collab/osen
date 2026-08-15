@@ -4,10 +4,10 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { db } from "@/lib/firebase/config";
 import {
-  collection, query, where, getDocs, orderBy,
+  collection, query, where, getDocs, orderBy, doc, deleteDoc,
 } from "firebase/firestore";
 import {
-  Clock, CheckCircle, XCircle, FileText, Loader2, ArrowLeft, Download, AlertCircle,
+  Clock, CheckCircle, XCircle, FileText, Loader2, ArrowLeft, Download, AlertCircle, Trash2,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -79,6 +79,19 @@ export default function RequestsPage() {
       showToast("שגיאה בתקשורת עם השרת", "error");
     } finally {
       setLoadingPdfId(null);
+    }
+  };
+
+  const handleDeleteRequest = async (e: React.MouseEvent, requestId: string) => {
+    e.stopPropagation();
+    if (!window.confirm("האם אתה בטוח שברצונך למחוק לצמיתות בקשה זו מהשרת?")) return;
+    try {
+      await deleteDoc(doc(db, "storeAuthorizationRequests", requestId));
+      setRequests((prev) => prev.filter((r) => r.id !== requestId));
+      showToast("הבקשה נמחקה לצמיתות מהשרת", "success");
+    } catch (err) {
+      console.error("Error deleting request:", err);
+      showToast("שגיאה במחיקת הבקשה", "error");
     }
   };
 
@@ -200,40 +213,51 @@ export default function RequestsPage() {
                         </p>
                       )}
                     </div>
-                    {request.status === "approved" && (
-                      <div className="ml-4 shrink-0">
-                        {request.pdfUrl ? (
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              openOrDownloadPdf(request.pdfUrl!, `אישור_קנייה_${request.requestNumber}.pdf`);
-                            }}
-                            className="px-3.5 py-2.5 bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 !text-white rounded-xl transition text-xs font-black flex items-center gap-1.5 shadow-sm active:scale-95 border-none cursor-pointer"
-                          >
-                            <Download className="w-4 h-4 text-white" />
-                            <span>הורד אישור PDF</span>
-                          </button>
-                        ) : (
-                          <button
-                            type="button"
-                            disabled={isPdfLoading}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleGeneratePdf(request.id, request.requestNumber);
-                            }}
-                            className="px-3.5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 !text-white rounded-xl transition text-xs font-black flex items-center gap-1.5 shadow-sm active:scale-95 border-none cursor-pointer"
-                          >
-                            {isPdfLoading ? (
-                              <Loader2 className="w-4 h-4 animate-spin text-white" />
-                            ) : (
-                              <FileText className="w-4 h-4 text-white" />
-                            )}
-                            <span>הפק אישור PDF</span>
-                          </button>
-                        )}
-                      </div>
-                    )}
+                    <div className="flex items-center gap-2 ml-4 shrink-0">
+                      {request.status === "approved" && (
+                        <>
+                          {request.pdfUrl ? (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openOrDownloadPdf(request.pdfUrl!, `אישור_קנייה_${request.requestNumber}.pdf`);
+                              }}
+                              className="px-3.5 py-2.5 bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 !text-white rounded-xl transition text-xs font-black flex items-center gap-1.5 shadow-sm active:scale-95 border-none cursor-pointer"
+                            >
+                              <Download className="w-4 h-4 text-white" />
+                              <span>הורד אישור PDF</span>
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              disabled={isPdfLoading}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleGeneratePdf(request.id, request.requestNumber);
+                              }}
+                              className="px-3.5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 !text-white rounded-xl transition text-xs font-black flex items-center gap-1.5 shadow-sm active:scale-95 border-none cursor-pointer"
+                            >
+                              {isPdfLoading ? (
+                                <Loader2 className="w-4 h-4 animate-spin text-white" />
+                              ) : (
+                                <FileText className="w-4 h-4 text-white" />
+                              )}
+                              <span>הפק אישור PDF</span>
+                            </button>
+                          )}
+                        </>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={(e) => handleDeleteRequest(e, request.id)}
+                        className="p-2.5 bg-red-50 text-red-600 hover:bg-red-100 border border-red-100 rounded-xl transition flex items-center justify-center cursor-pointer active:scale-95"
+                        title="מחק בקשה לצמיתות מהשרת"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
                 </div>
               );

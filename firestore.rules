@@ -251,8 +251,11 @@ service cloud.firestore {
       // Managers and logistics can update (approve/reject/edit items)
       allow update: if request.auth != null && isShoppingManager();
 
-      // Only admin/logistics can delete
-      allow delete: if isShoppingManager();
+      // Requesters can delete their own requests, managers/logistics can delete any request
+      allow delete: if request.auth != null && (
+        resource.data.requestedBy == request.auth.uid ||
+        isShoppingManager()
+      );
     }
 
     // Global deny for everything else (fallback)
