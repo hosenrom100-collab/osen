@@ -7,7 +7,7 @@ import {
   collection, query, where, getDocs, orderBy,
 } from "firebase/firestore";
 import {
-  Clock, CheckCircle, XCircle, FileText, Loader2, ArrowLeft, Download,
+  Clock, CheckCircle, XCircle, FileText, Loader2, ArrowLeft, Download, AlertCircle,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -50,6 +50,37 @@ export default function RequestsPage() {
   const router = useRouter();
   const [requests, setRequests] = useState<StoreAuthorizationRequest[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingPdfId, setLoadingPdfId] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
+
+  const showToast = (message: string, type: "success" | "error") => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3000);
+  };
+
+  const handleGeneratePdf = async (requestId: string, requestNumber: number) => {
+    try {
+      setLoadingPdfId(requestId);
+      const res = await fetch(`/api/store-requests/${requestId}/generate-pdf`, {
+        method: "POST",
+      });
+      const data = await res.json();
+      if (data.pdfUrl) {
+        setRequests((prev) =>
+          prev.map((r) => (r.id === requestId ? { ...r, pdfUrl: data.pdfUrl } : r))
+        );
+        showToast("האישור הופק בהצלחה", "success");
+        openOrDownloadPdf(data.pdfUrl, `אישור_קנייה_${requestNumber}.pdf`);
+      } else {
+        showToast("שגיאה בהפקת האישור", "error");
+      }
+    } catch (err) {
+      console.error("Error generating PDF:", err);
+      showToast("שגיאה בתקשורת עם השרת", "error");
+    } finally {
+      setLoadingPdfId(null);
+    }
+  };
 
   useEffect(() => {
     if (!user) return;
@@ -100,6 +131,24 @@ export default function RequestsPage() {
         </div>
       </div>
 
+      {/* Toast */}
+      {toast && (
+        <div
+          className={`max-w-4xl mx-auto mt-4 px-4 py-3 rounded-lg flex items-center gap-2 animate-pulse ${
+            toast.type === "success"
+              ? "bg-green-50 text-green-800 border border-green-200"
+              : "bg-red-50 text-red-800 border border-red-200"
+          }`}
+        >
+          {toast.type === "success" ? (
+            <CheckCircle className="w-5 h-5" />
+          ) : (
+            <AlertCircle className="w-5 h-5" />
+          )}
+          {toast.message}
+        </div>
+      )}
+
       {/* Content */}
       <div className="max-w-4xl mx-auto p-4">
         {loading ? (
@@ -120,6 +169,7 @@ export default function RequestsPage() {
           <div className="space-y-3">
             {requests.map((request) => {
               const status = statusColors[request.status];
+              const isPdfLoading = loadingPdfId === request.id;
               return (
                 <div
                   key={request.id}
@@ -150,19 +200,38 @@ export default function RequestsPage() {
                         </p>
                       )}
                     </div>
-                    {request.pdfUrl && request.status === "approved" && (
+                    {request.status === "approved" && (
                       <div className="ml-4 shrink-0">
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            openOrDownloadPdf(request.pdfUrl!, `אישור_קנייה_${request.requestNumber}.pdf`);
-                          }}
-                          className="px-3.5 py-2.5 bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 !text-white rounded-xl transition text-xs font-black flex items-center gap-1.5 shadow-sm active:scale-95 border-none cursor-pointer"
-                        >
-                          <Download className="w-4 h-4 text-white" />
-                          <span>הורד אישור PDF</span>
-                        </button>
+                        {request.pdfUrl ? (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openOrDownloadPdf(request.pdfUrl!, `אישור_קנייה_${request.requestNumber}.pdf`);
+                            }}
+                            className="px-3.5 py-2.5 bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 !text-white rounded-xl transition text-xs font-black flex items-center gap-1.5 shadow-sm active:scale-95 border-none cursor-pointer"
+                          >
+                            <Download className="w-4 h-4 text-white" />
+                            <span>הורד אישור PDF</span>
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            disabled={isPdfLoading}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleGeneratePdf(request.id, request.requestNumber);
+                            }}
+                            className="px-3.5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 !text-white rounded-xl transition text-xs font-black flex items-center gap-1.5 shadow-sm active:scale-95 border-none cursor-pointer"
+                          >
+                            {isPdfLoading ? (
+                              <Loader2 className="w-4 h-4 animate-spin text-white" />
+                            ) : (
+                              <FileText className="w-4 h-4 text-white" />
+                            )}
+                            <span>הפק אישור PDF</span>
+                          </button>
+                        )}
                       </div>
                     )}
                   </div>

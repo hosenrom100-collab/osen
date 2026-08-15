@@ -55,6 +55,13 @@ export default function StoreRequestsPage() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [editingRequest, setEditingRequest] = useState<string | null>(null);
   const [editedItems, setEditedItems] = useState<StoreAuthorizationItem[]>([]);
+  const [loadingPdfId, setLoadingPdfId] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
+
+  const showToast = (message: string, type: "success" | "error") => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3000);
+  };
 
   useEffect(() => {
     const fetchRequests = async () => {
@@ -83,6 +90,7 @@ export default function StoreRequestsPage() {
 
   const handleApprove = async (requestId: string) => {
     try {
+      setLoadingPdfId(requestId);
       const targetReq = requests.find((r) => r.id === requestId);
       let itemsToUpdate = editingRequest === requestId ? editedItems : targetReq?.items || [];
 
@@ -107,13 +115,30 @@ export default function StoreRequestsPage() {
         approvedByName: user?.displayName,
       });
 
-      setRequests(
-        requests.map((r) =>
+      setEditingRequest(null);
+
+      // Generate PDF (will only contain approved items)
+      let finalPdfUrl = "";
+      try {
+        const pdfRes = await fetch(`/api/store-requests/${requestId}/generate-pdf`, {
+          method: "POST",
+        });
+        const pdfData = await pdfRes.json();
+        if (pdfData.pdfUrl) {
+          finalPdfUrl = pdfData.pdfUrl;
+        }
+      } catch (pdfErr) {
+        console.error("Error generating PDF during approval:", pdfErr);
+      }
+
+      setRequests((prev) =>
+        prev.map((r) =>
           r.id === requestId
             ? {
               ...r,
               status: "approved" as const,
               items: itemsToUpdate,
+              pdfUrl: finalPdfUrl || r.pdfUrl,
               approvedAt: new Date(),
               approvedBy: user?.uid || "",
               approvedByName: user?.displayName || "",
@@ -122,12 +147,7 @@ export default function StoreRequestsPage() {
         )
       );
 
-      setEditingRequest(null);
-
-      // Generate PDF (will only contain approved items)
-      await fetch(`/api/store-requests/${requestId}/generate-pdf`, {
-        method: "POST",
-      });
+      showToast("הבקשה אושרה והאישור הופק בהצלחה", "success");
 
       if (targetReq?.requestedBy) {
         sendPush({
@@ -139,7 +159,9 @@ export default function StoreRequestsPage() {
       }
     } catch (error) {
       console.error("Error approving request:", error);
-      alert("שגיאה בעדכון הבקשה");
+      showToast("שגיאה בעדכון הבקשה", "error");
+    } finally {
+      setLoadingPdfId(null);
     }
   };
 
@@ -171,6 +193,7 @@ export default function StoreRequestsPage() {
       );
 
       setEditingRequest(null);
+      showToast("הבקשה נדחתה בהצלחה", "success");
 
       if (reqData?.requestedBy) {
         sendPush({
@@ -182,7 +205,7 @@ export default function StoreRequestsPage() {
       }
     } catch (error) {
       console.error("Error rejecting request:", error);
-      alert("שגיאה בעדכון הבקשה");
+      showToast("שגיאה בעדכון הבקשה", "error");
     }
   };
 
@@ -206,18 +229,22 @@ export default function StoreRequestsPage() {
 
   const handleGeneratePdf = async (requestId: string) => {
     try {
+      setLoadingPdfId(requestId);
       const targetReq = requests.find((r) => r.id === requestId);
       const res = await fetch(`/api/store-requests/${requestId}/generate-pdf`, { method: "POST" });
       const data = await res.json();
       if (data.pdfUrl) {
         setRequests(requests.map((r) => (r.id === requestId ? { ...r, pdfUrl: data.pdfUrl } : r)));
+        showToast("האישור הופק בהצלחה", "success");
         openOrDownloadPdf(data.pdfUrl, `אישור_קנייה_${targetReq?.requestNumber || requestId}.pdf`);
       } else {
-        alert("שגיאה בהפקת ה-PDF");
+        showToast("שגיאה בהפקת ה-PDF", "error");
       }
     } catch (err) {
       console.error("Error generating PDF:", err);
-      alert("שגיאה בהפקת קובץ ה-PDF");
+      showToast("שגיאה בהפקת קובץ ה-PDF", "error");
+    } finally {
+      setLoadingPdfId(null);
     }
   };
 
@@ -247,6 +274,24 @@ export default function StoreRequestsPage() {
             )}
           </div>
         </div>
+
+        {/* Toast */}
+        {toast && (
+          <div
+            className={`max-w-5xl mx-auto mt-4 px-4 py-3 rounded-lg flex items-center gap-2 animate-pulse ${
+              toast.type === "success"
+                ? "bg-green-50 text-green-800 border border-green-200"
+                : "bg-red-50 text-red-800 border border-red-200"
+            }`}
+          >
+            {toast.type === "success" ? (
+              <CheckCircle className="w-5 h-5" />
+            ) : (
+              <AlertCircle className="w-5 h-5" />
+            )}
+            {toast.message}
+          </div>
+        )}
 
         {/* Content */}
         <div className="max-w-5xl mx-auto p-4">
@@ -283,6 +328,7 @@ export default function StoreRequestsPage() {
                         onItemChange={handleItemChange}
                         onRemoveItem={handleRemoveItem}
                         onGeneratePdf={() => handleGeneratePdf(request.id)}
+                        loadingPdfId={loadingPdfId}
                       />
                     ))}
                   </div>
@@ -304,6 +350,7 @@ export default function StoreRequestsPage() {
                         }
                         isEditing={false}
                         onGeneratePdf={() => handleGeneratePdf(request.id)}
+                        loadingPdfId={loadingPdfId}
                       />
                     ))}
                   </div>
@@ -330,6 +377,7 @@ interface RequestCardProps {
   onItemChange?: (index: number, field: keyof StoreAuthorizationItem, value: string) => void;
   onRemoveItem?: (index: number) => void;
   onGeneratePdf?: () => void;
+  loadingPdfId?: string | null;
 }
 
 function RequestCard({
@@ -345,6 +393,7 @@ function RequestCard({
   onItemChange,
   onRemoveItem,
   onGeneratePdf,
+  loadingPdfId,
 }: RequestCardProps) {
   const status = statusColors[request.status];
   const isPending = request.status === "pending";
@@ -492,22 +541,29 @@ function RequestCard({
               {!isEditing ? (
                 <>
                   <button
+                    disabled={loadingPdfId !== null}
                     onClick={onEditStart}
-                    className="flex-1 px-4 py-2 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition font-medium flex items-center justify-center gap-2"
+                    className="flex-1 px-4 py-2 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition font-medium flex items-center justify-center gap-2 disabled:opacity-50"
                   >
                     <Edit3 className="w-4 h-4" />
                     עריכה
                   </button>
                   <button
+                    disabled={loadingPdfId !== null}
                     onClick={onApprove}
-                    className="flex-1 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition font-medium flex items-center justify-center gap-2"
+                    className="flex-1 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition font-medium flex items-center justify-center gap-2 disabled:opacity-50"
                   >
-                    <CheckCircle className="w-4 h-4" />
-                    אישור
+                    {loadingPdfId === request.id ? (
+                      <Loader2 className="w-4 h-4 animate-spin text-white" />
+                    ) : (
+                      <CheckCircle className="w-4 h-4" />
+                    )}
+                    <span>{loadingPdfId === request.id ? "מאשר..." : "אישור"}</span>
                   </button>
                   <button
+                    disabled={loadingPdfId !== null}
                     onClick={onReject}
-                    className="flex-1 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition font-medium flex items-center justify-center gap-2"
+                    className="flex-1 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition font-medium flex items-center justify-center gap-2 disabled:opacity-50"
                   >
                     <XCircle className="w-4 h-4" />
                     דחיה
@@ -516,14 +572,19 @@ function RequestCard({
               ) : (
                 <>
                   <button
+                    disabled={loadingPdfId !== null}
                     onClick={onApprove}
-                    className="flex-1 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition font-medium"
+                    className="flex-1 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition font-medium flex items-center justify-center gap-2 disabled:opacity-50"
                   >
-                    שמור ואשר
+                    {loadingPdfId === request.id ? (
+                      <Loader2 className="w-4 h-4 animate-spin text-white" />
+                    ) : null}
+                    <span>{loadingPdfId === request.id ? "שומר..." : "שמור ואשר"}</span>
                   </button>
                   <button
+                    disabled={loadingPdfId !== null}
                     onClick={onEditCancel}
-                    className="flex-1 px-4 py-2 bg-slate-300 text-slate-700 rounded hover:bg-slate-400 transition font-medium"
+                    className="flex-1 px-4 py-2 bg-slate-300 text-slate-700 rounded hover:bg-slate-400 transition font-medium disabled:opacity-50"
                   >
                     ביטול
                   </button>
@@ -546,11 +607,16 @@ function RequestCard({
                 </button>
               ) : (
                 <button
+                  disabled={loadingPdfId !== null}
                   onClick={onGeneratePdf}
-                  className="flex-1 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 !text-white rounded-xl hover:from-blue-700 hover:to-indigo-700 transition font-bold text-xs flex items-center justify-center gap-2 shadow-sm cursor-pointer border-none"
+                  className="flex-1 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 disabled:opacity-50 !text-white rounded-xl hover:from-blue-700 hover:to-indigo-700 transition font-bold text-xs flex items-center justify-center gap-2 shadow-sm cursor-pointer border-none"
                 >
-                  <FileText className="w-4 h-4 text-white" />
-                  <span>הפק והורד אישור PDF חתום</span>
+                  {loadingPdfId === request.id ? (
+                    <Loader2 className="w-4 h-4 animate-spin text-white" />
+                  ) : (
+                    <FileText className="w-4 h-4 text-white" />
+                  )}
+                  <span>{loadingPdfId === request.id ? "מפיק..." : "הפק והורד אישור PDF חתום"}</span>
                 </button>
               )}
             </div>

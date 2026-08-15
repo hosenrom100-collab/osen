@@ -22,6 +22,19 @@ function toRTL(str: string): string {
   return reversedWords.reverse().join(" ");
 }
 
+function formatDate(val: any): string {
+  if (!val) return "";
+  try {
+    if (typeof val.toDate === "function") return val.toDate().toLocaleDateString("he-IL");
+    if (val._seconds) return new Date(val._seconds * 1000).toLocaleDateString("he-IL");
+    if (val.seconds) return new Date(val.seconds * 1000).toLocaleDateString("he-IL");
+    return new Date(val).toLocaleDateString("he-IL");
+  } catch (err) {
+    console.error("Error formatting date:", err);
+    return "";
+  }
+}
+
 export async function generateStoreAuthorizationPDF(
   request: any,
   requestId: string
@@ -59,9 +72,7 @@ export async function generateStoreAuthorizationPDF(
   yPosition += 10;
 
   // 3. Request Number and Date Subtitle
-  const createdDate = request.createdAt
-    ? new Date(request.createdAt).toLocaleDateString("he-IL")
-    : new Date().toLocaleDateString("he-IL");
+  const createdDate = formatDate(request.createdAt) || new Date().toLocaleDateString("he-IL");
 
   doc.setFontSize(11);
   doc.setFont("Arial", "bold");
@@ -76,9 +87,9 @@ export async function generateStoreAuthorizationPDF(
 
   // 4. Recipient & Organization Info Card
   doc.setFillColor(241, 245, 249);
-  doc.rect(margin, yPosition - 2, contentWidth, 28, "F");
+  doc.rect(margin, yPosition - 2, contentWidth, 34, "F");
   doc.setDrawColor(203, 213, 225);
-  doc.rect(margin, yPosition - 2, contentWidth, 28, "S");
+  doc.rect(margin, yPosition - 2, contentWidth, 34, "S");
 
   doc.setFont("Arial", "bold");
   doc.setFontSize(10);
@@ -96,8 +107,11 @@ export async function generateStoreAuthorizationPDF(
   doc.text(toRTL(`מספר בקשה במערכת: #${request.requestNumber}`), margin + 4, yPosition + 10, { align: "left" });
   doc.text(toRTL(`סטטוס אישור: ${request.status === "approved" ? "מאושר סופית" : "בהמתנה"}`), margin + 4, yPosition + 16, { align: "left" });
   doc.text(toRTL(`גורם מאשר: מירב סארמילי - מנהלת תפעול`), margin + 4, yPosition + 22, { align: "left" });
+  if (request.status === "approved" && request.approvedAt) {
+    doc.text(toRTL(`תאריך אישור: ${formatDate(request.approvedAt)}`), margin + 4, yPosition + 28, { align: "left" });
+  }
 
-  yPosition += 34;
+  yPosition += 40;
 
   // 5. Items & Quantity Table Header
   doc.setFont("Arial", "bold");

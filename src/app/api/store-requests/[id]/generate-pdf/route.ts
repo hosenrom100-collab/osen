@@ -44,7 +44,7 @@ export async function POST(
 
     let finalPdfUrl = "";
 
-    // 4. Try uploading to Firebase Storage bucket if configured
+    // 3. Try uploading to Firebase Storage bucket if configured
     if (bucket) {
       try {
         const fileName = `store-authorization-${requestData.requestNumber || id}.pdf`;
@@ -67,16 +67,16 @@ export async function POST(
           finalPdfUrl = signedUrl;
         }
       } catch (uploadErr) {
-        console.error("Storage upload failed, falling back to base64 Data URL:", uploadErr);
+        console.error("Storage upload failed, falling back to dynamic route:", uploadErr);
       }
     }
 
-    // 5. Fallback if storage fails or is unconfigured: Data URL encoding
+    // 4. Fallback if storage fails or is unconfigured: Use dynamic download endpoint URL
     if (!finalPdfUrl) {
-      finalPdfUrl = `data:application/pdf;base64,${pdfBuffer.toString("base64")}`;
+      finalPdfUrl = `/api/store-requests/${id}/generate-pdf`;
     }
 
-    // 6. Lock and Save the single, immutable PDF URL to Firestore
+    // 5. Save the PDF URL to Firestore
     await adminDb
       .collection("storeAuthorizationRequests")
       .doc(id)
@@ -96,5 +96,41 @@ export async function POST(
       { error: error?.message || "Failed to generate PDF" },
       { status: 500 }
     );
+  }
+}
+
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+
+    const docSnapshot = await adminDb
+      .collection("storeAuthorizationRequests")
+      .doc(id)
+      .get();
+
+    if (!docSnapshot.exists) {
+      return new Response("Request not found", { status: 404 });
+    }
+
+    const requestData = docSnapshot.data();
+    if (!requestData || requestData.status !== "approved") {
+      return new Response("Unauthorized or pending request", { status: 400 });
+    }
+
+    // Generate PDF buffer on the fly
+    const pdfBuffer = await generateStoreAuthorizationPDF(requestData, id);
+
+    return new Response(new Uint8Array(pdfBuffer), {
+      headers: {
+        "Content-Type": "application/pdf",
+        "Content-Disposition": `inline; filename="store-authorization-${requestData.requestNumber || id}.pdf"`,
+      },
+    });
+  } catch (error: any) {
+    console.error("Error serving PDF dynamically:", error);
+    return new Response("Failed to serve PDF dynamically", { status: 500 });
   }
 }
