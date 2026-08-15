@@ -45,6 +45,7 @@ export default function ShoppingPage() {
   const [actionsMenuOpen, setActionsMenuOpen] = useState(false);
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
   const [toolsMenuOpen, setToolsMenuOpen] = useState(false);
+  const [adHocMenuOpen, setAdHocMenuOpen] = useState(false);
 
   // Receipt Modal State
   const [receiptScanOpen, setReceiptScanOpen] = useState(false);
@@ -291,45 +292,88 @@ export default function ShoppingPage() {
 
           {/* Left: Action Toolbar & Dropdowns */}
           <div className="flex items-center gap-3">
-            {/* Store Authorization Request Button - Available to ALL */}
-            <Link href="/store-authorization">
+            {/* Unified Ad-hoc Purchase Menu Button */}
+            <div className="relative">
               <button
+                onClick={() => setAdHocMenuOpen(!adHocMenuOpen)}
                 className="px-3.5 py-2 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-600 dark:text-blue-400 hover:bg-blue-500/20 transition-all flex items-center gap-2 text-xs font-black cursor-pointer relative shadow-xs"
-                title="בקשת קנייה אד הוק"
+                title="תפריט קנייה אד הוק"
               >
                 <ShoppingCart className="w-4 h-4 text-blue-500" />
                 <span>קנייה אד הוק</span>
+                {pendingStoreAuthCount > 0 && canPurchase && (
+                  <span className="bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full font-black animate-pulse shadow-xs">
+                    {pendingStoreAuthCount}
+                  </span>
+                )}
+                <ChevronDown className={`w-3.5 h-3.5 text-blue-500 transition-transform ${adHocMenuOpen ? "rotate-180" : ""}`} />
               </button>
-            </Link>
 
-            {/* My Requests & Downloads Button - Available to ALL */}
-            <Link href="/store-authorization/requests">
-              <button
-                className="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition-all flex items-center gap-1.5 text-xs font-black cursor-pointer shadow-xs border-none"
-                title="צפייה בבקשות הקנייה אד הוק שלי והורדת אישורי PDF"
-              >
-                <FileText className="w-4 h-4 text-blue-500" />
-                <span>בקשות אד הוק שלי</span>
-              </button>
-            </Link>
+              {adHocMenuOpen && (
+                <>
+                  {/* Backdrop for click outside */}
+                  <div
+                    className="fixed inset-0 z-40"
+                    onClick={() => setAdHocMenuOpen(false)}
+                  />
+                  {/* Dropdown Card */}
+                  <div className="absolute right-0 mt-2 w-64 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl z-50 py-1.5 text-right overflow-hidden animate-in fade-in zoom-in-95 duration-100">
+                    <Link
+                      href="/store-authorization"
+                      onClick={() => setAdHocMenuOpen(false)}
+                      className="flex items-center gap-3 px-4 py-3 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+                    >
+                      <div className="w-8 h-8 rounded-xl bg-blue-100 text-blue-600 dark:bg-blue-900/40 dark:text-blue-400 flex items-center justify-center font-black text-sm shrink-0">
+                        +
+                      </div>
+                      <div>
+                        <div className="font-bold text-slate-900 dark:text-white">בקשת קנייה אד הוק</div>
+                        <div className="text-[10px] text-slate-500 dark:text-slate-400 font-normal">הגשת בקשה חדשה לקנייה דחופה</div>
+                      </div>
+                    </Link>
 
-            {/* Store Authorization Approval Button - Available to Approvers */}
-            {canPurchase && (
-              <Link href="/admin/store-requests">
-                <button
-                  className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:from-blue-700 hover:to-indigo-700 transition-all flex items-center gap-2 text-xs font-black cursor-pointer relative shadow-sm border-none"
-                  title="ניהול ואישור בקשות קנייה אד הוק"
-                >
-                  <ShoppingBag className="w-4 h-4 text-white" />
-                  <span>אישור קניות אד הוק</span>
-                  {pendingStoreAuthCount > 0 && (
-                    <span className="bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full font-black animate-pulse shadow-xs">
-                      {pendingStoreAuthCount}
-                    </span>
-                  )}
-                </button>
-              </Link>
-            )}
+                    <Link
+                      href="/store-authorization/requests"
+                      onClick={() => setAdHocMenuOpen(false)}
+                      className="flex items-center gap-3 px-4 py-3 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+                    >
+                      <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-600 dark:bg-emerald-900/40 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                        <FileText className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <div className="font-bold text-slate-900 dark:text-white">הבקשות שלי</div>
+                        <div className="text-[10px] text-slate-500 dark:text-slate-400 font-normal">סטטוס בקשות והורדת אישורי PDF</div>
+                      </div>
+                    </Link>
+
+                    {canPurchase && (
+                      <div className="border-t border-slate-100 dark:border-slate-800 mt-1 pt-1">
+                        <Link
+                          href="/admin/store-requests"
+                          onClick={() => setAdHocMenuOpen(false)}
+                          className="flex items-center justify-between px-4 py-3 text-xs font-bold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 transition"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center shrink-0">
+                              <ShoppingBag className="w-4 h-4" />
+                            </div>
+                            <div>
+                              <div className="font-bold text-slate-900 dark:text-white">אישור בקשות אד הוק</div>
+                              <div className="text-[10px] text-slate-500 dark:text-slate-400 font-normal">אישור בקשות והפקת אישור PDF</div>
+                            </div>
+                          </div>
+                          {pendingStoreAuthCount > 0 && (
+                            <span className="bg-red-500 text-white text-[10px] px-2 py-0.5 rounded-full font-black animate-pulse shrink-0">
+                              {pendingStoreAuthCount}
+                            </span>
+                          )}
+                        </Link>
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
 
             {canPurchase && (
               <>
