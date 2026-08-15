@@ -106,12 +106,6 @@ export default function StoreAuthorizationPage() {
     <RoleGuard allowedRoles={["admin", "manager", "logistics", "instructor", "social_worker", "employee"]}>
       <ConnectionStatusBanner />
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 pb-20">
-        {/* Info Banner */}
-        <div className="bg-amber-50 border-b border-amber-200 px-4 py-3">
-          <div className="max-w-3xl mx-auto text-sm text-amber-900">
-            <p className="font-medium">⚠️ בקשה זו מיועדת <strong>למקרים דחופים בלבד</strong> עבור קנייה עצמאית בסופר של מוצרים שאינם בפול הקבוע</p>
-          </div>
-        </div>
         {/* Header */}
         <div className="sticky top-0 z-40 bg-white border-b border-slate-200 shadow-sm">
           <div className="max-w-3xl mx-auto px-4 py-4 flex items-center gap-3">
@@ -125,7 +119,7 @@ export default function StoreAuthorizationPage() {
                 <ShoppingCart className="w-6 h-6 text-blue-600" />
                 בקשת קנייה בסופר
               </h1>
-              <p className="text-sm text-slate-500">יצירת בקשת קנייה חדשה לאישור</p>
+              <p className="text-sm text-amber-700 font-medium">⚠️ מקרים דחופים בלבד - קנייה עצמאית בסופר של מוצרים שלא בפול</p>
             </div>
           </div>
         </div>
