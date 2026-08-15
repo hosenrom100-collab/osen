@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { 
   Home, ClipboardList, Users, ShoppingCart, 
   Settings, Clock, MessageSquare, Calendar,
-  Sun, Moon, HelpCircle
+  Sun, Moon, HelpCircle, Utensils
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useSettings } from "@/context/SettingsContext";
@@ -33,8 +33,13 @@ const ROLE_HE: Record<string, string> = {
 
 export function DesktopSidebar() {
   const pathname = usePathname();
-  const { user, roles, role, isManager, isLogistics, photoURL } = useAuth();
+  const { user, roles, role, isAdmin, isManager, isLogistics, photoURL } = useAuth();
   const { theme, setTheme } = useSettings();
+
+  const visibleAdminNav = [
+    { href: "/admin",                 icon: Settings,      label: "ניהול",        color: "text-slate-400" },
+    ...((isAdmin || isLogistics) ? [{ href: "/admin/catering", icon: Utensils, label: "הזמנת קייטרינג", color: "text-amber-400" }] : [])
+  ];
 
   if (pathname === "/login") return null;
 
@@ -90,7 +95,7 @@ export function DesktopSidebar() {
           <div>
             <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--foreground)]/30 px-4 mb-4">ניהול ובקרה</p>
             <div className="space-y-1">
-              {ADMIN_NAV.map(({ href, icon: Icon, label }) => {
+              {visibleAdminNav.map(({ href, icon: Icon, label }) => {
                 const active = pathname.startsWith(href);
                 return (
                   <Link key={href} href={href}

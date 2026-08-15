@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { 
   Home, Calendar, ClipboardList, FileText, MoreHorizontal, 
   User, MessageSquare, LogOut, Sun, Moon, Shield, X, ChevronLeft,
-  ShoppingCart, HelpCircle
+  ShoppingCart, HelpCircle, Utensils
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useSettings } from "@/context/SettingsContext";
@@ -15,7 +15,7 @@ import { motion, AnimatePresence } from "framer-motion";
 export function BottomNav() {
   const pathname = usePathname();
   const router = useRouter();
-  const { logout, user, role, roles, isManager, isLogistics } = useAuth();
+  const { logout, user, role, roles, isAdmin, isManager, isLogistics } = useAuth();
   const { theme, setTheme } = useSettings();
 
   // Dialog overlay state
@@ -263,6 +263,25 @@ export function BottomNav() {
                 </div>
                 <ChevronLeft className="w-4 h-4 text-[var(--text-secondary)]" />
               </button>
+
+              {/* Catering Order Button */}
+              {(isAdmin || isLogistics) && (
+                <button 
+                  onClick={() => {
+                    setActiveOverlay(null);
+                    router.push("/admin/catering");
+                  }}
+                  className="w-full flex items-center justify-between p-4 rounded-2xl bg-[var(--foreground)]/5 hover:bg-[var(--foreground)]/10 border border-[var(--border)] transition-all text-right cursor-pointer"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-[var(--surface)] border border-[var(--border)] flex items-center justify-center text-amber-500 shadow-sm">
+                      <Utensils className="w-4 h-4" />
+                    </div>
+                    <span className="font-black text-xs text-[var(--foreground)]">הזמנת קייטרינג</span>
+                  </div>
+                  <ChevronLeft className="w-4 h-4 text-[var(--text-secondary)]" />
+                </button>
+              )}
 
               {/* Administrative Console Button */}
               {(isManager || isLogistics || role === "social_worker" || roles?.includes("social_worker")) && (

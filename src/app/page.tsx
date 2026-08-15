@@ -636,6 +636,29 @@ export default function Home() {
         </div>
       </header>
 
+      {/* ── Thursday Catering Reminder Banner ── */}
+      {dataLoaded && (isAdmin || isLogistics) && new Date().getDay() === 4 && (
+        <div className="px-4 md:px-6 mt-6 max-w-6xl mx-auto">
+          <div className="p-4 bg-amber-500/10 border border-amber-500/20 text-amber-800 dark:text-amber-300 rounded-3xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-amber-500/20 flex items-center justify-center text-amber-500 shrink-0">
+                <Utensils className="w-5 h-5 animate-bounce" />
+              </div>
+              <div>
+                <h4 className="text-xs font-black">תזכורת שבועית: ביצוע הזמנת קייטרינג</h4>
+                <p className="text-[10px] opacity-90 mt-0.5 leading-relaxed font-bold">
+                  היום יום חמישי! נא לבצע הזמנת קייטרינג מרוכזת לשבוע הבא עבור קבוצות מרכז החוסן.
+                </p>
+              </div>
+            </div>
+            <Link href="/admin/catering"
+              className="w-full sm:w-auto text-center px-4 py-2 bg-amber-500 hover:bg-amber-600 !text-white text-xs font-black rounded-2xl shadow-sm transition-all shrink-0">
+              בצע הזמנה כעת
+            </Link>
+          </div>
+        </div>
+      )}
+
       {/* ── Stunning Metrics Dashboard ── */}
       {dataLoaded && !isLogistics && (
         <div className="px-4 md:px-6 mt-6 max-w-6xl mx-auto">
