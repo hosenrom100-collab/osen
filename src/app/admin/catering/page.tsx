@@ -4,10 +4,11 @@ import React, { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { RoleGuard } from "@/components/auth/RoleGuard";
 import { db } from "@/lib/firebase/config";
-import { collection, getDocs, query, where } from "firebase/firestore";
+import { collection, getDocs, query, where, addDoc, deleteDoc, doc, serverTimestamp, orderBy, limit } from "firebase/firestore";
 import { 
   ArrowRight, Utensils, Clipboard, Check, Plus, Trash2, 
-  Users, Calendar, Info, Share2, RefreshCw, AlertTriangle, Clock, FileText
+  Users, Calendar, Info, Share2, RefreshCw, AlertTriangle, Clock, FileText,
+  Archive, Save
 } from "lucide-react";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
@@ -70,8 +71,23 @@ const PREDEFINED_SALADS = [
   "סלט ירקות"
 ];
 
+interface CateringOrder {
+  id: string;
+  deliveryDate: string;
+  arrivalTime: string;
+  meats: string[];
+  sides: string[];
+  salads: string[];
+  includeBread: boolean;
+  portions: Record<string, number>;
+  totalPortions: number;
+  createdAt?: any;
+  createdBy?: string;
+}
+
 export default function CateringOrderPage() {
   const router = useRouter();
+  const { user } = useAuth();
   
   // Menu selection states
   const [selectedMeats, setSelectedMeats] = useState<string[]>([]);
@@ -105,6 +121,12 @@ export default function CateringOrderPage() {
   const [arrivalTime, setArrivalTime] = useState("12:00");
 
   const [includeBread, setIncludeBread] = useState(true);
+
+  // Archive and saving states
+  const [archive, setArchive] = useState<CateringOrder[]>([]);
+  const [loadingArchive, setLoadingArchive] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
 
   const [generatingPdf, setGeneratingPdf] = useState(false);
   const reportRef = React.useRef<HTMLDivElement>(null);
@@ -225,8 +247,60 @@ export default function CateringOrderPage() {
     }
   };
 
+  const fetchArchive = async () => {
+    setLoadingArchive(true);
+    try {
+      const q = query(
+        collection(db, "catering_orders"), 
+        orderBy("deliveryDate", "desc"), 
+        limit(20)
+      );
+      const snap = await getDocs(q);
+      const orders = snap.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as CateringOrder[];
+      setArchive(orders);
+    } catch (err) {
+      console.error("Error fetching catering archive:", err);
+    } finally {
+      setLoadingArchive(false);
+    }
+  };
+
+  const saveOrder = async () => {
+    if (!isSelectionValid) return;
+    setSaving(true);
+    setSaveSuccess(false);
+    try {
+      const totalPortions = Object.values(portions).reduce((a, b) => a + b, 0);
+      const orderData = {
+        deliveryDate,
+        arrivalTime,
+        meats: selectedMeats,
+        sides: selectedSides,
+        salads: selectedSalads,
+        includeBread,
+        portions,
+        totalPortions,
+        createdAt: serverTimestamp(),
+        createdBy: user?.displayName || user?.email || "משתמש מערכת"
+      };
+      await addDoc(collection(db, "catering_orders"), orderData);
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 3000);
+      await fetchArchive();
+    } catch (err) {
+      console.error("Error saving catering order:", err);
+      setErrorMsg("שגיאה בשמירת ההזמנה בארכיון.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   useEffect(() => {
     fetchStats();
+    fetchArchive();
   }, []);
 
   // Selection toggle helpers
@@ -860,6 +934,100 @@ ${saladsList || "_לא נבחרו סלטים_"}${breadSection}
                   </form>
                 </div>
 
+                {/* Catering Orders Archive Card */}
+                <div className="p-5 bg-[var(--surface)] border border-[var(--border)] rounded-2xl space-y-4">
+                  <div className="flex items-center gap-2 border-b border-[var(--border)] pb-3">
+                    <Archive className="w-4 h-4 text-violet-500" />
+                    <h2 className="text-xs font-black uppercase tracking-wider">
+                      🗄️ ארכיון הזמנות קייטרינג שבוצעו
+                    </h2>
+                  </div>
+
+                  {loadingArchive ? (
+                    <div className="flex items-center justify-center py-6 text-xs text-[var(--muted)] gap-2">
+                      <RefreshCw className="w-4 h-4 animate-spin text-violet-500" />
+                      טוען ארכיון הזמנות...
+                    </div>
+                  ) : archive.length === 0 ? (
+                    <div className="text-center py-8 text-[var(--muted)] text-xs font-bold">
+                      אין הזמנות קודמות בארכיון.
+                    </div>
+                  ) : (
+                    <div className="space-y-3 max-h-[400px] overflow-y-auto pr-1">
+                      {archive.map((order) => {
+                        const dayName = getHebrewDayOfWeek(order.deliveryDate);
+                        return (
+                          <div 
+                            key={order.id} 
+                            className="p-3.5 bg-[var(--background)] border border-[var(--border)] rounded-xl space-y-2 text-xs hover:border-[var(--muted)]/20 transition-colors"
+                          >
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <p className="font-black text-[var(--foreground)]">
+                                  📅 {formatDeliveryDate(order.deliveryDate)} {dayName && `(${dayName})`}
+                                </p>
+                                <p className="text-[10px] text-[var(--muted)] font-bold mt-0.5">
+                                  ⏰ שעת הגעה: {order.arrivalTime} | 👤 הוזמן ע"י: {order.createdBy}
+                                </p>
+                              </div>
+                              <span className="text-[10px] font-black bg-amber-500/10 text-amber-500 px-2 py-0.5 rounded">
+                                {order.totalPortions} מנות
+                              </span>
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[10px] text-[var(--muted)] font-bold border-t border-[var(--border)]/50 pt-2">
+                              <div>
+                                <span className="text-[var(--foreground)] font-black">🥩 מנות:</span> {order.meats.join(", ")}
+                              </div>
+                              <div>
+                                <span className="text-[var(--foreground)] font-black">🍚 תוספות:</span> {order.sides.join(", ")}
+                              </div>
+                              <div className="sm:col-span-2">
+                                <span className="text-[var(--foreground)] font-black">🥗 סלטים:</span> {order.salads.join(", ")}
+                                {order.includeBread && " | 🍞 כולל לחם"}
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-2 pt-1.5 justify-end">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSelectedMeats(order.meats);
+                                  setSelectedSides(order.sides);
+                                  setSelectedSalads(order.salads);
+                                  setIncludeBread(order.includeBread);
+                                  setDeliveryDate(order.deliveryDate);
+                                  setArrivalTime(order.arrivalTime);
+                                  setPortions(order.portions);
+                                }}
+                                className="px-2.5 py-1 bg-amber-500/10 hover:bg-amber-500/20 text-amber-500 text-[10px] font-black rounded-lg transition-colors"
+                              >
+                                טען מחדש לטופס
+                              </button>
+                              <button
+                                type="button"
+                                onClick={async () => {
+                                  if (confirm("האם אתה בטוח שברצונך למחוק הזמנה זו מהארכיון?")) {
+                                    try {
+                                      await deleteDoc(doc(db, "catering_orders", order.id));
+                                      await fetchArchive();
+                                    } catch (err) {
+                                      console.error("Error deleting catering order:", err);
+                                    }
+                                  }
+                                }}
+                                className="px-2.5 py-1 bg-red-500/10 hover:bg-red-500/20 text-red-500 text-[10px] font-black rounded-lg transition-colors"
+                              >
+                                מחק
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
               </div>
             </div>
 
@@ -921,6 +1089,35 @@ ${saladsList || "_לא נבחרו סלטים_"}${breadSection}
                     <>
                       <Share2 className="w-4 h-4" />
                       העתק להדבקה בוואטסאפ
+                    </>
+                  )}
+                </button>
+
+                {/* Save Order Button */}
+                <button
+                  type="button"
+                  onClick={saveOrder}
+                  disabled={saving || !isSelectionValid}
+                  className={`w-full py-3 px-4 rounded-xl flex items-center justify-center gap-2 text-xs font-black transition-all ${
+                    saveSuccess 
+                      ? "bg-emerald-500 text-white" 
+                      : "bg-violet-600 hover:bg-violet-700 text-white active:scale-[0.98] disabled:opacity-50"
+                  }`}
+                >
+                  {saving ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 animate-spin text-white" />
+                      שומר הזמנה...
+                    </>
+                  ) : saveSuccess ? (
+                    <>
+                      <Check className="w-4 h-4" />
+                      ההזמנה נשמרה בארכיון!
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-4 h-4" />
+                      שמור הזמנה בארכיון
                     </>
                   )}
                 </button>

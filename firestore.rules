@@ -232,6 +232,11 @@ service cloud.firestore {
       allow write: if isManager();
     }
 
+    // Catering Orders
+    match /catering_orders/{docId} {
+      allow read, write: if isAuthenticated() && (isAdmin() || hasRole('logistics'));
+    }
+
     // Global deny for everything else (fallback)
     match /{document=**} {
       allow read, write: if false;
