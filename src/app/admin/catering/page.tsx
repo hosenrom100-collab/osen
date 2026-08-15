@@ -986,18 +986,18 @@ ${saladsList || "_לא נבחרו סלטים_"}${breadSection}
             <div style={{
               position: "relative",
               zIndex: 1,
-              paddingTop: "190px",
-              paddingBottom: "120px",
-              paddingLeft: "75px",
-              paddingRight: "75px",
+              paddingTop: "160px",
+              paddingBottom: "100px",
+              paddingLeft: "60px",
+              paddingRight: "60px",
               display: "flex",
               flexDirection: "column",
               height: "100%",
-              justifyContent: "space-between"
+              justifyContent: "flex-start"
             }}>
               <div>
                 {/* Title */}
-                <div style={{ borderBottom: "2px solid #e2e8f0", paddingBottom: "12px", marginBottom: "25px" }}>
+                <div style={{ borderBottom: "2px solid #e2e8f0", paddingBottom: "10px", marginBottom: "15px" }}>
                   <h1 style={{ fontSize: "24px", fontWeight: "900", color: "#b45309", margin: 0, letterSpacing: "-0.02em" }}>
                     הזמנת קייטרינג שבועית
                   </h1>
@@ -1007,9 +1007,9 @@ ${saladsList || "_לא נבחרו סלטים_"}${breadSection}
                 </div>
 
                 {/* Delivery and Quantities Grid */}
-                <div style={{ display: "flex", gap: "20px", marginBottom: "30px" }}>
+                <div style={{ display: "flex", gap: "20px", marginBottom: "15px" }}>
                   {/* Delivery details card */}
-                  <div style={{ flex: 1, backgroundColor: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "12px", padding: "16px" }}>
+                  <div style={{ flex: 1, backgroundColor: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "12px", padding: "12px" }}>
                     <h3 style={{ fontSize: "13px", fontWeight: "800", color: "#b45309", marginTop: 0, marginBottom: "12px", borderBottom: "1px solid #e2e8f0", paddingBottom: "4px" }}>
                       📅 פרטי משלוח
                     </h3>
@@ -1020,11 +1020,17 @@ ${saladsList || "_לא נבחרו סלטים_"}${breadSection}
                       <div>
                         <strong style={{ color: "#64748b" }}>שעת הגעה:</strong> {arrivalTime}
                       </div>
+                      <div style={{ borderTop: "1px solid #e2e8f0", paddingTop: "6px", marginTop: "4px" }}>
+                        <strong style={{ color: "#64748b" }}>איש קשר:</strong> מירב סארמילי
+                        <div style={{ fontSize: "10px", color: "#64748b", fontWeight: "bold", marginTop: "2px" }}>
+                          מנהלת תפעול מרכז חוסן חוות רום
+                        </div>
+                      </div>
                     </div>
                   </div>
 
                   {/* Portions card */}
-                  <div style={{ flex: 1, backgroundColor: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "12px", padding: "16px" }}>
+                  <div style={{ flex: 1, backgroundColor: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "12px", padding: "12px" }}>
                     <h3 style={{ fontSize: "13px", fontWeight: "800", color: "#b45309", marginTop: 0, marginBottom: "12px", borderBottom: "1px solid #e2e8f0", paddingBottom: "4px" }}>
                       📊 חלוקת מנות
                     </h3>
@@ -1046,14 +1052,14 @@ ${saladsList || "_לא נבחרו סלטים_"}${breadSection}
                 </div>
 
                 {/* Menu Details */}
-                <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
                   <h2 style={{ fontSize: "15px", fontWeight: "900", color: "#1e293b", margin: "0 0 10px 0", borderBottom: "1px solid #e2e8f0", paddingBottom: "6px" }}>
                     📋 תפריט אחיד שנבחר
                   </h2>
 
                   {/* Meats */}
-                  <div style={{ border: "1px solid #e2e8f0", borderRadius: "12px", padding: "16px", backgroundColor: "#ffffff" }}>
-                    <h4 style={{ fontSize: "12px", fontWeight: "900", color: "#b45309", marginTop: 0, marginBottom: "8px" }}>
+                  <div style={{ border: "1px solid #e2e8f0", borderRadius: "12px", padding: "12px", backgroundColor: "#ffffff" }}>
+                    <h4 style={{ fontSize: "12px", fontWeight: "900", color: "#b45309", marginTop: 0, marginBottom: "4px" }}>
                       🥩 בשרים ומנות עיקריות
                     </h4>
                     <ul style={{ listStyleType: "none", padding: 0, margin: 0, display: "flex", flexWrap: "wrap", gap: "10px" }}>
@@ -1067,8 +1073,8 @@ ${saladsList || "_לא נבחרו סלטים_"}${breadSection}
                   </div>
 
                   {/* Hot Sides */}
-                  <div style={{ border: "1px solid #e2e8f0", borderRadius: "12px", padding: "16px", backgroundColor: "#ffffff" }}>
-                    <h4 style={{ fontSize: "12px", fontWeight: "900", color: "#b45309", marginTop: 0, marginBottom: "8px" }}>
+                  <div style={{ border: "1px solid #e2e8f0", borderRadius: "12px", padding: "12px", backgroundColor: "#ffffff" }}>
+                    <h4 style={{ fontSize: "12px", fontWeight: "900", color: "#b45309", marginTop: 0, marginBottom: "4px" }}>
                       🍚 תוספות חמות
                     </h4>
                     <ul style={{ listStyleType: "none", padding: 0, margin: 0, display: "flex", flexWrap: "wrap", gap: "10px" }}>
@@ -1082,8 +1088,8 @@ ${saladsList || "_לא נבחרו סלטים_"}${breadSection}
                   </div>
 
                   {/* Salads */}
-                  <div style={{ border: "1px solid #e2e8f0", borderRadius: "12px", padding: "16px", backgroundColor: "#ffffff" }}>
-                    <h4 style={{ fontSize: "12px", fontWeight: "900", color: "#b45309", marginTop: 0, marginBottom: "8px" }}>
+                  <div style={{ border: "1px solid #e2e8f0", borderRadius: "12px", padding: "12px", backgroundColor: "#ffffff" }}>
+                    <h4 style={{ fontSize: "12px", fontWeight: "900", color: "#b45309", marginTop: 0, marginBottom: "4px" }}>
                       🥗 סלטים
                     </h4>
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
@@ -1098,8 +1104,8 @@ ${saladsList || "_לא נבחרו סלטים_"}${breadSection}
 
                   {/* Bread */}
                   {includeBread && (
-                    <div style={{ border: "1px solid #e2e8f0", borderRadius: "12px", padding: "16px", backgroundColor: "#ffffff" }}>
-                      <h4 style={{ fontSize: "12px", fontWeight: "900", color: "#b45309", marginTop: 0, marginBottom: "8px" }}>
+                    <div style={{ border: "1px solid #e2e8f0", borderRadius: "12px", padding: "12px", backgroundColor: "#ffffff" }}>
+                      <h4 style={{ fontSize: "12px", fontWeight: "900", color: "#b45309", marginTop: 0, marginBottom: "4px" }}>
                         🍞 לחם
                       </h4>
                       <div style={{ fontSize: "12px", color: "#334155", fontWeight: "bold" }}>
@@ -1107,15 +1113,6 @@ ${saladsList || "_לא נבחרו סלטים_"}${breadSection}
                       </div>
                     </div>
                   )}
-                </div>
-              </div>
-
-              {/* Sign-off */}
-              <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "40px" }}>
-                <div style={{ textAlign: "right", fontSize: "12px", borderTop: "1px solid #e2e8f0", paddingTop: "10px", minWidth: "180px" }}>
-                  <p style={{ margin: 0, color: "#64748b" }}>בברכה,</p>
-                  <p style={{ margin: "4px 0 0 0", fontSize: "13px", fontWeight: "900", color: "#1e293b" }}>מירב סארמילי</p>
-                  <p style={{ margin: 0, fontSize: "11px", color: "#64748b", fontWeight: "bold" }}>מנהלת תפעול מרכז חוסן חוות רום</p>
                 </div>
               </div>
             </div>
