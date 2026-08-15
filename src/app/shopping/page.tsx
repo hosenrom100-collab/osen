@@ -333,6 +333,16 @@ export default function ShoppingPage() {
                   )}
                 </div>
 
+                {/* Store Authorization Request Button */}
+                <Link href="/store-authorization">
+                  <button
+                    className="px-3.5 py-2 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-600 dark:text-blue-400 hover:bg-blue-500/20 transition-all flex items-center gap-2 text-xs font-black cursor-pointer relative shadow-xs"
+                  >
+                    <ShoppingCart className="w-4 h-4 text-blue-500" />
+                    <span>בקשת קנייה בסופר</span>
+                  </button>
+                </Link>
+
                 {/* Admin Product Requests Direct Button */}
                 {isAdmin && (
                   <button
