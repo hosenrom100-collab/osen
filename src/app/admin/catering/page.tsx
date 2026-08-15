@@ -83,6 +83,8 @@ interface CateringOrder {
   totalPortions: number;
   createdAt?: any;
   createdBy?: string;
+  contactName?: string;
+  contactRole?: string;
 }
 
 export default function CateringOrderPage() {
@@ -127,6 +129,9 @@ export default function CateringOrderPage() {
   const [loadingArchive, setLoadingArchive] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+
+  const [contactName, setContactName] = useState("מירב סארמילי");
+  const [contactRole, setContactRole] = useState("מנהלת תפעול מרכז חוסן חוות רום");
 
   const [generatingPdf, setGeneratingPdf] = useState(false);
   const reportRef = React.useRef<HTMLDivElement>(null);
@@ -277,6 +282,8 @@ export default function CateringOrderPage() {
       const orderData = {
         deliveryDate,
         arrivalTime,
+        contactName,
+        contactRole,
         meats: selectedMeats,
         sides: selectedSides,
         salads: selectedSalads,
@@ -451,8 +458,8 @@ ${sidesList || "_לא נבחרו תוספות_"}
 ${saladsList || "_לא נבחרו סלטים_"}${breadSection}
 
 בברכה,
-*מירב סארמילי*
-מנהלת תפעול מרכז חוסן חוות רום`;
+*${contactName}*
+${contactRole}`;
   };
 
   const copyToClipboard = () => {
@@ -585,6 +592,33 @@ ${saladsList || "_לא נבחרו סלטים_"}${breadSection}
                       type="time" 
                       value={arrivalTime}
                       onChange={(e) => setArrivalTime(e.target.value)}
+                      className="w-full bg-[var(--background)] border border-[var(--border)] text-xs rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-amber-500 font-medium"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border-t border-[var(--border)]/30 pt-4">
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-[var(--muted)] flex items-center gap-1">
+                      שם איש קשר לקייטרינג
+                    </label>
+                    <input 
+                      type="text" 
+                      value={contactName}
+                      onChange={(e) => setContactName(e.target.value)}
+                      placeholder="מירב סארמילי"
+                      className="w-full bg-[var(--background)] border border-[var(--border)] text-xs rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-amber-500 font-medium"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-[var(--muted)] flex items-center gap-1">
+                      תפקיד / תיאור איש קשר
+                    </label>
+                    <input 
+                      type="text" 
+                      value={contactRole}
+                      onChange={(e) => setContactRole(e.target.value)}
+                      placeholder="מנהלת תפעול מרכז חוסן חוות רום"
                       className="w-full bg-[var(--background)] border border-[var(--border)] text-xs rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-amber-500 font-medium"
                     />
                   </div>
@@ -999,6 +1033,8 @@ ${saladsList || "_לא נבחרו סלטים_"}${breadSection}
                                   setDeliveryDate(order.deliveryDate);
                                   setArrivalTime(order.arrivalTime);
                                   setPortions(order.portions);
+                                  setContactName(order.contactName || "מירב סארמילי");
+                                  setContactRole(order.contactRole || "מנהלת תפעול מרכז חוסן חוות רום");
                                 }}
                                 className="px-2.5 py-1 bg-amber-500/10 hover:bg-amber-500/20 text-amber-500 text-[10px] font-black rounded-lg transition-colors"
                               >
@@ -1218,9 +1254,9 @@ ${saladsList || "_לא נבחרו סלטים_"}${breadSection}
                         <strong style={{ color: "#64748b" }}>שעת הגעה:</strong> {arrivalTime}
                       </div>
                       <div style={{ borderTop: "1px solid #e2e8f0", paddingTop: "6px", marginTop: "4px" }}>
-                        <strong style={{ color: "#64748b" }}>איש קשר:</strong> מירב סארמילי
+                        <strong style={{ color: "#64748b" }}>איש קשר:</strong> {contactName}
                         <div style={{ fontSize: "10px", color: "#64748b", fontWeight: "bold", marginTop: "2px" }}>
-                          מנהלת תפעול מרכז חוסן חוות רום
+                          {contactRole}
                         </div>
                       </div>
                     </div>
