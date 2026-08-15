@@ -76,27 +76,45 @@ export async function generateStoreAuthorizationPDF(
   let yPosition = margin;
   let hasBackground = false;
 
-  // 1. Add Full Page Background if logopage.png exists
+  // 1. Add Full Page Background if logopage exists (.jpg preferred, then .png)
   try {
-    const pageLogoPath = path.join(process.cwd(), "public", "logopage.png");
-    if (fs.existsSync(pageLogoPath)) {
-      const logoBuffer = fs.readFileSync(pageLogoPath);
-      const logoBase64 = logoBuffer.toString("base64");
-      // Add as background covering the entire page
-      doc.addImage(`data:image/png;base64,${logoBase64}`, "PNG", 0, 0, pageWidth, pageHeight);
+    const pageLogoPathJpg = path.join(process.cwd(), "public", "logopage.jpg");
+    const pageLogoPathPng = path.join(process.cwd(), "public", "logopage.png");
+
+    if (fs.existsSync(pageLogoPathJpg)) {
+      const logoBuffer = fs.readFileSync(pageLogoPathJpg);
+      doc.addImage(`data:image/jpeg;base64,${logoBuffer.toString("base64")}`, "JPEG", 0, 0, pageWidth, pageHeight);
       hasBackground = true;
       yPosition = 45; // Start content below the header logo on the template
+    } else if (fs.existsSync(pageLogoPathPng)) {
+      const logoBuffer = fs.readFileSync(pageLogoPathPng);
+      doc.addImage(`data:image/png;base64,${logoBuffer.toString("base64")}`, "PNG", 0, 0, pageWidth, pageHeight);
+      hasBackground = true;
+      yPosition = 45;
     }
   } catch (err) {
     console.error("Error embedding page logo background in PDF:", err);
   }
 
-  // 2. If no full background page, render individual logoup.png with correct aspect ratio
+  // 2. If no full background page, render individual logoup with correct aspect ratio
   if (!hasBackground) {
     try {
-      const headerLogoPath = path.join(process.cwd(), "public", "logoup.png");
-      if (fs.existsSync(headerLogoPath)) {
-        const logoBuffer = fs.readFileSync(headerLogoPath);
+      const headerLogoPathJpg = path.join(process.cwd(), "public", "logoup.jpg");
+      const headerLogoPathPng = path.join(process.cwd(), "public", "logoup.png");
+      
+      let imgPath = "";
+      let imgType = "PNG";
+      
+      if (fs.existsSync(headerLogoPathJpg)) {
+        imgPath = headerLogoPathJpg;
+        imgType = "JPEG";
+      } else if (fs.existsSync(headerLogoPathPng)) {
+        imgPath = headerLogoPathPng;
+        imgType = "PNG";
+      }
+      
+      if (imgPath) {
+        const logoBuffer = fs.readFileSync(imgPath);
         const logoBase64 = logoBuffer.toString("base64");
         
         // logoup.png is 522x421 (Ratio: 1.24). Let's render it right-aligned with height 24mm
@@ -104,7 +122,7 @@ export async function generateStoreAuthorizationPDF(
         const imgWidth = imgHeight * (522 / 421); // ~29.7mm
         const imgX = pageWidth - margin - imgWidth; // Align to right margin
         
-        doc.addImage(`data:image/png;base64,${logoBase64}`, "PNG", imgX, yPosition, imgWidth, imgHeight);
+        doc.addImage(`data:image/${imgType.toLowerCase()};base64,${logoBase64}`, imgType, imgX, yPosition, imgWidth, imgHeight);
         yPosition += 28;
       }
     } catch (err) {
@@ -306,20 +324,33 @@ export async function generateStoreAuthorizationPDF(
   doc.setTextColor(100, 116, 139);
   doc.text(toRTL("חתימה וחותמת מורשית דיגיטלית"), sigX, yPosition + 16, { align: "center" });
 
-  // 11. Add Footer Logo at bottom if no fullpage background is loaded
+  // 11. Add Footer Logo at bottom if no fullpage background is loaded (.jpg preferred, then .png)
   if (!hasBackground) {
     try {
-      const footerLogoPath = path.join(process.cwd(), "public", "logodown.png");
-      if (fs.existsSync(footerLogoPath)) {
-        const footerBuffer = fs.readFileSync(footerLogoPath);
+      const footerLogoPathJpg = path.join(process.cwd(), "public", "logodown.jpg");
+      const footerLogoPathPng = path.join(process.cwd(), "public", "logodown.png");
+      
+      let imgPath = "";
+      let imgType = "PNG";
+      
+      if (fs.existsSync(footerLogoPathJpg)) {
+        imgPath = footerLogoPathJpg;
+        imgType = "JPEG";
+      } else if (fs.existsSync(footerLogoPathPng)) {
+        imgPath = footerLogoPathPng;
+        imgType = "PNG";
+      }
+      
+      if (imgPath) {
+        const footerBuffer = fs.readFileSync(imgPath);
         const footerBase64 = footerBuffer.toString("base64");
         
-        // logodown.png is 2481x745 (Ratio: 3.33). Center it with width 120mm
+        // logodown is 2481x745 (Ratio: 3.33). Center it with width 120mm
         const footerWidth = 120;
         const footerHeight = footerWidth / (2481 / 745); // ~36mm
         const footerX = (pageWidth - footerWidth) / 2;
         
-        doc.addImage(`data:image/png;base64,${footerBase64}`, "PNG", footerX, pageHeight - footerHeight - 10, footerWidth, footerHeight);
+        doc.addImage(`data:image/${imgType.toLowerCase()};base64,${footerBase64}`, imgType, footerX, pageHeight - footerHeight - 10, footerWidth, footerHeight);
       }
     } catch (err) {
       console.error("Error embedding footer logo in PDF:", err);
