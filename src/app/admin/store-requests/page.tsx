@@ -48,6 +48,24 @@ const getDate = (date: any): Date => {
   return new Date(date);
 };
 
+function removeUndefined(obj: any): any {
+  if (obj === null || obj === undefined) return null;
+  if (obj instanceof Date) return obj;
+  if (Array.isArray(obj)) {
+    return obj.map(removeUndefined);
+  }
+  if (typeof obj === "object") {
+    const clean: any = {};
+    for (const key in obj) {
+      if (obj[key] !== undefined) {
+        clean[key] = removeUndefined(obj[key]);
+      }
+    }
+    return clean;
+  }
+  return obj;
+}
+
 export default function StoreRequestsPage() {
   const { user } = useAuth();
   const [requests, setRequests] = useState<StoreAuthorizationRequest[]>([]);
@@ -153,14 +171,14 @@ export default function StoreRequestsPage() {
         status: item.status === "rejected" ? ("rejected" as const) : ("approved" as const),
       }));
 
-      await updateDoc(doc(db, "storeAuthorizationRequests", requestId), {
+      await updateDoc(doc(db, "storeAuthorizationRequests", requestId), removeUndefined({
         status: "approved",
         items: itemsToUpdate,
         approvedAt: new Date(),
-        approvedBy: user?.uid,
-        approvedByName: user?.displayName,
+        approvedBy: user?.uid || "",
+        approvedByName: user?.displayName || "מנהל",
         storeName: storeName,
-      });
+      }));
 
       setEditingRequest(null);
 
@@ -271,7 +289,7 @@ export default function StoreRequestsPage() {
       };
 
       // 1. Save to Firestore
-      const docRef = await addDoc(collection(db, "storeAuthorizationRequests"), newRequestData);
+      const docRef = await addDoc(collection(db, "storeAuthorizationRequests"), removeUndefined(newRequestData));
       const newRequestId = docRef.id;
 
       // 2. Register store name locally
@@ -319,13 +337,13 @@ export default function StoreRequestsPage() {
     try {
       const reqData = requests.find((r) => r.id === requestId);
 
-      await updateDoc(doc(db, "storeAuthorizationRequests", requestId), {
+      await updateDoc(doc(db, "storeAuthorizationRequests", requestId), removeUndefined({
         status: "rejected",
         approvedAt: new Date(),
         approvedBy: user?.uid || "",
         approvedByName: user?.displayName || "",
         pdfUrl: null, // Clear any PDF URL completely for rejected requests
-      });
+      }));
 
       setRequests(
         requests.map((r) =>
