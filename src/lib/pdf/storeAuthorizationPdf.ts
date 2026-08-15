@@ -134,21 +134,10 @@ export async function generateStoreAuthorizationPDF(
   doc.setFontSize(16);
   doc.setFont("Heebo", "bold");
   doc.text(toRTL("אישור קנייה לעובד"), pageWidth / 2, yPosition + 4, { align: "center" });
-  yPosition += 10;
+  yPosition += 12;
 
-  // 4. Request Number and Date Subtitle
+  // Format request created date once for use
   const createdDate = formatDate(request.createdAt) || new Date().toLocaleDateString("he-IL");
-
-  doc.setFontSize(11);
-  doc.setFont("Heebo", "bold");
-  doc.text(
-    toRTL(`מספר אישור: #${request.requestNumber || ""}  |  תאריך: ${createdDate}`),
-    pageWidth / 2,
-    yPosition,
-    { align: "center" }
-  );
-
-  yPosition += 10;
 
   // 5. Recipient & Organization Info Card
   doc.setFillColor(241, 245, 249);
@@ -163,17 +152,51 @@ export async function generateStoreAuthorizationPDF(
   doc.setFont("Heebo", "normal");
   doc.setFontSize(9);
 
-  // Right column
-  doc.text(toRTL(`גוף מנפיק: מרכז חוסן - חוות רום`), pageWidth - margin - 4, yPosition + 10, { align: "right" });
-  doc.text(toRTL(`לכבוד: הנהלת החנות / אברהם שיווק`), pageWidth - margin - 4, yPosition + 16, { align: "right" });
-  doc.text(toRTL(`שם המבקש/ת המורשה: ${request.requestedByName || "עובד/ת"}`), pageWidth - margin - 4, yPosition + 22, { align: "right" });
+  // Right column (X positions: labels at pageWidth - margin - 4, values at margin + 95)
+  // Rendering labels and values separately prevents RTL reversal of number/symbol characters in values
+  const rightColLabelX = pageWidth - margin - 4;
+  const rightColValX = margin + 95;
 
-  // Left column
-  doc.text(toRTL(`מספר בקשה במערכת: #${request.requestNumber}`), margin + 4, yPosition + 10, { align: "left" });
-  doc.text(toRTL(`סטטוס אישור: ${request.status === "approved" ? "מאושר סופית" : "בהמתנה"}`), margin + 4, yPosition + 16, { align: "left" });
-  doc.text(toRTL(`גורם מאשר: מירב סארמילי - מנהלת תפעול`), margin + 4, yPosition + 22, { align: "left" });
+  doc.setFont("Heebo", "bold");
+  doc.text(toRTL("גוף מנפיק:"), rightColLabelX, yPosition + 10, { align: "right" });
+  doc.setFont("Heebo", "normal");
+  doc.text(toRTL("מרכז חוסן - חוות רום"), rightColValX, yPosition + 10, { align: "left" });
+
+  doc.setFont("Heebo", "bold");
+  doc.text(toRTL("לכבוד:"), rightColLabelX, yPosition + 16, { align: "right" });
+  doc.setFont("Heebo", "normal");
+  doc.text(toRTL("אברהם שיווק / הנהלת החנות"), rightColValX, yPosition + 16, { align: "left" });
+
+  doc.setFont("Heebo", "bold");
+  doc.text(toRTL("שם המבקש/ת:"), rightColLabelX, yPosition + 22, { align: "right" });
+  doc.setFont("Heebo", "normal");
+  doc.text(toRTL(request.requestedByName || "עובד/ת"), rightColValX, yPosition + 22, { align: "left" });
+
+  // Left column (X positions: labels at margin + 80, values at margin + 4)
+  // Dates and numbers are printed in separate LTR calls to guarantee correct display direction
+  const leftColLabelX = margin + 80;
+  const leftColValX = margin + 4;
+
+  doc.setFont("Heebo", "bold");
+  doc.text(toRTL("מספר בקשה:"), leftColLabelX, yPosition + 10, { align: "right" });
+  doc.setFont("Heebo", "normal");
+  doc.text(`#${request.requestNumber}`, leftColValX, yPosition + 10, { align: "left" });
+
+  doc.setFont("Heebo", "bold");
+  doc.text(toRTL("סטטוס אישור:"), leftColLabelX, yPosition + 16, { align: "right" });
+  doc.setFont("Heebo", "normal");
+  doc.text(toRTL(request.status === "approved" ? "מאושר סופית" : "בהמתנה"), leftColValX, yPosition + 16, { align: "left" });
+
+  doc.setFont("Heebo", "bold");
+  doc.text(toRTL("גורם מאשר:"), leftColLabelX, yPosition + 22, { align: "right" });
+  doc.setFont("Heebo", "normal");
+  doc.text(toRTL("מירב סארמילי"), leftColValX, yPosition + 22, { align: "left" });
+
   if (request.status === "approved" && request.approvedAt) {
-    doc.text(toRTL(`תאריך אישור: ${formatDate(request.approvedAt)}`), margin + 4, yPosition + 28, { align: "left" });
+    doc.setFont("Heebo", "bold");
+    doc.text(toRTL("תאריך אישור:"), leftColLabelX, yPosition + 28, { align: "right" });
+    doc.setFont("Heebo", "normal");
+    doc.text(formatDate(request.approvedAt), leftColValX, yPosition + 28, { align: "left" });
   }
 
   yPosition += 40;
@@ -357,15 +380,18 @@ export async function generateStoreAuthorizationPDF(
     }
   }
 
-  // Footer text line
+  // Footer text line - split date to render as separate LTR block preventing PDF viewer auto-reversal
   doc.setFontSize(8);
   doc.setTextColor(148, 163, 184);
-  doc.text(
-    toRTL(`מסמך אישור רשמי מס' #${request.requestNumber}  |  מרכז חוסן חוות רום  |  הונפק בתאריך ${createdDate}`),
-    pageWidth / 2,
-    pageHeight - 5,
-    { align: "center" }
-  );
+  const footerLabel = toRTL(`מסמך אישור רשמי מס' #${request.requestNumber}  |  מרכז חוסן חוות רום  |  הונפק בתאריך: `);
+  
+  const labelWidth = doc.getTextWidth(footerLabel);
+  const dateWidth = doc.getTextWidth(createdDate);
+  const totalFooterWidth = labelWidth + 2 + dateWidth;
+  const startX = (pageWidth - totalFooterWidth) / 2;
+  
+  doc.text(createdDate, startX, pageHeight - 5, { align: "left" });
+  doc.text(footerLabel, startX + dateWidth + 2, pageHeight - 5, { align: "left" });
 
   const pdfBytes = doc.output("arraybuffer");
   return Buffer.from(pdfBytes);
