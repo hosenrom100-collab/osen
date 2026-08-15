@@ -424,7 +424,7 @@ export default function StoreRequestsPage() {
                 className="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 !text-white rounded-xl transition text-sm font-bold flex items-center gap-1.5 shadow-md active:scale-95 border-none cursor-pointer"
               >
                 <Plus className="w-4 h-4 text-white" />
-                <span>הנפקת אישור חדש</span>
+                <span>הנפקת אישור רכישה</span>
               </button>
             </div>
           </div>
@@ -528,8 +528,8 @@ export default function StoreRequestsPage() {
             {/* Modal Header */}
             <div className="p-5 border-b border-slate-100 flex items-center justify-between">
               <div>
-                <h2 className="text-lg font-black text-slate-950">הנפקת אישור קנייה יזום</h2>
-                <p className="text-xs text-slate-500 mt-0.5">יצירה ואישור מיידי של בקשת קנייה לעובד</p>
+                <h2 className="text-lg font-black text-slate-950">הנפקת אישור רכישה</h2>
+                <p className="text-xs text-slate-500 mt-0.5">יצירה ואישור מיידי של אישור רכישה לעובד</p>
               </div>
               <button
                 onClick={() => {
