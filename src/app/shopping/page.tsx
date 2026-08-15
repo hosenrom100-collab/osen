@@ -5,7 +5,7 @@ import { RoleGuard } from "@/components/auth/RoleGuard";
 import { ConnectionStatusBanner } from "@/components/ui/ConnectionStatusBanner";
 import { db } from "@/lib/firebase/config";
 import {
-  doc, updateDoc, deleteDoc, setDoc,
+  doc, updateDoc, deleteDoc, setDoc, collection, query, where, onSnapshot
 } from "firebase/firestore";
 import { 
   ShoppingCart, Plus, Search, Loader2, ArrowRight, Download, 
@@ -80,6 +80,23 @@ export default function ShoppingPage() {
   const mobileInputRef = useRef<HTMLInputElement>(null);
 
   const canPurchase = isAdmin || role === "manager" || role === "admin" || role === "logistics" || isManager;
+
+  // Pending Store Authorization Requests Count
+  const [pendingStoreAuthCount, setPendingStoreAuthCount] = useState(0);
+
+  useEffect(() => {
+    if (!canPurchase) return;
+    const q = query(
+      collection(db, "storeAuthorizationRequests"),
+      where("status", "==", "pending")
+    );
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => setPendingStoreAuthCount(snapshot.size),
+      (err) => console.error(err)
+    );
+    return () => unsubscribe();
+  }, [canPurchase]);
 
   const showToast = (message: string, type: "success" | "warning") => {
     setToast({ message, type });
@@ -284,6 +301,24 @@ export default function ShoppingPage() {
                 <span>קנייה בסופר</span>
               </button>
             </Link>
+
+            {/* Store Authorization Approval Button - Available to Approvers */}
+            {canPurchase && (
+              <Link href="/admin/store-requests">
+                <button
+                  className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:from-blue-700 hover:to-indigo-700 transition-all flex items-center gap-2 text-xs font-black cursor-pointer relative shadow-sm border-none"
+                  title="ניהול ואישור בקשות קנייה עצמאית בסופר"
+                >
+                  <ShoppingBag className="w-4 h-4 text-white" />
+                  <span>אישור קניות בסופר</span>
+                  {pendingStoreAuthCount > 0 && (
+                    <span className="bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full font-black animate-pulse shadow-xs">
+                      {pendingStoreAuthCount}
+                    </span>
+                  )}
+                </button>
+              </Link>
+            )}
 
             {canPurchase && (
               <>
@@ -563,6 +598,31 @@ export default function ShoppingPage() {
               </div>
             )}
             <div className="max-w-[950px] mx-auto pb-36">
+              {/* Prominent Banner for Pending Store Authorization Requests */}
+              {canPurchase && pendingStoreAuthCount > 0 && (
+                <div className="my-4 mx-2 md:mx-0 p-4 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 text-white shadow-lg flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-pulse">
+                  <div className="flex items-center gap-3">
+                    <div className="p-3 bg-white/20 rounded-xl backdrop-blur-sm shrink-0">
+                      <ShoppingBag className="w-6 h-6 text-white" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-black text-sm md:text-base">אישור קניות פיזיות בסופר</span>
+                        <span className="px-2.5 py-0.5 bg-red-500 text-white text-xs font-bold rounded-full">
+                          {pendingStoreAuthCount} בקשות ממתינות
+                        </span>
+                      </div>
+                      <p className="text-xs text-blue-100 mt-0.5">עובדים הגישו בקשות לקנייה עצמאית בסופר הממתינות לאישורך והנפקת אישור</p>
+                    </div>
+                  </div>
+                  <Link href="/admin/store-requests">
+                    <button className="px-4 py-2 bg-white text-blue-800 font-bold rounded-xl text-xs hover:bg-blue-50 transition shadow shrink-0 cursor-pointer border-none">
+                      סקור ואשר בקשות ←
+                    </button>
+                  </Link>
+                </div>
+              )}
+
               {loading ? (
                 <div className="flex flex-col items-center justify-center py-32 gap-4">
                   <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />

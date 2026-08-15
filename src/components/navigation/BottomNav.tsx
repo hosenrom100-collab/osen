@@ -5,11 +5,13 @@ import { usePathname, useRouter } from "next/navigation";
 import { 
   Home, Calendar, ClipboardList, FileText, MoreHorizontal, 
   User, MessageSquare, LogOut, Sun, Moon, Shield, X, ChevronLeft,
-  ShoppingCart, HelpCircle, Utensils
+  ShoppingCart, HelpCircle, Utensils, ShoppingBag
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useSettings } from "@/context/SettingsContext";
 import { useState, useEffect, useRef } from "react";
+import { db } from "@/lib/firebase/config";
+import { collection, query, where, onSnapshot } from "firebase/firestore";
 import { motion, AnimatePresence } from "framer-motion";
 
 export function BottomNav() {
@@ -17,6 +19,22 @@ export function BottomNav() {
   const router = useRouter();
   const { logout, user, role, roles, isAdmin, isManager, isLogistics } = useAuth();
   const { theme, setTheme } = useSettings();
+
+  // Store requests pending count
+  const [pendingStoreCount, setPendingStoreCount] = useState(0);
+  const canApproveStoreRequests = isAdmin || isManager || isLogistics;
+
+  useEffect(() => {
+    if (!canApproveStoreRequests) return;
+    const q = query(
+      collection(db, "storeAuthorizationRequests"),
+      where("status", "==", "pending")
+    );
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      setPendingStoreCount(snapshot.size);
+    }, (err) => console.error(err));
+    return () => unsubscribe();
+  }, [canApproveStoreRequests]);
 
   // Dialog overlay state
   const [activeOverlay, setActiveOverlay] = useState<"menu" | null>(null);
@@ -280,6 +298,35 @@ export function BottomNav() {
                     <span className="font-black text-xs text-[var(--foreground)]">הזמנת קייטרינג</span>
                   </div>
                   <ChevronLeft className="w-4 h-4 text-[var(--text-secondary)]" />
+                </button>
+              )}
+
+              {/* Store Authorization Requests Button */}
+              {canApproveStoreRequests && (
+                <button 
+                  onClick={() => {
+                    setActiveOverlay(null);
+                    router.push("/admin/store-requests");
+                  }}
+                  className="w-full flex items-center justify-between p-4 rounded-2xl bg-blue-500/10 hover:bg-blue-500/15 border border-blue-500/20 transition-all text-right cursor-pointer"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-sm">
+                      <ShoppingBag className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <span className="font-black text-xs text-[var(--foreground)] block">אישור קניות בסופר</span>
+                      <span className="text-[10px] text-blue-600 dark:text-blue-400 font-bold">אישור בקשות קנייה עצמאית</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {pendingStoreCount > 0 && (
+                      <span className="px-2.5 py-0.5 text-xs font-black text-white bg-red-500 rounded-full animate-pulse shadow-sm">
+                        {pendingStoreCount}
+                      </span>
+                    )}
+                    <ChevronLeft className="w-4 h-4 text-blue-500" />
+                  </div>
                 </button>
               )}
 

@@ -14,7 +14,7 @@ import {
 import Link from "next/link";
 import { db } from "@/lib/firebase/config";
 import {
-  collection, getDocs, query, where, doc, getDoc, orderBy, updateDoc, setDoc, limit
+  collection, getDocs, query, where, doc, getDoc, orderBy, updateDoc, setDoc, limit, onSnapshot
 } from "firebase/firestore";
 import { format, addMonths, differenceInDays, parseISO, isValid } from "date-fns";
 import { he } from "date-fns/locale";
@@ -80,6 +80,21 @@ export default function Home() {
   const [recentNotifications, setRecentNotifications] = useState<any[]>([]);
   const [unreadNotifCount, setUnreadNotifCount] = useState(0);
   const [activeShoppingCount, setActiveShoppingCount] = useState(0);
+  const [pendingStoreAuthCount, setPendingStoreAuthCount] = useState(0);
+
+  useEffect(() => {
+    if (!isAdmin && !isManager && !isLogistics) return;
+    const q = query(
+      collection(db, "storeAuthorizationRequests"),
+      where("status", "==", "pending")
+    );
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => setPendingStoreAuthCount(snapshot.size),
+      (err) => console.error(err)
+    );
+    return () => unsubscribe();
+  }, [isAdmin, isManager, isLogistics]);
 
   const isStrictAdmin = isAdmin && !(roles || []).some(r => r === "social_worker" || r === "instructor" || r === "employee" || r === "logistics");
   const isStrictManager = isManager && !(roles || []).some(r => r === "social_worker" || r === "instructor" || r === "employee" || r === "logistics");
@@ -850,6 +865,29 @@ export default function Home() {
 
           {/* ── Attendance by group — PRIMARY column ── */}
           <section className="md:order-1 space-y-6">
+            {/* ── Store Purchase Authorization Requests Banner ── */}
+            {(isAdmin || isManager || isLogistics) && pendingStoreAuthCount > 0 && (
+              <div className="p-5 rounded-3xl bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 text-white shadow-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-pulse">
+                <div className="flex items-center gap-3">
+                  <div className="w-11 h-11 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-white shrink-0 shadow-inner">
+                    <ShoppingCart className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <p className="text-base font-black">בקשות אישור קנייה בסופר</p>
+                      <span className="px-2.5 py-0.5 bg-red-500 text-white text-xs font-black rounded-full shadow-xs">
+                        {pendingStoreAuthCount} ממתינות לאישור
+                      </span>
+                    </div>
+                    <p className="text-xs text-blue-100 font-medium mt-0.5">הוגשו בקשות לקנייה עצמאית בסופר הדורשות לבדוק ולאשר הנפקת אישור PDF</p>
+                  </div>
+                </div>
+                <Link href="/admin/store-requests"
+                  className="w-full sm:w-auto text-center px-4 py-2.5 bg-white text-blue-800 font-black text-xs rounded-xl shadow-lg hover:bg-blue-50 transition-all shrink-0">
+                  לאישור בקשות ←
+                </Link>
+              </div>
+            )}
             {isStrictAdmin ? (
               <>
                 {/* ── Absence Approvals Summary ── */}

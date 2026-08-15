@@ -1,14 +1,17 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { 
   Home, ClipboardList, Users, ShoppingCart, 
   Settings, Clock, MessageSquare, Calendar,
-  Sun, Moon, HelpCircle, Utensils
+  Sun, Moon, HelpCircle, Utensils, ShoppingBag
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useSettings } from "@/context/SettingsContext";
+import { db } from "@/lib/firebase/config";
+import { collection, query, where, onSnapshot } from "firebase/firestore";
 import { motion } from "framer-motion";
 
 const NAV = [
@@ -16,10 +19,6 @@ const NAV = [
   { href: "/attendance", icon: ClipboardList, label: "נוכחות",        color: "text-emerald-400" },
   { href: "/patients",   icon: Users,         label: "משתתפים",       color: "text-sky-400" },
   { href: "/shopping",   icon: ShoppingCart,  label: "קניות",         color: "text-indigo-400" },
-];
-
-const ADMIN_NAV = [
-  { href: "/admin",                 icon: Settings,      label: "ניהול",        color: "text-slate-400" },
 ];
 
 const ROLE_HE: Record<string, string> = {
@@ -36,8 +35,40 @@ export function DesktopSidebar() {
   const { user, roles, role, isAdmin, isManager, isLogistics, photoURL } = useAuth();
   const { theme, setTheme } = useSettings();
 
+  const [pendingStoreCount, setPendingStoreCount] = useState(0);
+
+  const canApproveStoreRequests = isAdmin || isManager || isLogistics;
+
+  useEffect(() => {
+    if (!canApproveStoreRequests) return;
+
+    const q = query(
+      collection(db, "storeAuthorizationRequests"),
+      where("status", "==", "pending")
+    );
+
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        setPendingStoreCount(snapshot.size);
+      },
+      (error) => {
+        console.error("Error subscribing to store requests:", error);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [canApproveStoreRequests]);
+
   const visibleAdminNav = [
     { href: "/admin",                 icon: Settings,      label: "ניהול",        color: "text-slate-400" },
+    ...(canApproveStoreRequests ? [{
+      href: "/admin/store-requests",
+      icon: ShoppingBag,
+      label: "אישור קניות בסופר",
+      color: "text-blue-400",
+      badge: pendingStoreCount
+    }] : []),
     ...((isAdmin || isLogistics) ? [{ href: "/admin/catering", icon: Utensils, label: "הזמנת קייטרינג", color: "text-amber-400" }] : [])
   ];
 
@@ -95,7 +126,7 @@ export function DesktopSidebar() {
           <div>
             <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--foreground)]/30 px-4 mb-4">ניהול ובקרה</p>
             <div className="space-y-1">
-              {visibleAdminNav.map(({ href, icon: Icon, label }) => {
+              {visibleAdminNav.map(({ href, icon: Icon, label, badge }) => {
                 const active = pathname.startsWith(href);
                 return (
                   <Link key={href} href={href}
@@ -106,6 +137,11 @@ export function DesktopSidebar() {
                     }`}>
                     <Icon className={`w-4 h-4 shrink-0 transition-colors ${active ? "text-[var(--primary)]" : "text-[var(--foreground)]/30 group-hover:text-[var(--primary)]/60"}`} />
                     <span>{label}</span>
+                    {badge !== undefined && badge > 0 && (
+                      <span className="mr-auto px-2 py-0.5 text-[10px] font-black text-white bg-red-500 rounded-full animate-pulse shadow-sm">
+                        {badge}
+                      </span>
+                    )}
                     {active && (
                       <motion.div 
                         layoutId="sidebar-active-admin"
