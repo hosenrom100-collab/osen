@@ -119,8 +119,8 @@ export default function StoreRequestsPage() {
       if (reqData?.requestedBy) {
         sendPush({
           userId: reqData.requestedBy,
-          title: "אישור קנייה בסופר אושר! 🎉",
-          body: `אישור PDF עבור בקשה #${reqData.requestNumber} מוכן להורדה`,
+          title: `✅ בקשת אישור הקנייה בסופר אושרה! (#${reqData.requestNumber})`,
+          body: `בקשת הקנייה שלך אושרה על ידי ${user?.displayName || "ההנהלה"}. אישור ה-PDF הרשמי מוכן להורדה.`,
           link: "/store-authorization/requests",
         });
       }
@@ -160,8 +160,8 @@ export default function StoreRequestsPage() {
       if (reqData?.requestedBy) {
         sendPush({
           userId: reqData.requestedBy,
-          title: "עדכון לבקשת קנייה בסופר ❌",
-          body: `בקשה #${reqData.requestNumber} נדחתה על ידי ${user?.displayName || "מנהל"}. לחץ לצפייה בפרטים.`,
+          title: `❌ עדכון: בקשת אישור הקנייה בסופר נדחתה (#${reqData.requestNumber})`,
+          body: `בקשת הקנייה שלך נדחתה על ידי ${user?.displayName || "ההנהלה"}. לחץ לצפייה בפרטים.`,
           link: "/store-authorization/requests",
         });
       }
