@@ -152,51 +152,51 @@ export async function generateStoreAuthorizationPDF(
   doc.setFont("Heebo", "normal");
   doc.setFontSize(9);
 
-  // Right column (X positions: labels at pageWidth - margin - 4, values at margin + 95)
+  // Right column (X positions: labels at pageWidth - margin - 4, values at pageWidth - margin - 35)
   // Rendering labels and values separately prevents RTL reversal of number/symbol characters in values
   const rightColLabelX = pageWidth - margin - 4;
-  const rightColValX = margin + 95;
+  const rightColValX = pageWidth - margin - 35;
 
   doc.setFont("Heebo", "bold");
   doc.text(toRTL("גוף מנפיק:"), rightColLabelX, yPosition + 10, { align: "right" });
   doc.setFont("Heebo", "normal");
-  doc.text(toRTL("מרכז חוסן - חוות רום"), rightColValX, yPosition + 10, { align: "left" });
+  doc.text(toRTL("מרכז חוסן - חוות רום"), rightColValX, yPosition + 10, { align: "right" });
 
   doc.setFont("Heebo", "bold");
   doc.text(toRTL("לכבוד:"), rightColLabelX, yPosition + 16, { align: "right" });
   doc.setFont("Heebo", "normal");
-  doc.text(toRTL("אברהם שיווק / הנהלת החנות"), rightColValX, yPosition + 16, { align: "left" });
+  doc.text(toRTL(request.storeName || "אברהם שיווק"), rightColValX, yPosition + 16, { align: "right" });
 
   doc.setFont("Heebo", "bold");
   doc.text(toRTL("שם המבקש/ת:"), rightColLabelX, yPosition + 22, { align: "right" });
   doc.setFont("Heebo", "normal");
-  doc.text(toRTL(request.requestedByName || "עובד/ת"), rightColValX, yPosition + 22, { align: "left" });
+  doc.text(toRTL(request.requestedByName || "עובד/ת"), rightColValX, yPosition + 22, { align: "right" });
 
-  // Left column (X positions: labels at margin + 80, values at margin + 4)
+  // Left column (X positions: labels at margin + 80, values at margin + 48)
   // Dates and numbers are printed in separate LTR calls to guarantee correct display direction
   const leftColLabelX = margin + 80;
-  const leftColValX = margin + 4;
+  const leftColValX = margin + 48;
 
   doc.setFont("Heebo", "bold");
   doc.text(toRTL("מספר בקשה:"), leftColLabelX, yPosition + 10, { align: "right" });
   doc.setFont("Heebo", "normal");
-  doc.text(`#${request.requestNumber}`, leftColValX, yPosition + 10, { align: "left" });
+  doc.text(`#${request.requestNumber}`, leftColValX, yPosition + 10, { align: "right" });
 
   doc.setFont("Heebo", "bold");
   doc.text(toRTL("סטטוס אישור:"), leftColLabelX, yPosition + 16, { align: "right" });
   doc.setFont("Heebo", "normal");
-  doc.text(toRTL(request.status === "approved" ? "מאושר סופית" : "בהמתנה"), leftColValX, yPosition + 16, { align: "left" });
+  doc.text(toRTL(request.status === "approved" ? "מאושר סופית" : "בהמתנה"), leftColValX, yPosition + 16, { align: "right" });
 
   doc.setFont("Heebo", "bold");
   doc.text(toRTL("גורם מאשר:"), leftColLabelX, yPosition + 22, { align: "right" });
   doc.setFont("Heebo", "normal");
-  doc.text(toRTL("מירב סארמילי"), leftColValX, yPosition + 22, { align: "left" });
+  doc.text(toRTL("מירב סארמילי"), leftColValX, yPosition + 22, { align: "right" });
 
   if (request.status === "approved" && request.approvedAt) {
     doc.setFont("Heebo", "bold");
     doc.text(toRTL("תאריך אישור:"), leftColLabelX, yPosition + 28, { align: "right" });
     doc.setFont("Heebo", "normal");
-    doc.text(formatDate(request.approvedAt), leftColValX, yPosition + 28, { align: "left" });
+    doc.text(formatDate(request.approvedAt), leftColValX, yPosition + 28, { align: "right" });
   }
 
   yPosition += 40;
