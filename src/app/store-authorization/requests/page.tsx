@@ -7,7 +7,7 @@ import {
   collection, query, where, getDocs, orderBy,
 } from "firebase/firestore";
 import {
-  Clock, CheckCircle, XCircle, FileText, Loader2, ArrowLeft,
+  Clock, CheckCircle, XCircle, FileText, Loader2, ArrowLeft, Download,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -150,15 +150,16 @@ export default function RequestsPage() {
                       )}
                     </div>
                     {request.pdfUrl && request.status === "approved" && (
-                      <div className="ml-4">
+                      <div className="ml-4 shrink-0">
                         <a
                           href={request.pdfUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="px-3 py-2 bg-green-100 text-green-700 rounded hover:bg-green-200 transition text-sm font-medium"
+                          className="px-3.5 py-2.5 bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 !text-white rounded-xl transition text-xs font-black flex items-center gap-1.5 shadow-sm active:scale-95 border-none"
                           onClick={(e) => e.stopPropagation()}
                         >
-                          הורד אישור
+                          <Download className="w-4 h-4 text-white" />
+                          <span>הורד אישור PDF</span>
                         </a>
                       </div>
                     )}

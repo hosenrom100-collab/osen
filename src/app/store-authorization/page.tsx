@@ -104,19 +104,26 @@ export default function StoreAuthorizationPage() {
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 pb-20">
         {/* Header */}
         <div className="sticky top-0 z-40 bg-white border-b border-slate-200 shadow-sm">
-          <div className="max-w-3xl mx-auto px-4 py-4 flex items-center gap-3">
-            <Link href="/admin">
-              <button className="p-2 hover:bg-slate-100 rounded-lg transition">
-                <ArrowLeft className="w-5 h-5" />
+          <div className="max-w-3xl mx-auto px-4 py-4 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <Link href="/shopping">
+                <button className="p-2 hover:bg-slate-100 rounded-lg transition" title="חזרה לקניות">
+                  <ArrowLeft className="w-5 h-5" />
+                </button>
+              </Link>
+              <div>
+                <h1 className="text-xl font-bold flex items-center gap-2">
+                  <ShoppingCart className="w-6 h-6 text-blue-600" />
+                  בקשת קנייה בסופר
+                </h1>
+                <p className="text-sm text-amber-700 font-medium">⚠️ מקרים דחופים בלבד - קנייה עצמאית בסופר</p>
+              </div>
+            </div>
+            <Link href="/store-authorization/requests">
+              <button className="px-3.5 py-2 bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-xs">
+                <span>📋 הבקשות שלי (הורדת אישור)</span>
               </button>
             </Link>
-            <div>
-              <h1 className="text-xl font-bold flex items-center gap-2">
-                <ShoppingCart className="w-6 h-6 text-blue-600" />
-                בקשת קנייה בסופר
-              </h1>
-              <p className="text-sm text-amber-700 font-medium">⚠️ מקרים דחופים בלבד - קנייה עצמאית בסופר</p>
-            </div>
           </div>
         </div>
 

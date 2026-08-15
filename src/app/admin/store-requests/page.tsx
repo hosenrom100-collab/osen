@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { StoreAuthorizationRequest, StoreAuthorizationItem } from "@/app/shopping/types";
+import { sendPush } from "@/lib/notify";
 
 const statusColors: Record<string, { bg: string; text: string; icon: React.ReactNode }> = {
   pending: {
@@ -108,10 +109,21 @@ export default function StoreRequestsPage() {
 
       setEditingRequest(null);
 
+      const reqData = requests.find((r) => r.id === requestId);
+
       // Generate PDF
       await fetch(`/api/store-requests/${requestId}/generate-pdf`, {
         method: "POST",
       });
+
+      if (reqData?.requestedBy) {
+        sendPush({
+          userId: reqData.requestedBy,
+          title: "אישור קנייה בסופר אושר! 🎉",
+          body: `אישור PDF עבור בקשה #${reqData.requestNumber} מוכן להורדה`,
+          link: "/store-authorization/requests",
+        });
+      }
     } catch (error) {
       console.error("Error approving request:", error);
       alert("שגיאה בעדכון הבקשה");
