@@ -16,8 +16,6 @@ interface FormItem extends StoreAuthorizationItem {
   id: string;
 }
 
-const UNITS = ["יחידה", "ק״ג", "גרם", "ליטר", "מ״ל", "מארז", "עטיפה", "קופסה", "שקית", "פחית"];
-
 export default function StoreAuthorizationPage() {
   const { user } = useAuth();
   const router = useRouter();
@@ -34,7 +32,6 @@ export default function StoreAuthorizationPage() {
         id: Date.now().toString(),
         productName: "",
         quantity: "",
-        unit: "",
         status: "pending",
       },
     ]);
@@ -68,7 +65,6 @@ export default function StoreAuthorizationPage() {
       const cleanItems = items.map((item) => ({
         productName: item.productName.trim(),
         quantity: item.quantity.trim(),
-        unit: item.unit?.trim() || "",
         status: "pending" as const,
       }));
 
@@ -163,35 +159,21 @@ export default function StoreAuthorizationPage() {
                       <div className="flex-shrink-0 w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center text-sm font-medium text-blue-600">
                         {idx + 1}
                       </div>
-                      <div className="flex-1 space-y-3">
+                      <div className="flex-1 grid grid-cols-1 sm:grid-cols-3 gap-3">
                         <input
                           type="text"
                           placeholder="שם המוצר"
                           value={item.productName}
                           onChange={(e) => updateItem(item.id, "productName", e.target.value)}
-                          className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          className="sm:col-span-2 px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                         />
-                        <div className="grid grid-cols-2 gap-2">
-                          <input
-                            type="number"
-                            placeholder="כמות"
-                            min="0"
-                            step="0.1"
-                            value={item.quantity}
-                            onChange={(e) => updateItem(item.id, "quantity", e.target.value)}
-                            className="px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            inputMode="decimal"
-                          />
-                          <select
-                            value={item.unit || "יחידה"}
-                            onChange={(e) => updateItem(item.id, "unit", e.target.value)}
-                            className="px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                          >
-                            {UNITS.map((u) => (
-                              <option key={u} value={u}>{u}</option>
-                            ))}
-                          </select>
-                        </div>
+                        <input
+                          type="text"
+                          placeholder="כמות (לדוגמה: 2, 500 גרם, 1 ק״ג...)"
+                          value={item.quantity}
+                          onChange={(e) => updateItem(item.id, "quantity", e.target.value)}
+                          className="px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                        />
                       </div>
                       <button
                         type="button"
