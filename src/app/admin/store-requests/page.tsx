@@ -82,7 +82,21 @@ export default function StoreRequestsPage() {
 
   const handleApprove = async (requestId: string) => {
     try {
-      const itemsToUpdate = editingRequest === requestId ? editedItems : requests.find((r) => r.id === requestId)?.items || [];
+      const targetReq = requests.find((r) => r.id === requestId);
+      let itemsToUpdate = editingRequest === requestId ? editedItems : targetReq?.items || [];
+
+      // Check if all items were set to rejected during editing
+      const hasApprovedItems = itemsToUpdate.some((item) => item.status === "approved" || !item.status);
+      if (!hasApprovedItems && itemsToUpdate.length > 0) {
+        await handleReject(requestId);
+        return;
+      }
+
+      // Automatically mark pending items as approved
+      itemsToUpdate = itemsToUpdate.map((item) => ({
+        ...item,
+        status: item.status || "approved",
+      }));
 
       await updateDoc(doc(db, "storeAuthorizationRequests", requestId), {
         status: "approved",
@@ -109,17 +123,15 @@ export default function StoreRequestsPage() {
 
       setEditingRequest(null);
 
-      const reqData = requests.find((r) => r.id === requestId);
-
-      // Generate PDF
+      // Generate PDF (will only contain approved items)
       await fetch(`/api/store-requests/${requestId}/generate-pdf`, {
         method: "POST",
       });
 
-      if (reqData?.requestedBy) {
+      if (targetReq?.requestedBy) {
         sendPush({
-          userId: reqData.requestedBy,
-          title: `✅ בקשת אישור קנייה אד הוק אושרה! (#${reqData.requestNumber})`,
+          userId: targetReq.requestedBy,
+          title: `✅ בקשת אישור קנייה אד הוק אושרה! (#${targetReq.requestNumber})`,
           body: `בקשת הקנייה שלך אושרה על ידי ${user?.displayName || "ההנהלה"}. אישור ה-PDF הרשמי מוכן להורדה.`,
           link: "/store-authorization/requests",
         });
@@ -139,6 +151,7 @@ export default function StoreRequestsPage() {
         approvedAt: new Date(),
         approvedBy: user?.uid,
         approvedByName: user?.displayName,
+        pdfUrl: null, // Clear any PDF URL completely for rejected requests
       });
 
       setRequests(
@@ -147,6 +160,7 @@ export default function StoreRequestsPage() {
             ? {
               ...r,
               status: "rejected" as const,
+              pdfUrl: undefined,
               approvedAt: new Date(),
               approvedBy: user?.uid || "",
               approvedByName: user?.displayName || "",

@@ -135,7 +135,8 @@ export async function generateStoreAuthorizationPDF(
   doc.setFontSize(9);
 
   let rowY = tableTop + 13;
-  const items = request.items || [];
+  // Only include items that are approved for purchase
+  const items = (request.items || []).filter((item: any) => item.status === "approved" || !item.status);
 
   items.forEach((item: any, index: number) => {
     // Zebra striping
