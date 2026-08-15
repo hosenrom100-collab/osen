@@ -812,9 +812,14 @@ export function ShoppingModals({
                             >
                               <Minus className="w-3 h-3 stroke-[2.5]" />
                             </button>
-                            <span className="text-xs font-black min-w-[20px] text-center text-[var(--foreground)]">
-                              {p.recurringQuantity || "1"}
-                            </span>
+                            <div className="flex items-center gap-1.5 px-1">
+                              <span className="text-xs font-black text-[var(--foreground)]">
+                                {p.recurringQuantity || "1"}
+                              </span>
+                              <span className="text-[9px] font-bold text-[var(--muted)]">
+                                {p.defaultUnit || "יחידות"}
+                              </span>
+                            </div>
                             <button
                               onClick={() => onUpdateRecurringQuantity(p.id, p.recurringQuantity || "1", 1)}
                               className="w-6 h-6 rounded-lg flex items-center justify-center hover:bg-[var(--foreground)]/10 text-[var(--muted)] hover:text-[var(--foreground)] transition-all"

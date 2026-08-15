@@ -16,7 +16,7 @@ interface AdminProductRequestsModalProps {
   pool: Product[];
   categories?: string[];
   onAddProduct: (name: string, category: string, defaultUnit?: string, defaultNotes?: string) => Promise<void>;
-  onAddToShoppingList?: (name: string, category: string, priority?: "normal" | "urgent", quantity?: string, notes?: string) => Promise<void>;
+  onAddToShoppingList?: (name: string, category: string, priority?: "normal" | "urgent", quantity?: string, notes?: string, requestedByOverride?: { uid: string; name: string }) => Promise<void>;
 }
 
 export function AdminProductRequestsModal({
@@ -105,7 +105,7 @@ export function AdminProductRequestsModal({
 
       // 2. Add to active shopping list if selected
       if (form.addToShoppingList && onAddToShoppingList) {
-        await onAddToShoppingList(finalName, finalCategory, "normal", "1", finalNotes);
+        await onAddToShoppingList(finalName, finalCategory, req.priority || "normal", req.quantity || "1", finalNotes, { uid: req.requestedBy, name: req.requestedByName });
       }
 
       // 3. Mark request in queue as approved
@@ -138,11 +138,12 @@ export function AdminProductRequestsModal({
   };
 
   const handleSendExistingAlternative = async (reqId: string, existingProduct: Product) => {
+    const req = requests.find(r => r.id === reqId);
     setProcessing(reqId);
     try {
       // Add existing product to shopping list
-      if (onAddToShoppingList) {
-        await onAddToShoppingList(existingProduct.name, existingProduct.category, "normal", "1", existingProduct.defaultNotes || "");
+      if (onAddToShoppingList && req) {
+        await onAddToShoppingList(existingProduct.name, existingProduct.category, req.priority || "normal", req.quantity || "1", existingProduct.defaultNotes || "", { uid: req.requestedBy, name: req.requestedByName });
       }
       // Resolve/reject the new product request
       await updateDoc(doc(db, "product_requests_queue", reqId), {

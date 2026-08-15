@@ -66,6 +66,8 @@ export interface NewProductRequest {
   createdAt: Timestamp | Date;
   status: "pending" | "approved" | "rejected";
   notes?: string;
+  quantity?: string;
+  priority?: "normal" | "urgent";
 }
 
 export interface CutoffConfig {

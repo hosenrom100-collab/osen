@@ -690,8 +690,8 @@ export default function ShoppingPage() {
               { merge: true }
             );
           }}
-          onAddToShoppingList={async (name, cat, priority, qty, notes) => {
-            await addProduct(name, cat, priority, qty, notes);
+          onAddToShoppingList={async (name, cat, priority, qty, notes, requestedByOverride) => {
+            await addProduct(name, cat, priority, qty, notes, requestedByOverride);
           }}
         />
 

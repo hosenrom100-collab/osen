@@ -69,7 +69,8 @@ export function useShoppingActions(
     category = "כללי",
     priority: "low" | "normal" | "urgent" = "normal",
     quantity = "1",
-    notes = ""
+    notes = "",
+    requestedByOverride?: { uid: string; name: string }
   ) => {
     const cleanName = name.trim();
     if (!cleanName) return;
@@ -104,6 +105,8 @@ export function useShoppingActions(
     }
 
     const finalNotes = notes || poolMatch?.defaultNotes || "";
+    const requesterUid = requestedByOverride?.uid ?? user?.uid;
+    const requesterName = requestedByOverride?.name ?? (user?.displayName || user?.email || "משתמש");
 
     await addDoc(collection(db, "shopping_requests"), {
       name: cleanName,
@@ -112,8 +115,8 @@ export function useShoppingActions(
       notes: finalNotes,
       priority,
       status: "approved",
-      requestedBy: user?.uid,
-      requestedByName: user?.displayName || user?.email || "משתמש",
+      requestedBy: requesterUid,
+      requestedByName: requesterName,
       createdAt: new Date(),
       listType,
     });
@@ -122,7 +125,7 @@ export function useShoppingActions(
       sendPush({
         role: ["admin", "manager", "logistics"],
         title: "🔥 בקשת רכש דחופה",
-        body: `${user?.displayName || "משתמש"}: ${cleanName}`,
+        body: `${requesterName}: ${cleanName}`,
         link: "/shopping",
       });
     }

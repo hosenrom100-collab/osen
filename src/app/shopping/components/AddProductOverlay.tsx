@@ -2,10 +2,11 @@
 
 import { useState, useRef, useEffect } from "react";
 import { Product, ShoppingRequest, InventoryItem } from "../types";
-import { Plus, Search, Star, X, Check, Flame, CheckCircle2 } from "lucide-react";
+import { Plus, Search, Star, X, Check, Flame, CheckCircle2, AlertTriangle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { rankSimilarProducts } from "../lib/stringUtils";
+import { rankSimilarProducts, findSimilarProduct } from "../lib/stringUtils";
 import { MEASUREMENT_UNITS, CAT_COLOR } from "../lib/constants";
+import { DEFAULT_CATEGORIES } from "../lib/constants";
 
 interface AddProductOverlayProps {
   isOpen: boolean;
@@ -35,10 +36,12 @@ export function AddProductOverlay({
   isAdmin,
   isLogistics,
   isFrozen,
+  categories = [],
 }: AddProductOverlayProps) {
   const [addUrgent, setAddUrgent] = useState(false);
   const [addQty, setAddQty] = useState("1");
   const [addUnit, setAddUnit] = useState("יחידות");
+  const [newProductCategory, setNewProductCategory] = useState("");
   // Tracks whether the user explicitly picked a unit for this add session, so their
   // choice isn't silently overridden by a product's default unit once they've set it.
   const [unitTouched, setUnitTouched] = useState(false);
@@ -62,6 +65,7 @@ export function AddProductOverlay({
       setAddQty("1");
       setAddUnit("יחידות");
       setUnitTouched(false);
+      setNewProductCategory("");
     }
   }, [isOpen]);
 
@@ -75,11 +79,17 @@ export function AddProductOverlay({
     if (submittingRef.current) return;
     const name = inputVal.trim();
     if (!name) return;
-    submittingRef.current = true;
 
     // Check if the product already exists with an exact name match (case-insensitive)
     const exactPoolProduct = pool.find((p) => p.name.trim().toLowerCase() === name.toLowerCase());
+
+    // For new products, category is required
+    if (!exactPoolProduct && !newProductCategory.trim()) return;
+
+    submittingRef.current = true;
+
     const finalQty = addUnit === "יחידות" ? addQty : `${addQty} ${addUnit}`;
+    const categoryToUse = exactPoolProduct?.category ?? newProductCategory;
 
     if (exactPoolProduct) {
       // If exact product exists in pool, add directly to list
@@ -87,14 +97,15 @@ export function AddProductOverlay({
     } else {
       // If it's a new product name, admin adds directly, regular user submits request to admin queue
       if (isAdmin) {
-        onAddProduct(name, "כללי", addUrgent ? "urgent" : "normal", finalQty);
+        onAddProduct(name, categoryToUse, addUrgent ? "urgent" : "normal", finalQty);
       } else {
-        onRequestNewProduct(name, "כללי", addUrgent ? "urgent" : "normal", finalQty);
+        onRequestNewProduct(name, categoryToUse, addUrgent ? "urgent" : "normal", finalQty);
       }
     }
 
     setInputVal("");
     setAddUrgent(false);
+    setNewProductCategory("");
     onClose();
   };
 
@@ -187,6 +198,44 @@ export function AddProductOverlay({
             </div>
           )}
 
+          {/* Duplicate Warning Banner */}
+          {inputVal.trim() && (() => {
+            const similarProduct = findSimilarProduct(inputVal, pool);
+            const hasExactMatchInput = pool.some((p) => p.name.trim().toLowerCase() === inputVal.trim().toLowerCase());
+            if (similarProduct && !hasExactMatchInput) {
+              return (
+                <div className="mb-4 p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex flex-col gap-3 shrink-0">
+                  <div className="flex items-start gap-2.5 text-amber-700 dark:text-amber-300">
+                    <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-xs font-black">⚠️ אולי כבר קיים "{similarProduct.name}" ברשימה?</p>
+                      <p className="text-[10px] font-medium mt-1 opacity-90">אם זה המוצר שחיפשת, לחץ למטה כדי להוסיף אותו במקום ליצור כפילות.</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => {
+                      if (!submittingRef.current) {
+                        submittingRef.current = true;
+                        const unitToUse = unitTouched ? addUnit : similarProduct.defaultUnit || addUnit;
+                        const finalQty = unitToUse === "יחידות" ? addQty : `${addQty} ${unitToUse}`;
+                        onAddProduct(similarProduct.name, similarProduct.category, addUrgent ? "urgent" : "normal", finalQty, similarProduct.defaultNotes);
+                        setInputVal("");
+                        setAddUrgent(false);
+                        setNewProductCategory("");
+                        onClose();
+                      }
+                    }}
+                    className="w-full px-3 py-2 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-700 dark:text-amber-300 font-black text-xs border border-amber-500/20 transition-all active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>הוסף "{similarProduct.name}"</span>
+                  </button>
+                </div>
+              );
+            }
+            return null;
+          })()}
+
           {/* Star / Favorite Quick-Add Chips */}
           {starProducts.length > 0 && (
             <div className="mb-4 shrink-0">
@@ -224,6 +273,31 @@ export function AddProductOverlay({
                   );
                 })}
               </div>
+            </div>
+          )}
+
+          {/* Category Selector for New Products */}
+          {inputVal.trim() && !hasExactMatch && (
+            <div className="mb-4 shrink-0">
+              <label className="text-[10px] font-black text-[var(--muted)] text-right uppercase tracking-widest mb-1.5 block">
+                קטגוריה (חובה למוצר חדש)
+              </label>
+              <select
+                value={newProductCategory}
+                onChange={(e) => setNewProductCategory(e.target.value)}
+                className={`w-full bg-[var(--background)] border rounded-xl py-2.5 px-3 text-sm font-bold focus:outline-none focus:border-indigo-500/40 text-right cursor-pointer text-[var(--foreground)] ${
+                  newProductCategory ? "border-[var(--border)]" : "border-rose-500/50 bg-rose-500/5"
+                }`}
+              >
+                <option value="">בחר קטגוריה...</option>
+                {[...DEFAULT_CATEGORIES, ...categories]
+                  .filter((v, i, a) => a.indexOf(v) === i)
+                  .map((cat) => (
+                    <option key={cat} value={cat}>
+                      {cat}
+                    </option>
+                  ))}
+              </select>
             </div>
           )}
 
