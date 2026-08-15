@@ -272,6 +272,7 @@ export default function CateringOrderPage() {
       setArchive(orders);
     } catch (err) {
       console.error("Error fetching catering archive:", err);
+      setErrorMsg("שגיאה בטעינת הארכיון. ודא שכללי האבטחה (Rules) של Firebase מעודכנים במסוף.");
     } finally {
       setLoadingArchive(false);
     }
