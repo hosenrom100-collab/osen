@@ -39,17 +39,7 @@ export async function POST(
       );
     }
 
-    // 2. ONE-TIME GENERATION ENFORCEMENT:
-    // If a PDF URL has already been generated for this request, reuse the existing single document!
-    if (requestData.pdfUrl) {
-      return NextResponse.json({
-        success: true,
-        pdfUrl: requestData.pdfUrl,
-        reused: true,
-      });
-    }
-
-    // 3. Generate PDF Buffer
+    // 2. Generate fresh PDF Buffer
     const pdfBuffer = await generateStoreAuthorizationPDF(requestData, id);
 
     let finalPdfUrl = "";
