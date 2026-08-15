@@ -61,6 +61,7 @@ export default function StoreRequestsPage() {
 
   // Manual request states
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [modalValidationError, setModalValidationError] = useState<string | null>(null);
   const [users, setUsers] = useState<{ uid: string; displayName: string }[]>([]);
   const [selectedUserId, setSelectedUserId] = useState("");
   const [newStoreName, setNewStoreName] = useState("אברהם שיווק");
@@ -238,11 +239,14 @@ export default function StoreRequestsPage() {
   };
 
   const handleCreateRequest = async () => {
+    setModalValidationError(null);
     if (!selectedUserId) {
+      setModalValidationError("אנא בחר עובד לשיוך האישור");
       showToast("אנא בחר עובד לשיוך האישור", "error");
       return;
     }
     if (newItems.length === 0) {
+      setModalValidationError("אנא הוסף לפחות מוצר אחד לאישור");
       showToast("אנא הוסף לפחות מוצר אחד לאישור", "error");
       return;
     }
@@ -432,19 +436,21 @@ export default function StoreRequestsPage() {
 
         {/* Toast */}
         {toast && (
-          <div
-            className={`max-w-5xl mx-auto mt-4 px-4 py-3 rounded-lg flex items-center gap-2 animate-pulse ${
-              toast.type === "success"
-                ? "bg-green-50 text-green-800 border border-green-200"
-                : "bg-red-50 text-red-800 border border-red-200"
-            }`}
-          >
-            {toast.type === "success" ? (
-              <CheckCircle className="w-5 h-5" />
-            ) : (
-              <AlertCircle className="w-5 h-5" />
-            )}
-            {toast.message}
+          <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[9999] w-full max-w-sm px-4">
+            <div
+              className={`px-4 py-3 rounded-xl shadow-xl border flex items-center gap-2.5 text-sm font-bold animate-bounce ${
+                toast.type === "success"
+                  ? "bg-emerald-50 text-emerald-800 border-emerald-200"
+                  : "bg-red-50 text-red-800 border-red-200"
+              }`}
+            >
+              {toast.type === "success" ? (
+                <CheckCircle className="w-5 h-5 text-emerald-600" />
+              ) : (
+                <AlertCircle className="w-5 h-5 text-red-600" />
+              )}
+              <span>{toast.message}</span>
+            </div>
           </div>
         )}
 
@@ -534,6 +540,7 @@ export default function StoreRequestsPage() {
               <button
                 onClick={() => {
                   setShowCreateModal(false);
+                  setModalValidationError(null);
                   // Reset form
                   setSelectedUserId("");
                   setNewStoreName("אברהם שיווק");
@@ -555,8 +562,15 @@ export default function StoreRequestsPage() {
                 </label>
                 <select
                   value={selectedUserId}
-                  onChange={(e) => setSelectedUserId(e.target.value)}
-                  className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+                  onChange={(e) => {
+                    setSelectedUserId(e.target.value);
+                    if (e.target.value) setModalValidationError(null);
+                  }}
+                  className={`w-full px-3.5 py-2.5 border rounded-xl text-sm bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition ${
+                    modalValidationError && !selectedUserId
+                      ? "border-red-500 focus:ring-red-500 focus:border-red-500"
+                      : "border-slate-300"
+                  }`}
                 >
                   <option value="">-- בחר עובד --</option>
                   {users.map((u) => (
@@ -565,6 +579,11 @@ export default function StoreRequestsPage() {
                     </option>
                   ))}
                 </select>
+                {modalValidationError && !selectedUserId && (
+                  <p className="text-xs text-red-600 font-bold mt-1.5 flex items-center gap-1">
+                    <span>⚠️ {modalValidationError}</span>
+                  </p>
+                )}
               </div>
 
               {/* Store Name */}
@@ -678,6 +697,7 @@ export default function StoreRequestsPage() {
                 disabled={creatingRequest}
                 onClick={() => {
                   setShowCreateModal(false);
+                  setModalValidationError(null);
                   setSelectedUserId("");
                   setNewStoreName("אברהם שיווק");
                   setNewNotes("");
