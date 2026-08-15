@@ -15,6 +15,7 @@ import {
 import Link from "next/link";
 import { StoreAuthorizationRequest, StoreAuthorizationItem } from "@/app/shopping/types";
 import { sendPush } from "@/lib/notify";
+import { openOrDownloadPdf } from "@/lib/pdf/downloadPdfHelper";
 
 const statusColors: Record<string, { bg: string; text: string; icon: React.ReactNode }> = {
   pending: {
@@ -205,11 +206,12 @@ export default function StoreRequestsPage() {
 
   const handleGeneratePdf = async (requestId: string) => {
     try {
+      const targetReq = requests.find((r) => r.id === requestId);
       const res = await fetch(`/api/store-requests/${requestId}/generate-pdf`, { method: "POST" });
       const data = await res.json();
       if (data.pdfUrl) {
         setRequests(requests.map((r) => (r.id === requestId ? { ...r, pdfUrl: data.pdfUrl } : r)));
-        window.open(data.pdfUrl, "_blank");
+        openOrDownloadPdf(data.pdfUrl, `אישור_קנייה_${targetReq?.requestNumber || requestId}.pdf`);
       } else {
         alert("שגיאה בהפקת ה-PDF");
       }
@@ -534,15 +536,14 @@ function RequestCard({
           {request.status === "approved" && (
             <div className="flex gap-2 mt-2">
               {request.pdfUrl ? (
-                <a
-                  href={request.pdfUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex-1 px-4 py-2.5 bg-gradient-to-r from-emerald-600 to-green-600 !text-white rounded-xl hover:from-emerald-700 hover:to-green-700 transition font-bold text-xs flex items-center justify-center gap-2 shadow-sm border-none"
+                <button
+                  type="button"
+                  onClick={() => openOrDownloadPdf(request.pdfUrl!, `אישור_קנייה_${request.requestNumber}.pdf`)}
+                  className="flex-1 px-4 py-2.5 bg-gradient-to-r from-emerald-600 to-green-600 !text-white rounded-xl hover:from-emerald-700 hover:to-green-700 transition font-bold text-xs flex items-center justify-center gap-2 shadow-sm border-none cursor-pointer"
                 >
                   <Download className="w-4 h-4 text-white" />
                   <span>הורד אישור PDF חתום (מירב סארמילי)</span>
-                </a>
+                </button>
               ) : (
                 <button
                   onClick={onGeneratePdf}

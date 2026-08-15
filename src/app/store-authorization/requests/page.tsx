@@ -12,6 +12,7 @@ import {
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { StoreAuthorizationRequest } from "@/app/shopping/types";
+import { openOrDownloadPdf } from "@/lib/pdf/downloadPdfHelper";
 
 const statusColors: Record<string, { bg: string; text: string; icon: React.ReactNode }> = {
   pending: {
@@ -151,16 +152,17 @@ export default function RequestsPage() {
                     </div>
                     {request.pdfUrl && request.status === "approved" && (
                       <div className="ml-4 shrink-0">
-                        <a
-                          href={request.pdfUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="px-3.5 py-2.5 bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 !text-white rounded-xl transition text-xs font-black flex items-center gap-1.5 shadow-sm active:scale-95 border-none"
-                          onClick={(e) => e.stopPropagation()}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openOrDownloadPdf(request.pdfUrl!, `אישור_קנייה_${request.requestNumber}.pdf`);
+                          }}
+                          className="px-3.5 py-2.5 bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 !text-white rounded-xl transition text-xs font-black flex items-center gap-1.5 shadow-sm active:scale-95 border-none cursor-pointer"
                         >
                           <Download className="w-4 h-4 text-white" />
                           <span>הורד אישור PDF</span>
-                        </a>
+                        </button>
                       </div>
                     )}
                   </div>

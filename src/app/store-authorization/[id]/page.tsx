@@ -8,6 +8,7 @@ import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import { Loader2, ArrowLeft, CheckCircle, Clock, XCircle, Download } from "lucide-react";
 import { StoreAuthorizationRequest } from "@/app/shopping/types";
+import { openOrDownloadPdf } from "@/lib/pdf/downloadPdfHelper";
 
 const statusLabels: Record<string, { label: string; color: string }> = {
   pending: { label: "בהמתנה", color: "text-yellow-700 bg-yellow-50" },
@@ -182,15 +183,14 @@ export default function RequestDetailPage() {
         {request.status === "approved" && request.pdfUrl && (
           <div className="bg-green-50 border border-green-200 rounded-lg p-6">
             <p className="text-sm font-semibold text-green-900 mb-4">אישור PDF זמין</p>
-            <a
-              href={request.pdfUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
+            <button
+              type="button"
+              onClick={() => openOrDownloadPdf(request.pdfUrl!, `אישור_קנייה_${request.requestNumber}.pdf`)}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition cursor-pointer font-bold border-none"
             >
-              <Download className="w-4 h-4" />
-              הורד אישור
-            </a>
+              <Download className="w-4 h-4 text-white" />
+              <span>הורד אישור PDF</span>
+            </button>
           </div>
         )}
       </div>
