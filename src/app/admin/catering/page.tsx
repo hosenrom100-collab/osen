@@ -85,6 +85,7 @@ interface CateringOrder {
   createdBy?: string;
   contactName?: string;
   contactRole?: string;
+  contactPhone?: string;
 }
 
 export default function CateringOrderPage() {
@@ -132,6 +133,7 @@ export default function CateringOrderPage() {
 
   const [contactName, setContactName] = useState("מירב סארמילי");
   const [contactRole, setContactRole] = useState("מנהלת תפעול מרכז חוסן חוות רום");
+  const [contactPhone, setContactPhone] = useState("052-1234567");
 
   const [generatingPdf, setGeneratingPdf] = useState(false);
   const reportRef = React.useRef<HTMLDivElement>(null);
@@ -284,6 +286,7 @@ export default function CateringOrderPage() {
         arrivalTime,
         contactName,
         contactRole,
+        contactPhone,
         meats: selectedMeats,
         sides: selectedSides,
         salads: selectedSalads,
@@ -458,7 +461,7 @@ ${sidesList || "_לא נבחרו תוספות_"}
 ${saladsList || "_לא נבחרו סלטים_"}${breadSection}
 
 בברכה,
-*${contactName}*
+*${contactName}* | ${contactPhone}
 ${contactRole}`;
   };
 
@@ -597,7 +600,7 @@ ${contactRole}`;
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border-t border-[var(--border)]/30 pt-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 border-t border-[var(--border)]/30 pt-4">
                   <div className="space-y-1.5">
                     <label className="text-[10px] font-bold text-[var(--muted)] flex items-center gap-1">
                       שם איש קשר לקייטרינג
@@ -607,6 +610,18 @@ ${contactRole}`;
                       value={contactName}
                       onChange={(e) => setContactName(e.target.value)}
                       placeholder="מירב סארמילי"
+                      className="w-full bg-[var(--background)] border border-[var(--border)] text-xs rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-amber-500 font-medium"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-[var(--muted)] flex items-center gap-1">
+                      מספר טלפון
+                    </label>
+                    <input 
+                      type="tel" 
+                      value={contactPhone}
+                      onChange={(e) => setContactPhone(e.target.value)}
+                      placeholder="052-1234567"
                       className="w-full bg-[var(--background)] border border-[var(--border)] text-xs rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-amber-500 font-medium"
                     />
                   </div>
@@ -1035,6 +1050,7 @@ ${contactRole}`;
                                   setPortions(order.portions);
                                   setContactName(order.contactName || "מירב סארמילי");
                                   setContactRole(order.contactRole || "מנהלת תפעול מרכז חוסן חוות רום");
+                                  setContactPhone(order.contactPhone || "052-1234567");
                                 }}
                                 className="px-2.5 py-1 bg-amber-500/10 hover:bg-amber-500/20 text-amber-500 text-[10px] font-black rounded-lg transition-colors"
                               >
@@ -1254,7 +1270,7 @@ ${contactRole}`;
                         <strong style={{ color: "#64748b" }}>שעת הגעה:</strong> {arrivalTime}
                       </div>
                       <div style={{ borderTop: "1px solid #e2e8f0", paddingTop: "6px", marginTop: "4px" }}>
-                        <strong style={{ color: "#64748b" }}>איש קשר:</strong> {contactName}
+                        <strong style={{ color: "#64748b" }}>איש קשר:</strong> {contactName} ({contactPhone})
                         <div style={{ fontSize: "10px", color: "#64748b", fontWeight: "bold", marginTop: "2px" }}>
                           {contactRole}
                         </div>
