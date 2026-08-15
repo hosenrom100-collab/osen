@@ -146,19 +146,21 @@ export default function RequestsPage() {
 
       {/* Toast */}
       {toast && (
-        <div
-          className={`max-w-4xl mx-auto mt-4 px-4 py-3 rounded-lg flex items-center gap-2 animate-pulse ${
-            toast.type === "success"
-              ? "bg-green-50 text-green-800 border border-green-200"
-              : "bg-red-50 text-red-800 border border-red-200"
-          }`}
-        >
-          {toast.type === "success" ? (
-            <CheckCircle className="w-5 h-5" />
-          ) : (
-            <AlertCircle className="w-5 h-5" />
-          )}
-          {toast.message}
+        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[9999] w-full max-w-sm px-4">
+          <div
+            className={`px-4 py-3 rounded-xl shadow-xl border flex items-center gap-2.5 text-sm font-bold animate-bounce ${
+              toast.type === "success"
+                ? "bg-emerald-50 text-emerald-800 border-emerald-200"
+                : "bg-red-50 text-red-800 border-red-200"
+            }`}
+          >
+            {toast.type === "success" ? (
+              <CheckCircle className="w-5 h-5 text-emerald-600" />
+            ) : (
+              <AlertCircle className="w-5 h-5 text-red-600" />
+            )}
+            <span>{toast.message}</span>
+          </div>
         </div>
       )}
 

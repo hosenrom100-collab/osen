@@ -225,7 +225,7 @@ export default function StoreRequestsPage() {
     const item: StoreAuthorizationItem = {
       productName: newItemName.trim(),
       quantity: newItemQty.trim(),
-      unit: newItemUnit.trim() || undefined,
+      ...(newItemUnit.trim() && { unit: newItemUnit.trim() }),
       status: "approved" as const,
     };
     setNewItems((prev) => [...prev, item]);
@@ -322,8 +322,8 @@ export default function StoreRequestsPage() {
       await updateDoc(doc(db, "storeAuthorizationRequests", requestId), {
         status: "rejected",
         approvedAt: new Date(),
-        approvedBy: user?.uid,
-        approvedByName: user?.displayName,
+        approvedBy: user?.uid || "",
+        approvedByName: user?.displayName || "",
         pdfUrl: null, // Clear any PDF URL completely for rejected requests
       });
 
