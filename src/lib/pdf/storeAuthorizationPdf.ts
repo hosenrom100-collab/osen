@@ -45,6 +45,28 @@ export async function generateStoreAuthorizationPDF(
     format: "a4",
   });
 
+  // Load Heebo custom fonts for full Hebrew support
+  try {
+    const regularFontPath = path.join(process.cwd(), "public", "Heebo-Regular.ttf");
+    const boldFontPath = path.join(process.cwd(), "public", "Heebo-Bold.ttf");
+
+    if (fs.existsSync(regularFontPath)) {
+      const regBuffer = fs.readFileSync(regularFontPath);
+      doc.addFileToVFS("Heebo-Regular.ttf", regBuffer.toString("base64"));
+      doc.addFont("Heebo-Regular.ttf", "Heebo", "normal");
+    }
+
+    if (fs.existsSync(boldFontPath)) {
+      const boldBuffer = fs.readFileSync(boldFontPath);
+      doc.addFileToVFS("Heebo-Bold.ttf", boldBuffer.toString("base64"));
+      doc.addFont("Heebo-Bold.ttf", "Heebo", "bold");
+    }
+
+    doc.setFont("Heebo", "normal");
+  } catch (fontErr) {
+    console.error("Failed to load Heebo fonts:", fontErr);
+  }
+
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
   const margin = 15;
@@ -54,9 +76,13 @@ export async function generateStoreAuthorizationPDF(
 
   // 1. Add Header Logo if available
   try {
-    const headerLogoPath = path.join(process.cwd(), "public", "logoup.png");
-    if (fs.existsSync(headerLogoPath)) {
-      const logoBuffer = fs.readFileSync(headerLogoPath);
+    const headerLogoPath = path.join(process.cwd(), "public", "logopage.png"); // Let's use the premium logopage if available
+    const chosenLogoPath = fs.existsSync(headerLogoPath) 
+      ? headerLogoPath 
+      : path.join(process.cwd(), "public", "logoup.png");
+
+    if (fs.existsSync(chosenLogoPath)) {
+      const logoBuffer = fs.readFileSync(chosenLogoPath);
       const logoBase64 = logoBuffer.toString("base64");
       doc.addImage(`data:image/png;base64,${logoBase64}`, "PNG", margin, yPosition, contentWidth, 24);
       yPosition += 28;
@@ -67,7 +93,7 @@ export async function generateStoreAuthorizationPDF(
 
   // 2. Document Main Title
   doc.setFontSize(16);
-  doc.setFont("Arial", "bold");
+  doc.setFont("Heebo", "bold");
   doc.text(toRTL("אישור קנייה אד הוק"), pageWidth / 2, yPosition + 4, { align: "center" });
   yPosition += 10;
 
@@ -75,7 +101,7 @@ export async function generateStoreAuthorizationPDF(
   const createdDate = formatDate(request.createdAt) || new Date().toLocaleDateString("he-IL");
 
   doc.setFontSize(11);
-  doc.setFont("Arial", "bold");
+  doc.setFont("Heebo", "bold");
   doc.text(
     toRTL(`מספר אישור: #${request.requestNumber || ""}  |  תאריך: ${createdDate}`),
     pageWidth / 2,
@@ -91,11 +117,11 @@ export async function generateStoreAuthorizationPDF(
   doc.setDrawColor(203, 213, 225);
   doc.rect(margin, yPosition - 2, contentWidth, 34, "S");
 
-  doc.setFont("Arial", "bold");
+  doc.setFont("Heebo", "bold");
   doc.setFontSize(10);
   doc.text(toRTL("פרטי האישור והגוף המנפיק:"), pageWidth - margin - 4, yPosition + 4, { align: "right" });
 
-  doc.setFont("Arial", "normal");
+  doc.setFont("Heebo", "normal");
   doc.setFontSize(9);
 
   // Right column
@@ -114,7 +140,7 @@ export async function generateStoreAuthorizationPDF(
   yPosition += 40;
 
   // 5. Items & Quantity Table Header
-  doc.setFont("Arial", "bold");
+  doc.setFont("Heebo", "bold");
   doc.setFontSize(10);
   doc.text(toRTL("פירוט המוצרים והכמויות המאושרות לקנייה:"), pageWidth - margin, yPosition, { align: "right" });
   yPosition += 6;
@@ -128,7 +154,7 @@ export async function generateStoreAuthorizationPDF(
   doc.setTextColor(255, 255, 255);
   doc.rect(margin, tableTop, contentWidth, 8, "F");
 
-  doc.setFont("Arial", "bold");
+  doc.setFont("Heebo", "bold");
   doc.setFontSize(9);
 
   let curX = margin;
@@ -145,7 +171,7 @@ export async function generateStoreAuthorizationPDF(
 
   // 6. Table Rows
   doc.setTextColor(0, 0, 0);
-  doc.setFont("Arial", "normal");
+  doc.setFont("Heebo", "normal");
   doc.setFontSize(9);
 
   let rowY = tableTop + 13;
@@ -182,12 +208,12 @@ export async function generateStoreAuthorizationPDF(
 
   // 7. Notes Section (if any)
   if (request.notes) {
-    doc.setFont("Arial", "bold");
+    doc.setFont("Heebo", "bold");
     doc.setFontSize(9);
     doc.text(toRTL("הערות לבקשה:"), pageWidth - margin, yPosition, { align: "right" });
     yPosition += 4.5;
 
-    doc.setFont("Arial", "normal");
+    doc.setFont("Heebo", "normal");
     doc.setFontSize(8.5);
     doc.text(toRTL(request.notes), pageWidth - margin, yPosition, { align: "right" });
     yPosition += 8;
@@ -199,12 +225,12 @@ export async function generateStoreAuthorizationPDF(
   doc.setDrawColor(245, 158, 11); // Amber 500
   doc.rect(margin, yPosition, contentWidth, 18, "S");
 
-  doc.setFont("Arial", "bold");
+  doc.setFont("Heebo", "bold");
   doc.setFontSize(9);
   doc.setTextColor(180, 83, 9);
   doc.text(toRTL("⚠️ התנאי החשוב להכרה בהוצאה:"), pageWidth - margin - 4, yPosition + 5, { align: "right" });
 
-  doc.setFont("Arial", "normal");
+  doc.setFont("Heebo", "normal");
   doc.setFontSize(8.5);
   doc.text(
     toRTL("עם המצאת הרכש, חובה לצרף חשבונית קנייה מקורית חתומה למסמך אישור זה עבור הנהלת החשבונות."),
@@ -221,17 +247,17 @@ export async function generateStoreAuthorizationPDF(
   // Signatory Box
   const sigX = pageWidth / 2;
 
-  doc.setFont("Arial", "bold");
+  doc.setFont("Heebo", "bold");
   doc.setFontSize(10);
   doc.text(toRTL("מאושר וחתום ע\"י:"), sigX, yPosition, { align: "center" });
   yPosition += 5;
 
-  doc.setFont("Arial", "bold");
+  doc.setFont("Heebo", "bold");
   doc.setFontSize(11);
   doc.setTextColor(30, 58, 138);
   doc.text(toRTL("מירב סארמילי"), sigX, yPosition + 2, { align: "center" });
 
-  doc.setFont("Arial", "normal");
+  doc.setFont("Heebo", "normal");
   doc.setFontSize(9);
   doc.setTextColor(71, 85, 105);
   doc.text(toRTL("מנהלת תפעול, מרכז חוסן חוות רום"), sigX, yPosition + 7, { align: "center" });
