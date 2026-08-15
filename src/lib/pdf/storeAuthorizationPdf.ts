@@ -115,7 +115,7 @@ export async function generateStoreAuthorizationPDF(
   // 3. Document Main Title
   doc.setFontSize(16);
   doc.setFont("Heebo", "bold");
-  doc.text(toRTL("אישור קנייה אד הוק"), pageWidth / 2, yPosition + 4, { align: "center" });
+  doc.text(toRTL("אישור קנייה לעובד"), pageWidth / 2, yPosition + 4, { align: "center" });
   yPosition += 10;
 
   // 4. Request Number and Date Subtitle
