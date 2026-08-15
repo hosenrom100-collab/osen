@@ -599,33 +599,37 @@ export default function StoreRequestsPage() {
                 <label className="block text-sm font-bold text-slate-800 mb-2">
                   הוספת מוצרים לאישור:
                 </label>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                  <input
-                    type="text"
-                    value={newItemName}
-                    onChange={(e) => setNewItemName(e.target.value)}
-                    className="px-3 py-2 border border-slate-300 rounded-xl text-sm bg-slate-50 focus:bg-white"
-                    placeholder="שם המוצר"
-                  />
-                  <input
-                    type="text"
-                    value={newItemQty}
-                    onChange={(e) => setNewItemQty(e.target.value)}
-                    className="px-3 py-2 border border-slate-300 rounded-xl text-sm bg-slate-50 focus:bg-white"
-                    placeholder="כמות (לדוגמה: 2)"
-                  />
-                  <div className="flex gap-1">
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <div className="flex-1 min-w-[200px]">
+                    <input
+                      type="text"
+                      value={newItemName}
+                      onChange={(e) => setNewItemName(e.target.value)}
+                      className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+                      placeholder="שם המוצר"
+                    />
+                  </div>
+                  <div className="w-full sm:w-28">
+                    <input
+                      type="text"
+                      value={newItemQty}
+                      onChange={(e) => setNewItemQty(e.target.value)}
+                      className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+                      placeholder="כמות"
+                    />
+                  </div>
+                  <div className="w-full sm:w-40 flex gap-2">
                     <input
                       type="text"
                       value={newItemUnit}
                       onChange={(e) => setNewItemUnit(e.target.value)}
-                      className="flex-1 px-3 py-2 border border-slate-300 rounded-xl text-sm bg-slate-50 focus:bg-white"
-                      placeholder="יחידה (לדוגמה: יח')"
+                      className="flex-1 min-w-0 px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+                      placeholder="יחידה"
                     />
                     <button
                       type="button"
                       onClick={handleAddManualItem}
-                      className="px-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition flex items-center justify-center border-none cursor-pointer"
+                      className="px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition flex items-center justify-center border-none cursor-pointer shrink-0 active:scale-95"
                       title="הוסף מוצר"
                     >
                       <Plus className="w-4 h-4 text-white" />
