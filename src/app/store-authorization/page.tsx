@@ -119,7 +119,7 @@ export default function StoreAuthorizationPage() {
                 <ShoppingCart className="w-6 h-6 text-blue-600" />
                 בקשת קנייה בסופר
               </h1>
-              <p className="text-sm text-amber-700 font-medium">⚠️ מקרים דחופים בלבד - קנייה עצמאית בסופר של מוצרים שלא בפול</p>
+              <p className="text-sm text-amber-700 font-medium">⚠️ מקרים דחופים בלבד - קנייה עצמאית בסופר</p>
             </div>
           </div>
         </div>
