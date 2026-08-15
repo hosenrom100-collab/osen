@@ -73,31 +73,51 @@ export async function generateStoreAuthorizationPDF(
   const contentWidth = pageWidth - 2 * margin;
 
   let yPosition = margin;
+  let hasBackground = false;
 
-  // 1. Add Header Logo if available
+  // 1. Add Full Page Background if logopage.png exists
   try {
-    const headerLogoPath = path.join(process.cwd(), "public", "logopage.png"); // Let's use the premium logopage if available
-    const chosenLogoPath = fs.existsSync(headerLogoPath) 
-      ? headerLogoPath 
-      : path.join(process.cwd(), "public", "logoup.png");
-
-    if (fs.existsSync(chosenLogoPath)) {
-      const logoBuffer = fs.readFileSync(chosenLogoPath);
+    const pageLogoPath = path.join(process.cwd(), "public", "logopage.png");
+    if (fs.existsSync(pageLogoPath)) {
+      const logoBuffer = fs.readFileSync(pageLogoPath);
       const logoBase64 = logoBuffer.toString("base64");
-      doc.addImage(`data:image/png;base64,${logoBase64}`, "PNG", margin, yPosition, contentWidth, 24);
-      yPosition += 28;
+      // Add as background covering the entire page
+      doc.addImage(`data:image/png;base64,${logoBase64}`, "PNG", 0, 0, pageWidth, pageHeight);
+      hasBackground = true;
+      yPosition = 45; // Start content below the header logo on the template
     }
   } catch (err) {
-    console.error("Error embedding header logo in PDF:", err);
+    console.error("Error embedding page logo background in PDF:", err);
   }
 
-  // 2. Document Main Title
+  // 2. If no full background page, render individual logoup.png with correct aspect ratio
+  if (!hasBackground) {
+    try {
+      const headerLogoPath = path.join(process.cwd(), "public", "logoup.png");
+      if (fs.existsSync(headerLogoPath)) {
+        const logoBuffer = fs.readFileSync(headerLogoPath);
+        const logoBase64 = logoBuffer.toString("base64");
+        
+        // logoup.png is 522x421 (Ratio: 1.24). Let's render it right-aligned with height 24mm
+        const imgHeight = 24;
+        const imgWidth = imgHeight * (522 / 421); // ~29.7mm
+        const imgX = pageWidth - margin - imgWidth; // Align to right margin
+        
+        doc.addImage(`data:image/png;base64,${logoBase64}`, "PNG", imgX, yPosition, imgWidth, imgHeight);
+        yPosition += 28;
+      }
+    } catch (err) {
+      console.error("Error embedding header logo in PDF:", err);
+    }
+  }
+
+  // 3. Document Main Title
   doc.setFontSize(16);
   doc.setFont("Heebo", "bold");
   doc.text(toRTL("אישור קנייה אד הוק"), pageWidth / 2, yPosition + 4, { align: "center" });
   yPosition += 10;
 
-  // 3. Request Number and Date Subtitle
+  // 4. Request Number and Date Subtitle
   const createdDate = formatDate(request.createdAt) || new Date().toLocaleDateString("he-IL");
 
   doc.setFontSize(11);
@@ -111,7 +131,7 @@ export async function generateStoreAuthorizationPDF(
 
   yPosition += 10;
 
-  // 4. Recipient & Organization Info Card
+  // 5. Recipient & Organization Info Card
   doc.setFillColor(241, 245, 249);
   doc.rect(margin, yPosition - 2, contentWidth, 34, "F");
   doc.setDrawColor(203, 213, 225);
@@ -139,7 +159,7 @@ export async function generateStoreAuthorizationPDF(
 
   yPosition += 40;
 
-  // 5. Items & Quantity Table Header
+  // 6. Items & Quantity Table Header
   doc.setFont("Heebo", "bold");
   doc.setFontSize(10);
   doc.text(toRTL("פירוט המוצרים והכמויות המאושרות לקנייה:"), pageWidth - margin, yPosition, { align: "right" });
@@ -169,7 +189,7 @@ export async function generateStoreAuthorizationPDF(
   // Col 2: Product Name (Right)
   doc.text(toRTL(headers[0]), margin + contentWidth - 4, tableTop + 5.5, { align: "right" });
 
-  // 6. Table Rows
+  // 7. Table Rows
   doc.setTextColor(0, 0, 0);
   doc.setFont("Heebo", "normal");
   doc.setFontSize(9);
@@ -206,7 +226,7 @@ export async function generateStoreAuthorizationPDF(
 
   yPosition = Math.max(rowY + 4, yPosition + 35);
 
-  // 7. Notes Section (if any)
+  // 8. Notes Section (if any)
   if (request.notes) {
     doc.setFont("Heebo", "bold");
     doc.setFontSize(9);
@@ -219,7 +239,7 @@ export async function generateStoreAuthorizationPDF(
     yPosition += 8;
   }
 
-  // 8. Important Notice / Invoice Condition Box
+  // 9. Important Notice / Invoice Condition Box
   doc.setFillColor(254, 243, 199); // Amber 100
   doc.rect(margin, yPosition, contentWidth, 18, "F");
   doc.setDrawColor(245, 158, 11); // Amber 500
@@ -241,7 +261,7 @@ export async function generateStoreAuthorizationPDF(
 
   yPosition += 26;
 
-  // 9. Official Signature Section - Merav Sarmili
+  // 10. Official Signature Section - Merav Sarmili
   doc.setTextColor(0, 0, 0);
 
   // Signatory Box
@@ -271,16 +291,24 @@ export async function generateStoreAuthorizationPDF(
   doc.setTextColor(100, 116, 139);
   doc.text(toRTL("חתימה וחותמת מורשית דיגיטלית"), sigX, yPosition + 16, { align: "center" });
 
-  // 10. Add Footer Logo at bottom if available
-  try {
-    const footerLogoPath = path.join(process.cwd(), "public", "logodown.png");
-    if (fs.existsSync(footerLogoPath)) {
-      const footerBuffer = fs.readFileSync(footerLogoPath);
-      const footerBase64 = footerBuffer.toString("base64");
-      doc.addImage(`data:image/png;base64,${footerBase64}`, "PNG", margin, pageHeight - 24, contentWidth, 16);
+  // 11. Add Footer Logo at bottom if no fullpage background is loaded
+  if (!hasBackground) {
+    try {
+      const footerLogoPath = path.join(process.cwd(), "public", "logodown.png");
+      if (fs.existsSync(footerLogoPath)) {
+        const footerBuffer = fs.readFileSync(footerLogoPath);
+        const footerBase64 = footerBuffer.toString("base64");
+        
+        // logodown.png is 2481x745 (Ratio: 3.33). Center it with width 120mm
+        const footerWidth = 120;
+        const footerHeight = footerWidth / (2481 / 745); // ~36mm
+        const footerX = (pageWidth - footerWidth) / 2;
+        
+        doc.addImage(`data:image/png;base64,${footerBuffer.toString("base64")}`, "PNG", footerX, pageHeight - footerHeight - 10, footerWidth, footerHeight);
+      }
+    } catch (err) {
+      console.error("Error embedding footer logo in PDF:", err);
     }
-  } catch (err) {
-    console.error("Error embedding footer logo in PDF:", err);
   }
 
   // Footer text line
