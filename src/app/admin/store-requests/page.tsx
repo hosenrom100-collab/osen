@@ -57,6 +57,7 @@ export default function StoreRequestsPage() {
   const [editedItems, setEditedItems] = useState<StoreAuthorizationItem[]>([]);
   const [loadingPdfId, setLoadingPdfId] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
+  const [storeNames, setStoreNames] = useState<Record<string, string>>({});
 
   const showToast = (message: string, type: "success" | "error") => {
     setToast({ message, type });
@@ -94,6 +95,13 @@ export default function StoreRequestsPage() {
         })) as StoreAuthorizationRequest[];
 
         setRequests(data);
+
+        // Initialize store names mapping
+        const names: Record<string, string> = {};
+        data.forEach((r) => {
+          names[r.id] = r.storeName || "אברהם שיווק";
+        });
+        setStoreNames(names);
       } catch (error) {
         console.error("Error fetching requests:", error);
       } finally {
@@ -109,6 +117,7 @@ export default function StoreRequestsPage() {
       setLoadingPdfId(requestId);
       const targetReq = requests.find((r) => r.id === requestId);
       let itemsToUpdate = editingRequest === requestId ? editedItems : targetReq?.items || [];
+      const storeName = storeNames[requestId] || "אברהם שיווק";
 
       // Check if manager explicitly set ALL items to rejected during editing
       const allItemsExplicitlyRejected = itemsToUpdate.length > 0 && itemsToUpdate.every((item) => item.status === "rejected");
@@ -129,6 +138,7 @@ export default function StoreRequestsPage() {
         approvedAt: new Date(),
         approvedBy: user?.uid,
         approvedByName: user?.displayName,
+        storeName: storeName,
       });
 
       setEditingRequest(null);
@@ -158,6 +168,7 @@ export default function StoreRequestsPage() {
               approvedAt: new Date(),
               approvedBy: user?.uid || "",
               approvedByName: user?.displayName || "",
+              storeName: storeName,
             }
             : r
         )
@@ -346,6 +357,8 @@ export default function StoreRequestsPage() {
                         onGeneratePdf={() => handleGeneratePdf(request.id)}
                         loadingPdfId={loadingPdfId}
                         onDelete={(e) => handleDeleteRequest(e, request.id)}
+                        storeName={storeNames[request.id]}
+                        onStoreNameChange={(val) => setStoreNames((prev) => ({ ...prev, [request.id]: val }))}
                       />
                     ))}
                   </div>
@@ -369,6 +382,7 @@ export default function StoreRequestsPage() {
                         onGeneratePdf={() => handleGeneratePdf(request.id)}
                         loadingPdfId={loadingPdfId}
                         onDelete={(e) => handleDeleteRequest(e, request.id)}
+                        storeName={request.storeName || storeNames[request.id] || "אברהם שיווק"}
                       />
                     ))}
                   </div>
@@ -397,6 +411,8 @@ interface RequestCardProps {
   onGeneratePdf?: () => void;
   loadingPdfId?: string | null;
   onDelete?: (e: React.MouseEvent) => void;
+  storeName?: string;
+  onStoreNameChange?: (val: string) => void;
 }
 
 function RequestCard({
@@ -414,6 +430,8 @@ function RequestCard({
   onGeneratePdf,
   loadingPdfId,
   onDelete,
+  storeName,
+  onStoreNameChange,
 }: RequestCardProps) {
   const status = statusColors[request.status];
   const isPending = request.status === "pending";
@@ -560,6 +578,21 @@ function RequestCard({
                 )
               )}
             </div>
+          </div>
+
+          {/* Store Name Input */}
+          <div className="mb-4 p-3 bg-white rounded-lg border border-slate-200 shadow-sm">
+            <label className="block text-sm font-semibold text-slate-700 mb-1.5">
+              שם החנות לאישור (לכבוד):
+            </label>
+            <input
+              type="text"
+              disabled={request.status !== "pending"}
+              value={storeName || "אברהם שיווק"}
+              onChange={(e) => onStoreNameChange?.(e.target.value)}
+              className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition disabled:opacity-75 disabled:cursor-not-allowed"
+              placeholder="אברהם שיווק"
+            />
           </div>
 
           {/* Notes */}

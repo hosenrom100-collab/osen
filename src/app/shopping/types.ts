@@ -105,4 +105,5 @@ export interface StoreAuthorizationRequest {
   approvedByName?: string | "";
   pdfUrl?: string;
   notes?: string;
+  storeName?: string;
 }
