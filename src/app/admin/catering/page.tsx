@@ -479,6 +479,12 @@ ${contactRole}`;
         console.error("Failed to copy text: ", err);
       });
   };
+ 
+  const sendToWhatsApp = () => {
+    const text = generateWhatsAppText();
+    const encodedText = encodeURIComponent(text);
+    window.open(`https://api.whatsapp.com/send?text=${encodedText}`, "_blank");
+  };
 
   const downloadPDF = async () => {
     if (!isSelectionValid) return;
@@ -1125,6 +1131,17 @@ ${contactRole}`;
                   {generateWhatsAppText()}
                 </div>
 
+                {/* Send Directly to WhatsApp Button */}
+                <button
+                  type="button"
+                  onClick={sendToWhatsApp}
+                  disabled={!isSelectionValid}
+                  className="w-full py-3 px-4 rounded-xl flex items-center justify-center gap-2 text-xs font-black transition-all bg-emerald-600 hover:bg-emerald-700 text-white active:scale-[0.98] disabled:opacity-50"
+                >
+                  <Share2 className="w-4 h-4 text-white" />
+                  שלח ישירות בוואטסאפ
+                </button>
+
                 {/* Copy Button */}
                 <button
                   type="button"
@@ -1143,7 +1160,7 @@ ${contactRole}`;
                   ) : (
                     <>
                       <Share2 className="w-4 h-4" />
-                      העתק להדבקה בוואטסאפ
+                      העתק להדבקה ידנית
                     </>
                   )}
                 </button>
