@@ -115,13 +115,15 @@ export default function CateringOrderPage() {
   const [copied, setCopied] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
-  // Delivery details (default to tomorrow)
+  // Delivery details (default to next Monday)
   const [deliveryDate, setDeliveryDate] = useState(() => {
     const date = new Date();
-    date.setDate(date.getDate() + 1);
+    const currentDay = date.getDay();
+    const daysToAdd = (1 - currentDay + 7) % 7 === 0 ? 7 : (1 - currentDay + 7) % 7;
+    date.setDate(date.getDate() + daysToAdd);
     return date.toISOString().split("T")[0];
   });
-  const [arrivalTime, setArrivalTime] = useState("12:00");
+  const [arrivalTime, setArrivalTime] = useState("12:30");
 
   const [includeBread, setIncludeBread] = useState(true);
 
