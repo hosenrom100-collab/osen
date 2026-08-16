@@ -6,7 +6,7 @@ import { RoleGuard } from "@/components/auth/RoleGuard";
 import { ConnectionStatusBanner } from "@/components/ui/ConnectionStatusBanner";
 import { db } from "@/lib/firebase/config";
 import {
-  collection, query, getDocs, orderBy, updateDoc, doc, deleteDoc, addDoc,
+  collection, query, getDocs, orderBy, updateDoc, doc, deleteDoc, addDoc, limit,
 } from "firebase/firestore";
 import {
   Clock, CheckCircle, XCircle, FileText, Loader2, ArrowLeft,
@@ -272,7 +272,17 @@ export default function StoreRequestsPage() {
     setCreatingRequest(true);
     try {
       const selectedUser = users.find((u) => u.uid === selectedUserId);
-      const nextNum = requests.length > 0 ? Math.max(...requests.map((r) => r.requestNumber || 0)) + 1 : 1;
+
+      // Get next request number from Firestore
+      const lastRequestQuery = query(
+        collection(db, "storeAuthorizationRequests"),
+        orderBy("requestNumber", "desc"),
+        limit(1)
+      );
+      const lastRequestSnap = await getDocs(lastRequestQuery);
+      const nextNum = lastRequestSnap.empty
+        ? 1001
+        : (lastRequestSnap.docs[0].data().requestNumber || 0) + 1;
 
       const newRequestData = {
         requestNumber: nextNum,

@@ -35,6 +35,80 @@ function formatDate(val: any): string {
   }
 }
 
+function splitMixedText(str: string): { text: string; isHebrew: boolean }[] {
+  const runs: { text: string; isHebrew: boolean }[] = [];
+  let currentRun = "";
+  let currentIsHebrew = false;
+
+  for (let i = 0; i < str.length; i++) {
+    const char = str[i];
+    const isHeb = /[\u0590-\u05FF]/.test(char);
+    
+    if (char === " ") {
+      currentRun += char;
+      continue;
+    }
+
+    if (currentRun === "") {
+      currentIsHebrew = isHeb;
+      currentRun += char;
+    } else if (isHeb === currentIsHebrew) {
+      currentRun += char;
+    } else {
+      runs.push({ text: currentRun, isHebrew: currentIsHebrew });
+      currentIsHebrew = isHeb;
+      currentRun = char;
+    }
+  }
+  if (currentRun) {
+    runs.push({ text: currentRun, isHebrew: currentIsHebrew });
+  }
+
+  return runs;
+}
+
+function reverseHebrewWord(w: string): string {
+  return w.split("").reverse().join("");
+}
+
+function toRTLRun(text: string, isHebrew: boolean): string {
+  if (!isHebrew) return text;
+  const words = text.split(" ");
+  const reversedWords = words.map(w => {
+    if (/[\u0590-\u05FF]/.test(w)) {
+      return reverseHebrewWord(w);
+    }
+    return w;
+  });
+  return reversedWords.reverse().join(" ");
+}
+
+function drawSegmentedText(doc: any, str: string, x: number, y: number, align: "right" | "center" | "left" = "right") {
+  const runs = splitMixedText(str);
+  
+  let totalWidth = 0;
+  const processedRuns = runs.map(run => {
+    const text = toRTLRun(run.text, run.isHebrew);
+    const width = doc.getTextWidth(text);
+    totalWidth += width;
+    return { text, width };
+  });
+
+  let curX = x;
+  if (align === "right") {
+    curX = x;
+  } else if (align === "center") {
+    curX = x + totalWidth / 2;
+  } else if (align === "left") {
+    curX = x + totalWidth;
+  }
+
+  for (const run of processedRuns) {
+    doc.text(run.text, curX, y, { align: "right" });
+    curX -= run.width;
+  }
+}
+
 export async function generateStoreAuthorizationPDF(
   request: any,
   requestId: string,
@@ -133,7 +207,7 @@ export async function generateStoreAuthorizationPDF(
   // 3. Document Main Title
   doc.setFontSize(16);
   doc.setFont("Heebo", "bold");
-  doc.text(toRTL("אישור קנייה לעובד"), pageWidth / 2, yPosition + 4, { align: "center" });
+  drawSegmentedText(doc, "אישור קנייה לעובד", pageWidth / 2, yPosition + 4, "center");
   yPosition += 12;
 
   // Format request created date once for use
@@ -147,7 +221,7 @@ export async function generateStoreAuthorizationPDF(
 
   doc.setFont("Heebo", "bold");
   doc.setFontSize(10);
-  doc.text(toRTL("פרטי האישור והגוף המנפיק:"), pageWidth - margin - 4, yPosition + 4, { align: "right" });
+  drawSegmentedText(doc, "פרטי האישור והגוף המנפיק:", pageWidth - margin - 4, yPosition + 4, "right");
 
   doc.setFont("Heebo", "normal");
   doc.setFontSize(9);
@@ -158,19 +232,19 @@ export async function generateStoreAuthorizationPDF(
   const rightColValX = pageWidth - margin - 35;
 
   doc.setFont("Heebo", "bold");
-  doc.text(toRTL("גוף מנפיק:"), rightColLabelX, yPosition + 10, { align: "right" });
+  drawSegmentedText(doc, "גוף מנפיק:", rightColLabelX, yPosition + 10, "right");
   doc.setFont("Heebo", "normal");
-  doc.text(toRTL("מרכז חוסן - חוות רום"), rightColValX, yPosition + 10, { align: "right" });
+  drawSegmentedText(doc, "מרכז חוסן - חוות רום", rightColValX, yPosition + 10, "right");
 
   doc.setFont("Heebo", "bold");
-  doc.text(toRTL("לכבוד:"), rightColLabelX, yPosition + 16, { align: "right" });
+  drawSegmentedText(doc, "לכבוד:", rightColLabelX, yPosition + 16, "right");
   doc.setFont("Heebo", "normal");
-  doc.text(toRTL(request.storeName || "אברהם שיווק"), rightColValX, yPosition + 16, { align: "right" });
+  drawSegmentedText(doc, request.storeName || "אברהם שיווק", rightColValX, yPosition + 16, "right");
 
   doc.setFont("Heebo", "bold");
-  doc.text(toRTL("שם המבקש/ת:"), rightColLabelX, yPosition + 22, { align: "right" });
+  drawSegmentedText(doc, "שם המבקש/ת:", rightColLabelX, yPosition + 22, "right");
   doc.setFont("Heebo", "normal");
-  doc.text(toRTL(request.requestedByName || "עובד/ת"), rightColValX, yPosition + 22, { align: "right" });
+  drawSegmentedText(doc, request.requestedByName || "עובד/ת", rightColValX, yPosition + 22, "right");
 
   // Left column (X positions: labels at margin + 80, values at margin + 48)
   // Dates and numbers are printed in separate LTR calls to guarantee correct display direction
@@ -178,23 +252,23 @@ export async function generateStoreAuthorizationPDF(
   const leftColValX = margin + 48;
 
   doc.setFont("Heebo", "bold");
-  doc.text(toRTL("מספר בקשה:"), leftColLabelX, yPosition + 10, { align: "right" });
+  drawSegmentedText(doc, "מספר בקשה:", leftColLabelX, yPosition + 10, "right");
   doc.setFont("Heebo", "normal");
   doc.text(`#${request.requestNumber}`, leftColValX, yPosition + 10, { align: "right" });
 
   doc.setFont("Heebo", "bold");
-  doc.text(toRTL("סטטוס אישור:"), leftColLabelX, yPosition + 16, { align: "right" });
+  drawSegmentedText(doc, "סטטוס אישור:", leftColLabelX, yPosition + 16, "right");
   doc.setFont("Heebo", "normal");
-  doc.text(toRTL(request.status === "approved" ? "מאושר סופית" : "בהמתנה"), leftColValX, yPosition + 16, { align: "right" });
+  drawSegmentedText(doc, request.status === "approved" ? "מאושר סופית" : "בהמתנה", leftColValX, yPosition + 16, "right");
 
   doc.setFont("Heebo", "bold");
-  doc.text(toRTL("גורם מאשר:"), leftColLabelX, yPosition + 22, { align: "right" });
+  drawSegmentedText(doc, "גורם מאשר:", leftColLabelX, yPosition + 22, "right");
   doc.setFont("Heebo", "normal");
-  doc.text(toRTL("מירב סארמילי"), leftColValX, yPosition + 22, { align: "right" });
+  drawSegmentedText(doc, "מירב סארמילי", leftColValX, yPosition + 22, "right");
 
   if (request.status === "approved" && request.approvedAt) {
     doc.setFont("Heebo", "bold");
-    doc.text(toRTL("תאריך אישור:"), leftColLabelX, yPosition + 28, { align: "right" });
+    drawSegmentedText(doc, "תאריך אישור:", leftColLabelX, yPosition + 28, "right");
     doc.setFont("Heebo", "normal");
     doc.text(formatDate(request.approvedAt), leftColValX, yPosition + 28, { align: "right" });
   }
@@ -204,7 +278,7 @@ export async function generateStoreAuthorizationPDF(
   // 6. Items & Quantity Table Header
   doc.setFont("Heebo", "bold");
   doc.setFontSize(10);
-  doc.text(toRTL("פירוט המוצרים והכמויות המאושרות לקנייה:"), pageWidth - margin, yPosition, { align: "right" });
+  drawSegmentedText(doc, "פירוט המוצרים והכמויות המאושרות לקנייה:", pageWidth - margin, yPosition, "right");
   yPosition += 6;
 
   // Table Headers Setup
@@ -221,15 +295,15 @@ export async function generateStoreAuthorizationPDF(
 
   let curX = margin;
   // Col 0: Status (Left)
-  doc.text(toRTL(headers[2]), curX + colWidths[2] / 2, tableTop + 5.5, { align: "center" });
+  drawSegmentedText(doc, headers[2], curX + colWidths[2] / 2, tableTop + 5.5, "center");
   curX += colWidths[2];
 
   // Col 1: Quantity (Center)
-  doc.text(toRTL(headers[1]), curX + colWidths[1] / 2, tableTop + 5.5, { align: "center" });
+  drawSegmentedText(doc, headers[1], curX + colWidths[1] / 2, tableTop + 5.5, "center");
   curX += colWidths[1];
 
   // Col 2: Product Name (Right)
-  doc.text(toRTL(headers[0]), margin + contentWidth - 4, tableTop + 5.5, { align: "right" });
+  drawSegmentedText(doc, headers[0], margin + contentWidth - 4, tableTop + 5.5, "right");
 
   // 7. Table Rows
   doc.setTextColor(0, 0, 0);
@@ -251,17 +325,17 @@ export async function generateStoreAuthorizationPDF(
 
     // Status
     const statusLabel = item.status === "approved" ? "אושר" : item.status === "rejected" ? "נדחה" : "בהמתנה";
-    doc.text(toRTL(statusLabel), x + colWidths[2] / 2, rowY, { align: "center" });
+    drawSegmentedText(doc, statusLabel, x + colWidths[2] / 2, rowY, "center");
     x += colWidths[2];
 
     // Quantity (with unit if provided)
     const qtyText = item.unit ? `${item.quantity} ${item.unit}` : `${item.quantity}`;
-    doc.text(toRTL(qtyText), x + colWidths[1] / 2, rowY, { align: "center" });
+    drawSegmentedText(doc, qtyText, x + colWidths[1] / 2, rowY, "center");
     x += colWidths[1];
 
     // Product Name
     const pName = (item.productName || "").substring(0, 45);
-    doc.text(toRTL(pName), margin + contentWidth - 4, rowY, { align: "right" });
+    drawSegmentedText(doc, pName, margin + contentWidth - 4, rowY, "right");
 
     rowY += 8.5;
   });
@@ -272,12 +346,12 @@ export async function generateStoreAuthorizationPDF(
   if (request.notes) {
     doc.setFont("Heebo", "bold");
     doc.setFontSize(9);
-    doc.text(toRTL("הערות לבקשה:"), pageWidth - margin, yPosition, { align: "right" });
+    drawSegmentedText(doc, "הערות לבקשה:", pageWidth - margin, yPosition, "right");
     yPosition += 4.5;
 
     doc.setFont("Heebo", "normal");
     doc.setFontSize(8.5);
-    doc.text(toRTL(request.notes), pageWidth - margin, yPosition, { align: "right" });
+    drawSegmentedText(doc, request.notes, pageWidth - margin, yPosition, "right");
     yPosition += 8;
   }
 
@@ -290,7 +364,7 @@ export async function generateStoreAuthorizationPDF(
   doc.setFont("Heebo", "bold");
   doc.setFontSize(9.5);
   doc.setTextColor(180, 83, 9);
-  doc.text(toRTL("⚠️ נא לצרף את האישור לחשבונית הקנייה."), pageWidth - margin - 4, yPosition + 6.5, { align: "right" });
+  drawSegmentedText(doc, "⚠️ נא לצרף את האישור לחשבונית הקנייה.", pageWidth - margin - 4, yPosition + 6.5, "right");
 
   yPosition += 18;
 
@@ -302,7 +376,7 @@ export async function generateStoreAuthorizationPDF(
 
   doc.setFont("Heebo", "bold");
   doc.setFontSize(10);
-  doc.text(toRTL("מאושר וחתום ע\"י:"), sigX, yPosition, { align: "center" });
+  drawSegmentedText(doc, "מאושר וחתום ע\"י:", sigX, yPosition, "center");
   yPosition += 5;
 
   // Render signature image if available
@@ -331,12 +405,12 @@ export async function generateStoreAuthorizationPDF(
   doc.setFont("Heebo", "bold");
   doc.setFontSize(11);
   doc.setTextColor(30, 58, 138);
-  doc.text(toRTL("מירב סארמילי"), sigX, yPosition + 2, { align: "center" });
+  drawSegmentedText(doc, "מירב סארמילי", sigX, yPosition + 2, "center");
 
   doc.setFont("Heebo", "normal");
   doc.setFontSize(9);
   doc.setTextColor(71, 85, 105);
-  doc.text(toRTL("מנהלת תפעול, מרכז חוסן חוות רום"), sigX, yPosition + 7, { align: "center" });
+  drawSegmentedText(doc, "מנהלת תפעול, מרכז חוסן חוות רום", sigX, yPosition + 7, "center");
 
   // Signature Line
   doc.setDrawColor(30, 58, 138);
@@ -345,7 +419,7 @@ export async function generateStoreAuthorizationPDF(
 
   doc.setFontSize(8);
   doc.setTextColor(100, 116, 139);
-  doc.text(toRTL("חתימה וחותמת מורשית דיגיטלית"), sigX, yPosition + 16, { align: "center" });
+  drawSegmentedText(doc, "חתימה וחותמת מורשית דיגיטלית", sigX, yPosition + 16, "center");
 
   // 11. Add Footer Logo at bottom if no fullpage background is loaded (.jpg preferred, then .png)
   if (!hasBackground) {
@@ -383,15 +457,20 @@ export async function generateStoreAuthorizationPDF(
   // Footer text line - split date to render as separate LTR block preventing PDF viewer auto-reversal
   doc.setFontSize(8);
   doc.setTextColor(148, 163, 184);
-  const footerLabel = toRTL(`מסמך אישור רשמי מס' #${request.requestNumber}  |  מרכז חוסן חוות רום  |  הונפק בתאריך: `);
+  const footerLabel = `מסמך אישור רשמי מס' #${request.requestNumber}  |  מרכז חוסן חוות רום  |  הונפק בתאריך: `;
   
-  const labelWidth = doc.getTextWidth(footerLabel);
+  const runs = splitMixedText(footerLabel);
+  let labelWidth = 0;
+  runs.forEach(run => {
+    labelWidth += doc.getTextWidth(toRTLRun(run.text, run.isHebrew));
+  });
+  
   const dateWidth = doc.getTextWidth(createdDate);
   const totalFooterWidth = labelWidth + 2 + dateWidth;
   const startX = (pageWidth - totalFooterWidth) / 2;
   
   doc.text(createdDate, startX, pageHeight - 5, { align: "left" });
-  doc.text(footerLabel, startX + dateWidth + 2, pageHeight - 5, { align: "left" });
+  drawSegmentedText(doc, footerLabel, startX + dateWidth + 2, pageHeight - 5, "left");
 
   const pdfBytes = doc.output("arraybuffer");
   return Buffer.from(pdfBytes);
