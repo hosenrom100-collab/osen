@@ -8,7 +8,7 @@ import {
   ChevronDown, Check, Trash2, Edit3, Plus, Minus, CheckCircle2, RotateCcw, Package, AlertTriangle, X, MessageSquare
 } from "lucide-react";
 import { motion, AnimatePresence, LayoutGroup } from "framer-motion";
-import { CAT_SOLID } from "../lib/constants";
+import { CAT_SOLID, CAT_COLOR } from "../lib/constants";
 import { useConfirm } from "@/hooks/useConfirm";
 import { parseQuantity, formatUnitShort, getQuantityStep, steppedQuantity } from "../lib/quantityUtils";
 
@@ -556,10 +556,11 @@ const ShoppingItemRow = memo(function ShoppingItemRow({
 
   return (
     <div className="relative overflow-hidden group">
+      {/* Mobile view (sm and below) */}
       <motion.div
         layout
         onClick={() => setIsExpanded(!isExpanded)}
-        className={`relative z-10 flex flex-col px-3 py-2.5 bg-[var(--surface)] even:bg-[var(--foreground)]/[0.012] transition-colors cursor-pointer select-none ${
+        className={`md:hidden relative z-10 flex flex-col px-3 py-2.5 bg-[var(--surface)] even:bg-[var(--foreground)]/[0.012] transition-colors cursor-pointer select-none ${
           isExpanded ? "bg-[var(--foreground)]/[0.025]! ring-2 ring-indigo-500/20" : "hover:bg-[var(--foreground)]/[0.01]"
         } ${
           isUrgent ? "bg-gradient-to-l from-rose-500/[0.02] to-transparent border-r-4 border-r-rose-500 pr-2.5" : ""
@@ -596,6 +597,13 @@ const ShoppingItemRow = memo(function ShoppingItemRow({
                     </div>
                   );
                 })()}
+
+                {/* Requester name on mobile - efficient real-estate */}
+                {item.requestedByName && (
+                  <span className="text-[9px] text-[var(--muted)] bg-[var(--foreground)]/[0.03] border border-[var(--border)]/40 px-1.5 py-0.5 rounded-md font-bold truncate max-w-[80px]" title={`מבקש/ת: ${item.requestedByName}`}>
+                    {item.requestedByName}
+                  </span>
+                )}
 
                 {isUrgent && (
                   <span className="text-[9px] font-black px-1.5 py-0.5 rounded-md bg-rose-500/10 text-rose-500 border border-rose-500/20 flex items-center gap-0.5">
@@ -742,7 +750,7 @@ const ShoppingItemRow = memo(function ShoppingItemRow({
                         title="העבר לציוד ורכש"
                         aria-label="העבר לציוד ורכש"
                       >
-                        <Package className="w-3.5 h-3.5" aria-hidden="true" /> העבר לציוד ורכש
+                        <Package className="w-3.5 h-3.5" aria-hidden="true" /> העבר לציוד
                       </button>
                     ) : (
                       <button
@@ -751,7 +759,7 @@ const ShoppingItemRow = memo(function ShoppingItemRow({
                         title="העבר לרשימת סופר"
                         aria-label="העבר לרשימת סופר"
                       >
-                        <ShoppingCart className="w-3.5 h-3.5" aria-hidden="true" /> העבר לרשימת סופר
+                        <ShoppingCart className="w-3.5 h-3.5" aria-hidden="true" /> העבר לסופר
                       </button>
                     ))}
                 </div>
@@ -760,6 +768,169 @@ const ShoppingItemRow = memo(function ShoppingItemRow({
           )}
         </AnimatePresence>
       </motion.div>
+
+      {/* Desktop view (md and up) - all info inline */}
+      <div
+        className={`hidden md:flex md:items-center md:justify-between px-4 py-3 bg-[var(--surface)] even:bg-[var(--foreground)]/[0.012] hover:bg-[var(--foreground)]/[0.015] transition-colors gap-4 select-none ${
+          isUrgent ? "bg-gradient-to-l from-rose-500/[0.02] to-transparent border-r-4 border-r-rose-500 pr-3.5" : ""
+        }`}
+      >
+        {/* Right side: Checkbox, Name, Category badge, Urgent badge, Stock badge */}
+        <div className="flex items-center gap-3 min-w-0 flex-1 text-right justify-start">
+          <button
+            onClick={handleCheckboxClick}
+            disabled={!canPurchase}
+            className={`w-7 h-7 rounded-xl flex items-center justify-center border-2 transition-all shrink-0 active:scale-90 cursor-pointer ${
+              isApproved
+                ? canPurchase
+                  ? "border-[var(--muted)]/40 hover:border-indigo-500 hover:bg-indigo-500/10 text-indigo-500 shadow-xs"
+                  : "border-[var(--border)] text-[var(--muted)]/20 cursor-not-allowed"
+                : "border-indigo-500 bg-indigo-500 text-white shadow-sm"
+            }`}
+          >
+            <Check className={`w-4 h-4 transition-opacity ${!isApproved ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`} />
+          </button>
+
+          <div className="flex items-center gap-2.5 min-w-0 flex-wrap justify-start">
+            <span className="text-sm font-bold text-[var(--foreground)] leading-tight whitespace-normal">
+              {item.name}
+            </span>
+
+            {/* Category badge */}
+            <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-md shrink-0 ${CAT_COLOR[item.category] ?? CAT_COLOR["כללי"]}`}>
+              {item.category}
+            </span>
+
+            {/* Requester name (subtle badge) */}
+            {item.requestedByName && (
+              <span className="text-[9px] text-[var(--muted)] bg-[var(--foreground)]/[0.03] border border-[var(--border)]/40 px-1.5 py-0.5 rounded-md font-bold shrink-0" title={`מבקש/ת: ${item.requestedByName}`}>
+                {item.requestedByName}
+              </span>
+            )}
+
+            {isUrgent && (
+              <span className="text-[9px] font-black px-1.5 py-0.5 rounded-md bg-rose-500/10 text-rose-500 border border-rose-500/20 flex items-center gap-0.5 shrink-0">
+                <Flame className="w-2.5 h-2.5 animate-pulse" /> דחוף
+              </span>
+            )}
+
+            {showStockBadge && inStockQty !== undefined && (
+              <span
+                className={`text-[9px] font-black px-1.5 py-0.5 rounded-md border flex items-center gap-1 shrink-0 ${
+                  inStockQty > 0
+                    ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400"
+                    : "bg-rose-500/10 border-rose-500/30 text-rose-500"
+                }`}
+                title={`מלאי קיים במחסן: ${inStockQty}`}
+              >
+                <Boxes className="w-2.5 h-2.5" />
+                <span>{inStockQty > 0 ? `במלאי: ${inStockQty}` : "אזל במלאי"}</span>
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Middle: Notes (expanded text, since we have space) */}
+        {notesToDisplay && notesToDisplay.trim() !== "" && (
+          <div className="flex-1 max-w-[25%] text-xs text-[var(--muted)] font-medium line-clamp-2 px-2 text-right" title={notesToDisplay}>
+            <span className="font-bold text-[var(--foreground)]/65 ml-1">הערה:</span>
+            {notesToDisplay}
+          </div>
+        )}
+
+        {/* Left side: Quantity Editor & Action Buttons */}
+        <div className="flex items-center gap-4 shrink-0">
+          {/* Quantity Editor (inline!) */}
+          <div className="flex items-center gap-1.5 bg-[var(--foreground)]/[0.03] border border-[var(--border)] rounded-xl p-1 shadow-sm shrink-0">
+            <button
+              onClick={() => onUpdateQuantity(item.id, item.quantity || "1", steppedQuantity(qtyValue, qtyStep, -1) - qtyValue)}
+              className="w-8 h-8 rounded-lg flex items-center justify-center bg-[var(--surface)] hover:bg-[var(--foreground)]/10 text-[var(--muted)] hover:text-[var(--foreground)] border border-[var(--border)] transition-all active:scale-75 shadow-sm cursor-pointer"
+              title={`הפחת ל-${steppedQuantity(qtyValue, qtyStep, -1)} ${formatUnitShort(qtyUnit)}`}
+              aria-label="הפחת כמות"
+            >
+              <Minus className="w-3.5 h-3.5 stroke-[3]" aria-hidden="true" />
+            </button>
+            <div className="min-w-[44px] text-center px-1">
+              {isEditingQty ? (
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  autoFocus
+                  value={qtyDraft}
+                  onChange={(e) => setQtyDraft(e.target.value)}
+                  onFocus={(e) => e.currentTarget.select()}
+                  onBlur={commitQtyEdit}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") e.currentTarget.blur();
+                    if (e.key === "Escape") setIsEditingQty(false);
+                  }}
+                  className="w-12 bg-[var(--background)] border border-indigo-500/40 rounded-lg text-sm font-black text-center outline-none text-[var(--foreground)]"
+                />
+              ) : (
+                <button
+                  type="button"
+                  onClick={startEditingQty}
+                  className="cursor-pointer hover:bg-[var(--foreground)]/5 rounded-lg px-0.5 -mx-0.5"
+                  title="הקלד/י כמות מדויקת"
+                >
+                  <span className="text-sm font-black text-[var(--foreground)]">{qtyValue}</span>
+                </button>
+              )}
+              <span className="text-[9px] text-[var(--muted)] block -mt-1 font-bold">{formatUnitShort(qtyUnit)}</span>
+            </div>
+            <button
+              onClick={() => onUpdateQuantity(item.id, item.quantity || "1", steppedQuantity(qtyValue, qtyStep, 1) - qtyValue)}
+              className="w-8 h-8 rounded-lg flex items-center justify-center bg-[var(--surface)] hover:bg-[var(--foreground)]/10 text-[var(--muted)] hover:text-[var(--foreground)] border border-[var(--border)] transition-all active:scale-75 shadow-sm cursor-pointer"
+              title={`הוסף עד ${steppedQuantity(qtyValue, qtyStep, 1)} ${formatUnitShort(qtyUnit)}`}
+              aria-label="הוסף כמות"
+            >
+              <Plus className="w-3.5 h-3.5 stroke-[3]" aria-hidden="true" />
+            </button>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => onEdit(item)}
+              className="px-3 py-2 rounded-xl flex items-center justify-center gap-1 bg-[var(--foreground)]/[0.04] hover:bg-[var(--foreground)]/10 text-[var(--muted)] hover:text-[var(--foreground)] transition-all active:scale-95 border border-[var(--border)] text-xs font-bold cursor-pointer"
+              title="ערוך מוצר"
+              aria-label="ערוך מוצר"
+            >
+              <Edit3 className="w-3.5 h-3.5" aria-hidden="true" /> עריכה
+            </button>
+
+            <button
+              onClick={handleDelete}
+              className="px-3 py-2 rounded-xl flex items-center justify-center gap-1 bg-rose-500/5 hover:bg-rose-500/10 text-rose-500 border border-rose-500/10 transition-all active:scale-95 text-xs font-bold cursor-pointer"
+              title="מחק מהרשימה"
+              aria-label="מחק מהרשימה"
+            >
+              <Trash2 className="w-3.5 h-3.5" aria-hidden="true" /> מחיקה
+            </button>
+
+            {canPurchase &&
+              (item.listType !== "large" ? (
+                <button
+                  onClick={() => onMoveToEquipment(item.id)}
+                  className="px-3 py-2 rounded-xl flex items-center justify-center gap-1 bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/20 transition-all active:scale-95 text-xs font-bold cursor-pointer"
+                  title="העבר לציוד ורכש"
+                  aria-label="העבר לציוד ורכש"
+                >
+                  <Package className="w-3.5 h-3.5" aria-hidden="true" /> העבר
+                </button>
+              ) : (
+                <button
+                  onClick={() => onMoveToSupermarket(item.id)}
+                  className="px-3 py-2 rounded-xl flex items-center justify-center gap-1 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 transition-all active:scale-95 text-xs font-bold cursor-pointer"
+                  title="העבר לרשימת סופר"
+                  aria-label="העבר לרשימת סופר"
+                >
+                  <ShoppingCart className="w-3.5 h-3.5" aria-hidden="true" /> העבר
+                </button>
+              ))}
+          </div>
+        </div>
+      </div>
       <ConfirmDialog />
     </div>
   );

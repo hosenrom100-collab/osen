@@ -310,7 +310,15 @@ export function useShoppingActions(
     }
   };
 
-  const updateRecurringQuantity = async (productId: string, currentQtyStr: string, increment: number) => {
+  const updateRecurringQuantity = async (productId: string, currentQtyStr: string, increment: number, directValue?: string) => {
+    if (directValue !== undefined) {
+      try {
+        await updateDoc(doc(db, "product_pool", productId), { recurringQuantity: directValue });
+      } catch (e) {
+        console.error(e);
+      }
+      return;
+    }
     const currentVal = parseFloat(currentQtyStr) || 1;
     const nextVal = Math.max(1, currentVal + increment);
     try {

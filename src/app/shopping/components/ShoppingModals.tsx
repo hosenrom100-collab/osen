@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, memo } from "react";
 import { ShoppingRequest, Product, InventoryItem, CutoffConfig } from "../types";
 import { findSimilarProduct } from "../lib/stringUtils";
 import { MEASUREMENT_UNITS } from "../lib/constants";
@@ -57,7 +57,7 @@ interface ShoppingModalsProps {
   setIsEditingRecurring: (val: boolean) => void;
   pool: Product[];
   onToggleRecurring: (productId: string, name: string, category: string, shouldBeRecurring: boolean) => void;
-  onUpdateRecurringQuantity: (productId: string, currentQtyStr: string, increment: number) => void;
+  onUpdateRecurringQuantity: (productId: string, currentQtyStr: string, increment: number, directValue?: string) => void;
 
   showArchivePrompt: boolean;
   setShowArchivePrompt: (val: boolean) => void;
@@ -95,6 +95,95 @@ interface ShoppingModalsProps {
   cutoffConfig?: CutoffConfig;
   onSaveCutoffConfig?: (config: CutoffConfig) => Promise<void>;
 }
+
+const RecurringProductRow = memo(function RecurringProductRow({
+  product,
+  onToggleRecurring,
+  onUpdateRecurringQuantity,
+}: {
+  product: Product;
+  onToggleRecurring: (productId: string, name: string, category: string, shouldBeRecurring: boolean) => void;
+  onUpdateRecurringQuantity: (productId: string, currentQtyStr: string, increment: number, directValue?: string) => void;
+}) {
+  const [qtyDraft, setQtyDraft] = useState(product.recurringQuantity || "1");
+
+  useEffect(() => {
+    setQtyDraft(product.recurringQuantity || "1");
+  }, [product.recurringQuantity]);
+
+  const commitQtyEdit = () => {
+    const cleanVal = qtyDraft.trim().replace(",", ".");
+    if (cleanVal !== product.recurringQuantity) {
+      onUpdateRecurringQuantity(product.id, "0", 0, cleanVal || "1");
+    }
+  };
+
+  return (
+    <div className="py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-4 border-b border-[var(--border)]/50 last:border-0">
+      <div className="min-w-0 flex-1 text-right">
+        <div className="flex items-center gap-2 flex-wrap justify-start">
+          <span className="text-sm font-bold text-[var(--foreground)]">{product.name}</span>
+          <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-md shrink-0 ${CAT_COLOR[product.category] ?? CAT_COLOR["כללי"]}`}>
+            {product.category}
+          </span>
+          {product.defaultNotes && product.defaultNotes.trim() !== "" && (
+            <span
+              className="text-[9px] font-bold px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/30 flex items-center gap-1 max-w-full sm:max-w-[200px] truncate shadow-xs"
+              title={`הערה קבועה: ${product.defaultNotes}`}
+            >
+              <MessageSquare className="w-2.5 h-2.5 text-amber-500 shrink-0" />
+              <span className="truncate">{product.defaultNotes}</span>
+            </span>
+          )}
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0">
+        <div className="flex items-center gap-1 bg-[var(--foreground)]/5 border border-[var(--border)] rounded-xl p-0.5 shadow-sm">
+          <button
+            onClick={() => onUpdateRecurringQuantity(product.id, product.recurringQuantity || "1", -1)}
+            className="w-6 h-6 rounded-lg flex items-center justify-center hover:bg-[var(--foreground)]/10 text-[var(--muted)] hover:text-[var(--foreground)] transition-all"
+            title="הפחת כמות"
+          >
+            <Minus className="w-3 h-3 stroke-[2.5]" />
+          </button>
+          <div className="flex items-center gap-1 px-1">
+            <input
+              type="text"
+              inputMode="decimal"
+              value={qtyDraft}
+              onChange={(e) => setQtyDraft(e.target.value)}
+              onBlur={commitQtyEdit}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") e.currentTarget.blur();
+              }}
+              className="w-8 text-center bg-transparent border-none text-xs font-black text-[var(--foreground)] focus:outline-none p-0 outline-none"
+              title="הקלד כמות"
+            />
+            <span className="text-[9px] font-bold text-[var(--muted)]">
+              {product.defaultUnit || "יחידות"}
+            </span>
+          </div>
+          <button
+            onClick={() => onUpdateRecurringQuantity(product.id, product.recurringQuantity || "1", 1)}
+            className="w-6 h-6 rounded-lg flex items-center justify-center hover:bg-[var(--foreground)]/10 text-[var(--muted)] hover:text-[var(--foreground)] transition-all"
+            title="הוסף כמות"
+          >
+            <Plus className="w-3 h-3 stroke-[2.5]" />
+          </button>
+        </div>
+
+        <button
+          onClick={() => onToggleRecurring(product.id, product.name, product.category, false)}
+          className="w-8 h-8 rounded-xl bg-rose-500/5 hover:bg-rose-500/10 text-rose-500 flex items-center justify-center border border-rose-500/10 transition-all cursor-pointer"
+          title="הסר מהרשימה הקבועה"
+        >
+          <Trash2 className="w-4 h-4" />
+        </button>
+      </div>
+    </div>
+  );
+});
 
 export function ShoppingModals({
   editItem,
@@ -785,58 +874,12 @@ export function ShoppingModals({
                   pool
                     .filter((p) => p.isRecurring)
                     .map((p) => (
-                      <div key={p.id} className="py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-4 border-b border-[var(--border)]/50 last:border-0">
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="text-sm font-bold text-[var(--foreground)]">{p.name}</span>
-                            <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-md shrink-0 ${CAT_COLOR[p.category] ?? CAT_COLOR["כללי"]}`}>
-                              {p.category}
-                            </span>
-                            {p.defaultNotes && p.defaultNotes.trim() !== "" && (
-                              <span
-                                className="text-[9px] font-bold px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/30 flex items-center gap-1 max-w-full sm:max-w-[200px] truncate shadow-xs"
-                                title={`הערה קבועה: ${p.defaultNotes}`}
-                              >
-                                <MessageSquare className="w-2.5 h-2.5 text-amber-500 shrink-0" />
-                                <span className="truncate">{p.defaultNotes}</span>
-                              </span>
-                            )}
-                          </div>
-                        </div>
-
-                        <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0">
-                          <div className="flex items-center gap-1 bg-[var(--foreground)]/5 border border-[var(--border)] rounded-xl p-0.5 shadow-sm">
-                            <button
-                              onClick={() => onUpdateRecurringQuantity(p.id, p.recurringQuantity || "1", -1)}
-                              className="w-6 h-6 rounded-lg flex items-center justify-center hover:bg-[var(--foreground)]/10 text-[var(--muted)] hover:text-[var(--foreground)] transition-all"
-                            >
-                              <Minus className="w-3 h-3 stroke-[2.5]" />
-                            </button>
-                            <div className="flex items-center gap-1.5 px-1">
-                              <span className="text-xs font-black text-[var(--foreground)]">
-                                {p.recurringQuantity || "1"}
-                              </span>
-                              <span className="text-[9px] font-bold text-[var(--muted)]">
-                                {p.defaultUnit || "יחידות"}
-                              </span>
-                            </div>
-                            <button
-                              onClick={() => onUpdateRecurringQuantity(p.id, p.recurringQuantity || "1", 1)}
-                              className="w-6 h-6 rounded-lg flex items-center justify-center hover:bg-[var(--foreground)]/10 text-[var(--muted)] hover:text-[var(--foreground)] transition-all"
-                            >
-                              <Plus className="w-3 h-3 stroke-[2.5]" />
-                            </button>
-                          </div>
-
-                          <button
-                            onClick={() => onToggleRecurring(p.id, p.name, p.category, false)}
-                            className="w-8 h-8 rounded-xl bg-rose-500/5 hover:bg-rose-500/10 text-rose-500 flex items-center justify-center border border-rose-500/10 transition-all cursor-pointer"
-                            title="הסר מהרשימה הקבועה"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </div>
+                      <RecurringProductRow
+                        key={p.id}
+                        product={p}
+                        onToggleRecurring={onToggleRecurring}
+                        onUpdateRecurringQuantity={onUpdateRecurringQuantity}
+                      />
                     ))
                 )}
               </div>
