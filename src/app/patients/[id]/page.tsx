@@ -29,6 +29,8 @@ import { ParticipantProfile, EMPTY_PROFILE } from "@/lib/participantProfile";
 import { composeFunctionalSections, composePeriodicSections, composeRehabPlanSections, PeriodicReportType } from "@/lib/reportContent";
 import { ParticipantSurveyStep } from "@/components/patients/ParticipantSurveyStep";
 
+const REPORTS_ENABLED = false;
+
 const monthNamesHebrew = [
   "ינואר", "פברואר", "מרץ", "אפריל", "מאי", "יוני",
   "יולי", "אוגוסט", "ספטמבר", "אוקטובר", "נובמבר", "דצמבר"
@@ -145,7 +147,8 @@ export default function PatientDetailPage() {
   const [patient, setPatient] = useState<Patient | null>(null);
   const [attendance, setAttendance] = useState<Attendance[]>([]);
   const [loading, setLoading] = useState(true);
-  const initialTab = (searchParams.get("tab") as "overview" | "attendance" | "certificates" | "reports") || "overview";
+  const requestedTab = (searchParams.get("tab") as "overview" | "attendance" | "certificates" | "reports") || "overview";
+  const initialTab = (requestedTab === "reports" && !REPORTS_ENABLED) ? "overview" : requestedTab;
   const [activeTab, setActiveTab] = useState<"overview" | "attendance" | "certificates" | "reports">(initialTab);
   const [participantUid, setParticipantUid] = useState<string | null>(null);
   const [groups, setGroups] = useState<Group[]>([]);
@@ -1607,6 +1610,7 @@ export default function PatientDetailPage() {
                  { id: "certificates", label: "אישורים", icon: Shield },
                  { id: "reports", label: "דוחות", icon: FileText },
                ].filter(tab => {
+                 if (!REPORTS_ENABLED && tab.id === "reports") return false;
                  if (role === "logistics" && (tab.id === "overview" || tab.id === "reports")) return false;
                  return true;
                }).map((tab) => (
@@ -2303,7 +2307,7 @@ export default function PatientDetailPage() {
               </motion.div>
             )}
  
-            {activeTab === "reports" && role !== "logistics" && (
+            {REPORTS_ENABLED && activeTab === "reports" && role !== "logistics" && (
               <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} key="reports" className="space-y-6">
                 
                 {/* Visual Header */}
@@ -3459,7 +3463,7 @@ export default function PatientDetailPage() {
 
         {/* Periodic Report Modal */}
         <AnimatePresence>
-          {showPeriodicModal && (
+          {REPORTS_ENABLED && showPeriodicModal && (
             <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
               <motion.div
                 initial={{ opacity: 0 }}
@@ -3915,7 +3919,7 @@ export default function PatientDetailPage() {
 
         {/* Functional Report Modal */}
         <AnimatePresence>
-          {showFunctionalModal && (
+          {REPORTS_ENABLED && showFunctionalModal && (
             <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
               <motion.div
                 initial={{ opacity: 0 }}
@@ -4141,7 +4145,7 @@ export default function PatientDetailPage() {
 
         {/* Rehab Plan Modal */}
         <AnimatePresence>
-          {showRehabPlanModal && (
+          {REPORTS_ENABLED && showRehabPlanModal && (
             <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
               <motion.div
                 initial={{ opacity: 0 }}

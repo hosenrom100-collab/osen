@@ -15,6 +15,8 @@ import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 
+const REPORTS_ENABLED = false;
+
 interface Patient {
   id: string;
   firstName: string;
@@ -325,7 +327,7 @@ export default function RemindersPage() {
 
           {/* ── Disability Committees Section ── */}
           <AnimatePresence>
-            {disabilityReminders.length > 0 && (
+            {REPORTS_ENABLED && disabilityReminders.length > 0 && (
               <motion.section initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
                 <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-violet-400 flex items-center gap-2 mb-3">
                   <div className="w-2 h-2 rounded-full bg-violet-400 animate-pulse" />
