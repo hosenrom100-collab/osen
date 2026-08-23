@@ -27,49 +27,22 @@ interface GroupStats {
 }
 
 const PREDEFINED_MEATS = [
-  "מוקפץ עוף",
-  "סצ'ואן בקר",
-  "צלי בקר",
-  "מעורב ירושלמי",
-  "קורדון בלו",
-  "כרעיים עוף",
-  "אסדו",
+  "עוף",
   "שניצל",
-  "פרגית על האש",
-  "פרגית ממולא"
+  "פרגיות",
+  "מוקפץ עוף",
+  "טורטיה עוף",
+  "דגים ברוטב"
 ];
 
 const PREDEFINED_SIDES = [
-  "אורז לבן",
-  "אורז עם ירקות",
-  "תפו\"א אפויים",
-  "תפו\"א דואט עם בטטה",
-  "שעועית מוקפצת",
+  "אורז",
+  "תפו\"א",
   "אפונה",
-  "לקט ירקות/זיתים",
-  "קוסקוס + מרק"
+  "שעועית"
 ];
 
-const PREDEFINED_SALADS = [
-  "מטבוחה",
-  "סלק",
-  "חציל מתובל",
-  "חציל בטחינה",
-  "חציל במיונז",
-  "גזר מזרחי",
-  "חמוצי הבית",
-  "קפריסאי",
-  "כרוב עם חמוציות",
-  "עגבניות עם שום ופלפל חריף",
-  "פלפל חריף מטוגן",
-  "תירס עם שמיר במיונז",
-  "תירס עם פטריות",
-  "כרוב סגול במיונז",
-  "קולסלו",
-  "חומוס",
-  "טחינה",
-  "סלט ירקות"
-];
+const PREDEFINED_SALADS: string[] = [];
 
 interface CateringOrder {
   id: string;
@@ -134,26 +107,20 @@ export default function CateringOrderPage() {
   const [saving, setSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [showArchive, setShowArchive] = useState(false);
-  const [activeMenuStep, setActiveMenuStep] = useState<"meats" | "sides" | "salads" | null>("meats");
+  const [activeMenuStep, setActiveMenuStep] = useState<"meats" | "sides" | null>("meats");
 
   // Auto-advance step logic (only when not in edit mode)
   useEffect(() => {
     if (selectedMeats.length === 2 && activeMenuStep === "meats") {
       setActiveMenuStep("sides");
     }
-  }, [selectedMeats.length]);
+  }, [selectedMeats.length, activeMenuStep]);
 
   useEffect(() => {
     if (selectedSides.length === 2 && activeMenuStep === "sides") {
-      setActiveMenuStep("salads");
-    }
-  }, [selectedSides.length]);
-
-  useEffect(() => {
-    if (selectedSalads.length === 6 && activeMenuStep === "salads") {
       setActiveMenuStep(null);
     }
-  }, [selectedSalads.length]);
+  }, [selectedSides.length, activeMenuStep]);
 
   const [contactName, setContactName] = useState("מירב סארמילי");
   const [contactRole, setContactRole] = useState("מנהלת תפעול מרכז חוסן חוות רום");
@@ -458,7 +425,7 @@ export default function CateringOrderPage() {
   const sidesCount = selectedSides.length;
   const saladsCount = selectedSalads.length;
 
-  const isSelectionValid = meatsCount === 2 && sidesCount === 2 && saladsCount === 6;
+  const isSelectionValid = meatsCount === 2 && sidesCount === 2;
 
   // Format YYYY-MM-DD to DD/MM/YYYY
   const formatDeliveryDate = (dateStr: string) => {
@@ -494,7 +461,6 @@ export default function CateringOrderPage() {
       
     const meatsList = selectedMeats.map((m, idx) => `${idx + 1}. ${m}`).join("\n");
     const sidesList = selectedSides.map((s, idx) => `${idx + 1}. ${s}`).join("\n");
-    const saladsList = selectedSalads.map((s, idx) => `${idx + 1}. ${s}`).join("\n");
 
     const dayOfWeek = getHebrewDayOfWeek(deliveryDate);
     const dateDisplay = dayOfWeek ? `${formatDeliveryDate(deliveryDate)} (${dayOfWeek})` : formatDeliveryDate(deliveryDate);
@@ -521,7 +487,7 @@ ${meatsList || "_לא נבחרו מנות_"}
 ${sidesList || "_לא נבחרו תוספות_"}
 
 *סלטים:*
-${saladsList || "_לא נבחרו סלטים_"}${breadSection}
+יישלחו ללא בחירה (מה שיש במטבח)${breadSection}
 
 בברכה,
 *${contactName}* | ${contactPhone}
@@ -625,18 +591,17 @@ ${contactRole}`;
               portions && Object.values(portions).some(v => v > 0), // Step 2 portions configured
               meatsCount === 2, // Step 3 meats
               sidesCount === 2, // Step 4 sides
-              saladsCount === 6, // Step 5 salads
             ].filter(Boolean).length;
             return (
               <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
                 <div className="space-y-0.5">
                   <span className="text-[10px] font-black uppercase tracking-wider text-[var(--muted)]">התקדמות ההזמנה</span>
-                  <h3 className="text-xs font-black">הושלמו {completedSteps} מתוך 5 שלבים</h3>
+                  <h3 className="text-xs font-black">הושלמו {completedSteps} מתוך 4 שלבים</h3>
                 </div>
                 <div className="flex-1 max-w-md w-full bg-[var(--background)] h-2 rounded-full overflow-hidden border border-[var(--border)] relative">
                   <div 
                     className="bg-emerald-500 h-full transition-all duration-500" 
-                    style={{ width: `${(completedSteps / 5) * 100}%` }}
+                    style={{ width: `${(completedSteps / 4) * 100}%` }}
                   />
                 </div>
               </div>
@@ -1031,111 +996,13 @@ ${contactRole}`;
                   )}
                 </div>
 
-                {/* 3. SALADS CATEGORY */}
-                <div className="p-4 bg-[var(--surface)] border border-[var(--border)] rounded-2xl space-y-4">
-                  <button
-                    type="button"
-                    onClick={() => setActiveMenuStep(activeMenuStep === "salads" ? null : "salads")}
-                    className="w-full flex justify-between items-center text-right focus:outline-none"
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black text-white bg-amber-500 shrink-0">5</span>
-                      <h3 className="text-xs font-black uppercase tracking-wider">סלטים ולחם (בחר 6)</h3>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {saladsCount === 6 ? (
-                        <span className="bg-emerald-500/10 text-emerald-500 text-[10px] px-2.5 py-0.5 rounded-full font-black">✓ הושלם</span>
-                      ) : (
-                        <span className="bg-amber-500/10 text-amber-500 text-[10px] px-2.5 py-0.5 rounded-full font-bold">נבחרו: {saladsCount}/6</span>
-                      )}
-                      <span className="text-[10px] text-[var(--muted)] font-bold">
-                        {activeMenuStep === "salads" ? "▲" : "▼"}
-                      </span>
-                    </div>
-                  </button>
-
-                  {activeMenuStep !== "salads" && selectedSalads.length > 0 && (
-                    <div className="text-[11px] text-[var(--muted)] font-semibold bg-[var(--background)] px-3 py-2 rounded-xl border border-[var(--border)]/50 flex flex-wrap gap-2">
-                      <span className="text-[var(--foreground)] font-black">הנבחרים:</span>
-                      {selectedSalads.join(", ")}
-                    </div>
-                  )}
-
-                  {activeMenuStep === "salads" && (
-                    <div className="space-y-4 pt-2 border-t border-[var(--border)]/30">
-                      {/* Predefined items */}
-                      <div className="grid grid-cols-2 gap-2">
-                        {PREDEFINED_SALADS.map(item => {
-                          const isSelected = selectedSalads.includes(item);
-                          return (
-                            <button
-                              key={item}
-                              type="button"
-                              onClick={() => handleToggleSalad(item)}
-                              className={`flex items-center justify-between p-2 rounded-xl border text-right text-xs transition-all ${
-                                isSelected 
-                                  ? "bg-amber-500/10 border-amber-500/30 text-amber-500 font-bold" 
-                                  : "bg-[var(--background)] border-[var(--border)] hover:bg-[var(--foreground)]/5"
-                              }`}
-                            >
-                              <span className="truncate">{item}</span>
-                              {isSelected && <Check className="w-3.5 h-3.5 shrink-0 text-amber-500 mr-2" />}
-                            </button>
-                          );
-                        })}
-                        
-                        {/* Custom added items */}
-                        {customSalads.map(item => {
-                          const isSelected = selectedSalads.includes(item);
-                          return (
-                            <div
-                              key={item}
-                              className={`flex items-center justify-between p-1 pl-2 rounded-xl border text-xs transition-all ${
-                                isSelected 
-                                  ? "bg-amber-500/10 border-amber-500/30 text-amber-500 font-bold" 
-                                  : "bg-[var(--background)] border-[var(--border)]"
-                              }`}
-                            >
-                              <button
-                                type="button"
-                                onClick={() => handleToggleSalad(item)}
-                                className="flex-1 text-right truncate flex items-center justify-between py-1"
-                              >
-                                <span className="truncate">{item}</span>
-                                {isSelected && <Check className="w-3.5 h-3.5 shrink-0 text-amber-500 mr-2" />}
-                              </button>
-                              <button 
-                                type="button" 
-                                onClick={() => removeCustomSalad(item)}
-                                className="p-1 text-[var(--muted)] hover:text-red-500 transition-colors mr-1 shrink-0"
-                                title="מחק סלט שהוסף ידנית"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                          );
-                        })}
-                      </div>
-
-                      {/* Manual add input */}
-                      <form onSubmit={addCustomSalad} className="flex gap-2 pt-2 border-t border-[var(--border)]/50">
-                        <input 
-                          type="text" 
-                          placeholder="הוסף סלט מותאם אישית..."
-                          value={newSalad}
-                          onChange={(e) => setNewSalad(e.target.value)}
-                          className="w-full bg-[var(--background)] border border-[var(--border)] text-xs rounded-xl px-3 py-2 focus:outline-none focus:border-[var(--muted)]"
-                        />
-                        <button 
-                          type="submit"
-                          className="px-3 bg-amber-500 hover:bg-amber-600 text-white rounded-xl flex items-center justify-center transition-colors shrink-0"
-                          title="הוסף סלט"
-                        >
-                          <Plus className="w-4 h-4" />
-                        </button>
-                      </form>
-                    </div>
-                  )}
+                {/* Salads Notice */}
+                <div className="p-4 bg-[var(--surface)] border border-[var(--border)] rounded-2xl flex items-center gap-3 shadow-sm">
+                  <span className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black text-white bg-emerald-500 shrink-0">✓</span>
+                  <div>
+                    <h3 className="text-xs font-black uppercase tracking-wider">סלטים ולחם</h3>
+                    <p className="text-[11px] text-[var(--muted)] mt-0.5">סלטים יישלחו ללא בחירה (מה שיש במטבח במנה היומית).</p>
+                  </div>
                 </div>
 
                 {/* Catering Orders Archive Card */}
@@ -1274,7 +1141,6 @@ ${contactRole}`;
                       <ul className="list-disc list-inside mr-2 space-y-0.5 font-medium opacity-90">
                         {meatsCount !== 2 && <li>מנות עיקריות: נבחרו {meatsCount} (נדרש בדיוק 2)</li>}
                         {sidesCount !== 2 && <li>תוספות: נבחרו {sidesCount} (נדרש בדיוק 2)</li>}
-                        {saladsCount !== 6 && <li>סלטים: נבחרו {saladsCount} (נדרש בדיוק 6)</li>}
                       </ul>
                     </div>
                   ) : (
@@ -1523,13 +1389,8 @@ ${contactRole}`;
                     <h4 style={{ fontSize: "12px", fontWeight: "900", color: "#b45309", marginTop: 0, marginBottom: "4px" }}>
                       🥗 סלטים
                     </h4>
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
-                      {selectedSalads.map(s => (
-                        <div key={s} style={{ fontSize: "12px", color: "#334155", display: "flex", alignItems: "center", gap: "6px", fontWeight: "500" }}>
-                          <span style={{ color: "#b45309", fontWeight: "bold" }}>✓</span> {s}
-                        </div>
-                      ))}
-                      {selectedSalads.length === 0 && <div style={{ fontSize: "11px", color: "#94a3b8", fontStyle: "italic", gridColumn: "span 2" }}>טרם נבחרו סלטים</div>}
+                    <div style={{ fontSize: "12px", color: "#334155", fontWeight: "bold" }}>
+                      יישלחו ללא בחירה (מה שיש במטבח)
                     </div>
                   </div>
 
