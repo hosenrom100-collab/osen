@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useMemo, memo } from "react";
+import { useState, memo } from "react";
 import { User } from "firebase/auth";
-import { ShoppingRequest, InventoryItem, Product } from "../types";
+import { ShoppingRequest, Product } from "../types";
 import {
-  ShoppingCart, Flame, Boxes, ShoppingBag,
-  ChevronDown, Check, Trash2, Edit3, Plus, Minus, CheckCircle2, RotateCcw, Package, AlertTriangle, X, MessageSquare
+  ShoppingCart, Flame, ShoppingBag,
+  ChevronDown, Check, Trash2, Edit3, Plus, Minus, CheckCircle2, RotateCcw, Package, MessageSquare
 } from "lucide-react";
 import { motion, AnimatePresence, LayoutGroup } from "framer-motion";
 import { CAT_SOLID, CAT_COLOR } from "../lib/constants";
@@ -20,49 +20,39 @@ type OnMoveList = (id: string) => void;
 
 interface ShoppingListViewProps {
   requests: ShoppingRequest[];
-  inventoryMap: Record<string, InventoryItem>;
   pool?: Product[];
   categories: string[];
   listType: "supermarket" | "large";
   activeCategory: string | null;
   setActiveCategory: (cat: string | null) => void;
-  canPurchase: boolean;
+  canPurchase?: boolean;
   isAdmin?: boolean;
   isLogistics?: boolean;
-  currentUser: User | null;
+  currentUser?: User | null;
   onChangeStatus: OnChangeStatus;
   onEditItem: OnEditItem;
   onUpdateQuantity: OnUpdateQuantity;
   onMoveToEquipment: OnMoveList;
   onMoveToSupermarket: OnMoveList;
   onShowArchivePrompt: () => void;
-  onSwitchToInventoryView: () => void;
 }
 
 export function ShoppingListView({
   requests,
-  inventoryMap,
   pool = [],
   categories,
   listType,
   activeCategory,
   setActiveCategory,
-  canPurchase,
-  isAdmin = false,
-  isLogistics = false,
-  currentUser,
   onChangeStatus,
   onEditItem,
   onUpdateQuantity,
   onMoveToEquipment,
   onMoveToSupermarket,
   onShowArchivePrompt,
-  onSwitchToInventoryView,
 }: ShoppingListViewProps) {
-  const [purchasedCollapsed, setPurchasedCollapsed] = useState(true);
+  const [purchasedCollapsed, setPurchasedCollapsed] = useState(false);
   const [deletedCollapsed, setDeletedCollapsed] = useState(true);
-  const [showLogisticsNotice, setShowLogisticsNotice] = useState(true);
-  const { confirm, ConfirmDialog } = useConfirm();
 
   const activeRequests = requests.filter(
     (r) =>
@@ -76,862 +66,429 @@ export function ShoppingListView({
     (r) => r.status === "deleted" && (listType === "large" ? r.listType === "large" : r.listType !== "large")
   );
 
-  const showAdminLogisticsStockInfo = isAdmin || isLogistics;
-
-  // Precomputed name -> item lookups (avoid re-scanning inventoryMap/pool for every row on every render)
-  const inventoryByName = useMemo(() => {
-    const map = new Map<string, InventoryItem>();
-    Object.values(inventoryMap).forEach((inv) => {
-      const norm = (inv?.name || "").trim().toLowerCase();
-      if (norm) map.set(norm, inv);
-    });
-    return map;
-  }, [inventoryMap]);
-
-  const poolByName = useMemo(() => {
-    const map = new Map<string, Product>();
-    pool.forEach((p) => {
-      const norm = (p.name || "").trim().toLowerCase();
-      if (norm) map.set(norm, p);
-    });
-    return map;
-  }, [pool]);
-
-  // Check which requested items are ALREADY in inventory with stock > 0 (tracked products only)
-  const itemsAlreadyInInventory = activeRequests.filter((r) => {
-    if (!r.name) return false;
-    const norm = r.name.trim().toLowerCase();
-    const invItem = inventoryByName.get(norm);
-    const product = poolByName.get(norm);
-    return product?.trackInventory === true && invItem && invItem.currentStock > 0;
-  });
-  const canDelete = isAdmin || isLogistics;
+  const urgentCount = activeRequests.filter((r) => r.priority === "urgent").length;
 
   return (
-    <div dir="rtl">
-      {/* ── Summary Bar for Logistics & Managers ── */}
-      {canPurchase && (
-        <div className="pt-3 pb-2 px-4 md:px-0">
-          <div className={`grid ${showAdminLogisticsStockInfo ? "grid-cols-3" : "grid-cols-2"} gap-2 p-2 bg-[var(--surface)] border border-[var(--border)] rounded-2xl shadow-xs`}>
-            <button
-              onClick={() => setActiveCategory(null)}
-              className="flex flex-col items-center justify-center py-2 px-1 rounded-xl bg-indigo-500/5 hover:bg-indigo-500/10 border border-indigo-500/10 transition-all cursor-pointer border-none"
-            >
-              <span className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 flex items-center gap-1">
-                <ShoppingCart className="w-3 h-3" /> פתוחים
-              </span>
-              <span className="text-base font-black text-[var(--foreground)]">{activeRequests.length}</span>
-            </button>
-
-            <button
-              onClick={() => {
-                const urgentReqs = activeRequests.filter((r) => r.priority === "urgent");
-                if (urgentReqs.length > 0) {
-                  setActiveCategory(urgentReqs[0].category);
-                }
-              }}
-              className="flex flex-col items-center justify-center py-2 px-1 rounded-xl bg-rose-500/5 hover:bg-rose-500/10 border border-rose-500/10 transition-all cursor-pointer border-none"
-            >
-              <span className="text-[10px] font-black text-rose-500 flex items-center gap-1">
-                <Flame className="w-3 h-3 animate-pulse" /> דחופים
-              </span>
-              <span className="text-base font-black text-[var(--foreground)]">
-                {activeRequests.filter((r) => r.priority === "urgent").length}
-              </span>
-            </button>
-
-            {showAdminLogisticsStockInfo && (
-              <button
-                onClick={onSwitchToInventoryView}
-                className="flex flex-col items-center justify-center py-2 px-1 rounded-xl bg-amber-500/5 hover:bg-amber-500/10 border border-amber-500/10 transition-all cursor-pointer border-none"
-              >
-                <span className="text-[10px] font-black text-amber-600 dark:text-amber-400 flex items-center gap-1">
-                  <Boxes className="w-3 h-3" /> מלאי נמוך
-                </span>
-                <span className="text-base font-black text-[var(--foreground)]">
-                  {
-                    Object.values(inventoryMap).filter((inv) => {
-                      const product = pool.find((p) => p.id === inv.productId);
-                      return product?.trackInventory === true && inv.currentStock <= (inv.minStock ?? 1);
-                    }).length
-                  }
-                </span>
-              </button>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* ── Logistics Duplicate Stock Alert Banner ── */}
-      {canPurchase && itemsAlreadyInInventory.length > 0 && showLogisticsNotice && (
-        <div className="mx-4 md:mx-0 my-3 p-3.5 bg-amber-500/10 border border-amber-500/30 rounded-2xl flex items-center justify-between text-xs text-amber-800 dark:text-amber-200">
-          <div className="flex items-center gap-2.5">
-            <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0" />
-            <div>
-              <span className="font-black block">
-                התראת ניהול מלאי: {itemsAlreadyInInventory.length} מוצרים ברשימה קיימים במלאי המחסן!
-              </span>
-              <span className="text-[11px] opacity-90 font-medium">
-                {itemsAlreadyInInventory.map((i) => i.name).slice(0, 3).join(", ")}
-                {itemsAlreadyInInventory.length > 3 ? "..." : ""}
-              </span>
-            </div>
-          </div>
+    <div dir="rtl" className="w-full max-w-4xl mx-auto pb-24 px-3 sm:px-4">
+      {/* ── Listonic Top Stats & Controls ── */}
+      <div className="pt-2 pb-4">
+        <div className="grid grid-cols-3 gap-2.5 p-2 bg-[var(--surface)] border border-[var(--border)] rounded-2xl shadow-xs">
           <button
-            onClick={() => setShowLogisticsNotice(false)}
-            className="p-1 rounded-lg text-amber-600 hover:bg-amber-500/20"
+            onClick={() => setActiveCategory(null)}
+            className={`flex flex-col items-center justify-center py-3 px-2 rounded-xl transition-all cursor-pointer border-none ${
+              activeCategory === null ? "bg-indigo-500/15 ring-2 ring-indigo-500/30" : "bg-indigo-500/5 hover:bg-indigo-500/10"
+            }`}
           >
-            <X className="w-4 h-4" />
+            <span className="text-xs font-black text-indigo-600 dark:text-indigo-400 flex items-center gap-1.5 mb-0.5">
+              <ShoppingCart className="w-4 h-4" /> פתוחים
+            </span>
+            <span className="text-xl font-black text-[var(--foreground)]">{activeRequests.length}</span>
+          </button>
+
+          <button
+            onClick={() => {
+              const urgentReqs = activeRequests.filter((r) => r.priority === "urgent");
+              if (urgentReqs.length > 0) {
+                setActiveCategory(urgentReqs[0].category);
+              }
+            }}
+            className={`flex flex-col items-center justify-center py-3 px-2 rounded-xl transition-all cursor-pointer border-none ${
+              urgentCount > 0 ? "bg-rose-500/10 hover:bg-rose-500/15" : "bg-slate-500/5"
+            }`}
+          >
+            <span className="text-xs font-black text-rose-500 flex items-center gap-1.5 mb-0.5">
+              <Flame className="w-4 h-4 animate-pulse text-rose-500" /> דחופים
+            </span>
+            <span className="text-xl font-black text-[var(--foreground)]">{urgentCount}</span>
+          </button>
+
+          <button
+            onClick={() => setPurchasedCollapsed(!purchasedCollapsed)}
+            className="flex flex-col items-center justify-center py-3 px-2 rounded-xl bg-emerald-500/5 hover:bg-emerald-500/10 transition-all cursor-pointer border-none"
+          >
+            <span className="text-xs font-black text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5 mb-0.5">
+              <CheckCircle2 className="w-4 h-4" /> נרכשו
+            </span>
+            <span className="text-xl font-black text-[var(--foreground)]">{sessionPurchased.length}</span>
           </button>
         </div>
-      )}
+      </div>
 
-      {/* ── Category Sections List ── */}
-      <LayoutGroup>
-        {categories.map((cat) => {
-          if (activeCategory !== null && activeCategory !== cat) return null;
-          const catItems = activeRequests.filter((r) => r.category === cat);
-          if (catItems.length === 0) return null;
+      {/* ── Active Items Grouped by Categories (Listonic Design) ── */}
+      {activeRequests.length === 0 ? (
+        <div className="py-16 text-center bg-[var(--surface)] border border-[var(--border)] rounded-3xl p-8 my-4 shadow-sm">
+          <div className="w-16 h-16 rounded-full bg-indigo-500/10 text-indigo-500 flex items-center justify-center mx-auto mb-3">
+            <ShoppingBag className="w-8 h-8" />
+          </div>
+          <h3 className="text-lg font-black text-[var(--foreground)]">רשימת הקניות ריקה כרגע</h3>
+          <p className="text-xs text-[var(--muted)] font-bold mt-1">תוכל להוסיף מוצרים חדשים בעזרת סרגל ההוספה למטה</p>
+        </div>
+      ) : (
+        <LayoutGroup>
+          {categories.map((cat) => {
+            if (activeCategory !== null && activeCategory !== cat) return null;
+            const catItems = activeRequests.filter((r) => r.category === cat);
+            if (catItems.length === 0) return null;
 
-          return (
-            <div key={cat} className="mb-6 last:mb-0 px-4 md:px-0">
-              <div className="flex items-center justify-between py-2 mb-3">
-                <div className="flex items-center gap-2">
-                  <div
-                    className={`w-1.5 h-5 rounded-full shadow-sm ${
-                      (CAT_SOLID[cat] || CAT_SOLID["כללי"] || "bg-slate-400").split(" ")[0]
-                    }`}
-                  />
-                  <h3 className="text-sm font-extrabold text-[var(--foreground)]">{cat}</h3>
-                  <span className="text-[10px] font-bold bg-[var(--foreground)]/5 px-2 py-0.5 rounded-full text-[var(--muted)]">
-                    {catItems.length}
-                  </span>
+            return (
+              <div key={cat} className="mb-6 last:mb-2">
+                {/* Category Header */}
+                <div className="flex items-center justify-between py-2 px-1 mb-2.5">
+                  <div className="flex items-center gap-2.5">
+                    <span className={`w-3.5 h-3.5 rounded-full ${CAT_SOLID[cat] ?? CAT_SOLID["כללי"]}`} />
+                    <h2 className="text-base sm:text-lg font-black text-[var(--foreground)]">{cat}</h2>
+                    <span className="text-xs font-bold px-2 py-0.5 rounded-lg bg-[var(--foreground)]/5 text-[var(--muted)]">
+                      {catItems.length}
+                    </span>
+                  </div>
                 </div>
-              </div>
-              <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl overflow-hidden shadow-sm divide-y divide-[var(--border)]/55">
-                {catItems.map((item) => {
-                  const norm = (item.name || "").trim().toLowerCase();
-                  const invItem = inventoryByName.get(norm);
-                  const poolMatch = poolByName.get(norm);
-                  const inStockQty = poolMatch?.trackInventory === true ? invItem?.currentStock : undefined;
-                  const effectiveNotes = item.notes || poolMatch?.defaultNotes || "";
 
-                  return (
-                    <ShoppingItemRow
+                {/* Listonic Items Cards */}
+                <div className="space-y-3">
+                  {catItems.map((item) => (
+                    <ListonicItemCard
                       key={item.id}
                       item={item}
-                      inStockQty={inStockQty}
-                      showStockBadge={showAdminLogisticsStockInfo}
-                      effectiveNotes={effectiveNotes}
-                      onStatus={onChangeStatus}
-                      onEdit={onEditItem}
+                      onChangeStatus={onChangeStatus}
+                      onEditItem={onEditItem}
                       onUpdateQuantity={onUpdateQuantity}
-                      canPurchase={canPurchase}
-                      isAdmin={isAdmin}
-                      isLogistics={isLogistics}
-                      currentUser={currentUser}
                       onMoveToEquipment={onMoveToEquipment}
                       onMoveToSupermarket={onMoveToSupermarket}
                     />
-                  );
-                })}
-              </div>
-            </div>
-          );
-        })}
-
-        {/* Fallback for items with unknown categories */}
-        {(activeCategory === null || activeCategory === "אחר") &&
-          activeRequests.some((r) => !categories.includes(r.category)) && (
-            <div className="mb-6 px-4 md:px-0">
-              <div className="flex items-center justify-between py-2 mb-3">
-                <div className="flex items-center gap-2">
-                  <div className="w-1.5 h-5 rounded-full bg-slate-400" />
-                  <h3 className="text-sm font-extrabold text-[var(--foreground)]">אחר</h3>
+                  ))}
                 </div>
               </div>
-              <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl overflow-hidden shadow-sm divide-y divide-[var(--border)]/55">
-                {activeRequests
-                  .filter((r) => !categories.includes(r.category))
-                  .map((item) => {
-                    const norm = (item.name || "").trim().toLowerCase();
-                    const invItem = inventoryByName.get(norm);
-                    const poolMatch = poolByName.get(norm);
-                    const inStockQty = poolMatch?.trackInventory === true ? invItem?.currentStock : undefined;
-                    const effectiveNotes = item.notes || poolMatch?.defaultNotes || "";
+            );
+          })}
+        </LayoutGroup>
+      )}
 
-                    return (
-                      <ShoppingItemRow
-                        key={item.id}
-                        item={item}
-                        inStockQty={inStockQty}
-                        showStockBadge={showAdminLogisticsStockInfo}
-                        effectiveNotes={effectiveNotes}
-                        onStatus={onChangeStatus}
-                        onEdit={onEditItem}
-                        onUpdateQuantity={onUpdateQuantity}
-                        canPurchase={canPurchase}
-                        isAdmin={isAdmin}
-                        isLogistics={isLogistics}
-                        currentUser={currentUser}
-                        onMoveToEquipment={onMoveToEquipment}
-                        onMoveToSupermarket={onMoveToSupermarket}
-                      />
-                    );
-                  })}
-              </div>
-            </div>
-          )}
-
-        {/* Empty List Fallback */}
-        {activeRequests.length === 0 && sessionPurchased.length === 0 && sessionDeleted.length === 0 && (
-          <div className="py-32 px-12 text-center opacity-30 flex flex-col items-center gap-4">
-            <div className="w-20 h-20 rounded-[2.5rem] bg-[var(--foreground)]/5 flex items-center justify-center">
-              <ShoppingBag className="w-10 h-10" />
-            </div>
-            <p className="text-sm font-black uppercase tracking-[0.2em]">הרשימה ריקה</p>
-          </div>
-        )}
-      </LayoutGroup>
-
-      {/* Purchased Items Section */}
+      {/* ── Purchased / Completed Items Section (Listonic Collapsible) ── */}
       {sessionPurchased.length > 0 && (
-        <div className="mt-8 px-4 pb-6">
-          <div className="flex items-center justify-between border-b border-[var(--border)] pb-3 mb-3">
+        <div className="mt-8 border-t border-[var(--border)] pt-6">
+          <div className="flex items-center justify-between mb-4">
             <button
               onClick={() => setPurchasedCollapsed(!purchasedCollapsed)}
-              className="text-sm font-black text-emerald-500 flex items-center gap-2 hover:opacity-80 active:scale-95 transition-all border-none bg-transparent cursor-pointer"
+              className="flex items-center gap-2 text-sm font-black text-emerald-600 dark:text-emerald-400 cursor-pointer bg-emerald-500/10 hover:bg-emerald-500/20 px-4 py-2 rounded-2xl border border-emerald-500/20 transition-all"
             >
-              <ShoppingBag className="w-4.5 h-4.5" />
-              <span>מצרכים שנקנו ({sessionPurchased.length})</span>
-              <ChevronDown
-                className={`w-4 h-4 transition-transform duration-200 ${
-                  purchasedCollapsed ? "" : "rotate-180"
-                }`}
-              />
+              <CheckCircle2 className="w-4 h-4" />
+              <span>נרכשו בסבב הזה ({sessionPurchased.length})</span>
+              <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${purchasedCollapsed ? "rotate-180" : ""}`} />
             </button>
 
             <button
               onClick={onShowArchivePrompt}
-              className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-black transition-all active:scale-95 shadow-lg shadow-emerald-600/10 flex items-center gap-1 border-none cursor-pointer"
+              className="px-4 py-2 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-black transition-all shadow-md shadow-indigo-600/20 cursor-pointer border-none flex items-center gap-1.5"
             >
-              <Check className="w-3.5 h-3.5 stroke-[3] text-white" />
-              <span>סיום וארכוב</span>
+              <ShoppingBag className="w-4 h-4" />
+              <span>סיום קניות ושמירה</span>
             </button>
           </div>
 
-          {!purchasedCollapsed && (
-            <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl overflow-hidden divide-y divide-[var(--border)]/50 shadow-sm">
-              {sessionPurchased.map((item) => (
-                <div
-                  key={item.id}
-                  className="flex items-center justify-between gap-4 px-4 md:px-6 py-3.5 bg-[var(--surface)]/90 backdrop-blur-sm border-b border-[var(--border)] last:border-0"
-                >
-                  <div className="flex-1 min-w-0 text-right">
-                    <span className="text-xs md:text-sm font-bold text-[var(--muted)] line-through decoration-2 decoration-emerald-500/40">
-                      {item.name}
-                    </span>
-                    <div className="text-[10px] text-[var(--muted)]/60 font-semibold mt-0.5">
-                      נרכש • ביקש/ה {item.requestedByName}
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2.5 shrink-0">
-                    <span className="text-[11px] font-black text-[var(--muted)] bg-[var(--foreground)]/5 px-2 py-1 rounded-lg">
-                      {item.quantity || "1"}
-                    </span>
-
-                    <button
-                      onClick={() => onChangeStatus(item.id, "approved")}
-                      className="w-8 h-8 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center shadow-xs transition-all active:scale-75 border border-amber-500/20 cursor-pointer"
-                      title="החזר לרשימה הפעילה"
-                      aria-label="החזר לרשימה הפעילה"
-                    >
-                      <RotateCcw className="w-3.5 h-3.5 stroke-[2.5]" aria-hidden="true" />
-                    </button>
-
-                    {canDelete && (
-                      <button
-                        onClick={async () => {
-                          const ok = await confirm({
-                            title: "העברה למוצרים שנמחקו",
-                            message: `האם ברצונך להעביר את "${item.name}" למוצרים שנמחקו?`,
-                            type: "danger",
-                          });
-                          if (ok) onChangeStatus(item.id, "deleted");
-                        }}
-                        className="w-8 h-8 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 flex items-center justify-center shadow-xs transition-all active:scale-75 border border-rose-500/20 cursor-pointer"
-                        title="העבר למוצרים שנמחקו"
-                        aria-label="העבר למוצרים שנמחקו"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
-                      </button>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Deleted Items Section */}
-      {sessionDeleted.length > 0 && (
-        <div className="mt-6 px-4 pb-12">
-          <div className="flex items-center justify-between border-b border-[var(--border)] pb-3 mb-3">
-            <button
-              onClick={() => setDeletedCollapsed(!deletedCollapsed)}
-              className="text-sm font-black text-rose-500 flex items-center gap-2 hover:opacity-80 active:scale-95 transition-all border-none bg-transparent cursor-pointer"
-            >
-              <Trash2 className="w-4.5 h-4.5" />
-              <span>מוצרים שנמחקו ({sessionDeleted.length})</span>
-              <ChevronDown
-                className={`w-4 h-4 transition-transform duration-200 ${
-                  deletedCollapsed ? "" : "rotate-180"
-                }`}
-              />
-            </button>
-
-            {canDelete && (
-              <button
-                onClick={async () => {
-                  const ok = await confirm({
-                    title: "מחיקה לצמיתות",
-                    message: "האם ברצונך למחוק לצמיתות את כל המוצרים שנמחקו?",
-                    type: "danger",
-                  });
-                  if (ok) {
-                    await Promise.all(sessionDeleted.map((r) => onChangeStatus(r.id, "permanently_delete")));
-                  }
-                }}
-                className="px-3.5 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 rounded-xl text-xs font-black transition-all active:scale-95 border border-rose-500/20 cursor-pointer flex items-center gap-1"
+          <AnimatePresence>
+            {!purchasedCollapsed && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: "auto", opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                className="space-y-2 overflow-hidden"
               >
-                <Trash2 className="w-3.5 h-3.5" />
-                <span>רוקן אשפה</span>
-              </button>
-            )}
-          </div>
+                {sessionPurchased.map((item) => (
+                  <div
+                    key={item.id}
+                    className="flex items-center justify-between p-3.5 sm:p-4 rounded-2xl bg-[var(--surface)]/60 border border-[var(--border)] opacity-75 hover:opacity-100 transition-all gap-3"
+                  >
+                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                      <button
+                        onClick={() => onChangeStatus(item.id, "approved")}
+                        className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-emerald-500 text-white flex items-center justify-center shrink-0 cursor-pointer shadow-sm hover:scale-105 transition-transform"
+                        title="החזר לרשימה הפעילה"
+                      >
+                        <Check className="w-5 h-5 stroke-[3]" />
+                      </button>
 
-          {!deletedCollapsed && (
-            <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl overflow-hidden divide-y divide-[var(--border)]/50 shadow-sm">
-              {sessionDeleted.map((item) => (
-                <div
-                  key={item.id}
-                  className="flex items-center justify-between gap-4 px-4 md:px-6 py-3.5 bg-[var(--surface)]/90 backdrop-blur-sm border-b border-[var(--border)] last:border-0"
-                >
-                  <div className="flex-1 min-w-0 text-right">
-                    <span className="text-xs md:text-sm font-bold text-[var(--muted)] line-through decoration-2 decoration-rose-500/40">
-                      {item.name}
-                    </span>
-                    <div className="text-[10px] text-[var(--muted)]/60 font-semibold mt-0.5">
-                      נמחק • ביקש/ה: {item.requestedByName}
+                      <div className="min-w-0 flex-1 text-right">
+                        <span className="text-base font-bold text-[var(--foreground)] line-through opacity-70 block truncate">
+                          {item.name}
+                        </span>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <span className="text-xs font-black text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-lg">
+                            {item.quantity}
+                          </span>
+                          {item.requestedByName && (
+                            <span className="text-[10px] text-[var(--muted)] font-bold">
+                              מבקש: {item.requestedByName}
+                            </span>
+                          )}
+                        </div>
+                      </div>
                     </div>
-                  </div>
-
-                  <div className="flex items-center gap-2.5 shrink-0">
-                    <span className="text-[11px] font-black text-[var(--muted)] bg-[var(--foreground)]/5 px-2 py-1 rounded-lg">
-                      {item.quantity || "1"}
-                    </span>
 
                     <button
                       onClick={() => onChangeStatus(item.id, "approved")}
-                      className="px-3 py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 text-xs font-black flex items-center gap-1 shadow-xs transition-all active:scale-95 border border-amber-500/20 cursor-pointer"
-                      title="החזר לרשימה הפעילה"
-                      aria-label="החזר לרשימה הפעילה"
+                      className="px-3 py-1.5 rounded-xl bg-[var(--foreground)]/5 hover:bg-[var(--foreground)]/10 text-[var(--foreground)] text-xs font-bold flex items-center gap-1 cursor-pointer border border-[var(--border)]"
                     >
-                      <RotateCcw className="w-3.5 h-3.5 stroke-[2.5]" aria-hidden="true" />
-                      <span>החזר לרשימה</span>
+                      <RotateCcw className="w-3.5 h-3.5" />
+                      <span>בטל רכישה</span>
                     </button>
-
-                    {canDelete && (
-                      <button
-                        onClick={async () => {
-                          const ok = await confirm({
-                            title: "מחיקה לצמיתות",
-                            message: `האם ברצונך למחוק לצמיתות את "${item.name}"?`,
-                            type: "danger",
-                          });
-                          if (ok) onChangeStatus(item.id, "permanently_delete");
-                        }}
-                        className="p-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 flex items-center justify-center shadow-xs transition-all active:scale-95 border border-rose-500/20 cursor-pointer"
-                        title="מחק לצמיתות"
-                        aria-label="מחק לצמיתות"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
-                      </button>
-                    )}
                   </div>
-                </div>
-              ))}
-            </div>
-          )}
+                ))}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       )}
-      <ConfirmDialog />
+
+      {/* ── Deleted Items Section (Optional Trash Bin) ── */}
+      {sessionDeleted.length > 0 && (
+        <div className="mt-6 border-t border-[var(--border)]/40 pt-4">
+          <button
+            onClick={() => setDeletedCollapsed(!deletedCollapsed)}
+            className="flex items-center gap-2 text-xs font-bold text-[var(--muted)] hover:text-[var(--foreground)] cursor-pointer py-1"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            <span>פריטים שנמחקו ({sessionDeleted.length})</span>
+            <ChevronDown className={`w-3.5 h-3.5 transition-transform ${deletedCollapsed ? "rotate-180" : ""}`} />
+          </button>
+
+          <AnimatePresence>
+            {!deletedCollapsed && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: "auto", opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                className="mt-2 space-y-2 overflow-hidden"
+              >
+                {sessionDeleted.map((item) => (
+                  <div
+                    key={item.id}
+                    className="flex items-center justify-between p-3 rounded-xl bg-[var(--surface)]/40 border border-[var(--border)]/50 text-xs text-[var(--muted)]"
+                  >
+                    <span className="line-through">{item.name} ({item.quantity})</span>
+                    <button
+                      onClick={() => onChangeStatus(item.id, "approved")}
+                      className="px-2.5 py-1 rounded-lg bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-bold hover:bg-indigo-500/20 cursor-pointer"
+                    >
+                      החזר לרשימה
+                    </button>
+                  </div>
+                ))}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      )}
     </div>
   );
 }
 
-const formatQuantityAndUnit = (qtyStr: string) => {
-  const { value, unit } = parseQuantity(qtyStr);
-  return { qty: String(value), unit: formatUnitShort(unit) };
-};
-
-const ShoppingItemRow = memo(function ShoppingItemRow({
+{/* ── Individual Listonic-Style Item Card ── */}
+const ListonicItemCard = memo(function ListonicItemCard({
   item,
-  inStockQty,
-  showStockBadge = false,
-  effectiveNotes,
-  onStatus,
-  onEdit,
+  onChangeStatus,
+  onEditItem,
   onUpdateQuantity,
-  canPurchase,
-  isAdmin = false,
-  isLogistics = false,
-  currentUser,
   onMoveToEquipment,
   onMoveToSupermarket,
 }: {
   item: ShoppingRequest;
-  inStockQty?: number;
-  showStockBadge?: boolean;
-  effectiveNotes?: string;
-  onStatus: OnChangeStatus;
-  onEdit: OnEditItem;
+  onChangeStatus: OnChangeStatus;
+  onEditItem: OnEditItem;
   onUpdateQuantity: OnUpdateQuantity;
-  canPurchase: boolean;
-  isAdmin?: boolean;
-  isLogistics?: boolean;
-  currentUser: User | null;
   onMoveToEquipment: OnMoveList;
   onMoveToSupermarket: OnMoveList;
 }) {
-  const [isExpanded, setIsExpanded] = useState(false);
-  const [isEditingQty, setIsEditingQty] = useState(false);
+  const [isEditingQtyDirect, setIsEditingQtyDirect] = useState(false);
   const [qtyDraft, setQtyDraft] = useState("");
-  const isApproved = item.status === "approved" || item.status === "pending";
-  const isUrgent = item.priority === "urgent";
-  const { confirm, ConfirmDialog } = useConfirm();
+  const { confirm } = useConfirm();
 
-  const notesToDisplay = effectiveNotes || item.notes;
+  const isUrgent = item.priority === "urgent";
   const { value: qtyValue, unit: qtyUnit } = parseQuantity(item.quantity);
   const qtyStep = getQuantityStep(qtyUnit);
 
   const startEditingQty = () => {
     setQtyDraft(String(qtyValue));
-    setIsEditingQty(true);
+    setIsEditingQtyDirect(true);
   };
 
   const commitQtyEdit = () => {
-    setIsEditingQty(false);
+    setIsEditingQtyDirect(false);
     const parsed = parseFloat(qtyDraft.replace(",", "."));
     if (!Number.isNaN(parsed) && parsed > 0 && parsed !== qtyValue) {
       onUpdateQuantity(item.id, item.quantity || "1", parsed - qtyValue);
     }
   };
 
-  const confirmDeleteFromList = async () => {
+  const confirmDelete = async (e: React.MouseEvent) => {
+    e.stopPropagation();
     const ok = await confirm({
-      title: "מחיקה מהרשימה",
+      title: "מחיקת מוצר",
       message: `האם ברצונך למחוק את "${item.name}" מהרשימה?`,
       type: "danger",
     });
-    if (ok) onStatus(item.id, "deleted");
+    if (ok) onChangeStatus(item.id, "deleted");
   };
 
-  const handleDelete = (e: React.MouseEvent) => {
+  const handleCheckbox = (e: React.MouseEvent) => {
     e.stopPropagation();
-    confirmDeleteFromList();
-  };
-
-  const handleCheckboxClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (isApproved && canPurchase) {
-      if (typeof navigator !== "undefined" && navigator.vibrate) {
-        navigator.vibrate(15);
-      }
-      onStatus(item.id, "purchased");
+    if (typeof navigator !== "undefined" && navigator.vibrate) {
+      navigator.vibrate(20);
     }
+    onChangeStatus(item.id, "purchased");
   };
 
   return (
-    <div className="relative overflow-hidden group">
-      {/* Mobile view (sm and below) */}
-      <motion.div
-        layout
-        onClick={() => setIsExpanded(!isExpanded)}
-        className={`md:hidden relative z-10 flex flex-col px-3 py-2.5 bg-[var(--surface)] even:bg-[var(--foreground)]/[0.012] transition-colors cursor-pointer select-none ${
-          isExpanded ? "bg-[var(--foreground)]/[0.025]! ring-2 ring-indigo-500/20" : "hover:bg-[var(--foreground)]/[0.01]"
-        } ${
-          isUrgent ? "bg-gradient-to-l from-rose-500/[0.02] to-transparent border-r-4 border-r-rose-500 pr-2.5" : ""
-        }`}
-      >
-        <div className="flex items-center justify-between gap-2.5 w-full">
-          <div className="flex items-center gap-2.5 min-w-0 flex-1">
-            <button
-              onClick={handleCheckboxClick}
-              disabled={!canPurchase}
-              className={`w-7 h-7 rounded-xl flex items-center justify-center border-2 transition-all shrink-0 active:scale-90 cursor-pointer ${
-                isApproved
-                  ? canPurchase
-                    ? "border-[var(--muted)]/40 hover:border-indigo-500 hover:bg-indigo-500/10 text-indigo-500 shadow-xs"
-                    : "border-[var(--border)] text-[var(--muted)]/20 cursor-not-allowed"
-                  : "border-indigo-500 bg-indigo-500 text-white shadow-sm"
-              }`}
-            >
-              <Check className={`w-4 h-4 transition-opacity ${!isApproved ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`} />
-            </button>
-
-            <div className="min-w-0 flex-1 text-right">
-              <div className="flex items-center gap-1.5 justify-start flex-wrap">
-                <span className="text-xs font-bold text-[var(--foreground)] leading-tight whitespace-normal">
-                  {item.name}
-                </span>
-
-                {(() => {
-                  const { qty, unit } = formatQuantityAndUnit(item.quantity);
-                  return (
-                    <div className="flex items-center gap-1 bg-[var(--foreground)]/5 px-2 py-0.5 rounded-lg shrink-0">
-                      <span className="text-[11px] font-black text-[var(--foreground)]">{qty}</span>
-                      <span className="text-[9px] font-bold text-[var(--muted)]">{unit}</span>
-                    </div>
-                  );
-                })()}
-
-                {/* Requester name on mobile - efficient real-estate */}
-                {item.requestedByName && (
-                  <span className="text-[9px] text-[var(--muted)] bg-[var(--foreground)]/[0.03] border border-[var(--border)]/40 px-1.5 py-0.5 rounded-md font-bold truncate max-w-[80px]" title={`מבקש/ת: ${item.requestedByName}`}>
-                    {item.requestedByName}
-                  </span>
-                )}
-
-                {isUrgent && (
-                  <span className="text-[9px] font-black px-1.5 py-0.5 rounded-md bg-rose-500/10 text-rose-500 border border-rose-500/20 flex items-center gap-0.5">
-                    <Flame className="w-2.5 h-2.5 animate-pulse" /> דחוף
-                  </span>
-                )}
-
-                {/* Stock Indicator Badge (Admin & Logistics Only) */}
-                {showStockBadge && inStockQty !== undefined && (
-                  <span
-                    className={`text-[9px] font-black px-1.5 py-0.5 rounded-md border flex items-center gap-1 ${
-                      inStockQty > 0
-                        ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400"
-                        : "bg-rose-500/10 border-rose-500/30 text-rose-500"
-                    }`}
-                    title={`מלאי קיים במחסן: ${inStockQty}`}
-                  >
-                    <Boxes className="w-2.5 h-2.5" />
-                    <span>{inStockQty > 0 ? `במלאי: ${inStockQty}` : "אזל במלאי"}</span>
-                  </span>
-                )}
-
-                {/* Note Indicator Badge */}
-                {notesToDisplay && notesToDisplay.trim() !== "" && (
-                  <span
-                    className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/30 flex items-center gap-1 max-w-[160px] truncate shadow-xs"
-                    title={`הערה: ${notesToDisplay}`}
-                  >
-                    <MessageSquare className="w-2.5 h-2.5 text-amber-500 shrink-0" />
-                    <span className="truncate">{notesToDisplay}</span>
-                  </span>
-                )}
-              </div>
-            </div>
-          </div>
-
-          <motion.div
-            animate={{ rotate: isExpanded ? 180 : 0 }}
-            transition={{ duration: 0.2 }}
-            className="text-[var(--muted)]/40 p-1"
-          >
-            <ChevronDown className="w-3.5 h-3.5" />
-          </motion.div>
-        </div>
-
-        {/* Expanded details container */}
-        <AnimatePresence initial={false}>
-          {isExpanded && (
-            <motion.div
-              initial={{ height: 0, opacity: 0, marginTop: 0 }}
-              animate={{ height: "auto", opacity: 1, marginTop: 10 }}
-              exit={{ height: 0, opacity: 0, marginTop: 0 }}
-              transition={{ duration: 0.2, ease: "easeInOut" }}
-              className="overflow-hidden w-full border-t border-[var(--border)]/40 pt-3"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="grid grid-cols-2 gap-2 mb-3.5 p-3 rounded-xl bg-[var(--foreground)]/[0.02] border border-[var(--border)]/40 text-xs text-[var(--muted)]">
-                <div>
-                  מבקש/ת: <span className="font-bold text-[var(--foreground)]">{item.requestedByName}</span>
-                </div>
-                <div>
-                  קטגוריה: <span className="font-bold text-[var(--foreground)]">{item.category}</span>
-                </div>
-                {notesToDisplay && (
-                  <div className="col-span-2 border-t border-[var(--border)]/30 pt-2 mt-1">
-                    <span className="font-bold text-[var(--foreground)]/70">הערות:</span>{" "}
-                    <span className="text-[var(--foreground)]/90">{notesToDisplay}</span>
-                  </div>
-                )}
-              </div>
-
-              <div className="flex items-center justify-between gap-2.5 flex-wrap">
-                <div className="flex items-center gap-1.5 bg-[var(--foreground)]/[0.03] border border-[var(--border)] rounded-xl p-1 shadow-sm shrink-0">
-                  <button
-                    onClick={() => onUpdateQuantity(item.id, item.quantity || "1", steppedQuantity(qtyValue, qtyStep, -1) - qtyValue)}
-                    className="w-8 h-8 rounded-lg flex items-center justify-center bg-[var(--surface)] hover:bg-[var(--foreground)]/10 text-[var(--muted)] hover:text-[var(--foreground)] border border-[var(--border)] transition-all active:scale-75 shadow-sm cursor-pointer"
-                    title={`הפחת ל-${steppedQuantity(qtyValue, qtyStep, -1)} ${formatUnitShort(qtyUnit)}`}
-                    aria-label="הפחת כמות"
-                  >
-                    <Minus className="w-3.5 h-3.5 stroke-[3]" aria-hidden="true" />
-                  </button>
-                  <div className="min-w-[44px] text-center px-1">
-                    {isEditingQty ? (
-                      <input
-                        type="text"
-                        inputMode="decimal"
-                        autoFocus
-                        value={qtyDraft}
-                        onChange={(e) => setQtyDraft(e.target.value)}
-                        onFocus={(e) => e.currentTarget.select()}
-                        onBlur={commitQtyEdit}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") e.currentTarget.blur();
-                          if (e.key === "Escape") setIsEditingQty(false);
-                        }}
-                        className="w-12 bg-[var(--background)] border border-indigo-500/40 rounded-lg text-sm font-black text-center outline-none text-[var(--foreground)]"
-                      />
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={startEditingQty}
-                        className="cursor-pointer hover:bg-[var(--foreground)]/5 rounded-lg px-0.5 -mx-0.5"
-                        title="הקלד/י כמות מדויקת"
-                      >
-                        <span className="text-sm font-black text-[var(--foreground)]">{qtyValue}</span>
-                      </button>
-                    )}
-                    <span className="text-[9px] text-[var(--muted)] block -mt-1 font-bold">{formatUnitShort(qtyUnit)}</span>
-                  </div>
-                  <button
-                    onClick={() => onUpdateQuantity(item.id, item.quantity || "1", steppedQuantity(qtyValue, qtyStep, 1) - qtyValue)}
-                    className="w-8 h-8 rounded-lg flex items-center justify-center bg-[var(--surface)] hover:bg-[var(--foreground)]/10 text-[var(--muted)] hover:text-[var(--foreground)] border border-[var(--border)] transition-all active:scale-75 shadow-sm cursor-pointer"
-                    title={`הוסף עד ${steppedQuantity(qtyValue, qtyStep, 1)} ${formatUnitShort(qtyUnit)}`}
-                    aria-label="הוסף כמות"
-                  >
-                    <Plus className="w-3.5 h-3.5 stroke-[3]" aria-hidden="true" />
-                  </button>
-                </div>
-
-                <div className="flex items-center gap-1.5 flex-grow justify-end">
-                  <button
-                    onClick={() => onEdit(item)}
-                    className="px-3 py-2 rounded-xl flex items-center justify-center gap-1 bg-[var(--foreground)]/[0.04] hover:bg-[var(--foreground)]/10 text-[var(--muted)] hover:text-[var(--foreground)] transition-all active:scale-95 border border-[var(--border)] text-xs font-bold cursor-pointer"
-                    title="ערוך מוצר"
-                    aria-label="ערוך מוצר"
-                  >
-                    <Edit3 className="w-3.5 h-3.5" aria-hidden="true" /> עריכה
-                  </button>
-
-                  <button
-                    onClick={handleDelete}
-                    className="px-3 py-2 rounded-xl flex items-center justify-center gap-1 bg-rose-500/5 hover:bg-rose-500/10 text-rose-500 border border-rose-500/10 transition-all active:scale-95 text-xs font-bold cursor-pointer"
-                    title="מחק מהרשימה"
-                    aria-label="מחק מהרשימה"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" aria-hidden="true" /> מחיקה
-                  </button>
-
-                  {canPurchase &&
-                    (item.listType !== "large" ? (
-                      <button
-                        onClick={() => onMoveToEquipment(item.id)}
-                        className="px-3 py-2 rounded-xl flex items-center justify-center gap-1 bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/20 transition-all active:scale-95 text-xs font-bold cursor-pointer"
-                        title="העבר לציוד ורכש"
-                        aria-label="העבר לציוד ורכש"
-                      >
-                        <Package className="w-3.5 h-3.5" aria-hidden="true" /> העבר לציוד
-                      </button>
-                    ) : (
-                      <button
-                        onClick={() => onMoveToSupermarket(item.id)}
-                        className="px-3 py-2 rounded-xl flex items-center justify-center gap-1 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 transition-all active:scale-95 text-xs font-bold cursor-pointer"
-                        title="העבר לרשימת סופר"
-                        aria-label="העבר לרשימת סופר"
-                      >
-                        <ShoppingCart className="w-3.5 h-3.5" aria-hidden="true" /> העבר לסופר
-                      </button>
-                    ))}
-                </div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </motion.div>
-
-      {/* Desktop view (md and up) - all info inline */}
-      <div
-        className={`hidden md:flex md:items-center md:justify-between px-4 py-3 bg-[var(--surface)] even:bg-[var(--foreground)]/[0.012] hover:bg-[var(--foreground)]/[0.015] transition-colors gap-4 select-none ${
-          isUrgent ? "bg-gradient-to-l from-rose-500/[0.02] to-transparent border-r-4 border-r-rose-500 pr-3.5" : ""
-        }`}
-      >
-        {/* Right side: Checkbox, Name, Category badge, Urgent badge, Stock badge */}
-        <div className="flex items-center gap-3 min-w-0 flex-1 text-right justify-start">
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.95 }}
+      transition={{ duration: 0.15 }}
+      className={`relative bg-[var(--surface)] border rounded-2xl p-3.5 sm:p-4 shadow-xs hover:shadow-md transition-all flex flex-col gap-3 ${
+        isUrgent
+          ? "border-rose-500/40 bg-gradient-to-l from-rose-500/5 via-[var(--surface)] to-[var(--surface)]"
+          : "border-[var(--border)]"
+      }`}
+    >
+      {/* Upper Row: Checkbox, Name, Badges */}
+      <div className="flex items-start justify-between gap-3 w-full">
+        <div className="flex items-start gap-3 min-w-0 flex-1 text-right">
+          {/* Listonic Large Checkbox */}
           <button
-            onClick={handleCheckboxClick}
-            disabled={!canPurchase}
-            className={`w-7 h-7 rounded-xl flex items-center justify-center border-2 transition-all shrink-0 active:scale-90 cursor-pointer ${
-              isApproved
-                ? canPurchase
-                  ? "border-[var(--muted)]/40 hover:border-indigo-500 hover:bg-indigo-500/10 text-indigo-500 shadow-xs"
-                  : "border-[var(--border)] text-[var(--muted)]/20 cursor-not-allowed"
-                : "border-indigo-500 bg-indigo-500 text-white shadow-sm"
-            }`}
+            onClick={handleCheckbox}
+            className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl border-2 border-[var(--muted)]/30 hover:border-indigo-500 hover:bg-indigo-500/10 text-indigo-500 flex items-center justify-center shrink-0 transition-all cursor-pointer active:scale-90 shadow-xs"
+            title="סמן כנרכש"
+            aria-label="סמן כנרכש"
           >
-            <Check className={`w-4 h-4 transition-opacity ${!isApproved ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`} />
+            <Check className="w-5 h-5 sm:w-6 sm:h-6 opacity-40 hover:opacity-100 transition-opacity stroke-[2.5]" />
           </button>
 
-          <div className="flex items-center gap-2.5 min-w-0 flex-wrap justify-start">
-            <span className="text-sm font-bold text-[var(--foreground)] leading-tight whitespace-normal">
-              {item.name}
-            </span>
-
-            {/* Category badge */}
-            <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-md shrink-0 ${CAT_COLOR[item.category] ?? CAT_COLOR["כללי"]}`}>
-              {item.category}
-            </span>
-
-            {/* Requester name (subtle badge) */}
-            {item.requestedByName && (
-              <span className="text-[9px] text-[var(--muted)] bg-[var(--foreground)]/[0.03] border border-[var(--border)]/40 px-1.5 py-0.5 rounded-md font-bold shrink-0" title={`מבקש/ת: ${item.requestedByName}`}>
-                {item.requestedByName}
+          <div className="min-w-0 flex-1 pt-0.5">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-base sm:text-lg font-black text-[var(--foreground)] leading-snug whitespace-normal break-words">
+                {item.name}
               </span>
-            )}
 
-            {isUrgent && (
-              <span className="text-[9px] font-black px-1.5 py-0.5 rounded-md bg-rose-500/10 text-rose-500 border border-rose-500/20 flex items-center gap-0.5 shrink-0">
-                <Flame className="w-2.5 h-2.5 animate-pulse" /> דחוף
-              </span>
-            )}
+              {isUrgent && (
+                <span className="text-xs font-black px-2 py-0.5 rounded-lg bg-rose-500/15 text-rose-500 border border-rose-500/30 flex items-center gap-1 shrink-0">
+                  <Flame className="w-3.5 h-3.5 animate-pulse" /> דחוף
+                </span>
+              )}
+            </div>
 
-            {showStockBadge && inStockQty !== undefined && (
-              <span
-                className={`text-[9px] font-black px-1.5 py-0.5 rounded-md border flex items-center gap-1 shrink-0 ${
-                  inStockQty > 0
-                    ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400"
-                    : "bg-rose-500/10 border-rose-500/30 text-rose-500"
-                }`}
-                title={`מלאי קיים במחסן: ${inStockQty}`}
-              >
-                <Boxes className="w-2.5 h-2.5" />
-                <span>{inStockQty > 0 ? `במלאי: ${inStockQty}` : "אזל במלאי"}</span>
+            {/* Requester & Category Info line */}
+            <div className="flex items-center gap-2 mt-1 text-xs text-[var(--muted)] flex-wrap">
+              {item.requestedByName && (
+                <span className="bg-[var(--foreground)]/5 border border-[var(--border)] px-2 py-0.5 rounded-lg font-bold">
+                  מבקש: {item.requestedByName}
+                </span>
+              )}
+              <span className={`px-2 py-0.5 rounded-lg font-bold text-[11px] ${CAT_COLOR[item.category] ?? CAT_COLOR["כללי"]}`}>
+                {item.category}
               </span>
+            </div>
+
+            {/* Notes Box */}
+            {item.notes && item.notes.trim() !== "" && (
+              <div className="mt-2 text-xs font-medium text-amber-700 dark:text-amber-300 bg-amber-500/10 border border-amber-500/25 p-2 rounded-xl flex items-start gap-1.5">
+                <MessageSquare className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                <span className="break-words">{item.notes}</span>
+              </div>
             )}
           </div>
         </div>
 
-        {/* Middle: Notes (expanded text, since we have space) */}
-        {notesToDisplay && notesToDisplay.trim() !== "" && (
-          <div className="flex-1 max-w-[25%] text-xs text-[var(--muted)] font-medium line-clamp-2 px-2 text-right" title={notesToDisplay}>
-            <span className="font-bold text-[var(--foreground)]/65 ml-1">הערה:</span>
-            {notesToDisplay}
-          </div>
-        )}
+        {/* Large Quantity Stepper */}
+        <div className="flex items-center gap-1 bg-[var(--foreground)]/5 border border-[var(--border)] rounded-2xl p-1 shrink-0 shadow-xs">
+          <button
+            onClick={() => onUpdateQuantity(item.id, item.quantity || "1", steppedQuantity(qtyValue, qtyStep, -1) - qtyValue)}
+            className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-[var(--surface)] hover:bg-[var(--foreground)]/10 text-[var(--foreground)] flex items-center justify-center transition-all active:scale-90 border border-[var(--border)] cursor-pointer"
+            title="הפחת כמות"
+            aria-label="הפחת כמות"
+          >
+            <Minus className="w-4 h-4 stroke-[3]" />
+          </button>
 
-        {/* Left side: Quantity Editor & Action Buttons */}
-        <div className="flex items-center gap-4 shrink-0">
-          {/* Quantity Editor (inline!) */}
-          <div className="flex items-center gap-1.5 bg-[var(--foreground)]/[0.03] border border-[var(--border)] rounded-xl p-1 shadow-sm shrink-0">
-            <button
-              onClick={() => onUpdateQuantity(item.id, item.quantity || "1", steppedQuantity(qtyValue, qtyStep, -1) - qtyValue)}
-              className="w-8 h-8 rounded-lg flex items-center justify-center bg-[var(--surface)] hover:bg-[var(--foreground)]/10 text-[var(--muted)] hover:text-[var(--foreground)] border border-[var(--border)] transition-all active:scale-75 shadow-sm cursor-pointer"
-              title={`הפחת ל-${steppedQuantity(qtyValue, qtyStep, -1)} ${formatUnitShort(qtyUnit)}`}
-              aria-label="הפחת כמות"
-            >
-              <Minus className="w-3.5 h-3.5 stroke-[3]" aria-hidden="true" />
-            </button>
-            <div className="min-w-[44px] text-center px-1">
-              {isEditingQty ? (
-                <input
-                  type="text"
-                  inputMode="decimal"
-                  autoFocus
-                  value={qtyDraft}
-                  onChange={(e) => setQtyDraft(e.target.value)}
-                  onFocus={(e) => e.currentTarget.select()}
-                  onBlur={commitQtyEdit}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") e.currentTarget.blur();
-                    if (e.key === "Escape") setIsEditingQty(false);
-                  }}
-                  className="w-12 bg-[var(--background)] border border-indigo-500/40 rounded-lg text-sm font-black text-center outline-none text-[var(--foreground)]"
-                />
-              ) : (
-                <button
-                  type="button"
-                  onClick={startEditingQty}
-                  className="cursor-pointer hover:bg-[var(--foreground)]/5 rounded-lg px-0.5 -mx-0.5"
-                  title="הקלד/י כמות מדויקת"
-                >
-                  <span className="text-sm font-black text-[var(--foreground)]">{qtyValue}</span>
-                </button>
-              )}
-              <span className="text-[9px] text-[var(--muted)] block -mt-1 font-bold">{formatUnitShort(qtyUnit)}</span>
-            </div>
-            <button
-              onClick={() => onUpdateQuantity(item.id, item.quantity || "1", steppedQuantity(qtyValue, qtyStep, 1) - qtyValue)}
-              className="w-8 h-8 rounded-lg flex items-center justify-center bg-[var(--surface)] hover:bg-[var(--foreground)]/10 text-[var(--muted)] hover:text-[var(--foreground)] border border-[var(--border)] transition-all active:scale-75 shadow-sm cursor-pointer"
-              title={`הוסף עד ${steppedQuantity(qtyValue, qtyStep, 1)} ${formatUnitShort(qtyUnit)}`}
-              aria-label="הוסף כמות"
-            >
-              <Plus className="w-3.5 h-3.5 stroke-[3]" aria-hidden="true" />
-            </button>
+          <div className="min-w-[50px] text-center px-1">
+            {isEditingQtyDirect ? (
+              <input
+                type="text"
+                inputMode="decimal"
+                autoFocus
+                value={qtyDraft}
+                onChange={(e) => setQtyDraft(e.target.value)}
+                onFocus={(e) => e.currentTarget.select()}
+                onBlur={commitQtyEdit}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") e.currentTarget.blur();
+                  if (e.key === "Escape") setIsEditingQtyDirect(false);
+                }}
+                className="w-14 bg-[var(--background)] border border-indigo-500 rounded-lg text-base font-black text-center outline-none text-[var(--foreground)]"
+              />
+            ) : (
+              <button
+                type="button"
+                onClick={startEditingQty}
+                className="cursor-pointer hover:bg-[var(--foreground)]/10 rounded-lg px-1 py-0.5 transition-colors"
+                title="לחץ להזנת כמות מדויקת"
+              >
+                <span className="text-base sm:text-lg font-black text-[var(--foreground)]">{qtyValue}</span>
+                <span className="text-[10px] text-[var(--muted)] block -mt-1 font-bold">{formatUnitShort(qtyUnit)}</span>
+              </button>
+            )}
           </div>
 
-          {/* Action Buttons */}
-          <div className="flex items-center gap-1.5">
-            <button
-              onClick={() => onEdit(item)}
-              className="px-3 py-2 rounded-xl flex items-center justify-center gap-1 bg-[var(--foreground)]/[0.04] hover:bg-[var(--foreground)]/10 text-[var(--muted)] hover:text-[var(--foreground)] transition-all active:scale-95 border border-[var(--border)] text-xs font-bold cursor-pointer"
-              title="ערוך מוצר"
-              aria-label="ערוך מוצר"
-            >
-              <Edit3 className="w-3.5 h-3.5" aria-hidden="true" /> עריכה
-            </button>
-
-            <button
-              onClick={handleDelete}
-              className="px-3 py-2 rounded-xl flex items-center justify-center gap-1 bg-rose-500/5 hover:bg-rose-500/10 text-rose-500 border border-rose-500/10 transition-all active:scale-95 text-xs font-bold cursor-pointer"
-              title="מחק מהרשימה"
-              aria-label="מחק מהרשימה"
-            >
-              <Trash2 className="w-3.5 h-3.5" aria-hidden="true" /> מחיקה
-            </button>
-
-            {canPurchase &&
-              (item.listType !== "large" ? (
-                <button
-                  onClick={() => onMoveToEquipment(item.id)}
-                  className="px-3 py-2 rounded-xl flex items-center justify-center gap-1 bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/20 transition-all active:scale-95 text-xs font-bold cursor-pointer"
-                  title="העבר לציוד ורכש"
-                  aria-label="העבר לציוד ורכש"
-                >
-                  <Package className="w-3.5 h-3.5" aria-hidden="true" /> העבר
-                </button>
-              ) : (
-                <button
-                  onClick={() => onMoveToSupermarket(item.id)}
-                  className="px-3 py-2 rounded-xl flex items-center justify-center gap-1 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 transition-all active:scale-95 text-xs font-bold cursor-pointer"
-                  title="העבר לרשימת סופר"
-                  aria-label="העבר לרשימת סופר"
-                >
-                  <ShoppingCart className="w-3.5 h-3.5" aria-hidden="true" /> העבר
-                </button>
-              ))}
-          </div>
+          <button
+            onClick={() => onUpdateQuantity(item.id, item.quantity || "1", steppedQuantity(qtyValue, qtyStep, 1) - qtyValue)}
+            className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white flex items-center justify-center transition-all active:scale-90 shadow-sm cursor-pointer border-none"
+            title="הוסף כמות"
+            aria-label="הוסף כמות"
+          >
+            <Plus className="w-4 h-4 stroke-[3]" />
+          </button>
         </div>
       </div>
-      <ConfirmDialog />
-    </div>
+
+      {/* Lower Row: Prominent Action Buttons (Large, Clear, Mobile-Friendly) */}
+      <div className="flex items-center justify-end gap-2 pt-2 border-t border-[var(--border)]/40 flex-wrap">
+        <button
+          onClick={() => onEditItem(item)}
+          className="px-3.5 py-2 rounded-xl bg-[var(--foreground)]/5 hover:bg-[var(--foreground)]/10 text-[var(--foreground)] text-xs font-bold transition-all active:scale-95 border border-[var(--border)] flex items-center gap-1.5 cursor-pointer"
+          title="עריכת מוצר"
+        >
+          <Edit3 className="w-3.5 h-3.5" />
+          <span>עריכה</span>
+        </button>
+
+        <button
+          onClick={confirmDelete}
+          className="px-3.5 py-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 text-xs font-bold transition-all active:scale-95 border border-rose-500/20 flex items-center gap-1.5 cursor-pointer"
+          title="מחיקה מהרשימה"
+        >
+          <Trash2 className="w-3.5 h-3.5" />
+          <span>מחיקה</span>
+        </button>
+
+        {item.listType !== "large" ? (
+          <button
+            onClick={() => onMoveToEquipment(item.id)}
+            className="px-3.5 py-2 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 text-xs font-bold transition-all active:scale-95 border border-amber-500/20 flex items-center gap-1.5 cursor-pointer"
+            title="העבר לרשימת ציוד ורכש"
+          >
+            <Package className="w-3.5 h-3.5" />
+            <span>העבר לציוד</span>
+          </button>
+        ) : (
+          <button
+            onClick={() => onMoveToSupermarket(item.id)}
+            className="px-3.5 py-2 rounded-xl bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 text-xs font-bold transition-all active:scale-95 border border-indigo-500/20 flex items-center gap-1.5 cursor-pointer"
+            title="העבר לרשימת סופר"
+          >
+            <ShoppingCart className="w-3.5 h-3.5" />
+            <span>העבר לסופר</span>
+          </button>
+        )}
+      </div>
+    </motion.div>
   );
 });

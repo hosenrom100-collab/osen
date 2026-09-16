@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, memo } from "react";
-import { ShoppingRequest, Product, InventoryItem, CutoffConfig } from "../types";
+import { ShoppingRequest, Product, CutoffConfig } from "../types";
 import { findSimilarProduct } from "../lib/stringUtils";
 import { MEASUREMENT_UNITS } from "../lib/constants";
 import { parseQuantity, buildQuantityString } from "../lib/quantityUtils";
@@ -49,10 +49,6 @@ interface ShoppingModalsProps {
   onRenameCategory: (oldName: string, newName: string) => void;
   onDeleteCategory: (catName: string) => void;
 
-  editingInvItem: { productId: string; name: string; minStock: number; unit: string } | null;
-  setEditingInvItem: (val: any) => void;
-  onSaveInventorySettings: (productId: string, minStockVal: number, unitVal: string) => void;
-
   isEditingRecurring: boolean;
   setIsEditingRecurring: (val: boolean) => void;
   pool: Product[];
@@ -87,10 +83,6 @@ interface ShoppingModalsProps {
   showManageStarModal: boolean;
   setShowManageStarModal: (val: boolean) => void;
   onToggleStarProduct: (productId: string, currentIsStar?: boolean) => void;
-
-  showManageTrackModal: boolean;
-  setShowManageTrackModal: (val: boolean) => void;
-  onToggleTrackInventory: (productId: string, currentTrack?: boolean) => void;
 
   cutoffConfig?: CutoffConfig;
   onSaveCutoffConfig?: (config: CutoffConfig) => Promise<void>;
@@ -195,9 +187,6 @@ export function ShoppingModals({
   onAddCategory,
   onRenameCategory,
   onDeleteCategory,
-  editingInvItem,
-  setEditingInvItem,
-  onSaveInventorySettings,
   isEditingRecurring,
   setIsEditingRecurring,
   pool,
@@ -228,9 +217,6 @@ export function ShoppingModals({
   showManageStarModal,
   setShowManageStarModal,
   onToggleStarProduct,
-  showManageTrackModal,
-  setShowManageTrackModal,
-  onToggleTrackInventory,
   cutoffConfig,
   onSaveCutoffConfig,
 }: ShoppingModalsProps) {
@@ -261,10 +247,6 @@ export function ShoppingModals({
     }
   }, [cutoffConfig]);
 
-  // Local state for inventory settings
-  const [editMinStock, setEditMinStock] = useState("1");
-  const [editUnit, setEditUnit] = useState("יחידות");
-
   // Local state for recurring search
   const [recurringSearchVal, setRecurringSearchVal] = useState("");
 
@@ -277,9 +259,6 @@ export function ShoppingModals({
   // Local state for star products search
   const [starModalSearchVal, setStarModalSearchVal] = useState("");
 
-  // Local state for tracked products search
-  const [trackModalSearch, setTrackModalSearch] = useState("");
-
   useEffect(() => {
     if (editItem) {
       const { value, unit } = parseQuantity(editItem.quantity);
@@ -291,13 +270,6 @@ export function ShoppingModals({
       setEditPriority(editItem.priority || "normal");
     }
   }, [editItem]);
-
-  useEffect(() => {
-    if (editingInvItem) {
-      setEditMinStock(String(editingInvItem.minStock));
-      setEditUnit(editingInvItem.unit);
-    }
-  }, [editingInvItem]);
 
   const handleSaveReceiptClick = async () => {
     if (!receiptImage) return;
@@ -669,90 +641,7 @@ export function ShoppingModals({
         )}
       </AnimatePresence>
 
-      {/* ── INVENTORY ITEM SETTINGS DIALOG ── */}
-      <AnimatePresence>
-        {editingInvItem && (
-          <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setEditingInvItem(null)}
-              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-            />
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="relative bg-[var(--surface)] border border-[var(--border)] rounded-[2.5rem] w-full max-w-md p-8 shadow-2xl text-right flex flex-col"
-              dir="rtl"
-            >
-              <div className="flex items-center justify-between mb-6 shrink-0">
-                <h3 className="text-lg font-black flex items-center gap-2 text-[var(--foreground)]">
-                  <Settings className="w-5 h-5 text-indigo-500" />
-                  <span>הגדרות מלאי: {editingInvItem.name}</span>
-                </h3>
-                <button
-                  onClick={() => setEditingInvItem(null)}
-                  className="p-2 rounded-full hover:bg-[var(--foreground)]/5 text-[var(--muted)]"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
 
-              <div className="space-y-4 mb-6">
-                <div>
-                  <label className="text-xs font-black text-[var(--muted)] mb-1 block">
-                    סף מינימום להתרעה (מינ׳ מלאי):
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={editMinStock}
-                    onChange={(e) => setEditMinStock(e.target.value)}
-                    className="w-full bg-[var(--background)] border border-[var(--border)] rounded-xl py-2.5 px-4 text-xs font-bold text-[var(--foreground)] focus:border-indigo-500 outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-xs font-black text-[var(--muted)] mb-1 block">יחידת מידה:</label>
-                  <select
-                    value={editUnit}
-                    onChange={(e) => setEditUnit(e.target.value)}
-                    className="w-full bg-[var(--background)] border border-[var(--border)] rounded-xl py-2.5 px-4 text-xs font-bold text-[var(--foreground)] focus:border-indigo-500 outline-none"
-                  >
-                    <option value="יחידות">יחידות</option>
-                    <option value="חבילות">חבילות</option>
-                    <option value="בקבוקים">בקבוקים</option>
-                    <option value="ק״ג">ק״ג</option>
-                    <option value="ליטר">ליטר</option>
-                    <option value="מארזים">מארזים</option>
-                    <option value="קופסאות">קופסאות</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="flex gap-2">
-                <button
-                  onClick={() => {
-                    onSaveInventorySettings(editingInvItem.productId, parseFloat(editMinStock) || 1, editUnit);
-                    setEditingInvItem(null);
-                  }}
-                  className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-500 !text-white rounded-xl text-xs font-black transition-all cursor-pointer shadow-md shadow-indigo-600/10 active:scale-95 border-none"
-                >
-                  שמור שינויים
-                </button>
-                <button
-                  onClick={() => setEditingInvItem(null)}
-                  className="py-3 px-5 bg-[var(--foreground)]/5 hover:bg-[var(--foreground)]/10 text-[var(--muted)] rounded-xl text-xs font-black transition-all cursor-pointer border-none"
-                >
-                  ביטול
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
 
       {/* ── RECURRING LIST EDIT MODAL ── */}
       <AnimatePresence>
@@ -1390,100 +1279,7 @@ export function ShoppingModals({
         )}
       </AnimatePresence>
 
-      {/* ── MANAGE TRACKED PRODUCTS MODAL ── */}
-      <AnimatePresence>
-        {showManageTrackModal && (
-          <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setShowManageTrackModal(false)}
-              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-            />
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="relative bg-[var(--surface)] border border-[var(--border)] rounded-[2.5rem] w-full max-w-lg p-6 md:p-8 shadow-2xl text-right flex flex-col max-h-[85vh]"
-              dir="rtl"
-            >
-              <div className="flex items-center justify-between mb-4 shrink-0">
-                <h3 className="text-lg font-black flex items-center gap-2 text-[var(--foreground)]">
-                  <Settings className="w-5 h-5 text-indigo-500" />
-                  <span>בחירת מוצרים לניהול מלאי</span>
-                </h3>
-                <button
-                  onClick={() => setShowManageTrackModal(false)}
-                  className="p-2 rounded-full hover:bg-[var(--foreground)]/5 text-[var(--muted)] cursor-pointer"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
 
-              <p className="text-xs text-[var(--muted)] font-bold mb-4 shrink-0">
-                סמן את המוצרים שעבורם ברצונך לעקוב ולנהל מלאי קבוע במערכת.
-              </p>
-
-              <div className="relative mb-4 shrink-0">
-                <Search className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--muted)]" />
-                <input
-                  type="text"
-                  value={trackModalSearch}
-                  onChange={(e) => setTrackModalSearch(e.target.value)}
-                  placeholder="חפש מוצר ברשימה..."
-                  className="w-full bg-[var(--background)] border border-[var(--border)] rounded-xl py-2 pr-10 pl-3 text-xs font-bold focus:outline-none focus:border-indigo-500 text-[var(--foreground)]"
-                />
-              </div>
-
-              <div className="flex-1 overflow-y-auto pr-1 space-y-2 max-h-[50vh]">
-                {pool
-                  .filter((p) => {
-                    if (p.isActive === false) return false;
-                    if (!trackModalSearch.trim()) return true;
-                    const q = trackModalSearch.trim().toLowerCase();
-                    return p.name.toLowerCase().includes(q) || p.category.toLowerCase().includes(q);
-                  })
-                  .map((p) => {
-                    const isTracked = p.trackInventory === true;
-                    return (
-                      <div
-                        key={p.id}
-                        className="flex items-center justify-between p-3 bg-[var(--background)] border border-[var(--border)] rounded-xl gap-2"
-                      >
-                        <div className="flex flex-col items-start gap-1">
-                          <span className="text-xs font-bold text-[var(--foreground)]">{p.name}</span>
-                          <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-md ${CAT_COLOR[p.category] ?? CAT_COLOR["כללי"]}`}>
-                            {p.category}
-                          </span>
-                        </div>
-                        <button
-                          onClick={() => onToggleTrackInventory(p.id, p.trackInventory)}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer border ${
-                            isTracked
-                              ? "bg-indigo-600 text-white border-indigo-600 shadow-sm"
-                              : "bg-[var(--surface)] text-[var(--muted)] border-[var(--border)] hover:border-indigo-500"
-                          }`}
-                        >
-                          {isTracked ? "במלאי ✓" : "+ הוסף למלאי"}
-                        </button>
-                      </div>
-                    );
-                  })}
-              </div>
-
-              <div className="mt-4 pt-4 border-t border-[var(--border)] shrink-0 flex justify-end">
-                <button
-                  onClick={() => setShowManageTrackModal(false)}
-                  className="py-2.5 px-6 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-black transition-all cursor-pointer"
-                >
-                  סיום
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
     </>
   );
 }

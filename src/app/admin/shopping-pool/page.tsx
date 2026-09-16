@@ -37,7 +37,7 @@ export default function ShoppingPoolPage() {
   const [newDefaultNotes, setNewDefaultNotes] = useState("");
 
   // Status Filter State
-  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive" | "inventory">("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
 
   // Duplicate Scanner State
   const [showDuplicatesModal, setShowDuplicatesModal] = useState(false);
@@ -175,16 +175,6 @@ export default function ShoppingPoolPage() {
       setProducts(products.map(p => p.id === id ? { ...p, isActive: nextVal } : p));
     } catch (e) {
       console.error("Error updating active status:", e);
-    }
-  };
-
-  const toggleProductTrackInventory = async (id: string, currentTrack?: boolean) => {
-    const nextVal = !currentTrack;
-    try {
-      await setDoc(doc(db, "product_pool", id), { trackInventory: nextVal }, { merge: true });
-      setProducts(products.map(p => p.id === id ? { ...p, trackInventory: nextVal } : p));
-    } catch (e) {
-      console.error("Error updating trackInventory:", e);
     }
   };
 
@@ -444,7 +434,6 @@ export default function ShoppingPoolPage() {
   const filtered = products.filter(p => {
     if (statusFilter === "active" && p.isActive === false) return false;
     if (statusFilter === "inactive" && p.isActive !== false) return false;
-    if (statusFilter === "inventory" && p.trackInventory !== true) return false;
 
     if (searchTerm.trim()) {
       const q = searchTerm.trim().toLowerCase();
@@ -455,7 +444,6 @@ export default function ShoppingPoolPage() {
 
   const activeCount = products.filter(p => p.isActive !== false).length;
   const inactiveCount = products.filter(p => p.isActive === false).length;
-  const inventoryCount = products.filter(p => p.trackInventory === true).length;
 
   return (
     <RoleGuard allowedRoles={["admin", "manager", "logistics"]} redirectTo="/">
@@ -589,16 +577,6 @@ export default function ShoppingPoolPage() {
               >
                 לא פעילים ({inactiveCount})
               </button>
-              <button
-                onClick={() => setStatusFilter("inventory")}
-                className={`px-3 py-1.5 rounded-xl border transition-all cursor-pointer whitespace-nowrap ${
-                  statusFilter === "inventory"
-                    ? "bg-indigo-600 text-white border-indigo-600"
-                    : "bg-[var(--surface)] text-[var(--muted)] border-[var(--border)] hover:bg-[var(--foreground)]/5"
-                }`}
-              >
-                במעקב מלאי ({inventoryCount})
-              </button>
             </div>
           </div>
         </header>
@@ -671,7 +649,6 @@ export default function ShoppingPoolPage() {
                 {filtered.map((prod) => {
                   const isEditingThis = editingProdId === prod.id;
                   const isInactive = prod.isActive === false;
-                  const isTracked = prod.trackInventory === true;
 
                   return (
                     <motion.div
@@ -759,11 +736,6 @@ export default function ShoppingPoolPage() {
                                     לא פעיל
                                   </span>
                                 )}
-                                {isTracked && (
-                                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-indigo-500/10 text-indigo-500 border border-indigo-500/20">
-                                    במעקב מלאי
-                                  </span>
-                                )}
                               </div>
                               <p className="text-[10px] text-slate-500 flex items-center gap-1 mt-1 justify-start">
                                 <Tag className="w-3 h-3" />
@@ -783,18 +755,6 @@ export default function ShoppingPoolPage() {
                               title={isInactive ? "הפוך למוצר פעיל" : "הפוך למוצר לא פעיל"}
                             >
                               {isInactive ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                            </button>
-
-                            <button
-                              onClick={() => toggleProductTrackInventory(prod.id, prod.trackInventory)}
-                              className={`p-2 rounded-xl transition-all cursor-pointer ${
-                                isTracked 
-                                  ? "text-indigo-500 bg-indigo-500/10 border border-indigo-500/20" 
-                                  : "text-slate-400 hover:bg-slate-500/10"
-                              }`}
-                              title={isTracked ? "הסר ממעקב מלאי" : "הוסף למעקב מלאי"}
-                            >
-                              <Boxes className="w-4 h-4" />
                             </button>
 
                             <button

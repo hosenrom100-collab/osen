@@ -5,8 +5,7 @@ import { User } from "firebase/auth";
 import { collection, addDoc, doc, updateDoc, deleteDoc, setDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase/config";
 import { sendPush } from "@/lib/notify";
-import { ShoppingRequest, Product, InventoryItem, CutoffConfig } from "../types";
-import { logInventoryChange } from "../lib/inventory-logger";
+import { ShoppingRequest, Product, CutoffConfig } from "../types";
 import { normalizeHebrewStrict, findSimilarRequestStrict } from "../lib/stringUtils";
 import { parseQuantity, buildQuantityString } from "../lib/quantityUtils";
 
@@ -16,7 +15,6 @@ export function useShoppingActions(
   isLogistics: boolean,
   requests: ShoppingRequest[],
   pool: Product[],
-  inventoryMap: Record<string, InventoryItem>,
   listType: "supermarket" | "large",
   categories: string[],
   setCategories: (next: string[]) => void,
@@ -63,7 +61,7 @@ export function useShoppingActions(
     }
   };
 
-  // Add Item to Shopping List (with Inventory duplicate stock check)
+  // Add Item to Shopping List
   const addProduct = async (
     name: string,
     category = "כללי",
@@ -91,19 +89,8 @@ export function useShoppingActions(
       return;
     }
 
-    // Check if item has stock in inventory (only relevant for products still marked for tracking)
     const norm = cleanName.toLowerCase();
     const poolMatch = pool.find((p) => p.name.trim().toLowerCase() === norm);
-    const invMatch = Object.values(inventoryMap).find((i) => (i?.name || "").trim().toLowerCase() === norm);
-    if (poolMatch?.trackInventory === true && invMatch && invMatch.currentStock > 0) {
-      if (!isAdmin && !isLogistics) {
-        showToast(`למוצר "${cleanName}" יש כרגע ${invMatch.currentStock} ${invMatch.unit || "יחידות"} במלאי המחסן - לא ניתן להוסיף לרשימת הקניות.`, "warning");
-        return;
-      } else {
-        showToast(`שים לב: למוצר "${cleanName}" יש כרגע ${invMatch.currentStock} ${invMatch.unit || "יחידות"} במלאי!`, "warning");
-      }
-    }
-
     const finalNotes = notes || poolMatch?.defaultNotes || "";
     const requesterUid = requestedByOverride?.uid ?? user?.uid;
     const requesterName = requestedByOverride?.name ?? (user?.displayName || user?.email || "משתמש");
@@ -150,50 +137,7 @@ export function useShoppingActions(
             ...extra,
           });
 
-          // AUTO INVENTORY STOCK UPDATE ON PURCHASE
           if (next === "purchased") {
-            const targetReq = requests.find((r) => r.id === id);
-            if (targetReq) {
-              const normReqName = normalizeHebrewStrict(targetReq.name);
-              const matchingProduct = pool.find((p) => normalizeHebrewStrict(p.name) === normReqName);
-              // Only auto-update inventory for products actively marked for inventory tracking
-              if (matchingProduct && matchingProduct.trackInventory === true) {
-                const invItem = inventoryMap[matchingProduct.id];
-                const currStock = invItem?.currentStock ?? 0;
-                const parsedQty = parseFloat(targetReq.quantity) || 1;
-                const newStock = currStock + parsedQty;
-
-                await setDoc(
-                  doc(db, "inventory", matchingProduct.id),
-                  {
-                    productId: matchingProduct.id,
-                    name: matchingProduct.name,
-                    category: matchingProduct.category,
-                    currentStock: newStock,
-                    minStock: invItem?.minStock ?? 1,
-                    unit: invItem?.unit ?? "יחידות",
-                    lastUpdated: new Date(),
-                    lastUpdatedBy: user?.uid,
-                    lastUpdatedByName: user?.displayName || user?.email || "מערכת",
-                  },
-                  { merge: true }
-                );
-
-                logInventoryChange({
-                  productId: matchingProduct.id,
-                  productName: matchingProduct.name,
-                  previousStock: currStock,
-                  newStock,
-                  delta: parsedQty,
-                  reason: "purchased",
-                  updatedBy: user?.uid || "",
-                  updatedByName: user?.displayName || user?.email || "מערכת",
-                });
-
-                showToast(`מלאי "${matchingProduct.name}" עודכן אוטומטית: ${currStock} ← ${newStock} ${invItem?.unit ?? "יחידות"}`, "success");
-              }
-            }
-
             const remainingApproved = requests.filter(
               (r) => (r.status === "approved" || r.status === "pending") && r.id !== id
             );
@@ -229,7 +173,7 @@ export function useShoppingActions(
         console.error(e);
       }
     },
-    [requests, pool, inventoryMap, user, setShowArchivePrompt, showToast]
+    [requests, user, setShowArchivePrompt, showToast]
   );
 
   const updateQuantity = async (id: string, currentQtyStr: string, increment: number) => {
@@ -430,10 +374,19 @@ export function useShoppingActions(
     showToast("הגדרות מועד הקציבה השבועי עודכנו בהצלחה!", "success");
   };
 
+  const toggleStarProduct = async (productId: string, currentIsStar?: boolean) => {
+    try {
+      await setDoc(doc(db, "product_pool", productId), { isStar: !currentIsStar }, { merge: true });
+      showToast(!currentIsStar ? "המוצר סומן כמוצר כוכב ⭐" : "המוצר הוסר ממוצרי הכוכב", "success");
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   return {
     requestNewProduct,
     addProduct, changeStatus, updateQuantity, moveToEquipment, moveToSupermarket, archiveCurrentSession,
-    toggleRecurring, updateRecurringQuantity, importRecurringList,
+    toggleRecurring, updateRecurringQuantity, importRecurringList, toggleStarProduct,
     handleAddCategory, handleRenameCategory, handleDeleteCategory, handleSaveCutoffConfig,
   };
 }

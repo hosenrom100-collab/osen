@@ -6,7 +6,7 @@ import {
   collection, query, orderBy, doc, onSnapshot, getDoc, where,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase/config";
-import { ShoppingRequest, Product, InventoryItem, CutoffConfig } from "../types";
+import { ShoppingRequest, Product, CutoffConfig } from "../types";
 import { getCutoffStatus } from "../lib/cutoffUtils";
 import { DEFAULT_CATEGORIES } from "../lib/constants";
 import { toDateOrNull } from "../lib/dateUtils";
@@ -16,7 +16,6 @@ export function useShoppingData(user: User | null, isAdmin: boolean, listType: "
   const [pool, setPool] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
-  const [inventoryMap, setInventoryMap] = useState<Record<string, InventoryItem>>({});
   const [categories, setCategories] = useState<string[]>(DEFAULT_CATEGORIES);
   const [cutoffConfig, setCutoffConfig] = useState<CutoffConfig>({ enabled: true, day: 2, time: "12:00" });
 
@@ -53,18 +52,9 @@ export function useShoppingData(user: User | null, isAdmin: boolean, listType: "
       setLoading(false);
     });
 
-    const unsubInv = onSnapshot(collection(db, "inventory"), (snap) => {
-      const map: Record<string, InventoryItem> = {};
-      snap.forEach((d) => {
-        map[d.id] = { id: d.id, productId: d.id, ...d.data() } as InventoryItem;
-      });
-      setInventoryMap(map);
-    });
-
     return () => {
       unsubPool();
       unsub();
-      unsubInv();
     };
   }, [user]);
 
@@ -132,7 +122,7 @@ export function useShoppingData(user: User | null, isAdmin: boolean, listType: "
   const isListFrozen = cutoffStatus.isEnabled && cutoffStatus.isPassed && currentActiveItems.length > 0;
 
   return {
-    requests, pool, loading, setLoading, pendingRequestsCount, inventoryMap, categories, setCategories, cutoffConfig, setCutoffConfig,
+    requests, pool, loading, setLoading, pendingRequestsCount, categories, setCategories, cutoffConfig, setCutoffConfig,
     activeRequests, sessionPurchased, archived, archiveByDate, currentActiveItems, cutoffStatus, isListFrozen,
     refetchSettings,
   };

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Product, ShoppingRequest, InventoryItem } from "../types";
+import { Product, ShoppingRequest } from "../types";
 import { Plus, Search, Star, X, Check, Flame, CheckCircle2, AlertTriangle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { rankSimilarProducts, findSimilarProduct } from "../lib/stringUtils";
@@ -16,7 +16,6 @@ interface AddProductOverlayProps {
   isAdmin: boolean;
   isLogistics?: boolean;
   isFrozen?: boolean;
-  inventoryMap?: Record<string, InventoryItem>;
   onAddProduct: (name: string, category?: string, priority?: "normal" | "urgent", quantity?: string, notes?: string) => void;
   onRequestNewProduct: (name: string, category?: string, priority?: "normal" | "urgent", quantity?: string) => void;
   requests: ShoppingRequest[];

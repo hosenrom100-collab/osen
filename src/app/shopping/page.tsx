@@ -19,17 +19,14 @@ import Link from "next/link";
 
 import { ShoppingRequest } from "./types";
 import { CycleClosureModal } from "./components/CycleClosureModal";
-import { InventoryView } from "./components/InventoryView";
 import { ShoppingListView } from "./components/ShoppingListView";
 import { AddProductOverlay } from "./components/AddProductOverlay";
 import { ShoppingModals } from "./components/ShoppingModals";
 import { AdminProductRequestsModal } from "./components/AdminProductRequestsModal";
 import { DeleteArchiveDayModal } from "./components/DeleteArchiveDayModal";
-import { SmartReorderModal } from "./components/SmartReorderModal";
 import { useShoppingData } from "./hooks/useShoppingData";
 import { useExport } from "./hooks/useExport";
 import { useReceiptUpload } from "./hooks/useReceiptUpload";
-import { useInventoryActions } from "./hooks/useInventoryActions";
 import { useShoppingActions } from "./hooks/useShoppingActions";
 import { useArchiveManagement } from "./hooks/useArchiveManagement";
 import { usePullToRefresh } from "./hooks/usePullToRefresh";
@@ -39,7 +36,7 @@ export default function ShoppingPage() {
   const { user, role, isAdmin, isManager, isLogistics } = useAuth();
   const router = useRouter();
 
-  const [view, setView] = useState<"list" | "archive" | "inventory">("list");
+  const [view, setView] = useState<"list" | "archive">("list");
   const [listType, setListType] = useState<"supermarket" | "large">("supermarket");
   const [isEditingRecurring, setIsEditingRecurring] = useState(false);
   const [actionsMenuOpen, setActionsMenuOpen] = useState(false);
@@ -63,7 +60,7 @@ export default function ShoppingPage() {
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
 
   const {
-    requests, pool, loading, setLoading, pendingRequestsCount, inventoryMap, categories, setCategories,
+    requests, pool, loading, setLoading, pendingRequestsCount, categories, setCategories,
     cutoffConfig, setCutoffConfig,
     activeRequests, sessionPurchased, archiveByDate, currentActiveItems, cutoffStatus, isListFrozen,
     refetchSettings,
@@ -110,17 +107,6 @@ export default function ShoppingPage() {
     }
   }, [toast]);
 
-  // Inventory Stock Updates with Firestore & Logging
-  const {
-    editingInvItem, setEditingInvItem,
-    showManageTrackModal, setShowManageTrackModal,
-    showSmartReorderModal, setShowSmartReorderModal,
-    smartReorderItems,
-    updateInventoryStock, batchUpdateStock,
-    openSmartReorderReview, confirmSmartReorder,
-    toggleTrackInventory, toggleStarProduct, saveInventorySettings,
-  } = useInventoryActions(user, pool, requests, inventoryMap, showToast);
-
   const {
     showArchivePrompt, setShowArchivePrompt,
     showResetArchiveModal, setShowResetArchiveModal,
@@ -139,10 +125,10 @@ export default function ShoppingPage() {
   const {
     requestNewProduct,
     addProduct, changeStatus, updateQuantity, moveToEquipment, moveToSupermarket, archiveCurrentSession,
-    toggleRecurring, updateRecurringQuantity, importRecurringList,
+    toggleRecurring, updateRecurringQuantity, importRecurringList, toggleStarProduct,
     handleAddCategory, handleRenameCategory, handleDeleteCategory, handleSaveCutoffConfig,
   } = useShoppingActions(
-    user, isAdmin, isLogistics, requests, pool, inventoryMap, listType,
+    user, isAdmin, isLogistics, requests, pool, listType,
     categories, setCategories, setCutoffConfig, setLoading, setShowArchivePrompt, showToast, confirm
   );
 
@@ -177,17 +163,6 @@ export default function ShoppingPage() {
                 >
                   רשימה
                 </button>
-                {canPurchase && (
-                  <button
-                    onClick={() => setView("inventory")}
-                    className={`px-2 py-1 rounded-lg text-[10px] font-black transition-all flex items-center gap-0.5 border-none ${
-                      view === "inventory" ? "bg-[var(--surface)] text-indigo-600 shadow-sm" : "text-[var(--muted)] bg-transparent"
-                    }`}
-                  >
-                    <Boxes className="w-3 h-3" />
-                    מלאי
-                  </button>
-                )}
                 <button
                   onClick={() => setView("archive")}
                   className={`px-2 py-1 rounded-lg text-[10px] font-black transition-all border-none ${
@@ -524,18 +499,6 @@ export default function ShoppingPage() {
               <span>רשימה פעילה</span>
             </button>
 
-            {canPurchase && (
-              <button
-                onClick={() => setView("inventory")}
-                className={`px-4 py-1.5 rounded-lg text-xs font-black transition-all border-none cursor-pointer flex items-center gap-1.5 ${
-                  view === "inventory" ? "bg-[var(--surface)] text-indigo-600 dark:text-indigo-400 shadow-sm" : "text-[var(--muted)] bg-transparent"
-                }`}
-              >
-                <Boxes className="w-3.5 h-3.5" />
-                <span>ניהול מלאי</span>
-              </button>
-            )}
-
             {(isAdmin || isLogistics) && (
               <button
                 onClick={() => setView("archive")}
@@ -685,7 +648,6 @@ export default function ShoppingPage() {
               ) : view === "list" ? (
                 <ShoppingListView
                   requests={requests}
-                  inventoryMap={inventoryMap}
                   pool={pool}
                   categories={categories}
                   listType={listType}
@@ -701,24 +663,6 @@ export default function ShoppingPage() {
                   onMoveToEquipment={moveToEquipment}
                   onMoveToSupermarket={moveToSupermarket}
                   onShowArchivePrompt={() => setShowArchivePrompt(true)}
-                  onSwitchToInventoryView={() => setView("inventory")}
-                />
-              ) : view === "inventory" ? (
-                <InventoryView
-                  pool={pool}
-                  inventoryMap={inventoryMap}
-                  categories={categories}
-                  activeRequests={activeRequests}
-                  activeCategory={activeCategory}
-                  setActiveCategory={setActiveCategory}
-                  onUpdateStock={updateInventoryStock}
-                  onBatchUpdateStock={batchUpdateStock}
-                  onAddToShoppingList={(name, category, unit) => addProduct(name, category, "normal", unit ? `1 ${unit}` : "1")}
-                  onSmartReorder={openSmartReorderReview}
-                  onOpenManageTrackModal={() => setShowManageTrackModal(true)}
-                  onOpenCategoryModal={() => setIsAddingCat(true)}
-                  onOpenSettingsModal={setEditingInvItem}
-                  onToggleTrackInventory={toggleTrackInventory}
                 />
               ) : (
                 /* Archive View */
@@ -794,7 +738,6 @@ export default function ShoppingPage() {
           onClose={() => setOverlayOpen(false)}
           pool={pool}
           categories={categories}
-          inventoryMap={inventoryMap}
           requests={requests}
           inputVal={inputVal}
           setInputVal={setInputVal}
@@ -863,13 +806,6 @@ export default function ShoppingPage() {
           }}
         />
 
-        <SmartReorderModal
-          isOpen={showSmartReorderModal}
-          onClose={() => setShowSmartReorderModal(false)}
-          items={smartReorderItems}
-          onConfirm={confirmSmartReorder}
-        />
-
         {/* Application Modals */}
         <ShoppingModals
           editItem={editItem}
@@ -883,9 +819,6 @@ export default function ShoppingPage() {
           onAddCategory={handleAddCategory}
           onRenameCategory={handleRenameCategory}
           onDeleteCategory={handleDeleteCategory}
-          editingInvItem={editingInvItem}
-          setEditingInvItem={setEditingInvItem}
-          onSaveInventorySettings={saveInventorySettings}
           isEditingRecurring={isEditingRecurring}
           setIsEditingRecurring={setIsEditingRecurring}
           pool={pool}
@@ -916,9 +849,6 @@ export default function ShoppingPage() {
           showManageStarModal={showManageStarModal}
           setShowManageStarModal={setShowManageStarModal}
           onToggleStarProduct={toggleStarProduct}
-          showManageTrackModal={showManageTrackModal}
-          setShowManageTrackModal={setShowManageTrackModal}
-          onToggleTrackInventory={toggleTrackInventory}
           cutoffConfig={cutoffConfig}
           onSaveCutoffConfig={handleSaveCutoffConfig}
         />

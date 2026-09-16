@@ -26,35 +26,8 @@ export interface Product {
   defaultNotes?: string;
   isRecurring?: boolean;
   recurringQuantity?: string;
-  trackInventory?: boolean;
   isActive?: boolean;
   isStar?: boolean;
-}
-
-export interface InventoryItem {
-  id: string;
-  productId: string;
-  name: string;
-  category: string;
-  currentStock: number;
-  minStock: number;
-  unit: string;
-  lastUpdated?: Timestamp | Date;
-  lastUpdatedBy?: string;
-  lastUpdatedByName?: string;
-}
-
-export interface InventoryLogEntry {
-  id?: string;
-  productId: string;
-  productName: string;
-  previousStock: number;
-  newStock: number;
-  delta: number;
-  reason: "manual" | "purchased" | "reorder" | "count" | "consumed";
-  updatedBy: string;
-  updatedByName: string;
-  timestamp: Timestamp | Date;
 }
 
 export interface NewProductRequest {
