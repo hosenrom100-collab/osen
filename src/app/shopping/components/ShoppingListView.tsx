@@ -10,7 +10,7 @@ import {
 import { motion, AnimatePresence, LayoutGroup } from "framer-motion";
 import { CAT_SOLID, CAT_COLOR } from "../lib/constants";
 import { useConfirm } from "@/hooks/useConfirm";
-import { parseQuantity, formatUnitShort, getQuantityStep, steppedQuantity } from "../lib/quantityUtils";
+import { parseQuantity, formatUnitShort, getQuantityStep, getMinQuantity, steppedQuantity } from "../lib/quantityUtils";
 
 type ShoppingStatus = ShoppingRequest["status"] | "permanently_delete";
 type OnChangeStatus = (id: string, next: ShoppingStatus, extra?: Record<string, unknown>) => void;
@@ -53,6 +53,7 @@ export function ShoppingListView({
 }: ShoppingListViewProps) {
   const [purchasedCollapsed, setPurchasedCollapsed] = useState(false);
   const [deletedCollapsed, setDeletedCollapsed] = useState(true);
+  const [showUrgentOnly, setShowUrgentOnly] = useState(false);
 
   const activeRequests = requests.filter(
     (r) =>
@@ -67,6 +68,8 @@ export function ShoppingListView({
   );
 
   const urgentCount = activeRequests.filter((r) => r.priority === "urgent").length;
+  // Guard against a stale toggle once the last urgent item is purchased/removed elsewhere.
+  const urgentFilterActive = showUrgentOnly && urgentCount > 0;
 
   return (
     <div dir="rtl" className="w-full max-w-4xl mx-auto pb-24 px-3 sm:px-4">
@@ -74,9 +77,12 @@ export function ShoppingListView({
       <div className="pt-2 pb-4">
         <div className="grid grid-cols-3 gap-2.5 p-2 bg-[var(--surface)] border border-[var(--border)] rounded-2xl shadow-xs">
           <button
-            onClick={() => setActiveCategory(null)}
+            onClick={() => {
+              setActiveCategory(null);
+              setShowUrgentOnly(false);
+            }}
             className={`flex flex-col items-center justify-center py-3 px-2 rounded-xl transition-all cursor-pointer border-none ${
-              activeCategory === null ? "bg-indigo-500/15 ring-2 ring-indigo-500/30" : "bg-indigo-500/5 hover:bg-indigo-500/10"
+              activeCategory === null && !urgentFilterActive ? "bg-indigo-500/15 ring-2 ring-indigo-500/30" : "bg-indigo-500/5 hover:bg-indigo-500/10"
             }`}
           >
             <span className="text-xs font-black text-indigo-600 dark:text-indigo-400 flex items-center gap-1.5 mb-0.5">
@@ -87,13 +93,12 @@ export function ShoppingListView({
 
           <button
             onClick={() => {
-              const urgentReqs = activeRequests.filter((r) => r.priority === "urgent");
-              if (urgentReqs.length > 0) {
-                setActiveCategory(urgentReqs[0].category);
-              }
+              if (urgentCount === 0) return;
+              setActiveCategory(null);
+              setShowUrgentOnly((v) => !v);
             }}
             className={`flex flex-col items-center justify-center py-3 px-2 rounded-xl transition-all cursor-pointer border-none ${
-              urgentCount > 0 ? "bg-rose-500/10 hover:bg-rose-500/15" : "bg-slate-500/5"
+              urgentFilterActive ? "bg-rose-500/20 ring-2 ring-rose-500/30" : urgentCount > 0 ? "bg-rose-500/10 hover:bg-rose-500/15" : "bg-slate-500/5"
             }`}
           >
             <span className="text-xs font-black text-rose-500 flex items-center gap-1.5 mb-0.5">
@@ -127,7 +132,9 @@ export function ShoppingListView({
         <LayoutGroup>
           {categories.map((cat) => {
             if (activeCategory !== null && activeCategory !== cat) return null;
-            const catItems = activeRequests.filter((r) => r.category === cat);
+            const catItems = activeRequests.filter(
+              (r) => r.category === cat && (!urgentFilterActive || r.priority === "urgent")
+            );
             if (catItems.length === 0) return null;
 
             return (
@@ -300,11 +307,12 @@ const ListonicItemCard = memo(function ListonicItemCard({
 }) {
   const [isEditingQtyDirect, setIsEditingQtyDirect] = useState(false);
   const [qtyDraft, setQtyDraft] = useState("");
-  const { confirm } = useConfirm();
+  const { confirm, ConfirmDialog } = useConfirm();
 
   const isUrgent = item.priority === "urgent";
   const { value: qtyValue, unit: qtyUnit } = parseQuantity(item.quantity);
   const qtyStep = getQuantityStep(qtyUnit);
+  const qtyMin = getMinQuantity(qtyUnit);
 
   const startEditingQty = () => {
     setQtyDraft(String(qtyValue));
@@ -338,6 +346,7 @@ const ListonicItemCard = memo(function ListonicItemCard({
   };
 
   return (
+    <>
     <motion.div
       layout
       initial={{ opacity: 0, y: 8 }}
@@ -401,7 +410,7 @@ const ListonicItemCard = memo(function ListonicItemCard({
         {/* Large Quantity Stepper */}
         <div className="flex items-center gap-1 bg-[var(--foreground)]/5 border border-[var(--border)] rounded-2xl p-1 shrink-0 shadow-xs">
           <button
-            onClick={() => onUpdateQuantity(item.id, item.quantity || "1", steppedQuantity(qtyValue, qtyStep, -1) - qtyValue)}
+            onClick={() => onUpdateQuantity(item.id, item.quantity || "1", steppedQuantity(qtyValue, qtyStep, -1, qtyMin) - qtyValue)}
             className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-[var(--surface)] hover:bg-[var(--foreground)]/10 text-[var(--foreground)] flex items-center justify-center transition-all active:scale-90 border border-[var(--border)] cursor-pointer"
             title="הפחת כמות"
             aria-label="הפחת כמות"
@@ -490,5 +499,7 @@ const ListonicItemCard = memo(function ListonicItemCard({
         )}
       </div>
     </motion.div>
+    <ConfirmDialog />
+    </>
   );
 });

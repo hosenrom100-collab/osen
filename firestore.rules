@@ -149,15 +149,30 @@ service cloud.firestore {
     // Shopping Requests
     match /shopping_requests/{docId} {
       allow read: if isAuthenticated();
-      allow create: if isStaff();
-      // Managers, logistics, or creator can update quantities/fields
-      allow update: if isStaff() && (
-        isManager() || 
-        hasRole('logistics') || 
-        (resource != null && (resource.data.requestedBy == request.auth.uid || resource.data.createdBy == request.auth.uid))
+
+      // Any staff member can add an item under their own name; shopping managers
+      // (admin/manager/logistics) can also add on someone else's behalf (recurring
+      // list import, approving a queued product request).
+      allow create: if isShoppingManager() || (
+        isStaff() &&
+        request.resource.data.requestedBy == request.auth.uid &&
+        request.resource.data.status == 'approved'
       );
-      // Only Admin or Logistics can delete products from the list
-      allow delete: if isAdmin() || hasRole('logistics');
+
+      // Any staff member can check an item off, adjust its quantity/notes/priority,
+      // move it between lists, or soft-delete it — but only shopping managers may
+      // touch an archived item, and nobody may rewrite who requested it or its
+      // archive trail via a plain update.
+      allow update: if isShoppingManager() || (
+        isStaff() &&
+        resource.data.status != 'archived' &&
+        request.resource.data.status in ['pending', 'approved', 'purchased', 'deleted'] &&
+        !request.resource.data.diff(resource.data).affectedKeys()
+             .hasAny(['requestedBy', 'requestedByName', 'createdAt', 'archivedAt', 'archivedBy'])
+      );
+
+      // Only shopping managers (admin/manager/logistics) permanently delete items.
+      allow delete: if isShoppingManager();
     }
 
     // Product Pool
@@ -203,7 +218,9 @@ service cloud.firestore {
     // Settings & Core Metadata
     match /settings/{docId} {
       allow read: if isAuthenticated();
-      allow write: if isManager() || (isAuthenticated() && docId == 'ai_memory');
+      allow write: if isManager()
+        || (isShoppingManager() && docId == 'shopping')
+        || (isAuthenticated() && docId == 'ai_memory');
     }
     match /schedules/{docId} {
       allow read: if isAuthenticated();

@@ -2,12 +2,12 @@
 
 import { useCallback } from "react";
 import { User } from "firebase/auth";
-import { collection, addDoc, doc, updateDoc, deleteDoc, setDoc } from "firebase/firestore";
+import { collection, addDoc, doc, updateDoc, deleteDoc, setDoc, writeBatch } from "firebase/firestore";
 import { db } from "@/lib/firebase/config";
 import { sendPush } from "@/lib/notify";
 import { ShoppingRequest, Product, CutoffConfig } from "../types";
-import { normalizeHebrewStrict, findSimilarRequestStrict } from "../lib/stringUtils";
-import { parseQuantity, buildQuantityString } from "../lib/quantityUtils";
+import { findSimilarRequestStrict } from "../lib/stringUtils";
+import { parseQuantity, buildQuantityString, getMinQuantity } from "../lib/quantityUtils";
 
 export function useShoppingActions(
   user: User | null,
@@ -24,15 +24,17 @@ export function useShoppingActions(
   showToast: (message: string, type: "success" | "warning") => void,
   confirmDialog: (options: { title: string; message: string; type?: "danger" | "info" | "success" }) => Promise<boolean>
 ) {
-  // User request a new product to be added to the pool by admin
+  // User request a new product to be added to the pool by admin.
+  // Returns whether the request was actually submitted, so callers (the add
+  // overlay) know whether it's safe to clear their input and close.
   const requestNewProduct = async (
     name: string,
     category = "כללי",
     priority: "normal" | "urgent" = "normal",
     quantity = "1"
-  ) => {
+  ): Promise<boolean> => {
     const cleanName = name.trim();
-    if (!cleanName) return;
+    if (!cleanName) return false;
 
     try {
       await addDoc(collection(db, "product_requests_queue"), {
@@ -55,13 +57,16 @@ export function useShoppingActions(
       });
 
       showToast("הבקשה להוספת המוצר נשלחה למנהל. תודה!", "success");
+      return true;
     } catch (e) {
       console.error("Error submitting new product request:", e);
-      showToast("שגיאה בשליחת הבקשה.", "warning");
+      showToast("שגיאה בשליחת הבקשה. נסה שוב.", "warning");
+      return false;
     }
   };
 
-  // Add Item to Shopping List
+  // Add Item to Shopping List. Returns whether the item was actually added, so
+  // callers know whether it's safe to clear their input and close the overlay.
   const addProduct = async (
     name: string,
     category = "כללי",
@@ -69,24 +74,24 @@ export function useShoppingActions(
     quantity = "1",
     notes = "",
     requestedByOverride?: { uid: string; name: string }
-  ) => {
+  ): Promise<boolean> => {
     const cleanName = name.trim();
-    if (!cleanName) return;
+    if (!cleanName) return false;
 
     if (cleanName.includes(",") || cleanName.includes("،")) {
       showToast("יש להוסיף כל מוצר בנפרד ולא כמחרוזת של כמה מוצרים.", "warning");
-      return;
+      return false;
     }
     if (cleanName.length > 60) {
       showToast("שם המוצר ארוך מדי. אנא קצר את שם המוצר.", "warning");
-      return;
+      return false;
     }
 
     const activeRequestsList = requests.filter((r) => r.status !== "archived");
     const similarName = findSimilarRequestStrict(cleanName, activeRequestsList);
     if (similarName) {
       showToast(`המוצר כבר הוזמן לרשימה בשם דומה: "${similarName}"!`, "warning");
-      return;
+      return false;
     }
 
     const norm = cleanName.toLowerCase();
@@ -95,29 +100,53 @@ export function useShoppingActions(
     const requesterUid = requestedByOverride?.uid ?? user?.uid;
     const requesterName = requestedByOverride?.name ?? (user?.displayName || user?.email || "משתמש");
 
-    await addDoc(collection(db, "shopping_requests"), {
-      name: cleanName,
-      category,
-      quantity,
-      notes: finalNotes,
-      priority,
-      status: "approved",
-      requestedBy: requesterUid,
-      requestedByName: requesterName,
-      createdAt: new Date(),
-      listType,
-    });
-
-    if (priority === "urgent") {
-      sendPush({
-        role: ["admin", "manager", "logistics"],
-        title: "🔥 בקשת רכש דחופה",
-        body: `${requesterName}: ${cleanName}`,
-        link: "/shopping",
+    try {
+      await addDoc(collection(db, "shopping_requests"), {
+        name: cleanName,
+        category,
+        quantity,
+        notes: finalNotes,
+        priority,
+        status: "approved",
+        requestedBy: requesterUid,
+        requestedByName: requesterName,
+        createdAt: new Date(),
+        listType,
       });
-    }
 
-    showToast("המוצר הוזמן בהצלחה!", "success");
+      if (priority === "urgent") {
+        sendPush({
+          role: ["admin", "manager", "logistics"],
+          title: "🔥 בקשת רכש דחופה",
+          body: `${requesterName}: ${cleanName}`,
+          link: "/shopping",
+        });
+      }
+
+      // A name with no pool match is a genuinely new product (only shopping managers
+      // ever reach this with a new name — everyone else is routed to requestNewProduct).
+      // Save it to the pool too, so it shows up in search/autocomplete next time.
+      // Non-shopping-managers are rejected here by Firestore rules; that failure is
+      // harmless since the list item above was already added successfully.
+      if (!poolMatch) {
+        try {
+          await setDoc(
+            doc(db, "product_pool", cleanName.replace(/\//g, "-")),
+            { name: cleanName, category, isActive: true },
+            { merge: true }
+          );
+        } catch (poolError) {
+          console.error("Could not add new product to pool:", poolError);
+        }
+      }
+
+      showToast("המוצר הוזמן בהצלחה!", "success");
+      return true;
+    } catch (e) {
+      console.error("Error adding product:", e);
+      showToast("שגיאה בהוספת המוצר. נסה שוב.", "warning");
+      return false;
+    }
   };
 
   const changeStatus = useCallback(
@@ -138,8 +167,13 @@ export function useShoppingActions(
           });
 
           if (next === "purchased") {
+            const changedItem = requests.find((r) => r.id === id);
+            const itemListType = changedItem?.listType;
+            const sameList = (r: ShoppingRequest) =>
+              itemListType === "large" ? r.listType === "large" : r.listType !== "large";
+
             const remainingApproved = requests.filter(
-              (r) => (r.status === "approved" || r.status === "pending") && r.id !== id
+              (r) => (r.status === "approved" || r.status === "pending") && r.id !== id && sameList(r)
             );
 
             if (remainingApproved.length === 0) {
@@ -152,7 +186,9 @@ export function useShoppingActions(
 
               setShowArchivePrompt(true);
 
-              const purchasedItems = requests.filter((r) => r.status === "purchased" || r.id === id);
+              const purchasedItems = requests.filter(
+                (r) => (r.status === "purchased" || r.id === id) && sameList(r)
+              );
               const requesters = Array.from(new Set(purchasedItems.map((r) => r.requestedBy).filter(Boolean)));
 
               requesters.forEach((reqUserId) => {
@@ -171,6 +207,7 @@ export function useShoppingActions(
         }
       } catch (e) {
         console.error(e);
+        showToast("שגיאה בעדכון הפריט. נסה שוב.", "warning");
       }
     },
     [requests, user, setShowArchivePrompt, showToast]
@@ -178,7 +215,7 @@ export function useShoppingActions(
 
   const updateQuantity = async (id: string, currentQtyStr: string, increment: number) => {
     const { value, unit } = parseQuantity(currentQtyStr);
-    const nextVal = Math.max(1, value + increment);
+    const nextVal = Math.max(getMinQuantity(unit), value + increment);
     const nextQty = buildQuantityString(nextVal, unit);
     try {
       await updateDoc(doc(db, "shopping_requests", id), {
@@ -188,6 +225,7 @@ export function useShoppingActions(
       });
     } catch (e) {
       console.error(e);
+      showToast("שגיאה בעדכון הכמות. נסה שוב.", "warning");
     }
   };
 
@@ -197,6 +235,7 @@ export function useShoppingActions(
       showToast("המוצר הועבר לרשימת ציוד ורכש", "success");
     } catch (e) {
       console.error(e);
+      showToast("שגיאה בהעברת המוצר. נסה שוב.", "warning");
     }
   };
 
@@ -206,6 +245,7 @@ export function useShoppingActions(
       showToast("המוצר הועבר לרשימת הסופר", "success");
     } catch (e) {
       console.error(e);
+      showToast("שגיאה בהעברת המוצר. נסה שוב.", "warning");
     }
   };
 
@@ -220,18 +260,22 @@ export function useShoppingActions(
     if (sessionItemsToArchive.length === 0) return;
     try {
       setLoading(true);
-      await Promise.all(
-        sessionItemsToArchive.map((r) =>
-          updateDoc(doc(db, "shopping_requests", r.id), {
+      const batchSize = 450;
+      for (let i = 0; i < sessionItemsToArchive.length; i += batchSize) {
+        const batch = writeBatch(db);
+        sessionItemsToArchive.slice(i, i + batchSize).forEach((r) => {
+          batch.update(doc(db, "shopping_requests", r.id), {
             status: "archived",
             archivedAt: new Date(),
             archivedBy: user?.uid,
-          })
-        )
-      );
+          });
+        });
+        await batch.commit();
+      }
       setShowArchivePrompt(false);
     } catch (e) {
       console.error(e);
+      showToast("שגיאה בשמירת הסבב לארכיון. נסה שוב.", "warning");
     } finally {
       setLoading(false);
     }
@@ -251,6 +295,7 @@ export function useShoppingActions(
       );
     } catch (e) {
       console.error(e);
+      showToast("שגיאה בעדכון הרשימה הקבועה. נסה שוב.", "warning");
     }
   };
 
@@ -260,6 +305,7 @@ export function useShoppingActions(
         await updateDoc(doc(db, "product_pool", productId), { recurringQuantity: directValue });
       } catch (e) {
         console.error(e);
+        showToast("שגיאה בעדכון הכמות. נסה שוב.", "warning");
       }
       return;
     }
@@ -269,6 +315,7 @@ export function useShoppingActions(
       await updateDoc(doc(db, "product_pool", productId), { recurringQuantity: String(nextVal) });
     } catch (e) {
       console.error(e);
+      showToast("שגיאה בעדכון הכמות. נסה שוב.", "warning");
     }
   };
 
@@ -327,6 +374,8 @@ export function useShoppingActions(
       showToast("קטגוריה נוספה בהצלחה!", "success");
     } catch (e) {
       console.error(e);
+      setCategories(categories);
+      showToast("שגיאה בהוספת הקטגוריה. נסה שוב.", "warning");
     }
   };
 
@@ -346,6 +395,8 @@ export function useShoppingActions(
       showToast("הקטגוריה עודכנה בהצלחה!", "success");
     } catch (e) {
       console.error(e);
+      setCategories(categories);
+      showToast("שגיאה בעדכון הקטגוריה. נסה שוב.", "warning");
     }
   };
 
@@ -365,13 +416,20 @@ export function useShoppingActions(
       showToast("הקטגוריה נמחקה בהצלחה!", "success");
     } catch (e) {
       console.error(e);
+      setCategories(categories);
+      showToast("שגיאה במחיקת הקטגוריה. נסה שוב.", "warning");
     }
   };
 
   const handleSaveCutoffConfig = async (newConfig: CutoffConfig) => {
-    await setDoc(doc(db, "settings", "shopping"), { cutoffConfig: newConfig }, { merge: true });
-    setCutoffConfig(newConfig);
-    showToast("הגדרות מועד הקציבה השבועי עודכנו בהצלחה!", "success");
+    try {
+      await setDoc(doc(db, "settings", "shopping"), { cutoffConfig: newConfig }, { merge: true });
+      setCutoffConfig(newConfig);
+      showToast("הגדרות מועד הקציבה השבועי עודכנו בהצלחה!", "success");
+    } catch (e) {
+      console.error(e);
+      showToast("שגיאה בשמירת הגדרות מועד הקציבה. נסה שוב.", "warning");
+    }
   };
 
   const toggleStarProduct = async (productId: string, currentIsStar?: boolean) => {
@@ -380,6 +438,7 @@ export function useShoppingActions(
       showToast(!currentIsStar ? "המוצר סומן כמוצר כוכב ⭐" : "המוצר הוסר ממוצרי הכוכב", "success");
     } catch (e) {
       console.error(e);
+      showToast("שגיאה בעדכון מוצר הכוכב. נסה שוב.", "warning");
     }
   };
 

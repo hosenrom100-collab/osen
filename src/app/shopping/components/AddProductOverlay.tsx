@@ -14,10 +14,11 @@ interface AddProductOverlayProps {
   pool: Product[];
   categories?: string[];
   isAdmin: boolean;
+  isManager?: boolean;
   isLogistics?: boolean;
   isFrozen?: boolean;
-  onAddProduct: (name: string, category?: string, priority?: "normal" | "urgent", quantity?: string, notes?: string) => void;
-  onRequestNewProduct: (name: string, category?: string, priority?: "normal" | "urgent", quantity?: string) => void;
+  onAddProduct: (name: string, category?: string, priority?: "normal" | "urgent", quantity?: string, notes?: string) => Promise<boolean>;
+  onRequestNewProduct: (name: string, category?: string, priority?: "normal" | "urgent", quantity?: string) => Promise<boolean>;
   requests: ShoppingRequest[];
   inputVal: string;
   setInputVal: (val: string) => void;
@@ -33,6 +34,7 @@ export function AddProductOverlay({
   onAddProduct,
   onRequestNewProduct,
   isAdmin,
+  isManager,
   isLogistics,
   isFrozen,
   categories = [],
@@ -45,6 +47,10 @@ export function AddProductOverlay({
   // choice isn't silently overridden by a product's default unit once they've set it.
   const [unitTouched, setUnitTouched] = useState(false);
   const submittingRef = useRef(false);
+
+  // Anyone who can approve/execute purchases (admin, manager, logistics) can add a
+  // brand-new product straight to the list; everyone else submits it for approval.
+  const canAddDirectly = isAdmin || isManager || isLogistics;
 
   useEffect(() => {
     if (unitTouched) return;
@@ -68,11 +74,9 @@ export function AddProductOverlay({
     }
   }, [isOpen]);
 
-  if (!isOpen) return null;
+  const isUserBlockedByFreeze = isFrozen && !canAddDirectly;
 
-  const isUserBlockedByFreeze = isFrozen && !isAdmin && !isLogistics;
-
-  const handleAddInput = () => {
+  const handleAddInput = async () => {
     if (isUserBlockedByFreeze) return;
     // Guard against double-fire (Enter + click, double-tap) submitting the same item twice
     if (submittingRef.current) return;
@@ -90,17 +94,19 @@ export function AddProductOverlay({
     const finalQty = addUnit === "יחידות" ? addQty : `${addQty} ${addUnit}`;
     const categoryToUse = exactPoolProduct?.category ?? newProductCategory;
 
+    let success = false;
     if (exactPoolProduct) {
       // If exact product exists in pool, add directly to list
-      onAddProduct(exactPoolProduct.name, exactPoolProduct.category ?? "כללי", addUrgent ? "urgent" : "normal", finalQty, exactPoolProduct.defaultNotes);
+      success = await onAddProduct(exactPoolProduct.name, exactPoolProduct.category ?? "כללי", addUrgent ? "urgent" : "normal", finalQty, exactPoolProduct.defaultNotes);
+    } else if (canAddDirectly) {
+      // New product name: shopping managers add directly, everyone else requests it
+      success = await onAddProduct(name, categoryToUse, addUrgent ? "urgent" : "normal", finalQty);
     } else {
-      // If it's a new product name, admin adds directly, regular user submits request to admin queue
-      if (isAdmin) {
-        onAddProduct(name, categoryToUse, addUrgent ? "urgent" : "normal", finalQty);
-      } else {
-        onRequestNewProduct(name, categoryToUse, addUrgent ? "urgent" : "normal", finalQty);
-      }
+      success = await onRequestNewProduct(name, categoryToUse, addUrgent ? "urgent" : "normal", finalQty);
     }
+
+    submittingRef.current = false;
+    if (!success) return; // keep the overlay open with the typed input intact so the user can retry
 
     setInputVal("");
     setAddUrgent(false);
@@ -116,8 +122,25 @@ export function AddProductOverlay({
 
   const starProducts = pool.filter((p) => p.isActive !== false && p.isStar === true);
 
+  const quickAdd = async (
+    product: Pick<Product, "name" | "category" | "defaultUnit" | "defaultNotes">
+  ) => {
+    if (isUserBlockedByFreeze) return;
+    if (alreadyInList(product.name) || submittingRef.current) return;
+    submittingRef.current = true;
+    const unitToUse = unitTouched ? addUnit : product.defaultUnit || addUnit;
+    const finalQty = unitToUse === "יחידות" ? addQty : `${addQty} ${unitToUse}`;
+    const success = await onAddProduct(product.name, product.category, addUrgent ? "urgent" : "normal", finalQty, product.defaultNotes);
+    submittingRef.current = false;
+    if (!success) return;
+    setInputVal("");
+    setAddUrgent(false);
+    onClose();
+  };
+
   return (
     <AnimatePresence>
+      {isOpen && (
       <div className="fixed inset-0 z-[100] bg-slate-950/60 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-6">
         <motion.div
           initial={{ opacity: 0 }}
@@ -212,19 +235,9 @@ export function AddProductOverlay({
                     </div>
                   </div>
                   <button
-                    onClick={() => {
-                      if (!submittingRef.current) {
-                        submittingRef.current = true;
-                        const unitToUse = unitTouched ? addUnit : similarProduct.defaultUnit || addUnit;
-                        const finalQty = unitToUse === "יחידות" ? addQty : `${addQty} ${unitToUse}`;
-                        onAddProduct(similarProduct.name, similarProduct.category, addUrgent ? "urgent" : "normal", finalQty, similarProduct.defaultNotes);
-                        setInputVal("");
-                        setAddUrgent(false);
-                        setNewProductCategory("");
-                        onClose();
-                      }
-                    }}
-                    className="w-full px-3 py-2 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-700 dark:text-amber-300 font-black text-xs border border-amber-500/20 transition-all active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
+                    disabled={isUserBlockedByFreeze}
+                    onClick={() => quickAdd(similarProduct)}
+                    className="w-full px-3 py-2 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-700 dark:text-amber-300 font-black text-xs border border-amber-500/20 transition-all active:scale-95 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     <Plus className="w-3.5 h-3.5" />
                     <span>הוסף "{similarProduct.name}"</span>
@@ -245,23 +258,14 @@ export function AddProductOverlay({
               <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1">
                 {starProducts.map((starItem) => {
                   const inList = alreadyInList(starItem.name);
+                  const disabled = inList || isUserBlockedByFreeze;
                   return (
                     <button
                       key={starItem.id}
-                      onClick={() => {
-                        if (!inList && !submittingRef.current) {
-                          submittingRef.current = true;
-                          const unitToUse = unitTouched ? addUnit : starItem.defaultUnit || addUnit;
-                          const finalQty = unitToUse === "יחידות" ? addQty : `${addQty} ${unitToUse}`;
-                          onAddProduct(starItem.name, starItem.category, addUrgent ? "urgent" : "normal", finalQty, starItem.defaultNotes);
-                          setInputVal("");
-                          onClose();
-                          setAddUrgent(false);
-                        }
-                      }}
-                      disabled={inList}
+                      onClick={() => quickAdd(starItem)}
+                      disabled={disabled}
                       className={`px-3 py-1.5 rounded-xl text-xs font-bold shrink-0 flex items-center gap-1 transition-all active:scale-95 cursor-pointer border ${
-                        inList
+                        disabled
                           ? "bg-[var(--foreground)]/5 text-[var(--muted)] border-transparent opacity-50 cursor-not-allowed"
                           : "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20 hover:bg-amber-500/20 shadow-xs"
                       }`}
@@ -370,10 +374,11 @@ export function AddProductOverlay({
             {!hasExactMatch && inputVal.trim() && (
               <button
                 onClick={handleAddInput}
-                className="w-full flex items-center justify-between px-5 py-3.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 !text-white font-black text-sm shadow-md shadow-indigo-600/15 active:scale-[0.98] transition-all cursor-pointer border-none shrink-0"
+                disabled={isUserBlockedByFreeze}
+                className="w-full flex items-center justify-between px-5 py-3.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 !text-white font-black text-sm shadow-md shadow-indigo-600/15 active:scale-[0.98] transition-all cursor-pointer border-none shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 <span className="!text-white">
-                  {isAdmin ? `הוסף "${inputVal}" חדש` : `לא מצאת? בקש הוספת "${inputVal}"`}
+                  {canAddDirectly ? `הוסף "${inputVal}" חדש` : `לא מצאת? בקש הוספת "${inputVal}"`}
                 </span>
                 <Plus className="w-5 h-5 !text-white" />
               </button>
@@ -381,25 +386,16 @@ export function AddProductOverlay({
 
             {suggestions.map((p) => {
               const inList = alreadyInList(p.name);
+              const disabled = inList || isUserBlockedByFreeze;
               return (
                 <button
                   key={p.id}
-                  onClick={() => {
-                    if (!inList && !submittingRef.current) {
-                      submittingRef.current = true;
-                      const unitToUse = unitTouched ? addUnit : p.defaultUnit || addUnit;
-                      const finalQty = unitToUse === "יחידות" ? addQty : `${addQty} ${unitToUse}`;
-                      onAddProduct(p.name, p.category, addUrgent ? "urgent" : "normal", finalQty, p.defaultNotes);
-                      setInputVal("");
-                      onClose();
-                      setAddUrgent(false);
-                    }
-                  }}
-                  disabled={inList}
+                  onClick={() => quickAdd(p)}
+                  disabled={disabled}
                   role="option"
                   aria-selected={false}
                   className={`w-full flex items-center justify-between px-5 py-3 rounded-xl border border-[var(--border)] transition-all active:scale-[0.98] cursor-pointer text-right shrink-0 ${
-                    inList
+                    disabled
                       ? "opacity-35 bg-transparent cursor-not-allowed border-none"
                       : "bg-[var(--foreground)]/[0.02] hover:border-indigo-500/50 hover:bg-[var(--foreground)]/[0.04]"
                   }`}
@@ -427,6 +423,7 @@ export function AddProductOverlay({
           </div>
         </motion.div>
       </div>
+      )}
     </AnimatePresence>
   );
 }

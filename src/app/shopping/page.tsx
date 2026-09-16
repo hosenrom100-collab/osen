@@ -59,12 +59,15 @@ export default function ShoppingPage() {
   const [isAddingCat, setIsAddingCat] = useState(false);
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
 
+  // Only admin/logistics ever see the Archive tab or the full-archive export button
+  // (the mobile/desktop tab and the export buttons below are both gated the same way),
+  // so only their sessions need to keep the (unboundedly growing) archive streamed live.
   const {
     requests, pool, loading, setLoading, pendingRequestsCount, categories, setCategories,
     cutoffConfig, setCutoffConfig,
     activeRequests, sessionPurchased, archiveByDate, currentActiveItems, cutoffStatus, isListFrozen,
     refetchSettings,
-  } = useShoppingData(user, isAdmin, listType);
+  } = useShoppingData(user, isAdmin, listType, isAdmin || isLogistics);
 
   const { pullDistance, isRefreshing, handlers: pullToRefreshHandlers } = usePullToRefresh(refetchSettings);
 
@@ -142,7 +145,7 @@ export default function ShoppingPage() {
   return (
     <RoleGuard allowedRoles={["admin", "manager", "instructor", "social_worker", "employee", "logistics"]} redirectTo="/">
       <ConnectionStatusBanner />
-      <div dir="rtl" className="flex flex-col h-screen bg-[var(--background)] text-[var(--foreground)] overflow-hidden font-sans">
+      <div dir="rtl" className="flex flex-col h-[100dvh] bg-[var(--background)] text-[var(--foreground)] overflow-hidden font-sans">
         {/* ── Mobile Action Bar (Top) ── */}
         <div className="md:hidden pt-2 pb-2.5 px-3 bg-[var(--background)] border-b border-[var(--border)] z-40 shrink-0">
           <div className="flex items-center justify-between mb-2">
@@ -163,14 +166,16 @@ export default function ShoppingPage() {
                 >
                   רשימה
                 </button>
-                <button
-                  onClick={() => setView("archive")}
-                  className={`px-2 py-1 rounded-lg text-[10px] font-black transition-all border-none ${
-                    view === "archive" ? "bg-[var(--surface)] text-indigo-600 shadow-sm" : "text-[var(--muted)] bg-transparent"
-                  }`}
-                >
-                  ארכיון
-                </button>
+                {(isAdmin || isLogistics) && (
+                  <button
+                    onClick={() => setView("archive")}
+                    className={`px-2 py-1 rounded-lg text-[10px] font-black transition-all border-none ${
+                      view === "archive" ? "bg-[var(--surface)] text-indigo-600 shadow-sm" : "text-[var(--muted)] bg-transparent"
+                    }`}
+                  >
+                    ארכיון
+                  </button>
+                )}
               </div>
 
               {canPurchase && (
@@ -744,6 +749,7 @@ export default function ShoppingPage() {
           onAddProduct={addProduct}
           onRequestNewProduct={requestNewProduct}
           isAdmin={isAdmin}
+          isManager={isManager}
           isLogistics={isLogistics}
           isFrozen={isListFrozen}
         />
