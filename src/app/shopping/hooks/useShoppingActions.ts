@@ -442,10 +442,27 @@ export function useShoppingActions(
     }
   };
 
+  const updateItem = async (
+    id: string,
+    name: string,
+    category: string,
+    quantity: string,
+    notes: string,
+    priority: "low" | "normal" | "urgent"
+  ) => {
+    try {
+      await updateDoc(doc(db, "shopping_requests", id), { name, category, quantity, notes, priority });
+      showToast("הפריט עודכן בהצלחה!", "success");
+    } catch (e) {
+      console.error(e);
+      showToast("שגיאה בעדכון הפריט. נסה שוב.", "warning");
+    }
+  };
+
   return {
     requestNewProduct,
     addProduct, changeStatus, updateQuantity, moveToEquipment, moveToSupermarket, archiveCurrentSession,
-    toggleRecurring, updateRecurringQuantity, importRecurringList, toggleStarProduct,
+    toggleRecurring, updateRecurringQuantity, importRecurringList, toggleStarProduct, updateItem,
     handleAddCategory, handleRenameCategory, handleDeleteCategory, handleSaveCutoffConfig,
   };
 }

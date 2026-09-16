@@ -1,13 +1,12 @@
 "use client";
 
 import { useState, useEffect, memo } from "react";
-import { ShoppingRequest, Product, CutoffConfig } from "../types";
+import { User } from "firebase/auth";
+import { Product, CutoffConfig } from "../types";
 import { findSimilarProduct } from "../lib/stringUtils";
-import { MEASUREMENT_UNITS } from "../lib/constants";
-import { parseQuantity, buildQuantityString } from "../lib/quantityUtils";
-import { 
-  Edit3, Settings, X, Plus, Minus, Trash2, Check, RotateCcw, Download, 
-  Receipt, Star, Flame, ShoppingBag, CheckCircle2, Upload, Loader2, Search, MessageSquare, Clock
+import {
+  Edit3, Settings, X, Plus, Minus, Trash2, Check, ShoppingBag, CheckCircle2,
+  Receipt, Star, Upload, Loader2, Search, MessageSquare, Clock
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -24,24 +23,7 @@ const CAT_COLOR: Record<string, string> = {
   "כללי":                 "text-slate-400 bg-slate-400/10 border-slate-400/20",
 };
 
-const CAT_SOLID: Record<string, string> = {
-  "גבינות ומחלבה":       "bg-amber-500 border-amber-400",
-  "בשר ודגים":            "bg-rose-500 border-rose-400",
-  "פירות וירקות":         "bg-emerald-500 border-emerald-400",
-  "לחם ומאפים":           "bg-orange-500 border-orange-400",
-  "חומרי ניקוי":          "bg-cyan-500 border-cyan-400",
-  "מוצרי נייר וחד פעמי": "bg-indigo-500 border-indigo-400",
-  "טואלטיקה והיגיינה":   "bg-teal-500 border-teal-400",
-  "שימורים ובישול":       "bg-slate-500 border-slate-400",
-  "קפואים":               "bg-sky-500 border-sky-400",
-  "כללי":                 "bg-slate-400 border-slate-300",
-};
-
 interface ShoppingModalsProps {
-  editItem: ShoppingRequest | null;
-  setEditItem: (item: ShoppingRequest | null) => void;
-  onUpdateItem: (id: string, name: string, category: string, quantity: string, notes: string, priority: "low" | "normal" | "urgent") => void;
-
   isAddingCat: boolean;
   setIsAddingCat: (val: boolean) => void;
   categories: string[];
@@ -61,23 +43,12 @@ interface ShoppingModalsProps {
   hasRemainingActiveItems?: boolean;
   onArchiveCurrentSession: () => void;
 
-  actionsMenuOpen: boolean;
-  setActionsMenuOpen: (val: boolean) => void;
-  listType: "supermarket" | "large";
-  canPurchase: boolean;
   isAdmin: boolean;
-  isManager: boolean;
   isLogistics: boolean;
-  onImportRecurringList: () => void;
-  onExportProcurementList: () => void;
-  onExportOngoingList: () => void;
-  onExportXlsx: () => void;
-  onClearAllArchive: () => void;
-  onDeleteArchiveDay: () => void;
 
   receiptScanOpen: boolean;
   setReceiptScanOpen: (val: boolean) => void;
-  currentUser: any;
+  currentUser: User | null;
   onSaveReceipt: (file: File, notes: string) => Promise<void>;
 
   showManageStarModal: boolean;
@@ -178,9 +149,6 @@ const RecurringProductRow = memo(function RecurringProductRow({
 });
 
 export function ShoppingModals({
-  editItem,
-  setEditItem,
-  onUpdateItem,
   isAddingCat,
   setIsAddingCat,
   categories,
@@ -197,19 +165,8 @@ export function ShoppingModals({
   sessionPurchasedCount,
   hasRemainingActiveItems,
   onArchiveCurrentSession,
-  actionsMenuOpen,
-  setActionsMenuOpen,
-  listType,
-  canPurchase,
   isAdmin,
-  isManager,
   isLogistics,
-  onImportRecurringList,
-  onExportProcurementList,
-  onExportOngoingList,
-  onExportXlsx,
-  onClearAllArchive,
-  onDeleteArchiveDay,
   receiptScanOpen,
   setReceiptScanOpen,
   currentUser,
@@ -220,14 +177,6 @@ export function ShoppingModals({
   cutoffConfig,
   onSaveCutoffConfig,
 }: ShoppingModalsProps) {
-  // Local state for edit item
-  const [editName, setEditName] = useState("");
-  const [editCat, setEditCat] = useState("");
-  const [editQty, setEditQty] = useState("");
-  const [editQtyUnit, setEditQtyUnit] = useState("יחידות");
-  const [editNotes, setEditNotes] = useState("");
-  const [editPriority, setEditPriority] = useState<"low" | "normal" | "urgent">("normal");
-
   // Local state for category management
   const [newCatName, setNewCatName] = useState("");
   const [editingCatName, setEditingCatName] = useState<string | null>(null);
@@ -259,18 +208,6 @@ export function ShoppingModals({
   // Local state for star products search
   const [starModalSearchVal, setStarModalSearchVal] = useState("");
 
-  useEffect(() => {
-    if (editItem) {
-      const { value, unit } = parseQuantity(editItem.quantity);
-      setEditName(editItem.name);
-      setEditCat(editItem.category);
-      setEditQty(String(value));
-      setEditQtyUnit(unit);
-      setEditNotes(editItem.notes || "");
-      setEditPriority(editItem.priority || "normal");
-    }
-  }, [editItem]);
-
   const handleSaveReceiptClick = async () => {
     if (!receiptImage) return;
     try {
@@ -289,146 +226,6 @@ export function ShoppingModals({
 
   return (
     <>
-      {/* ── EDIT ITEM MODAL ── */}
-      <AnimatePresence>
-        {editItem && (
-          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setEditItem(null)}
-              className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm"
-            />
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="relative w-full max-w-md bg-[var(--surface)] border border-[var(--border)] rounded-[2.5rem] p-8 shadow-2xl text-right"
-              dir="rtl"
-            >
-              <h2 className="text-xl font-black mb-6 flex items-center gap-2 text-[var(--foreground)]">
-                <Edit3 className="w-5 h-5 text-indigo-500" /> עריכת פריט
-              </h2>
-
-              <div className="space-y-5 text-right">
-                <div>
-                  <label className="text-[10px] font-black text-[var(--muted)] uppercase tracking-widest mb-1.5 block">
-                    שם המוצר
-                  </label>
-                  <input
-                    type="text"
-                    value={editName}
-                    onChange={(e) => setEditName(e.target.value)}
-                    className="w-full bg-[var(--background)] border border-[var(--border)] rounded-xl py-3 px-4 text-sm font-bold focus:outline-none focus:border-indigo-500/50 text-[var(--foreground)]"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-[10px] font-black text-[var(--muted)] uppercase tracking-widest mb-1.5 block">
-                      כמות
-                    </label>
-                    <input
-                      type="text"
-                      value={editQty}
-                      onChange={(e) => setEditQty(e.target.value)}
-                      placeholder="למשל: 1, 2.5, 400"
-                      className="w-full bg-[var(--background)] border border-[var(--border)] rounded-xl py-3 px-4 text-sm font-bold focus:outline-none focus:border-indigo-500/50 text-[var(--foreground)]"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[10px] font-black text-[var(--muted)] uppercase tracking-widest mb-1.5 block">
-                      יחידה
-                    </label>
-                    <select
-                      value={editQtyUnit}
-                      onChange={(e) => setEditQtyUnit(e.target.value)}
-                      className="w-full bg-[var(--background)] border border-[var(--border)] rounded-xl py-3 px-4 text-sm font-bold focus:outline-none focus:border-indigo-500/50 text-[var(--foreground)]"
-                    >
-                      {MEASUREMENT_UNITS.map((u) => (
-                        <option key={u} value={u}>{u}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="text-[10px] font-black text-[var(--muted)] uppercase tracking-widest mb-1.5 block">
-                    עדיפות
-                  </label>
-                  <select
-                    value={editPriority}
-                    onChange={(e) => setEditPriority(e.target.value as any)}
-                    className="w-full bg-[var(--background)] border border-[var(--border)] rounded-xl py-3 px-4 text-sm font-bold focus:outline-none focus:border-indigo-500/50 text-[var(--foreground)]"
-                  >
-                    <option value="normal">רגיל</option>
-                    <option value="urgent">דחוף 🔥</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="text-[10px] font-black text-[var(--muted)] uppercase tracking-widest mb-1.5 block">
-                    הערות / הנחיות מיוחדות
-                  </label>
-                  <textarea
-                    value={editNotes}
-                    onChange={(e) => setEditNotes(e.target.value)}
-                    placeholder="סוג ספציפי, צבע, או תחליף מועדף..."
-                    rows={2}
-                    className="w-full bg-[var(--background)] border border-[var(--border)] rounded-xl py-3 px-4 text-sm font-bold focus:outline-none focus:border-indigo-500/50 resize-none placeholder:text-[var(--muted)]/40 text-[var(--foreground)]"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-[10px] font-black text-[var(--muted)] uppercase tracking-widest mb-1.5 block">
-                    קטגוריה
-                  </label>
-                  <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto no-scrollbar border border-[var(--border)] p-2 rounded-xl bg-[var(--background)]/50">
-                    {categories.map((c) => (
-                      <button
-                        key={c}
-                        type="button"
-                        onClick={() => setEditCat(c)}
-                        className={`py-2 px-3 rounded-lg text-xs font-bold border transition-all ${
-                          editCat === c
-                            ? `${CAT_SOLID[c] ?? CAT_SOLID["כללי"]} !text-white shadow-md`
-                            : "bg-[var(--background)] border-[var(--border)] text-[var(--muted)] hover:text-[var(--foreground)]"
-                        }`}
-                      >
-                        {c}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex gap-3 mt-8">
-                <button
-                  onClick={() => {
-                    if (editItem) {
-                      const numericQty = parseFloat(editQty.replace(",", ".")) || 1;
-                      const finalQty = buildQuantityString(numericQty, editQtyUnit);
-                      onUpdateItem(editItem.id, editName, editCat, finalQty, editNotes, editPriority);
-                      setEditItem(null);
-                    }
-                  }}
-                  className="flex-1 py-4 bg-indigo-600 hover:bg-indigo-500 !text-white text-sm font-black rounded-2xl shadow-lg transition-all active:scale-[0.98] cursor-pointer"
-                >
-                  שמור שינויים
-                </button>
-                <button
-                  onClick={() => setEditItem(null)}
-                  className="flex-1 py-4 bg-[var(--foreground)]/5 hover:bg-[var(--foreground)]/10 text-[var(--muted)] text-sm font-black rounded-2xl transition-all cursor-pointer"
-                >
-                  ביטול
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
       {/* ── CATEGORY MANAGEMENT DIALOG ── */}
       <AnimatePresence>
         {isAddingCat && (
@@ -834,172 +631,6 @@ export function ShoppingModals({
                   className="flex-1 py-4 bg-[var(--foreground)]/5 text-[var(--muted)] hover:bg-[var(--foreground)]/10 rounded-2xl font-black text-sm active:scale-95 transition-all"
                 >
                   לא כרגע
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* ── ACTIONS MENU DRAWER / MODAL ── */}
-      <AnimatePresence>
-        {actionsMenuOpen && (
-          <div className="fixed inset-0 z-[120] flex items-end md:items-center justify-center p-0 md:p-4">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setActionsMenuOpen(false)}
-              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-            />
-            <motion.div
-              initial={{ y: "100%", scale: 1 }}
-              animate={{ y: 0, scale: 1 }}
-              exit={{ y: "100%" }}
-              transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="relative bg-[var(--surface)] border-t md:border border-[var(--border)] rounded-t-[2rem] md:rounded-[2.5rem] w-full max-w-md p-6 md:p-8 shadow-2xl text-right flex flex-col max-h-[85vh] overflow-hidden z-10"
-              dir="rtl"
-            >
-              <div className="w-12 h-1.5 bg-[var(--border)] rounded-full mx-auto mb-5 md:hidden" />
-
-              <div className="flex items-center justify-between mb-6 shrink-0">
-                <h3 className="text-xl font-black flex items-center gap-2 text-[var(--foreground)]">
-                  <Settings className="w-5 h-5 text-indigo-500" />
-                  <span>פעולות ניהול וייצוא</span>
-                </h3>
-                <button
-                  onClick={() => setActionsMenuOpen(false)}
-                  className="p-2 rounded-full hover:bg-[var(--foreground)]/5 text-[var(--muted)]"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              <div className="space-y-3 overflow-y-auto no-scrollbar pb-6">
-                {listType === "supermarket" && (
-                  <>
-                    {(isAdmin || isLogistics) && (
-                      <button
-                        onClick={() => {
-                          setActionsMenuOpen(false);
-                          setIsEditingRecurring(true);
-                        }}
-                        className="w-full py-4 px-4 bg-[var(--foreground)]/5 hover:bg-[var(--foreground)]/10 rounded-2xl border border-[var(--border)] text-sm font-bold transition-all flex items-center gap-3 justify-start cursor-pointer border-none text-[var(--foreground)]"
-                      >
-                        <Settings className="w-5 h-5 text-indigo-500" />
-                        <span>עריכת רשימה קבועה (שבועית)</span>
-                      </button>
-                    )}
-
-                    {(isAdmin || isManager || isLogistics) && (
-                      <button
-                        onClick={() => {
-                          setActionsMenuOpen(false);
-                          onImportRecurringList();
-                        }}
-                        className="w-full py-4 px-4 bg-[var(--foreground)]/5 hover:bg-[var(--foreground)]/10 rounded-2xl border border-[var(--border)] text-sm font-bold transition-all flex items-center gap-3 justify-start cursor-pointer border-none text-[var(--foreground)]"
-                      >
-                        <RotateCcw className="w-5 h-5 text-purple-500" />
-                        <span>שאיבת רשימה קבועה לסופר</span>
-                      </button>
-                    )}
-                  </>
-                )}
-
-                <button
-                  onClick={() => {
-                    setActionsMenuOpen(false);
-                    onExportProcurementList();
-                  }}
-                  className="w-full py-4 px-4 bg-[var(--foreground)]/5 hover:bg-[var(--foreground)]/10 rounded-2xl border border-[var(--border)] text-sm font-bold transition-all flex items-center gap-3 justify-start cursor-pointer border-none text-[var(--foreground)]"
-                >
-                  <Download className="w-5 h-5 text-blue-500" />
-                  <span>ייצוא רשימת רכש ל-Word</span>
-                </button>
-
-                <button
-                  onClick={() => {
-                    setActionsMenuOpen(false);
-                    onExportOngoingList();
-                  }}
-                  className="w-full py-4 px-4 bg-[var(--foreground)]/5 hover:bg-[var(--foreground)]/10 rounded-2xl border border-[var(--border)] text-sm font-bold transition-all flex items-center gap-3 justify-start cursor-pointer border-none text-[var(--foreground)]"
-                >
-                  <Download className="w-5 h-5 text-emerald-500" />
-                  <span>ייצוא רשימה שוטפת ל-Word</span>
-                </button>
-
-                {isAdmin && (
-                  <button
-                    onClick={() => {
-                      setActionsMenuOpen(false);
-                      onExportXlsx();
-                    }}
-                    className="w-full py-4 px-4 bg-[var(--foreground)]/5 hover:bg-[var(--foreground)]/10 rounded-2xl border border-[var(--border)] text-sm font-bold transition-all flex items-center gap-3 justify-start cursor-pointer border-none text-[var(--foreground)]"
-                  >
-                    <Download className="w-5 h-5 text-amber-500" />
-                    <span>ייצוא ארכיון לאקסל (Excel)</span>
-                  </button>
-                )}
-
-                <button
-                  onClick={() => {
-                    setActionsMenuOpen(false);
-                    setIsAddingCat(true);
-                  }}
-                  className="w-full py-4 px-4 bg-[var(--foreground)]/5 hover:bg-[var(--foreground)]/10 rounded-2xl border border-[var(--border)] text-sm font-bold transition-all flex items-center gap-3 justify-start cursor-pointer border-none text-[var(--foreground)]"
-                >
-                  <Edit3 className="w-5 h-5 text-indigo-500" />
-                  <span>ניהול קטגוריות רכש</span>
-                </button>
-
-                {(isAdmin || isManager || isLogistics) && (
-                  <button
-                    onClick={() => {
-                      setActionsMenuOpen(false);
-                      setShowManageStarModal(true);
-                    }}
-                    className="w-full py-4 px-4 bg-[var(--foreground)]/5 hover:bg-[var(--foreground)]/10 rounded-2xl border border-[var(--border)] text-sm font-bold transition-all flex items-center gap-3 justify-start cursor-pointer border-none text-[var(--foreground)]"
-                  >
-                    <Star className="w-5 h-5 text-amber-500 fill-amber-500/20" />
-                    <span>ניהול מוצרי כוכב ⭐</span>
-                  </button>
-                )}
-
-                {(isAdmin || isManager || isLogistics) && (
-                  <button
-                    onClick={() => {
-                      setActionsMenuOpen(false);
-                      onDeleteArchiveDay();
-                    }}
-                    className="w-full py-4 px-4 bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 rounded-2xl text-sm font-bold transition-all flex items-center gap-3 justify-start cursor-pointer border-none"
-                  >
-                    <Trash2 className="w-5 h-5 text-rose-500" />
-                    <span>מחיקת יום ספציפי מהארכיון</span>
-                  </button>
-                )}
-
-                {(isAdmin || isManager || isLogistics) && (
-                  <button
-                    onClick={() => {
-                      setActionsMenuOpen(false);
-                      onClearAllArchive();
-                    }}
-                    className="w-full py-4 px-4 bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 rounded-2xl text-sm font-bold transition-all flex items-center gap-3 justify-start cursor-pointer border-none"
-                  >
-                    <Trash2 className="w-5 h-5 text-rose-500" />
-                    <span>ניקוי ואיפוס כל ארכיון הקניות 🧹</span>
-                  </button>
-                )}
-
-                <button
-                  onClick={() => {
-                    setActionsMenuOpen(false);
-                    setReceiptScanOpen(true);
-                  }}
-                  className="w-full py-4 px-4 bg-rose-500/10 hover:bg-rose-500/20 rounded-2xl text-sm font-bold text-rose-600 transition-all flex items-center gap-3 justify-start cursor-pointer border-none"
-                >
-                  <Receipt className="w-5 h-5 text-rose-500" />
-                  <span>סריקה/צילום חשבונית</span>
                 </button>
               </div>
             </motion.div>
