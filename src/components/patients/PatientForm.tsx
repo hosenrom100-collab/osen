@@ -62,6 +62,7 @@ export function PatientForm({ patientId, initialData, onSuccess }: PatientFormPr
     rehabPlanCompleted: initialData?.rehabPlanCompleted || false,
     disabilityCommitteeDate: initialData?.disabilityCommitteeDate || "",
     disabilityCommitteePassed: initialData?.disabilityCommitteePassed || false,
+    isGroupContract:           initialData?.isGroupContract || false,
   });
 
   const set = (patch: Partial<typeof formData>) =>
@@ -488,6 +489,22 @@ export function PatientForm({ patientId, initialData, onSuccess }: PatientFormPr
                 className="rounded border-[var(--border)] text-emerald-500 focus:ring-emerald-500 w-3.5 h-3.5 ml-1.5"
               />
               ועדת נכות עברה / לא נדרשת (התאריך יתייתר)
+            </label>
+          </div>
+          <div className="flex items-center pt-2 md:col-span-2">
+            <label className="flex items-center gap-2 cursor-pointer font-bold text-xs select-none text-purple-700 bg-purple-50/80 border border-purple-200/60 px-3.5 py-2 rounded-xl hover:bg-purple-100/50 transition-colors">
+              <input
+                type="checkbox"
+                checked={formData.isGroupContract}
+                onChange={e => {
+                  const val = e.target.checked;
+                  set({ isGroupContract: val });
+                  saveImmediately({ isGroupContract: val });
+                }}
+                className="rounded border-purple-300 text-purple-600 focus:ring-purple-500 w-4 h-4 ml-1"
+              />
+              <span>חוזה קבוצתי</span>
+              <span className="text-[10px] font-normal text-purple-500 mr-1">(משויך לחוזה קבוצתי)</span>
             </label>
           </div>
         </div>

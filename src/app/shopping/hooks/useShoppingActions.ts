@@ -20,7 +20,6 @@ export function useShoppingActions(
   setCategories: (next: string[]) => void,
   setCutoffConfig: (next: CutoffConfig) => void,
   setLoading: (next: boolean) => void,
-  setShowArchivePrompt: (next: boolean) => void,
   showToast: (message: string, type: "success" | "warning") => void,
   confirmDialog: (options: { title: string; message: string; type?: "danger" | "info" | "success" }) => Promise<boolean>
 ) {
@@ -87,7 +86,7 @@ export function useShoppingActions(
       return false;
     }
 
-    const activeRequestsList = requests.filter((r) => r.status !== "archived");
+    const activeRequestsList = requests;
     const similarName = findSimilarRequestStrict(cleanName, activeRequestsList);
     if (similarName) {
       showToast(`המוצר כבר הוזמן לרשימה בשם דומה: "${similarName}"!`, "warning");
@@ -184,8 +183,6 @@ export function useShoppingActions(
                 link: "/shopping",
               });
 
-              setShowArchivePrompt(true);
-
               const purchasedItems = requests.filter(
                 (r) => (r.status === "purchased" || r.id === id) && sameList(r)
               );
@@ -210,7 +207,7 @@ export function useShoppingActions(
         showToast("שגיאה בעדכון הפריט. נסה שוב.", "warning");
       }
     },
-    [requests, user, setShowArchivePrompt, showToast]
+    [requests, user, showToast]
   );
 
   const updateQuantity = async (id: string, currentQtyStr: string, increment: number) => {
@@ -246,122 +243,6 @@ export function useShoppingActions(
     } catch (e) {
       console.error(e);
       showToast("שגיאה בהעברת המוצר. נסה שוב.", "warning");
-    }
-  };
-
-  const archiveCurrentSession = async (onlyPurchased = false) => {
-    const sessionItemsToArchive = requests.filter(
-      (r) =>
-        (onlyPurchased
-          ? r.status === "purchased" || r.status === "deleted"
-          : r.status === "purchased" || r.status === "approved" || r.status === "pending" || r.status === "deleted") &&
-        (listType === "large" ? r.listType === "large" : r.listType !== "large")
-    );
-    if (sessionItemsToArchive.length === 0) return;
-    try {
-      setLoading(true);
-      const batchSize = 450;
-      for (let i = 0; i < sessionItemsToArchive.length; i += batchSize) {
-        const batch = writeBatch(db);
-        sessionItemsToArchive.slice(i, i + batchSize).forEach((r) => {
-          batch.update(doc(db, "shopping_requests", r.id), {
-            status: "archived",
-            archivedAt: new Date(),
-            archivedBy: user?.uid,
-          });
-        });
-        await batch.commit();
-      }
-      setShowArchivePrompt(false);
-    } catch (e) {
-      console.error(e);
-      showToast("שגיאה בשמירת הסבב לארכיון. נסה שוב.", "warning");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const toggleRecurring = async (productId: string, name: string, category: string, shouldBeRecurring: boolean) => {
-    try {
-      await setDoc(
-        doc(db, "product_pool", productId),
-        {
-          name,
-          category,
-          isRecurring: shouldBeRecurring,
-          recurringQuantity: shouldBeRecurring ? "1" : "",
-        },
-        { merge: true }
-      );
-    } catch (e) {
-      console.error(e);
-      showToast("שגיאה בעדכון הרשימה הקבועה. נסה שוב.", "warning");
-    }
-  };
-
-  const updateRecurringQuantity = async (productId: string, currentQtyStr: string, increment: number, directValue?: string) => {
-    if (directValue !== undefined) {
-      try {
-        await updateDoc(doc(db, "product_pool", productId), { recurringQuantity: directValue });
-      } catch (e) {
-        console.error(e);
-        showToast("שגיאה בעדכון הכמות. נסה שוב.", "warning");
-      }
-      return;
-    }
-    const currentVal = parseFloat(currentQtyStr) || 1;
-    const nextVal = Math.max(1, currentVal + increment);
-    try {
-      await updateDoc(doc(db, "product_pool", productId), { recurringQuantity: String(nextVal) });
-    } catch (e) {
-      console.error(e);
-      showToast("שגיאה בעדכון הכמות. נסה שוב.", "warning");
-    }
-  };
-
-  const importRecurringList = async () => {
-    const recurringItems = pool.filter((p) => p.isRecurring);
-    if (recurringItems.length === 0) {
-      showToast("לא הוגדרו מוצרים ברשימה הקבועה.", "warning");
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const activeSupermarketRequests = requests.filter((r) => r.status !== "archived" && r.listType !== "large");
-      const itemsToImport = recurringItems.filter((item) => !findSimilarRequestStrict(item.name, activeSupermarketRequests));
-
-      if (itemsToImport.length === 0) {
-        showToast("כל פריטי הרשימה הקבועה כבר קיימים ברשימת הסופר.", "warning");
-        return;
-      }
-
-      await Promise.all(
-        itemsToImport.map((item) =>
-          addDoc(collection(db, "shopping_requests"), {
-            name: item.name,
-            category: item.category || "כללי",
-            quantity: buildQuantityString(
-              parseFloat(item.recurringQuantity || "1") || 1,
-              item.defaultUnit || "יחידות"
-            ),
-            notes: "",
-            priority: "normal",
-            status: "approved",
-            requestedBy: user?.uid,
-            requestedByName: "רשימה קבועה",
-            createdAt: new Date(),
-            listType: "supermarket",
-          })
-        )
-      );
-
-      showToast(`שאיבת הרשימה הקבועה הושלמה! התווספו ${itemsToImport.length} פריטים.`, "success");
-    } catch (e) {
-      console.error(e);
-      showToast("שגיאה בשאיבת הרשימה הקבועה.", "warning");
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -461,8 +342,8 @@ export function useShoppingActions(
 
   return {
     requestNewProduct,
-    addProduct, changeStatus, updateQuantity, moveToEquipment, moveToSupermarket, archiveCurrentSession,
-    toggleRecurring, updateRecurringQuantity, importRecurringList, toggleStarProduct, updateItem,
+    addProduct, changeStatus, updateQuantity, moveToEquipment, moveToSupermarket,
+    toggleStarProduct, updateItem,
     handleAddCategory, handleRenameCategory, handleDeleteCategory, handleSaveCutoffConfig,
   };
 }

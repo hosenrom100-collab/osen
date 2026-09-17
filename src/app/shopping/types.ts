@@ -5,7 +5,7 @@ export interface ShoppingRequest {
   name: string;
   category: string;
   quantity: string;
-  status: "pending" | "approved" | "purchased" | "archived" | "deleted";
+  status: "pending" | "approved" | "purchased" | "deleted";
   requestedBy: string;
   requestedByName: string;
   createdAt: Timestamp | Date;
@@ -14,8 +14,6 @@ export interface ShoppingRequest {
   listType?: "supermarket" | "large";
   updatedAt?: Timestamp | Date;
   updatedBy?: string;
-  archivedAt?: Timestamp | Date;
-  archivedBy?: string;
 }
 
 export interface Product {
@@ -24,8 +22,6 @@ export interface Product {
   category: string;
   defaultUnit?: string;
   defaultNotes?: string;
-  isRecurring?: boolean;
-  recurringQuantity?: string;
   isActive?: boolean;
   isStar?: boolean;
 }

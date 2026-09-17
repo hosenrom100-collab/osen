@@ -42,6 +42,7 @@ interface Patient {
   rehabPlanCompleted?: boolean;
   summaryReportCompleted?: boolean;
   arrivalMethod?: "private_car" | "taxi";
+  isGroupContract?: boolean;
 }
 
 interface Group {

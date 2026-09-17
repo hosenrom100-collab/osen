@@ -13,7 +13,7 @@ export function useExport(
 ) {
   const exportProcurementList = async () => {
     try {
-      const activeSession = requests.filter((r) => r.status !== "archived" && r.listType === "large");
+      const activeSession = requests.filter((r) => r.listType === "large");
       const sortedItems = [...activeSession].sort((a, b) => a.category.localeCompare(b.category));
       const itemsToExport = sortedItems.map((r) => {
         const poolMatch = pool.find((p) => (p.name || "").trim().toLowerCase() === (r.name || "").trim().toLowerCase());
@@ -36,7 +36,7 @@ export function useExport(
 
   const exportOngoingList = async () => {
     try {
-      const activeSession = requests.filter((r) => r.status !== "archived" && r.listType !== "large");
+      const activeSession = requests.filter((r) => r.listType !== "large");
       const sortedItems = [...activeSession].sort((a, b) => a.category.localeCompare(b.category));
       const itemsToExport = sortedItems.map((r) => {
         const poolMatch = pool.find((p) => (p.name || "").trim().toLowerCase() === (r.name || "").trim().toLowerCase());
@@ -57,26 +57,5 @@ export function useExport(
     }
   };
 
-  const exportXlsx = () => {
-    const data = requests
-      .filter((r) => r.status === "archived")
-      .map((r) => {
-        const d = toDateOrNull(r.createdAt) ?? new Date(0);
-        const poolMatch = pool.find((p) => (p.name || "").trim().toLowerCase() === (r.name || "").trim().toLowerCase());
-        return {
-          תאריך: d.toLocaleDateString("he-IL"),
-          מוצר: r.name,
-          קטגוריה: r.category,
-          כמות: r.quantity || "1",
-          הערות: r.notes || poolMatch?.defaultNotes || "",
-          מבקש: r.requestedByName,
-        };
-      });
-    const ws = XLSX.utils.json_to_sheet(data);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "ארכיון רכש");
-    XLSX.writeFile(wb, `ארכיון_רכש_${new Date().toLocaleDateString("he-IL").replace(/\//g, "-")}.xlsx`);
-  };
-
-  return { exportProcurementList, exportOngoingList, exportXlsx };
+  return { exportProcurementList, exportOngoingList };
 }

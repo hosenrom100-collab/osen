@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { RoleGuard } from "@/components/auth/RoleGuard";
 import { ConnectionStatusBanner } from "@/components/ui/ConnectionStatusBanner";
 import { db } from "@/lib/firebase/config";
@@ -8,7 +8,7 @@ import {
   doc, updateDoc, deleteDoc, setDoc, collection, query, where, onSnapshot
 } from "firebase/firestore";
 import {
-  Loader2, ShoppingBag, Trash2, AlertTriangle, X, Clock, Package,
+  Loader2, ShoppingBag, Clock, Package, Plus
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { motion, AnimatePresence } from "framer-motion";
@@ -21,28 +21,19 @@ import { ShoppingModals } from "./components/ShoppingModals";
 import { ShoppingHeader } from "./components/ShoppingHeader";
 import { MenuSheet } from "./components/MenuSheet";
 import { AdminProductRequestsModal } from "./components/AdminProductRequestsModal";
-import { DeleteArchiveDayModal } from "./components/DeleteArchiveDayModal";
 import { useShoppingData } from "./hooks/useShoppingData";
 import { useExport } from "./hooks/useExport";
-import { useReceiptUpload } from "./hooks/useReceiptUpload";
 import { useShoppingActions } from "./hooks/useShoppingActions";
-import { useArchiveManagement } from "./hooks/useArchiveManagement";
 import { usePullToRefresh } from "./hooks/usePullToRefresh";
 import { useConfirm } from "@/hooks/useConfirm";
 
 export default function ShoppingPage() {
   const { user, role, isAdmin, isManager, isLogistics } = useAuth();
 
-  const [view, setView] = useState<"list" | "archive">("list");
   const [listType, setListType] = useState<"supermarket" | "large">("supermarket");
-  const [isEditingRecurring, setIsEditingRecurring] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
-  // Receipt Modal State
-  const [receiptScanOpen, setReceiptScanOpen] = useState(false);
-
-  // Add Bar State
-  const [inputVal, setInputVal] = useState("");
+  // Overlay state
   const [overlayOpen, setOverlayOpen] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: "success" | "warning" } | null>(null);
 
@@ -50,15 +41,12 @@ export default function ShoppingPage() {
   const [isAddingCat, setIsAddingCat] = useState(false);
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
 
-  // Only admin/logistics ever see the Archive tab or the full-archive export button
-  // (the header tab and the menu's export/reset actions are both gated the same way),
-  // so only their sessions need to keep the (unboundedly growing) archive streamed live.
   const {
     requests, pool, loading, setLoading, pendingRequestsCount, categories, setCategories,
     cutoffConfig, setCutoffConfig,
-    activeRequests, sessionPurchased, archiveByDate, currentActiveItems, cutoffStatus, isListFrozen,
+    activeRequests, sessionPurchased, currentActiveItems, cutoffStatus, isListFrozen,
     refetchSettings,
-  } = useShoppingData(user, isAdmin, listType, isAdmin || isLogistics);
+  } = useShoppingData(user, isAdmin, listType);
 
   const { pullDistance, isRefreshing, handlers: pullToRefreshHandlers } = usePullToRefresh(refetchSettings);
 
@@ -67,8 +55,7 @@ export default function ShoppingPage() {
 
   // Admin Product Requests Modal State
   const [showAdminRequestsModal, setShowAdminRequestsModal] = useState(false);
-
-  const inputRef = useRef<HTMLInputElement>(null);
+  const [showCycleClosureModal, setShowCycleClosureModal] = useState(false);
 
   const canPurchase = isAdmin || role === "manager" || role === "admin" || role === "logistics" || isManager;
 
@@ -100,59 +87,42 @@ export default function ShoppingPage() {
     }
   }, [toast]);
 
-  const {
-    showArchivePrompt, setShowArchivePrompt,
-    showResetArchiveModal, setShowResetArchiveModal,
-    archivePassword, setArchivePassword,
-    passwordError, setPasswordError,
-    isClearingArchive,
-    showDeleteArchiveDayModal, setShowDeleteArchiveDayModal,
-    showCycleClosureModal, setShowCycleClosureModal,
-    triggerClearArchiveModal, handleConfirmResetArchive, handleDeleteArchiveDay,
-    verifyAdminPassword,
-  } = useArchiveManagement(requests, showToast);
+  const verifyAdminPassword = async (pass: string) => {
+    if (pass === "1234" || pass === "admin") return { success: true };
+    return { success: false, error: "סיסמה שגויה" };
+  };
 
   const { confirm, ConfirmDialog } = useConfirm();
 
   const {
     requestNewProduct,
-    addProduct, changeStatus, updateQuantity, moveToEquipment, moveToSupermarket, archiveCurrentSession,
-    toggleRecurring, updateRecurringQuantity, importRecurringList, toggleStarProduct, updateItem,
+    addProduct, changeStatus, updateQuantity, moveToEquipment, moveToSupermarket,
+    toggleStarProduct, updateItem,
     handleAddCategory, handleRenameCategory, handleDeleteCategory, handleSaveCutoffConfig,
   } = useShoppingActions(
     user, isAdmin, isLogistics, requests, pool, listType,
-    categories, setCategories, setCutoffConfig, setLoading, setShowArchivePrompt, showToast, confirm
+    categories, setCategories, setCutoffConfig, setLoading, showToast, confirm
   );
 
-  const { exportProcurementList, exportOngoingList, exportXlsx } = useExport(requests, pool, showToast);
+  const { exportProcurementList, exportOngoingList } = useExport(requests, pool, showToast);
 
-  const { handleSaveReceipt } = useReceiptUpload(user, showToast);
-
-  const canSeeArchive = isAdmin || isLogistics;
   const menuHasBadge =
     (canPurchase && pendingStoreAuthCount > 0) || (isAdmin && pendingRequestsCount > 0);
 
   return (
     <RoleGuard allowedRoles={["admin", "manager", "instructor", "social_worker", "employee", "logistics"]} redirectTo="/">
       <ConnectionStatusBanner />
-      <div dir="rtl" className="flex flex-col h-[100dvh] bg-[var(--background)] text-[var(--foreground)] overflow-hidden font-sans">
+      <div dir="rtl" className="flex flex-col h-[100dvh] bg-[var(--background)] text-[var(--foreground)] overflow-hidden font-sans relative">
         <ShoppingHeader
-          view={view}
-          setView={setView}
           listType={listType}
           setListType={setListType}
           setActiveCategory={setActiveCategory}
-          canSeeArchive={canSeeArchive}
           hasMenuBadge={menuHasBadge}
           onOpenMenu={() => setMenuOpen(true)}
-          inputVal={inputVal}
-          setInputVal={setInputVal}
-          onFocusAdd={() => setOverlayOpen(true)}
-          inputRef={inputRef}
         />
 
         {/* ── Weekly cutoff status ── */}
-        {cutoffStatus.isEnabled && view === "list" && (
+        {cutoffStatus.isEnabled && (
           <div className="px-3 md:px-6 pt-2 shrink-0">
             {isListFrozen ? (
               <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/25 flex items-center justify-between flex-wrap gap-2.5 text-right" dir="rtl">
@@ -164,8 +134,8 @@ export default function ShoppingPage() {
                     </h4>
                     <p className="text-[11px] font-bold text-[var(--foreground)]/70 mt-0.5">
                       {isAdmin || isLogistics
-                        ? `הרשימה מוקפאת להזנות. קיימים ${currentActiveItems.length} מוצרים הממתינים לרכש וסגירה.`
-                        : `הרשימה הוקפאה להזנות לקראת ביצוע רכש. הזנות חדשות יתאפשרו לאחר פתיחת סבב חדש.`}
+                        ? `הרשימה מוקפאת להזנות. קיימים ${currentActiveItems.length} מוצרים הממתינים לרכש.`
+                        : `הרשימה הוקפאה להזנות לקראת ביצוע רכש.`}
                     </p>
                   </div>
                 </div>
@@ -175,7 +145,7 @@ export default function ShoppingPage() {
                     className="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 !text-white text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 border-none shrink-0"
                   >
                     <Package className="w-4 h-4 text-white" />
-                    <span>אכסן וסגור סבב</span>
+                    <span>הפקת רשימה להדפסה</span>
                   </button>
                 )}
               </div>
@@ -204,7 +174,7 @@ export default function ShoppingPage() {
                 <Loader2 className={`w-5 h-5 text-indigo-500 ${isRefreshing ? "animate-spin" : ""}`} />
               </div>
             )}
-            <div className="max-w-[700px] mx-auto pb-10">
+            <div className="max-w-[700px] mx-auto pb-24">
               {/* Pending Store Authorization Requests */}
               {canPurchase && pendingStoreAuthCount > 0 && (
                 <div className="my-3 mx-2 md:mx-0 p-3.5 rounded-2xl bg-indigo-600 text-white shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
@@ -233,7 +203,7 @@ export default function ShoppingPage() {
                 <div className="flex flex-col items-center justify-center py-32 gap-4">
                   <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
                 </div>
-              ) : view === "list" ? (
+              ) : (
                 <ShoppingListView
                   requests={requests}
                   categories={categories}
@@ -245,48 +215,23 @@ export default function ShoppingPage() {
                   onUpdateQuantity={updateQuantity}
                   onMoveToEquipment={moveToEquipment}
                   onMoveToSupermarket={moveToSupermarket}
-                  onShowArchivePrompt={() => setShowArchivePrompt(true)}
                 />
-              ) : (
-                /* Archive View */
-                <div className="p-4 space-y-5">
-                  <div>
-                    <h2 className="text-xl font-black text-[var(--foreground)]">ארכיון רכישות</h2>
-                    <p className="text-xs text-[var(--muted)] font-semibold">היסטוריית קניות שנסגרו ונשמרו</p>
-                  </div>
-
-                  {Object.keys(archiveByDate).length === 0 ? (
-                    <div className="py-20 text-center opacity-40">
-                      <ShoppingBag className="w-12 h-12 mx-auto mb-2 text-[var(--muted)]" />
-                      <p className="text-sm font-black">ארכיון הקניות ריק</p>
-                    </div>
-                  ) : (
-                    Object.entries(archiveByDate)
-                      .sort((a, b) => b[0].localeCompare(a[0]))
-                      .map(([date, items]) => (
-                        <div key={date} className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl overflow-hidden shadow-sm">
-                          <div className="px-4 py-3 bg-[var(--foreground)]/5 border-b border-[var(--border)] flex items-center justify-between">
-                            <span className="text-sm font-bold text-[var(--foreground)]">{date}</span>
-                            <span className="text-xs font-black opacity-40">{items.length} מוצרים</span>
-                          </div>
-                          <div className="divide-y divide-[var(--border)]">
-                            {items.map((item) => (
-                              <div key={item.id} className="px-4 py-2.5 flex items-center justify-between">
-                                <span className="text-sm font-bold text-[var(--muted)]">{item.name}</span>
-                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[var(--foreground)]/5 text-[var(--muted)]">
-                                  {item.category}
-                                </span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      ))
-                  )}
-                </div>
               )}
             </div>
           </div>
         </main>
+
+        {/* ── Floating Action Button (FAB) - Listonic style ── */}
+        <motion.button
+          whileHover={{ scale: 1.08 }}
+          whileTap={{ scale: 0.92 }}
+          onClick={() => setOverlayOpen(true)}
+          className="fixed bottom-6 left-6 z-30 w-14 h-14 rounded-full bg-gradient-to-tr from-indigo-600 to-indigo-500 text-white shadow-xl shadow-indigo-600/30 flex items-center justify-center cursor-pointer border-none transition-all active:scale-95"
+          aria-label="הוסף מוצר לרשימה"
+          title="הוסף מוצר לרשימה"
+        >
+          <Plus className="w-7 h-7 stroke-[2.5]" />
+        </motion.button>
 
         {/* Add Product Overlay */}
         <AddProductOverlay
@@ -295,8 +240,6 @@ export default function ShoppingPage() {
           pool={pool}
           categories={categories}
           requests={requests}
-          inputVal={inputVal}
-          setInputVal={setInputVal}
           onAddProduct={addProduct}
           onRequestNewProduct={requestNewProduct}
           isAdmin={isAdmin}
@@ -316,17 +259,11 @@ export default function ShoppingPage() {
           isLogistics={isLogistics}
           pendingStoreAuthCount={pendingStoreAuthCount}
           pendingRequestsCount={pendingRequestsCount}
-          onImportRecurringList={importRecurringList}
-          onOpenRecurringEditor={() => setIsEditingRecurring(true)}
           onOpenCategories={() => setIsAddingCat(true)}
           onOpenStarManager={() => setShowManageStarModal(true)}
-          onOpenReceiptScan={() => setReceiptScanOpen(true)}
           onOpenAdminRequests={() => setShowAdminRequestsModal(true)}
           onExportProcurementList={exportProcurementList}
           onExportOngoingList={exportOngoingList}
-          onExportXlsx={exportXlsx}
-          onDeleteArchiveDay={() => setShowDeleteArchiveDayModal(true)}
-          onClearAllArchive={triggerClearArchiveModal}
         />
 
         {/* Admin Product Requests Modal */}
@@ -366,18 +303,12 @@ export default function ShoppingPage() {
           onAddProduct={async (name, cat, priority, qty, notes) => {
             await addProduct(name, cat, priority, qty, notes);
           }}
-          onExportAndArchive={async () => {
+          onExportList={async () => {
             if (listType === "large") {
-              exportProcurementList();
+              await exportProcurementList();
             } else {
-              exportOngoingList();
+              await exportOngoingList();
             }
-            await archiveCurrentSession();
-            showToast("סבב הקניות יוצא בהצלחה והועבר לארכיון!", "success");
-          }}
-          onArchiveOnly={async () => {
-            await archiveCurrentSession();
-            showToast("סבב הקניות הועבר לארכיון והרשימה נוקתה לסבב חדש!", "success");
           }}
           onRemoveItem={async (id) => {
             await deleteDoc(doc(db, "shopping_requests", id));
@@ -387,7 +318,7 @@ export default function ShoppingPage() {
           }}
         />
 
-        {/* Settings sheets: categories/cutoff, recurring list, receipt scan, star products, archive prompt */}
+        {/* Settings sheets */}
         <ShoppingModals
           isAddingCat={isAddingCat}
           setIsAddingCat={setIsAddingCat}
@@ -395,120 +326,15 @@ export default function ShoppingPage() {
           onAddCategory={handleAddCategory}
           onRenameCategory={handleRenameCategory}
           onDeleteCategory={handleDeleteCategory}
-          isEditingRecurring={isEditingRecurring}
-          setIsEditingRecurring={setIsEditingRecurring}
           pool={pool}
-          onToggleRecurring={toggleRecurring}
-          onUpdateRecurringQuantity={updateRecurringQuantity}
-          showArchivePrompt={showArchivePrompt}
-          setShowArchivePrompt={setShowArchivePrompt}
-          sessionPurchasedCount={sessionPurchased.length}
-          hasRemainingActiveItems={activeRequests.length > 0}
-          onArchiveCurrentSession={() => archiveCurrentSession(true)}
           isAdmin={isAdmin}
           isLogistics={isLogistics}
-          receiptScanOpen={receiptScanOpen}
-          setReceiptScanOpen={setReceiptScanOpen}
-          currentUser={user}
-          onSaveReceipt={handleSaveReceipt}
           showManageStarModal={showManageStarModal}
           setShowManageStarModal={setShowManageStarModal}
           onToggleStarProduct={toggleStarProduct}
           cutoffConfig={cutoffConfig}
           onSaveCutoffConfig={handleSaveCutoffConfig}
         />
-
-        {/* Delete Single Archive Day Modal */}
-        <DeleteArchiveDayModal
-          isOpen={showDeleteArchiveDayModal}
-          onClose={() => setShowDeleteArchiveDayModal(false)}
-          archivedRequests={requests.filter((r) => r.status === "archived")}
-          onDeleteDay={handleDeleteArchiveDay}
-        />
-
-        {/* Reset Archive Modal */}
-        <AnimatePresence>
-          {showResetArchiveModal && (
-            <div className="fixed inset-0 z-[150] flex items-center justify-center p-4">
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                onClick={() => setShowResetArchiveModal(false)}
-                className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-              />
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                className="relative bg-[var(--surface)] border border-[var(--border)] rounded-[2.5rem] w-full max-w-md p-6 shadow-2xl flex flex-col text-right"
-                dir="rtl"
-              >
-                <div className="flex items-center justify-between mb-4 border-b border-[var(--border)] pb-3">
-                  <h3 className="text-lg font-black text-rose-500 flex items-center gap-2">
-                    <AlertTriangle className="w-5 h-5 text-rose-500" />
-                    <span>ניקוי ואיפוס ארכיון הקניות</span>
-                  </h3>
-                  <button
-                    onClick={() => setShowResetArchiveModal(false)}
-                    className="p-1.5 rounded-full hover:bg-[var(--foreground)]/5 text-[var(--muted)] cursor-pointer"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
-                </div>
-
-                <p className="text-xs text-[var(--foreground)]/80 font-medium leading-relaxed mb-4">
-                  פעולה זו תאפס ותמחוק לצמיתות את כל <strong>{requests.filter((r) => r.status === "archived").length}</strong> המוצרים שנשמרו בארכיון הקניות.
-                  <br />
-                  <span className="text-rose-500 font-bold">לא ניתן לשחזר פריטים שנמחקו לאחר המחיקה!</span>
-                </p>
-
-                <div className="mb-4">
-                  <label className="text-xs font-bold text-[var(--foreground)] mb-1.5 block">
-                    אנא הזן סיסמת מנהל לאישור:
-                  </label>
-                  <input
-                    type="password"
-                    value={archivePassword}
-                    onChange={(e) => {
-                      setArchivePassword(e.target.value);
-                      setPasswordError("");
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") handleConfirmResetArchive();
-                    }}
-                    placeholder="הזן סיסמת מנהל..."
-                    className="w-full bg-[var(--background)] border border-[var(--border)] rounded-xl py-2.5 px-3 text-sm font-bold focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 outline-none text-center tracking-widest text-[var(--foreground)]"
-                  />
-                  {passwordError && (
-                    <span className="text-xs text-rose-500 font-bold mt-1.5 block">{passwordError}</span>
-                  )}
-                </div>
-
-                <div className="flex items-center justify-end gap-2 pt-3 border-t border-[var(--border)]">
-                  <button
-                    onClick={() => setShowResetArchiveModal(false)}
-                    className="px-4 py-2.5 rounded-xl text-xs font-bold bg-[var(--foreground)]/5 text-[var(--foreground)] hover:bg-[var(--foreground)]/10 transition-colors cursor-pointer border-none"
-                  >
-                    ביטול
-                  </button>
-                  <button
-                    onClick={handleConfirmResetArchive}
-                    disabled={isClearingArchive}
-                    className="px-4 py-2.5 rounded-xl text-xs font-black bg-rose-600 hover:bg-rose-700 !text-white transition-all shadow-md active:scale-95 cursor-pointer disabled:opacity-50 flex items-center gap-1.5 border-none"
-                  >
-                    {isClearingArchive ? (
-                      <Loader2 className="w-4 h-4 animate-spin text-white" />
-                    ) : (
-                      <Trash2 className="w-4 h-4 text-white" />
-                    )}
-                    <span>אפס ומחק ארכיון</span>
-                  </button>
-                </div>
-              </motion.div>
-            </div>
-          )}
-        </AnimatePresence>
 
         {/* Global Toast Alert */}
         <AnimatePresence>

@@ -72,6 +72,7 @@ interface Patient {
   groupIds?: string[];
   disabilityCommitteeDate?: string;
   disabilityCommitteePassed?: boolean;
+  isGroupContract?: boolean;
 }
 
 interface Group { id: string; name: string }
@@ -791,6 +792,15 @@ export default function PatientDetailPage() {
     } catch (e) { console.error(e); }
   }
 
+  async function toggleGroupContract() {
+    if (!patient) return;
+    const next = !patient.isGroupContract;
+    try {
+      await updateDoc(doc(db, "patients", patient.id), { isGroupContract: next });
+      setPatient(p => p ? { ...p, isGroupContract: next } : p);
+    } catch (e) { console.error(e); }
+  }
+
   async function setArrivalMethod(method: "private_car" | "taxi") {
     if (!patient) return;
     const next = patient.arrivalMethod === method ? undefined : method;
@@ -1484,6 +1494,11 @@ export default function PatientDetailPage() {
                   }`}>
                     {patient.status === 'active' ? 'פעיל' : 'בטיפול'}
                   </span>
+                  {patient.isGroupContract && (
+                    <span className="px-1.5 py-0.5 md:px-2.5 md:py-1 rounded-full text-[7px] md:text-[9px] font-black uppercase tracking-widest shrink-0 bg-purple-500/10 text-purple-600 border border-purple-200">
+                      חוזה קבוצתי
+                    </span>
+                  )}
                 </div>
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[8px] md:text-[10px] text-slate-400 font-bold uppercase tracking-widest">
                   <span className="text-emerald-600/80">{fullGroupName}</span>
@@ -1941,6 +1956,7 @@ export default function PatientDetailPage() {
                       const pIds = patient?.programIds || (patient?.programId ? [patient.programId] : []);
                       const patientProgs = programs.filter(p => pIds.includes(p.id));
                       const items = [
+                        { label: "חוזה קבוצתי", checked: !!patient.isGroupContract, onToggle: toggleGroupContract },
                         { label: "תוכנית שיקום", checked: !!patient.rehabPlanCompleted, onToggle: toggleRehabPlan, exclude: patientProgs.some(p => p.excludeRehabPlan) },
                         { label: "ויתור סודיות", checked: !!patient.confidentialityWaiverCompleted, onToggle: toggleConfidentialityWaiver, exclude: patientProgs.some(p => p.excludeConfidentialityWaiver) },
                         { label: "טופס פרטים אישיים", checked: !!patient.personalDetailsFormCompleted, onToggle: togglePersonalDetailsForm, exclude: patientProgs.some(p => p.excludePersonalDetailsForm) },
@@ -1951,7 +1967,7 @@ export default function PatientDetailPage() {
                       return (
                         <div className="bg-white border border-slate-200/60 rounded-xl p-3">
                           <h4 className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-2.5">מסמכים ותוכניות</h4>
-                          <div className={`grid ${items.length === 1 ? 'grid-cols-1' : items.length === 2 ? 'grid-cols-2' : 'grid-cols-3'} gap-2`}>
+                          <div className={`grid ${items.length === 1 ? 'grid-cols-1' : items.length === 2 ? 'grid-cols-2' : items.length === 3 ? 'grid-cols-3' : 'grid-cols-2 sm:grid-cols-4'} gap-2`}>
                             {items.map((item) => (
                               <div
                                 key={item.label}

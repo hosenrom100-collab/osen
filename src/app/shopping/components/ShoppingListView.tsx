@@ -32,7 +32,6 @@ interface ShoppingListViewProps {
   onUpdateQuantity: OnUpdateQuantity;
   onMoveToEquipment: OnMoveList;
   onMoveToSupermarket: OnMoveList;
-  onShowArchivePrompt: () => void;
 }
 
 const UNDO_TIMEOUT_MS = 5000;
@@ -47,7 +46,6 @@ export function ShoppingListView({
   onUpdateItem,
   onMoveToEquipment,
   onMoveToSupermarket,
-  onShowArchivePrompt,
 }: ShoppingListViewProps) {
   const [purchasedCollapsed, setPurchasedCollapsed] = useState(true);
   const [deletedCollapsed, setDeletedCollapsed] = useState(true);
@@ -130,18 +128,6 @@ export function ShoppingListView({
             {urgentCount} דחוף
           </button>
         )}
-
-        <div className="flex-1" />
-
-        {sessionPurchased.length > 0 && (
-          <button
-            onClick={onShowArchivePrompt}
-            className="px-3 py-1.5 rounded-full text-xs font-black bg-emerald-600 hover:bg-emerald-500 !text-white transition-all cursor-pointer border-none flex items-center gap-1.5"
-          >
-            <ShoppingBag className="w-3.5 h-3.5" />
-            סיום קניות
-          </button>
-        )}
       </div>
 
       {/* ── Active items, grouped by category ── */}
@@ -151,7 +137,7 @@ export function ShoppingListView({
             <ShoppingBag className="w-8 h-8" />
           </div>
           <h3 className="text-lg font-black text-[var(--foreground)]">רשימת הקניות ריקה כרגע</h3>
-          <p className="text-xs text-[var(--muted)] font-bold mt-1">תוכל להוסיף מוצרים חדשים בעזרת סרגל ההוספה למטה</p>
+          <p className="text-xs text-[var(--muted)] font-bold mt-1">תוכל להוסיף מוצרים חדשים בלחיצה על כפתור ה-➕ הציף</p>
         </div>
       ) : (
         categories.map((cat) => {

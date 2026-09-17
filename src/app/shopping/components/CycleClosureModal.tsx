@@ -16,8 +16,7 @@ export interface CycleClosureModalProps {
   pool: Product[];
   categories: string[];
   onAddProduct: (name: string, category: string, priority?: "low" | "normal" | "urgent", qty?: string, notes?: string) => Promise<void>;
-  onExportAndArchive: () => Promise<void>;
-  onArchiveOnly: () => Promise<void>;
+  onExportList: () => Promise<void>;
   onRemoveItem: (id: string) => Promise<void>;
   onUpdateQuantity: (id: string, newQty: string) => Promise<void>;
   onVerifyPassword: (password: string) => Promise<{ success: boolean; error?: string }>;
@@ -31,8 +30,7 @@ export function CycleClosureModal({
   pool,
   categories,
   onAddProduct,
-  onExportAndArchive,
-  onArchiveOnly,
+  onExportList,
   onRemoveItem,
   onUpdateQuantity,
   onVerifyPassword,
@@ -49,8 +47,7 @@ export function CycleClosureModal({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingQtyVal, setEditingQtyVal] = useState("");
 
-  // Admin password gate before closing/archiving the cycle
-  const [pendingAction, setPendingAction] = useState<"export" | "archiveOnly" | null>(null);
+  const [isExportConfirmOpen, setIsExportConfirmOpen] = useState(false);
   const [confirmPassword, setConfirmPassword] = useState("");
   const [confirmError, setConfirmError] = useState("");
 
@@ -88,18 +85,6 @@ export function CycleClosureModal({
     }
   };
 
-  const requestClose = (action: "export" | "archiveOnly") => {
-    setPendingAction(action);
-    setConfirmPassword("");
-    setConfirmError("");
-  };
-
-  const cancelPendingAction = () => {
-    setPendingAction(null);
-    setConfirmPassword("");
-    setConfirmError("");
-  };
-
   const handleConfirmedClose = async () => {
     const gateResult = await onVerifyPassword(confirmPassword.trim());
     if (!gateResult.success) {
@@ -108,12 +93,8 @@ export function CycleClosureModal({
     }
     setIsProcessing(true);
     try {
-      if (pendingAction === "export") {
-        await onExportAndArchive();
-      } else if (pendingAction === "archiveOnly") {
-        await onArchiveOnly();
-      }
-      setPendingAction(null);
+      await onExportList();
+      setIsExportConfirmOpen(false);
       onClose();
     } catch (err) {
       console.error(err);
@@ -301,13 +282,13 @@ export function CycleClosureModal({
 
           {/* Footer Summary & Action Buttons */}
           <div className="pt-4 border-t border-[var(--border)] shrink-0 space-y-3">
-            {pendingAction === null ? (
+            {!isExportConfirmOpen ? (
               <>
                 <div className="flex items-center justify-between text-xs font-bold text-[var(--muted)]">
                   <span>סה"כ {activeItems.length} מוצרים ב-{Object.keys(grouped).length} קטגוריות</span>
                   {activeItems.length > 0 && (
                     <span className="text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-                      <CheckCircle2 className="w-4 h-4" /> מוכן להדפסה וסגירה
+                      <CheckCircle2 className="w-4 h-4" /> מוכן להדפסה
                     </span>
                   )}
                 </div>
@@ -321,20 +302,12 @@ export function CycleClosureModal({
                   </button>
 
                   <button
-                    onClick={() => requestClose("archiveOnly")}
-                    disabled={isProcessing || activeItems.length === 0}
-                    className="px-4 py-2.5 rounded-xl text-xs font-bold bg-slate-200 dark:bg-slate-800 text-slate-800 dark:text-slate-200 hover:bg-slate-300 dark:hover:bg-slate-700 transition-all cursor-pointer disabled:opacity-50 border-none"
-                  >
-                    סגור וארכב סבב בלבד
-                  </button>
-
-                  <button
-                    onClick={() => requestClose("export")}
+                    onClick={() => { setIsExportConfirmOpen(true); setConfirmPassword(""); setConfirmError(""); }}
                     disabled={isProcessing || activeItems.length === 0}
                     className="px-5 py-2.5 rounded-xl text-xs font-black bg-indigo-600 hover:bg-indigo-500 !text-white transition-all shadow-lg shadow-indigo-600/20 active:scale-95 cursor-pointer disabled:opacity-50 flex items-center gap-2 border-none"
                   >
                     <FileText className="w-4 h-4 text-white" />
-                    <span>ייצא רשימה להדפסה (Word) וסגור סבב</span>
+                    <span>ייצא רשימה להדפסה (Word)</span>
                   </button>
                 </div>
               </>
@@ -343,8 +316,7 @@ export function CycleClosureModal({
                 <p className="text-xs text-[var(--foreground)]/80 font-medium leading-relaxed flex items-start gap-2">
                   <Lock className="w-4 h-4 text-rose-500 shrink-0 mt-0.5" />
                   <span>
-                    סגירת הסבב תעביר את כל <strong>{activeItems.length}</strong> הפריטים הפעילים לארכיון.
-                    {pendingAction === "export" && " בנוסף תופק רשימה להדפסה."} אנא הזן סיסמת מנהל לאישור.
+                    תופק רשימה להדפסה (Word) עבור <strong>{activeItems.length}</strong> פריטים. אנא הזן סיסמת מנהל לאישור.
                   </span>
                 </p>
                 <div>
@@ -367,7 +339,7 @@ export function CycleClosureModal({
                 </div>
                 <div className="flex items-center justify-end gap-2">
                   <button
-                    onClick={cancelPendingAction}
+                    onClick={() => setIsExportConfirmOpen(false)}
                     className="px-4 py-2.5 rounded-xl text-xs font-bold bg-[var(--foreground)]/5 text-[var(--foreground)] hover:bg-[var(--foreground)]/10 transition-colors cursor-pointer border-none flex items-center gap-1.5"
                   >
                     <ArrowRight className="w-3.5 h-3.5" />
@@ -379,7 +351,7 @@ export function CycleClosureModal({
                     className="px-5 py-2.5 rounded-xl text-xs font-black bg-rose-600 hover:bg-rose-700 !text-white transition-all shadow-lg active:scale-95 cursor-pointer disabled:opacity-50 flex items-center gap-2 border-none"
                   >
                     {isProcessing ? <Loader2 className="w-4 h-4 animate-spin text-white" /> : <Lock className="w-4 h-4 text-white" />}
-                    <span>אשר וסגור סבב</span>
+                    <span>אשר וייצא</span>
                   </button>
                 </div>
               </div>

@@ -8,8 +8,8 @@ import { collection, query, where, getDocs } from "firebase/firestore";
 import {
   Users, ShieldCheck, ClipboardList, Package,
   Calendar, AlertCircle, MapPin, Layers,
-  ChevronLeft, Shield, Bell, MessageCircle, Briefcase, Settings, Receipt, Car, Utensils,
-  ShoppingCart
+  ChevronLeft, Shield, Bell, MessageCircle, Briefcase, Settings, Car, Utensils,
+  ShoppingCart, FileText
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -31,6 +31,7 @@ const CATEGORIES = [
       { title: "תזכורות והארכות",  desc: "משתתפים הדורשים טיפול דחוף", icon: Bell,          path: "/admin/reminders",          color: "text-rose-500 bg-rose-500/10",      roles: ["admin","manager","social_worker"] },
       { title: "מאגר עו״ס שיקום",  desc: "ניהול מלווי משרד הביטחון",  icon: Briefcase,     path: "/admin/rehab-workers",      color: "text-teal-500 bg-teal-500/10",      roles: ["admin","manager","social_worker"] },
       { title: "אישורי נסיעות מרוכזים", desc: "הפקת אישורי נסיעה בכמות לפי תוכנית", icon: Car, path: "/admin/bulk-travel", color: "text-cyan-500 bg-cyan-500/10", roles: ["admin","manager","instructor","social_worker","employee","logistics"] },
+      { title: "אישורי שהייה מרוכזים", desc: "הפקת אישורי שהייה בכמות לפי תוכנית", icon: FileText, path: "/admin/bulk-stay", color: "text-emerald-500 bg-emerald-500/10", roles: ["admin","manager","instructor","social_worker","employee","logistics"] },
     ],
   },
   {
@@ -61,7 +62,6 @@ const CATEGORIES = [
     modules: [
       { title: "הגדרות ראשיות",   desc: "עריכת פורמט פעילויות ולוגואים", icon: Settings,    path: "/admin/settings",           color: "text-slate-500 bg-slate-500/10",    roles: ["admin","manager"] },
       { title: "פול מוצרים",      desc: "ניהול מאגר המוצרים לקניות",   icon: Package,     path: "/admin/shopping-pool",      color: "text-slate-500 bg-slate-500/10",    roles: ["admin","manager","logistics"] },
-      { title: "ארכיון קבלות",     desc: "צילום וניהול קבלות רכש",      icon: Receipt,     path: "/admin/receipts-archive",   color: "text-indigo-500 bg-indigo-500/10",  roles: ["admin","manager","logistics"] },
       { title: "הזמנת קייטרינג",   desc: "הרכבת תפריט וסיכום מנות שבועי", icon: Utensils,    path: "/admin/catering",           color: "text-amber-500 bg-amber-500/10",    roles: ["admin","logistics"] },
     ],
   },

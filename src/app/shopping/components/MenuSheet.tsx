@@ -3,7 +3,7 @@
 import Link from "next/link";
 import {
   ShoppingCart, FileText, ShoppingBag, RotateCcw, Settings, Star, Download,
-  FileSpreadsheet, Trash2, Receipt, Database, Edit3, Clock,
+  Database, Edit3, Clock,
 } from "lucide-react";
 import { BottomSheet } from "./BottomSheet";
 
@@ -17,17 +17,11 @@ interface MenuSheetProps {
   isLogistics: boolean;
   pendingStoreAuthCount: number;
   pendingRequestsCount: number;
-  onImportRecurringList: () => void;
-  onOpenRecurringEditor: () => void;
   onOpenCategories: () => void;
   onOpenStarManager: () => void;
-  onOpenReceiptScan: () => void;
   onOpenAdminRequests: () => void;
   onExportProcurementList: () => void;
   onExportOngoingList: () => void;
-  onExportXlsx: () => void;
-  onDeleteArchiveDay: () => void;
-  onClearAllArchive: () => void;
 }
 
 function MenuItem({
@@ -77,11 +71,6 @@ function MenuSectionLabel({ children }: { children: React.ReactNode }) {
   return <div className="text-[10px] font-black text-[var(--muted)] uppercase tracking-widest px-1 pt-1">{children}</div>;
 }
 
-/**
- * The single "⋯" menu — replaces the old ad-hoc/export/tools dropdown trio on desktop
- * and the separate mobile actions drawer, so every device has exactly one place to find
- * these actions instead of three differently-shaped ones.
- */
 export function MenuSheet({
   isOpen,
   onClose,
@@ -92,17 +81,11 @@ export function MenuSheet({
   isLogistics,
   pendingStoreAuthCount,
   pendingRequestsCount,
-  onImportRecurringList,
-  onOpenRecurringEditor,
   onOpenCategories,
   onOpenStarManager,
-  onOpenReceiptScan,
   onOpenAdminRequests,
   onExportProcurementList,
   onExportOngoingList,
-  onExportXlsx,
-  onDeleteArchiveDay,
-  onClearAllArchive,
 }: MenuSheetProps) {
   const wrap = (fn: () => void) => () => {
     onClose();
@@ -130,15 +113,9 @@ export function MenuSheet({
         {canPurchase && (
           <div className="space-y-2">
             <MenuSectionLabel>ניהול הרשימה</MenuSectionLabel>
-            {listType === "supermarket" && (
-              <MenuItem icon={<RotateCcw className="w-4 h-4 text-purple-500" />} label="שאיבת רשימה קבועה לסופר" onClick={wrap(onImportRecurringList)} />
-            )}
-            {listType === "supermarket" && (isAdmin || isLogistics) && (
-              <MenuItem icon={<Clock className="w-4 h-4 text-purple-500" />} label="עריכת רשימה קבועה (שבועית)" onClick={wrap(onOpenRecurringEditor)} />
-            )}
             <MenuItem icon={<Edit3 className="w-4 h-4 text-indigo-500" />} label="ניהול קטגוריות ומועד קציבה" onClick={wrap(onOpenCategories)} />
             {(isAdmin || isManager || isLogistics) && (
-              <MenuItem icon={<Star className="w-4 h-4 text-amber-500" />} label="ניהול מוצרי כוכב" onClick={wrap(onOpenStarManager)} />
+              <MenuItem icon={<Star className="w-4 h-4 text-amber-500" />} label="ניהול מוצרים נפוצים" onClick={wrap(onOpenStarManager)} />
             )}
             {isAdmin && (
               <MenuItem
@@ -156,24 +133,8 @@ export function MenuSheet({
             <MenuSectionLabel>ייצוא</MenuSectionLabel>
             <MenuItem icon={<Download className="w-4 h-4 text-blue-500" />} label="ייצוא רשימת רכש (Word)" onClick={wrap(onExportProcurementList)} />
             <MenuItem icon={<Download className="w-4 h-4 text-emerald-500" />} label="ייצוא רשימה שוטפת (Word)" onClick={wrap(onExportOngoingList)} />
-            {isAdmin && (
-              <MenuItem icon={<FileSpreadsheet className="w-4 h-4 text-emerald-600" />} label="ייצוא ארכיון מלא (Excel)" onClick={wrap(onExportXlsx)} />
-            )}
           </div>
         )}
-
-        <div className="space-y-2">
-          <MenuSectionLabel>אחר</MenuSectionLabel>
-          {canPurchase && (
-            <MenuItem icon={<Receipt className="w-4 h-4 text-rose-500" />} label="סריקת קבלה" onClick={wrap(onOpenReceiptScan)} />
-          )}
-          {(isAdmin || isManager || isLogistics) && (
-            <>
-              <MenuItem icon={<Trash2 className="w-4 h-4 text-rose-500" />} label="מחיקת יום מהארכיון" danger onClick={wrap(onDeleteArchiveDay)} />
-              <MenuItem icon={<Trash2 className="w-4 h-4 text-rose-500" />} label="איפוס וניקוי כל הארכיון" danger onClick={wrap(onClearAllArchive)} />
-            </>
-          )}
-        </div>
       </div>
     </BottomSheet>
   );

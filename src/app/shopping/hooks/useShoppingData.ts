@@ -17,11 +17,9 @@ import { toDateOrNull } from "../lib/dateUtils";
 export function useShoppingData(
   user: User | null,
   isAdmin: boolean,
-  listType: "supermarket" | "large",
-  loadArchive: boolean = false
+  listType: "supermarket" | "large"
 ) {
   const [liveRequests, setLiveRequests] = useState<ShoppingRequest[]>([]);
-  const [archivedRequests, setArchivedRequests] = useState<ShoppingRequest[]>([]);
   const [pool, setPool] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
@@ -53,8 +51,6 @@ export function useShoppingData(
       setPool(list);
     });
 
-    // Only the non-archived, currently-relevant statuses — this is the query every
-    // shopper's session keeps open, so it stays scoped to "this round's" items.
     const q = query(
       collection(db, "shopping_requests"),
       where("status", "in", ["pending", "approved", "purchased", "deleted"])
@@ -62,8 +58,6 @@ export function useShoppingData(
     const unsub = onSnapshot(q, (snap) => {
       const list: ShoppingRequest[] = [];
       snap.forEach((d) => list.push({ id: d.id, ...d.data() } as ShoppingRequest));
-      // Sorted client-side (no orderBy in the query above) so the "in" filter above
-      // doesn't require a composite index.
       list.sort((a, b) => (toDateOrNull(b.createdAt)?.getTime() ?? 0) - (toDateOrNull(a.createdAt)?.getTime() ?? 0));
       setLiveRequests(list);
       setLoading(false);
@@ -76,17 +70,6 @@ export function useShoppingData(
   }, [user]);
 
   useEffect(() => {
-    if (!user || !loadArchive) return;
-    const qArchive = query(collection(db, "shopping_requests"), where("status", "==", "archived"));
-    const unsubArchive = onSnapshot(qArchive, (snap) => {
-      const list: ShoppingRequest[] = [];
-      snap.forEach((d) => list.push({ id: d.id, ...d.data() } as ShoppingRequest));
-      setArchivedRequests(list);
-    });
-    return () => unsubArchive();
-  }, [user, loadArchive]);
-
-  useEffect(() => {
     if (!isAdmin) return;
     const qPending = query(collection(db, "product_requests_queue"), where("status", "==", "pending"));
     const unsubPending = onSnapshot(qPending, (snap) => {
@@ -95,9 +78,7 @@ export function useShoppingData(
     return () => unsubPending();
   }, [isAdmin]);
 
-  // Combined for consumers (archive reset/delete-day tools) that still expect the
-  // full history alongside the live list.
-  const requests = useMemo(() => [...liveRequests, ...archivedRequests], [liveRequests, archivedRequests]);
+  const requests = liveRequests;
 
   const activeRequests = useMemo(
     () =>
@@ -115,27 +96,6 @@ export function useShoppingData(
         (r) => r.status === "purchased" && (listType === "large" ? r.listType === "large" : r.listType !== "large")
       ),
     [liveRequests, listType]
-  );
-
-  const archived = useMemo(
-    () =>
-      archivedRequests.filter(
-        (r) => listType === "large" ? r.listType === "large" : r.listType !== "large"
-      ),
-    [archivedRequests, listType]
-  );
-
-  const archiveByDate = useMemo(
-    () =>
-      archived.reduce((acc, item) => {
-        // Match the same fallback chain used to delete a single archived day, so the
-        // grouping shown here is exactly what "delete this day" will remove.
-        const d = toDateOrNull(item.archivedAt ?? item.updatedAt ?? item.createdAt) ?? new Date(0);
-        const key = d.toLocaleDateString("he-IL", { day: "2-digit", month: "2-digit", year: "numeric" });
-        (acc[key] = acc[key] || []).push(item);
-        return acc;
-      }, {} as Record<string, ShoppingRequest[]>),
-    [archived]
   );
 
   const currentActiveItems = useMemo(
@@ -157,7 +117,7 @@ export function useShoppingData(
 
   return {
     requests, pool, loading, setLoading, pendingRequestsCount, categories, setCategories, cutoffConfig, setCutoffConfig,
-    activeRequests, sessionPurchased, archived, archiveByDate, currentActiveItems, cutoffStatus, isListFrozen,
+    activeRequests, sessionPurchased, currentActiveItems, cutoffStatus, isListFrozen,
     refetchSettings,
   };
 }
