@@ -5,7 +5,7 @@ import { RoleGuard } from "@/components/auth/RoleGuard";
 import { ConnectionStatusBanner } from "@/components/ui/ConnectionStatusBanner";
 import { db } from "@/lib/firebase/config";
 import {
-  doc, updateDoc, deleteDoc, setDoc, collection, query, where, onSnapshot
+  doc, updateDoc, deleteDoc, setDoc, collection, query, where, onSnapshot, writeBatch, getDocs
 } from "firebase/firestore";
 import {
   Loader2, ShoppingBag, Clock, Package, Plus, Star, Search, X
@@ -383,6 +383,28 @@ export default function ShoppingPage() {
             } else {
               await exportOngoingList();
             }
+          }}
+          onCloseCycle={async () => {
+            // Batch-delete all active items of the current list type to reset for next week
+            const statusesToClear = ["pending", "approved", "purchased"];
+            const q = query(
+              collection(db, "shopping_requests"),
+              where("status", "in", statusesToClear)
+            );
+            const snap = await getDocs(q);
+            const batch = writeBatch(db);
+            let count = 0;
+            snap.forEach((d) => {
+              const data = d.data();
+              const itemListType = data.listType || "supermarket";
+              const matchesList = listType === "large" ? itemListType === "large" : itemListType !== "large";
+              if (matchesList) {
+                batch.delete(d.ref);
+                count++;
+              }
+            });
+            if (count > 0) await batch.commit();
+            showToast(`סבב נסגר בהצלחה! ${count} מוצרים נמחקו, הרשימה מוכנה לשבוע הבא.`, "success");
           }}
           onRemoveItem={async (id) => {
             await deleteDoc(doc(db, "shopping_requests", id));

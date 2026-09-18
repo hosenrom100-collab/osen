@@ -17,6 +17,7 @@ export interface CycleClosureModalProps {
   categories: string[];
   onAddProduct: (name: string, category: string, priority?: "low" | "normal" | "urgent", qty?: string, notes?: string) => Promise<void>;
   onExportList: () => Promise<void>;
+  onCloseCycle: () => Promise<void>;
   onRemoveItem: (id: string) => Promise<void>;
   onUpdateQuantity: (id: string, newQty: string) => Promise<void>;
   onVerifyPassword: (password: string) => Promise<{ success: boolean; error?: string }>;
@@ -31,6 +32,7 @@ export function CycleClosureModal({
   categories,
   onAddProduct,
   onExportList,
+  onCloseCycle,
   onRemoveItem,
   onUpdateQuantity,
   onVerifyPassword,
@@ -94,6 +96,7 @@ export function CycleClosureModal({
     setIsProcessing(true);
     try {
       await onExportList();
+      await onCloseCycle();
       setIsExportConfirmOpen(false);
       onClose();
     } catch (err) {
