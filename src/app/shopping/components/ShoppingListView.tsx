@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { User } from "firebase/auth";
 import { ShoppingRequest, Product } from "../types";
 import {
-  Flame, ShoppingBag, ChevronDown, Check, RotateCcw, Undo2,
+  Flame, ShoppingBag, ChevronDown, Check, RotateCcw, Undo2, Trash2,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { CAT_SOLID } from "../lib/constants";
@@ -232,13 +232,23 @@ export function ShoppingListView({
               >
                 {sessionDeleted.map((item) => (
                   <div key={item.id} className="flex items-center justify-between px-3 py-2 rounded-xl bg-[var(--foreground)]/[0.02] text-xs text-[var(--muted)]">
-                    <span className="line-through truncate">{item.name} ({item.quantity})</span>
-                    <button
-                      onClick={() => onChangeStatus(item.id, "approved")}
-                      className="px-2.5 py-1 rounded-lg bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-bold hover:bg-indigo-500/20 cursor-pointer shrink-0 border-none"
-                    >
-                      החזר
-                    </button>
+                    <span className="line-through truncate max-w-[60%]">{item.name} ({item.quantity})</span>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <button
+                        onClick={() => onChangeStatus(item.id, "approved")}
+                        className="px-2.5 py-1 rounded-lg bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-bold hover:bg-indigo-500/20 cursor-pointer shrink-0 border-none"
+                      >
+                        החזר
+                      </button>
+                      <button
+                        onClick={() => onChangeStatus(item.id, "permanently_delete")}
+                        className="p-1.5 rounded-lg bg-rose-500/10 text-rose-600 dark:text-rose-400 hover:bg-rose-500/20 cursor-pointer shrink-0 border-none flex items-center gap-1 font-bold text-[11px]"
+                        title="הסר לצמיתות"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>מחק</span>
+                      </button>
+                    </div>
                   </div>
                 ))}
               </motion.div>

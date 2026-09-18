@@ -385,8 +385,8 @@ export default function ShoppingPage() {
             }
           }}
           onCloseCycle={async () => {
-            // Batch-delete all active items of the current list type to reset for next week
-            const statusesToClear = ["pending", "approved", "purchased"];
+            // Batch-delete all active & deleted items of the current list type to reset for next week
+            const statusesToClear = ["pending", "approved", "purchased", "deleted"];
             const q = query(
               collection(db, "shopping_requests"),
               where("status", "in", statusesToClear)
