@@ -5,7 +5,7 @@ import { RoleGuard } from "@/components/auth/RoleGuard";
 import { ConnectionStatusBanner } from "@/components/ui/ConnectionStatusBanner";
 import { db } from "@/lib/firebase/config";
 import {
-  doc, updateDoc, deleteDoc, setDoc, collection, query, where, onSnapshot, writeBatch, getDocs
+  doc, updateDoc, deleteDoc, setDoc, collection, query, where, onSnapshot, writeBatch, getDocs, getDoc
 } from "firebase/firestore";
 import {
   Loader2, ShoppingBag, Clock, Package, Plus, Star, Search, X
@@ -14,6 +14,7 @@ import { useAuth } from "@/context/AuthContext";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 
+import { TargetFramework } from "./types";
 import { CycleClosureModal } from "./components/CycleClosureModal";
 import { ShoppingListView } from "./components/ShoppingListView";
 import { AddProductOverlay } from "./components/AddProductOverlay";
@@ -32,6 +33,8 @@ export default function ShoppingPage() {
   const { user, role, isAdmin, isManager, isLogistics } = useAuth();
 
   const [listType, setListType] = useState<"supermarket" | "large">("supermarket");
+  const [selectedFramework, setSelectedFramework] = useState<"all" | TargetFramework>("all");
+  const [orderingFramework, setOrderingFramework] = useState<TargetFramework>("main");
   const [menuOpen, setMenuOpen] = useState(false);
 
   // Overlay state
@@ -43,6 +46,19 @@ export default function ShoppingPage() {
   // Category State
   const [isAddingCat, setIsAddingCat] = useState(false);
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
+
+  // Set default ordering framework according to user's assigned complex if available
+  useEffect(() => {
+    if (!user) return;
+    getDoc(doc(db, "users", user.uid)).then((snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.data();
+        if (data.assignedComplex === "lower") {
+          setOrderingFramework("lower");
+        }
+      }
+    }).catch((err) => console.error("Error checking user framework:", err));
+  }, [user]);
 
   const {
     requests, pool, loading, setLoading, pendingRequestsCount, categories, setCategories,
@@ -116,7 +132,12 @@ export default function ShoppingPage() {
     categories, setCategories, setCutoffConfig, setLoading, showToast, confirm
   );
 
-  const { exportProcurementList, exportOngoingList } = useExport(requests, pool, showToast);
+  const {
+    exportProcurementList,
+    exportOngoingList,
+    exportSplitOngoingLists,
+    exportSplitProcurementLists,
+  } = useExport(requests, pool, showToast);
 
   const menuHasBadge =
     (canPurchase && pendingStoreAuthCount > 0) || (isAdmin && pendingRequestsCount > 0);
@@ -222,6 +243,8 @@ export default function ShoppingPage() {
                   listType={listType}
                   activeCategory={activeCategory}
                   setActiveCategory={setActiveCategory}
+                  selectedFramework={selectedFramework}
+                  setSelectedFramework={setSelectedFramework}
                   onChangeStatus={changeStatus}
                   onUpdateItem={updateItem}
                   onUpdateQuantity={updateQuantity}
@@ -314,6 +337,8 @@ export default function ShoppingPage() {
           pool={pool}
           categories={categories}
           requests={requests}
+          targetFramework={orderingFramework}
+          onTargetFrameworkChange={setOrderingFramework}
           onAddProduct={addProduct}
           onRequestNewProduct={requestNewProduct}
           isAdmin={isAdmin}
@@ -338,6 +363,8 @@ export default function ShoppingPage() {
           onOpenAdminRequests={() => setShowAdminRequestsModal(true)}
           onExportProcurementList={exportProcurementList}
           onExportOngoingList={exportOngoingList}
+          onExportSplitOngoingLists={exportSplitOngoingLists}
+          onExportSplitProcurementLists={exportSplitProcurementLists}
         />
 
         {/* Admin Product Requests Modal */}
@@ -361,7 +388,7 @@ export default function ShoppingPage() {
             );
           }}
           onAddToShoppingList={async (name, cat, priority, qty, notes, requestedByOverride) => {
-            await addProduct(name, cat, priority, qty, notes, requestedByOverride);
+            await addProduct(name, cat, priority, qty, notes, requestedByOverride, orderingFramework);
           }}
         />
 
@@ -375,13 +402,13 @@ export default function ShoppingPage() {
           categories={categories}
           onVerifyPassword={verifyAdminPassword}
           onAddProduct={async (name, cat, priority, qty, notes) => {
-            await addProduct(name, cat, priority, qty, notes);
+            await addProduct(name, cat, priority, qty, notes, undefined, orderingFramework);
           }}
           onExportList={async () => {
             if (listType === "large") {
-              await exportProcurementList();
+              await exportSplitProcurementLists();
             } else {
-              await exportOngoingList();
+              await exportSplitOngoingLists();
             }
           }}
           onCloseCycle={async () => {

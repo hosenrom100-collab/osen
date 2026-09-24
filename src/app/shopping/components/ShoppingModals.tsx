@@ -67,15 +67,15 @@ export function ShoppingModals({
 
   // Local state for cutoff config
   const [cutoffEnabled, setCutoffEnabled] = useState(cutoffConfig?.enabled ?? true);
-  const [cutoffDay, setCutoffDay] = useState(cutoffConfig?.day ?? 2);
-  const [cutoffTime, setCutoffTime] = useState(cutoffConfig?.time ?? "12:00");
+  const [cutoffDay, setCutoffDay] = useState(cutoffConfig?.day ?? 1);
+  const [cutoffTime, setCutoffTime] = useState(cutoffConfig?.time ?? "16:00");
   const [isSavingCutoff, setIsSavingCutoff] = useState(false);
 
   useEffect(() => {
     if (cutoffConfig) {
       setCutoffEnabled(cutoffConfig.enabled);
-      setCutoffDay(cutoffConfig.day);
-      setCutoffTime(cutoffConfig.time || "12:00");
+      setCutoffDay(cutoffConfig.day ?? 1);
+      setCutoffTime(cutoffConfig.time || "16:00");
     }
   }, [cutoffConfig]);
 

@@ -5,6 +5,7 @@ import { ShoppingRequest } from "../types";
 import { Check, Flame, ChevronLeft, MessageSquare } from "lucide-react";
 import { motion } from "framer-motion";
 import { formatUnitShort, parseQuantity } from "../lib/quantityUtils";
+import { TARGET_FRAMEWORKS } from "../lib/constants";
 
 interface ItemRowProps {
   item: ShoppingRequest;
@@ -23,6 +24,7 @@ export const ItemRow = memo(function ItemRow({ item, onCheck, onOpenDetail }: It
   const isUrgent = item.priority === "urgent";
   const { value: qtyValue, unit: qtyUnit } = parseQuantity(item.quantity);
   const hasMeta = !!(item.requestedByName || (item.notes && item.notes.trim()));
+  const fwMeta = TARGET_FRAMEWORKS.find((f) => f.id === (item.targetFramework || "main")) || TARGET_FRAMEWORKS[0];
 
   const handleCheck = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -60,6 +62,9 @@ export const ItemRow = memo(function ItemRow({ item, onCheck, onOpenDetail }: It
         <div className="flex items-center gap-1.5">
           {isUrgent && <Flame className="w-3.5 h-3.5 text-rose-500 shrink-0" />}
           <span className="text-[15px] font-bold text-[var(--foreground)] truncate">{item.name}</span>
+          <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-md border shrink-0 ${fwMeta.color}`}>
+            {fwMeta.shortName}
+          </span>
         </div>
         {hasMeta && (
           <div className="flex items-center gap-1.5 mt-0.5 text-[11px] text-[var(--muted)] font-medium truncate">

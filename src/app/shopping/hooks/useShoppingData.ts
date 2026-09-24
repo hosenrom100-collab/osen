@@ -3,13 +3,26 @@
 import { useEffect, useMemo, useState } from "react";
 import { User } from "firebase/auth";
 import {
-  collection, query, where, doc, onSnapshot, getDoc,
+  collection, query, where, doc, onSnapshot, getDoc, setDoc,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase/config";
 import { ShoppingRequest, Product, CutoffConfig } from "../types";
 import { getCutoffStatus } from "../lib/cutoffUtils";
 import { DEFAULT_CATEGORIES } from "../lib/constants";
 import { toDateOrNull } from "../lib/dateUtils";
+
+const DEFAULT_CUTOFF: CutoffConfig = { enabled: true, day: 1, time: "16:00" };
+
+function normalizeCutoff(saved?: CutoffConfig): { config: CutoffConfig; needsUpdate: boolean } {
+  if (!saved) {
+    return { config: DEFAULT_CUTOFF, needsUpdate: true };
+  }
+  // If saved config is legacy Thursday (day 4), or old 18:00 cutoff, permanently migrate to Monday 16:00
+  if (saved.day === 4 || saved.day === undefined || (saved.day === 1 && saved.time === "18:00")) {
+    return { config: { enabled: saved.enabled ?? true, day: 1, time: "16:00" }, needsUpdate: true };
+  }
+  return { config: saved, needsUpdate: false };
+}
 
 // `loadArchive`: the archive is the full purchase history and can grow indefinitely, so it's
 // only streamed from Firestore once something actually needs it (the Archive tab is open),
@@ -24,23 +37,33 @@ export function useShoppingData(
   const [loading, setLoading] = useState(true);
   const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
   const [categories, setCategories] = useState<string[]>(DEFAULT_CATEGORIES);
-  const [cutoffConfig, setCutoffConfig] = useState<CutoffConfig>({ enabled: true, day: 2, time: "12:00" });
+  const [cutoffConfig, setCutoffConfig] = useState<CutoffConfig>(DEFAULT_CUTOFF);
+
+  const applySettingsData = (data: any) => {
+    if (!data) return;
+    if (data.categories) setCategories(data.categories);
+    const { config, needsUpdate } = normalizeCutoff(data.cutoffConfig);
+    setCutoffConfig(config);
+    if (needsUpdate) {
+      setDoc(doc(db, "settings", "shopping"), { cutoffConfig: config }, { merge: true }).catch(console.error);
+    }
+  };
 
   const refetchSettings = async () => {
     const s = await getDoc(doc(db, "settings", "shopping"));
     if (s.exists()) {
-      if (s.data().categories) setCategories(s.data().categories);
-      if (s.data().cutoffConfig) setCutoffConfig(s.data().cutoffConfig);
+      applySettingsData(s.data());
     }
   };
 
   useEffect(() => {
     if (!user) return;
 
-    getDoc(doc(db, "settings", "shopping")).then((s) => {
+    const unsubSettings = onSnapshot(doc(db, "settings", "shopping"), (s) => {
       if (s.exists()) {
-        if (s.data().categories) setCategories(s.data().categories);
-        if (s.data().cutoffConfig) setCutoffConfig(s.data().cutoffConfig);
+        applySettingsData(s.data());
+      } else {
+        setDoc(doc(db, "settings", "shopping"), { cutoffConfig: DEFAULT_CUTOFF }, { merge: true }).catch(console.error);
       }
     });
 
@@ -64,6 +87,7 @@ export function useShoppingData(
     });
 
     return () => {
+      unsubSettings();
       unsubPool();
       unsub();
     };

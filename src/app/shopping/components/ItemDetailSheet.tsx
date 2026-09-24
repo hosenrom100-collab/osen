@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ShoppingRequest } from "../types";
+import { ShoppingRequest, TargetFramework } from "../types";
 import { Flame, Trash2, Minus, Plus, ArrowRightLeft, Package, ShoppingCart } from "lucide-react";
 import { BottomSheet } from "./BottomSheet";
-import { CAT_SOLID } from "../lib/constants";
+import { CAT_SOLID, TARGET_FRAMEWORKS } from "../lib/constants";
 import { MEASUREMENT_UNITS } from "../lib/constants";
 import { parseQuantity, buildQuantityString, getQuantityStep, getMinQuantity, steppedQuantity } from "../lib/quantityUtils";
 
@@ -12,7 +12,7 @@ interface ItemDetailSheetProps {
   item: ShoppingRequest | null;
   onClose: () => void;
   categories: string[];
-  onUpdateItem: (id: string, name: string, category: string, quantity: string, notes: string, priority: "low" | "normal" | "urgent") => void;
+  onUpdateItem: (id: string, name: string, category: string, quantity: string, notes: string, priority: "low" | "normal" | "urgent", targetFramework?: TargetFramework) => void;
   onDelete: (id: string) => void;
   onMoveToEquipment: (id: string) => void;
   onMoveToSupermarket: (id: string) => void;
@@ -38,6 +38,7 @@ export function ItemDetailSheet({
   const [qtyUnit, setQtyUnit] = useState("יחידות");
   const [notes, setNotes] = useState("");
   const [isUrgent, setIsUrgent] = useState(false);
+  const [framework, setFramework] = useState<TargetFramework>("main");
 
   useEffect(() => {
     if (!item) return;
@@ -48,6 +49,7 @@ export function ItemDetailSheet({
     setQtyUnit(unit);
     setNotes(item.notes || "");
     setIsUrgent(item.priority === "urgent");
+    setFramework(item.targetFramework || "main");
   }, [item]);
 
   if (!item) return null;
@@ -58,7 +60,7 @@ export function ItemDetailSheet({
   const handleSave = () => {
     const cleanName = name.trim();
     if (!cleanName) return;
-    onUpdateItem(item.id, cleanName, category, buildQuantityString(qtyValue, qtyUnit), notes.trim(), isUrgent ? "urgent" : "normal");
+    onUpdateItem(item.id, cleanName, category, buildQuantityString(qtyValue, qtyUnit), notes.trim(), isUrgent ? "urgent" : "normal", framework);
     onClose();
   };
 
@@ -168,6 +170,32 @@ export function ItemDetailSheet({
               <span className="w-5 h-5 rounded-full bg-white shadow-sm block" />
             </span>
           </button>
+
+          {/* Framework Selection */}
+          <div>
+            <label className="text-[10px] font-black text-[var(--muted)] uppercase tracking-widest mb-1.5 block">
+              מסגרת יעד (חלוקה)
+            </label>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {TARGET_FRAMEWORKS.map((fw) => {
+                const active = framework === fw.id;
+                return (
+                  <button
+                    key={fw.id}
+                    type="button"
+                    onClick={() => setFramework(fw.id)}
+                    className={`py-2.5 px-2 rounded-xl text-xs font-black border transition-all cursor-pointer text-center leading-tight ${
+                      active
+                        ? `${fw.activeBg} border-transparent !text-white shadow-sm`
+                        : `${fw.pillInactive} border`
+                    }`}
+                  >
+                    {fw.name}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
 
           {/* Notes */}
           <div>

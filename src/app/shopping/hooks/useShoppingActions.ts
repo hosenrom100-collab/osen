@@ -5,7 +5,7 @@ import { User } from "firebase/auth";
 import { collection, addDoc, doc, updateDoc, deleteDoc, setDoc, writeBatch } from "firebase/firestore";
 import { db } from "@/lib/firebase/config";
 import { sendPush } from "@/lib/notify";
-import { ShoppingRequest, Product, CutoffConfig } from "../types";
+import { ShoppingRequest, Product, CutoffConfig, TargetFramework } from "../types";
 import { findSimilarRequestStrict } from "../lib/stringUtils";
 import { parseQuantity, buildQuantityString, getMinQuantity } from "../lib/quantityUtils";
 
@@ -30,7 +30,8 @@ export function useShoppingActions(
     name: string,
     category = "כללי",
     priority: "normal" | "urgent" = "normal",
-    quantity = "1"
+    quantity = "1",
+    targetFramework: TargetFramework = "main"
   ): Promise<boolean> => {
     const cleanName = name.trim();
     if (!cleanName) return false;
@@ -46,12 +47,13 @@ export function useShoppingActions(
         requestedByName: user?.displayName || user?.email || "משתמש",
         createdAt: new Date(),
         listType,
+        targetFramework,
       });
 
       sendPush({
         role: ["admin"],
         title: "📦 בקשה להוספת מוצר חדש",
-        body: `${user?.displayName || "משתמש"} מבקש להוסיף את "${cleanName}" למאגר המוצרים.`,
+        body: `${user?.displayName || "משתמש"} מבקש להוסיף את "${cleanName}" למאגר המוצרים (${targetFramework === "lower" ? "חוסן תחתון" : 'קבוצת "ראשית"'}).`,
         link: "/shopping",
       });
 
@@ -72,7 +74,8 @@ export function useShoppingActions(
     priority: "low" | "normal" | "urgent" = "normal",
     quantity = "1",
     notes = "",
-    requestedByOverride?: { uid: string; name: string }
+    requestedByOverride?: { uid: string; name: string },
+    targetFramework: TargetFramework = "main"
   ): Promise<boolean> => {
     const cleanName = name.trim();
     if (!cleanName) return false;
@@ -111,6 +114,7 @@ export function useShoppingActions(
         requestedByName: requesterName,
         createdAt: new Date(),
         listType,
+        targetFramework,
       });
 
       if (priority === "urgent") {
@@ -329,10 +333,15 @@ export function useShoppingActions(
     category: string,
     quantity: string,
     notes: string,
-    priority: "low" | "normal" | "urgent"
+    priority: "low" | "normal" | "urgent",
+    targetFramework?: TargetFramework
   ) => {
     try {
-      await updateDoc(doc(db, "shopping_requests", id), { name, category, quantity, notes, priority });
+      const updateData: Record<string, any> = { name, category, quantity, notes, priority };
+      if (targetFramework) {
+        updateData.targetFramework = targetFramework;
+      }
+      await updateDoc(doc(db, "shopping_requests", id), updateData);
       showToast("הפריט עודכן בהצלחה!", "success");
     } catch (e) {
       console.error(e);

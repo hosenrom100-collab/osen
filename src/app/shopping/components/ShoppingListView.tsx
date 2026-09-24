@@ -2,12 +2,12 @@
 
 import { useEffect, useRef, useState } from "react";
 import { User } from "firebase/auth";
-import { ShoppingRequest, Product } from "../types";
+import { ShoppingRequest, Product, TargetFramework } from "../types";
 import {
-  Flame, ShoppingBag, ChevronDown, Check, RotateCcw, Undo2, Trash2,
+  Flame, ShoppingBag, ChevronDown, Check, RotateCcw, Undo2, Trash2, MapPin, AlertTriangle,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { CAT_SOLID } from "../lib/constants";
+import { CAT_SOLID, TARGET_FRAMEWORKS } from "../lib/constants";
 import { ItemRow } from "./ItemRow";
 import { ItemDetailSheet } from "./ItemDetailSheet";
 
@@ -23,12 +23,14 @@ interface ShoppingListViewProps {
   listType: "supermarket" | "large";
   activeCategory: string | null;
   setActiveCategory: (cat: string | null) => void;
+  selectedFramework?: "all" | TargetFramework;
+  setSelectedFramework?: (fw: "all" | TargetFramework) => void;
   canPurchase?: boolean;
   isAdmin?: boolean;
   isLogistics?: boolean;
   currentUser?: User | null;
   onChangeStatus: OnChangeStatus;
-  onUpdateItem: (id: string, name: string, category: string, quantity: string, notes: string, priority: "low" | "normal" | "urgent") => void;
+  onUpdateItem: (id: string, name: string, category: string, quantity: string, notes: string, priority: "low" | "normal" | "urgent", targetFramework?: TargetFramework) => void;
   onUpdateQuantity: OnUpdateQuantity;
   onMoveToEquipment: OnMoveList;
   onMoveToSupermarket: OnMoveList;
@@ -42,6 +44,8 @@ export function ShoppingListView({
   listType,
   activeCategory,
   setActiveCategory,
+  selectedFramework = "all",
+  setSelectedFramework,
   onChangeStatus,
   onUpdateItem,
   onMoveToEquipment,
@@ -67,16 +71,54 @@ export function ShoppingListView({
     undoTimerRef.current = setTimeout(() => setUndo(null), UNDO_TIMEOUT_MS);
   };
 
-  const activeRequests = requests.filter(
+  const [showReminder, setShowReminder] = useState(false);
+
+  useEffect(() => {
+    const isDismissed = typeof window !== "undefined" && localStorage.getItem("hosen_dismiss_shopping_framework_reminder") === "true";
+    if (!isDismissed) {
+      setShowReminder(true);
+      const timer = setTimeout(() => {
+        setShowReminder(false);
+      }, 7000);
+      return () => clearTimeout(timer);
+    }
+  }, []);
+
+  const handleDismissReminder = (dontShowAgain: boolean) => {
+    setShowReminder(false);
+    if (dontShowAgain && typeof window !== "undefined") {
+      localStorage.setItem("hosen_dismiss_shopping_framework_reminder", "true");
+    }
+  };
+
+  const totalCategoryRequests = requests.filter(
     (r) =>
       (r.status === "approved" || r.status === "pending") &&
       (listType === "large" ? r.listType === "large" : r.listType !== "large")
   );
-  const sessionPurchased = requests.filter(
-    (r) => r.status === "purchased" && (listType === "large" ? r.listType === "large" : r.listType !== "large")
+
+  const mainCount = totalCategoryRequests.filter((r) => (r.targetFramework || "main") === "main").length;
+  const lowerCount = totalCategoryRequests.filter((r) => r.targetFramework === "lower").length;
+
+  const activeRequests = requests.filter(
+    (r) =>
+      (r.status === "approved" || r.status === "pending") &&
+      (listType === "large" ? r.listType === "large" : r.listType !== "large") &&
+      (!selectedFramework || selectedFramework === "all" || (r.targetFramework || "main") === selectedFramework)
   );
+
+  const sessionPurchased = requests.filter(
+    (r) =>
+      r.status === "purchased" &&
+      (listType === "large" ? r.listType === "large" : r.listType !== "large") &&
+      (!selectedFramework || selectedFramework === "all" || (r.targetFramework || "main") === selectedFramework)
+  );
+
   const sessionDeleted = requests.filter(
-    (r) => r.status === "deleted" && (listType === "large" ? r.listType === "large" : r.listType !== "large")
+    (r) =>
+      r.status === "deleted" &&
+      (listType === "large" ? r.listType === "large" : r.listType !== "large") &&
+      (!selectedFramework || selectedFramework === "all" || (r.targetFramework || "main") === selectedFramework)
   );
 
   const urgentCount = activeRequests.filter((r) => r.priority === "urgent").length;
@@ -96,8 +138,82 @@ export function ShoppingListView({
 
   return (
     <div dir="rtl" className="w-full max-w-2xl mx-auto pb-24 px-3 sm:px-4">
+      {/* ── Dissolve Reminder Banner ── */}
+      <AnimatePresence>
+        {showReminder && (
+          <motion.div
+            initial={{ opacity: 0, height: 0, marginBottom: 0 }}
+            animate={{ opacity: 1, height: "auto", marginBottom: 10 }}
+            exit={{ opacity: 0, height: 0, marginBottom: 0 }}
+            transition={{ duration: 0.35, ease: "easeInOut" }}
+            className="overflow-hidden mt-2"
+          >
+            <div className="p-3 bg-gradient-to-r from-amber-500/15 via-orange-500/10 to-amber-500/15 border border-amber-500/30 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 shadow-sm text-right">
+              <div className="flex items-center gap-2 text-xs font-bold text-amber-800 dark:text-amber-200">
+                <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
+                <span>שים לב שאתה מזין וצופה ברשימה / המסגרת הנכונה!</span>
+              </div>
+              <div className="flex items-center gap-1.5 mr-auto sm:mr-0 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => handleDismissReminder(false)}
+                  className="px-2.5 py-1 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 text-amber-800 dark:text-amber-200 text-[11px] font-bold transition-all cursor-pointer border-none"
+                >
+                  הבנתי
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleDismissReminder(true)}
+                  className="px-2.5 py-1 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-[11px] font-black transition-all cursor-pointer border-none shadow-xs"
+                >
+                  אל תציג שוב
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Framework Filter Control ── */}
+      <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 p-2 bg-[var(--foreground)]/[0.03] rounded-2xl border border-[var(--border)] mt-2 mb-2.5">
+        <button
+          onClick={() => setSelectedFramework?.("all")}
+          className={`py-1.5 px-3 rounded-xl text-xs font-black transition-all cursor-pointer border flex items-center justify-center gap-1.5 whitespace-nowrap ${
+            selectedFramework === "all"
+              ? "bg-slate-800 dark:bg-slate-200 !text-white dark:!text-slate-900 border-transparent shadow-xs"
+              : "text-[var(--muted)] hover:text-[var(--foreground)] bg-[var(--background)] border-[var(--border)]"
+          }`}
+        >
+          <span>כל המסגרות</span>
+          <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${selectedFramework === "all" ? "bg-white/20 text-white dark:text-slate-900" : "bg-[var(--foreground)]/10 text-[var(--muted)]"}`}>
+            {totalCategoryRequests.length}
+          </span>
+        </button>
+
+        {TARGET_FRAMEWORKS.map((fw) => {
+          const count = totalCategoryRequests.filter((r) => (r.targetFramework || "main") === fw.id).length;
+          const active = selectedFramework === fw.id;
+          return (
+            <button
+              key={fw.id}
+              onClick={() => setSelectedFramework?.(fw.id)}
+              className={`py-1.5 px-3 rounded-xl text-xs font-black transition-all cursor-pointer border flex items-center justify-center gap-1.5 whitespace-nowrap ${
+                active
+                  ? `${fw.activeBg} border-transparent !text-white shadow-xs`
+                  : `${fw.pillInactive} border`
+              }`}
+            >
+              <span>{fw.name}</span>
+              <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${active ? fw.badgeActive : fw.badgeInactive}`}>
+                {count}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
       {/* ── Slim status line ── */}
-      <div className="flex items-center gap-2 pt-3 pb-3">
+      <div className="flex items-center gap-2 pb-3">
         <button
           onClick={() => {
             setActiveCategory(null);

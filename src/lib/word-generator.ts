@@ -434,7 +434,7 @@ export const createDocxDocument = (
  */
 export const createParagraph = (
   text: string, 
-  options: { bold?: boolean; size?: number; alignment?: any; spacingAfter?: number } = {}
+  options: { bold?: boolean; size?: number; alignment?: any; spacingAfter?: number; color?: string } = {}
 ) => {
   return new Paragraph({
     alignment: options.alignment || AlignmentType.START,
@@ -445,6 +445,7 @@ export const createParagraph = (
         text,
         bold: options.bold || false,
         size: options.size || 24, // 12pt
+        color: options.color,
         rightToLeft: true,
         font: "Arial",
       })
@@ -1298,6 +1299,7 @@ export interface ShoppingListExportData {
   quantity: string;
   notes?: string;
   requestedByName?: string;
+  frameworkName?: string;
 }
 
 export const generateShoppingListWord = (
@@ -1305,88 +1307,109 @@ export const generateShoppingListWord = (
   metadata: {
     date: string;
     title?: string;
+    subtitle?: string;
     logoHeaderData?: Uint8Array;
     logoFooterData?: Uint8Array;
   }
 ): any => {
+  const showFrameworkCol = items.some((it) => !!it.frameworkName);
+
   const children: any[] = [
     createParagraph(`תאריך: ${metadata.date}`, { alignment: AlignmentType.END, bold: true }),
     createSpacer(120),
-    createParagraph(metadata.title || "רשימת קניות - חוות רום", { alignment: AlignmentType.CENTER, bold: true, size: 30, spacingAfter: 240 }),
+    createParagraph(metadata.title || "רשימת קניות - חוות רום", { alignment: AlignmentType.CENTER, bold: true, size: 30, spacingAfter: metadata.subtitle ? 60 : 240 }),
+  ];
+
+  if (metadata.subtitle) {
+    children.push(
+      createParagraph(metadata.subtitle, { alignment: AlignmentType.CENTER, bold: true, size: 24, spacingAfter: 240, color: "4f46e5" })
+    );
+  }
+
+  const tableHeaderCells = [
+    new TableCell({
+      width: { size: showFrameworkCol ? 26 : 30, type: WidthType.PERCENTAGE },
+      margins: { top: 80, bottom: 80, left: 80, right: 80 },
+      children: [createParagraph("מוצר", { bold: true, alignment: AlignmentType.CENTER })]
+    }),
+    new TableCell({
+      width: { size: showFrameworkCol ? 18 : 20, type: WidthType.PERCENTAGE },
+      margins: { top: 80, bottom: 80, left: 80, right: 80 },
+      children: [createParagraph("קטגוריה", { bold: true, alignment: AlignmentType.CENTER })]
+    }),
+    new TableCell({
+      width: { size: 10, type: WidthType.PERCENTAGE },
+      margins: { top: 80, bottom: 80, left: 80, right: 80 },
+      children: [createParagraph("כמות", { bold: true, alignment: AlignmentType.CENTER })]
+    }),
+    new TableCell({
+      width: { size: showFrameworkCol ? 20 : 25, type: WidthType.PERCENTAGE },
+      margins: { top: 80, bottom: 80, left: 80, right: 80 },
+      children: [createParagraph("הערות", { bold: true, alignment: AlignmentType.CENTER })]
+    }),
+    ...(showFrameworkCol ? [
+      new TableCell({
+        width: { size: 13, type: WidthType.PERCENTAGE },
+        margins: { top: 80, bottom: 80, left: 80, right: 80 },
+        children: [createParagraph("מסגרת", { bold: true, alignment: AlignmentType.CENTER })]
+      })
+    ] : []),
+    new TableCell({
+      width: { size: showFrameworkCol ? 13 : 15, type: WidthType.PERCENTAGE },
+      margins: { top: 80, bottom: 80, left: 80, right: 80 },
+      children: [createParagraph("מזמין", { bold: true, alignment: AlignmentType.CENTER })]
+    }),
   ];
 
   const tableRows = [
-    new TableRow({
-      children: [
-        new TableCell({
-          width: { size: 30, type: WidthType.PERCENTAGE },
-          margins: { top: 80, bottom: 80, left: 80, right: 80 },
-          children: [createParagraph("מוצר", { bold: true, alignment: AlignmentType.CENTER })]
-        }),
-        new TableCell({
-          width: { size: 20, type: WidthType.PERCENTAGE },
-          margins: { top: 80, bottom: 80, left: 80, right: 80 },
-          children: [createParagraph("קטגוריה", { bold: true, alignment: AlignmentType.CENTER })]
-        }),
-        new TableCell({
-          width: { size: 10, type: WidthType.PERCENTAGE },
-          margins: { top: 80, bottom: 80, left: 80, right: 80 },
-          children: [createParagraph("כמות", { bold: true, alignment: AlignmentType.CENTER })]
-        }),
-        new TableCell({
-          width: { size: 25, type: WidthType.PERCENTAGE },
-          margins: { top: 80, bottom: 80, left: 80, right: 80 },
-          children: [createParagraph("הערות", { bold: true, alignment: AlignmentType.CENTER })]
-        }),
-        new TableCell({
-          width: { size: 15, type: WidthType.PERCENTAGE },
-          margins: { top: 80, bottom: 80, left: 80, right: 80 },
-          children: [createParagraph("מזמין", { bold: true, alignment: AlignmentType.CENTER })]
-        }),
-      ]
-    })
+    new TableRow({ children: tableHeaderCells })
   ];
 
   if (items.length > 0) {
     items.forEach((item) => {
-      tableRows.push(
-        new TableRow({
-          children: [
-            new TableCell({
-              width: { size: 30, type: WidthType.PERCENTAGE },
-              margins: { top: 60, bottom: 60, left: 60, right: 60 },
-              children: [createParagraph(item.name || "—", { alignment: AlignmentType.START })]
-            }),
-            new TableCell({
-              width: { size: 20, type: WidthType.PERCENTAGE },
-              margins: { top: 60, bottom: 60, left: 60, right: 60 },
-              children: [createParagraph(item.category || "—", { alignment: AlignmentType.CENTER })]
-            }),
-            new TableCell({
-              width: { size: 10, type: WidthType.PERCENTAGE },
-              margins: { top: 60, bottom: 60, left: 60, right: 60 },
-              children: [createParagraph(item.quantity || "1", { alignment: AlignmentType.CENTER })]
-            }),
-            new TableCell({
-              width: { size: 25, type: WidthType.PERCENTAGE },
-              margins: { top: 60, bottom: 60, left: 60, right: 60 },
-              children: [createParagraph(item.notes || "—", { alignment: AlignmentType.START })]
-            }),
-            new TableCell({
-              width: { size: 15, type: WidthType.PERCENTAGE },
-              margins: { top: 60, bottom: 60, left: 60, right: 60 },
-              children: [createParagraph(item.requestedByName || "—", { alignment: AlignmentType.CENTER })]
-            }),
-          ]
-        })
-      );
+      const rowCells = [
+        new TableCell({
+          width: { size: showFrameworkCol ? 26 : 30, type: WidthType.PERCENTAGE },
+          margins: { top: 60, bottom: 60, left: 60, right: 60 },
+          children: [createParagraph(item.name || "—", { alignment: AlignmentType.START })]
+        }),
+        new TableCell({
+          width: { size: showFrameworkCol ? 18 : 20, type: WidthType.PERCENTAGE },
+          margins: { top: 60, bottom: 60, left: 60, right: 60 },
+          children: [createParagraph(item.category || "—", { alignment: AlignmentType.CENTER })]
+        }),
+        new TableCell({
+          width: { size: 10, type: WidthType.PERCENTAGE },
+          margins: { top: 60, bottom: 60, left: 60, right: 60 },
+          children: [createParagraph(item.quantity || "1", { alignment: AlignmentType.CENTER })]
+        }),
+        new TableCell({
+          width: { size: showFrameworkCol ? 20 : 25, type: WidthType.PERCENTAGE },
+          margins: { top: 60, bottom: 60, left: 60, right: 60 },
+          children: [createParagraph(item.notes || "—", { alignment: AlignmentType.START })]
+        }),
+        ...(showFrameworkCol ? [
+          new TableCell({
+            width: { size: 13, type: WidthType.PERCENTAGE },
+            margins: { top: 60, bottom: 60, left: 60, right: 60 },
+            children: [createParagraph(item.frameworkName || "—", { alignment: AlignmentType.CENTER })]
+          })
+        ] : []),
+        new TableCell({
+          width: { size: showFrameworkCol ? 13 : 15, type: WidthType.PERCENTAGE },
+          margins: { top: 60, bottom: 60, left: 60, right: 60 },
+          children: [createParagraph(item.requestedByName || "—", { alignment: AlignmentType.CENTER })]
+        }),
+      ];
+
+      tableRows.push(new TableRow({ children: rowCells }));
     });
   } else {
     tableRows.push(
       new TableRow({
         children: [
           new TableCell({
-            columnSpan: 5,
+            columnSpan: showFrameworkCol ? 6 : 5,
             width: { size: 100, type: WidthType.PERCENTAGE },
             margins: { top: 120, bottom: 120 },
             children: [createParagraph("אין פריטים ברשימת הקניות הנוכחית", { alignment: AlignmentType.CENTER })]

@@ -7,8 +7,8 @@ export function getCutoffStatus(config?: CutoffConfig, activeRequests?: Shopping
   }
 
   const daysHebrew = ["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת"];
-  const targetDayName = daysHebrew[config.day] ?? "שלישי";
-  const [targetHour, targetMinute] = (config.time || "12:00").split(":").map(Number);
+  const targetDayName = daysHebrew[config.day] ?? "שני";
+  const [targetHour, targetMinute] = (config.time || "16:00").split(":").map(Number);
 
   const now = new Date();
   const currentDay = now.getDay();
@@ -18,7 +18,7 @@ export function getCutoffStatus(config?: CutoffConfig, activeRequests?: Shopping
   let dayDiff = config.day - currentDay;
 
   targetDate.setDate(now.getDate() + dayDiff);
-  targetDate.setHours(targetHour || 12, targetMinute || 0, 0, 0);
+  targetDate.setHours(targetHour || 16, targetMinute || 0, 0, 0);
 
   // If today is past the cutoff targetDate in the current week cycle
   if (now > targetDate) {
@@ -31,7 +31,7 @@ export function getCutoffStatus(config?: CutoffConfig, activeRequests?: Shopping
       return {
         isEnabled: true,
         isPassed: true,
-        formattedTarget: `יום ${targetDayName} בשעה ${config.time || "12:00"}`,
+        formattedTarget: `יום ${targetDayName} בשעה ${config.time || "16:00"}`,
         timeLeftFormatted: "המועד חלף",
       };
     } else {
@@ -60,7 +60,7 @@ export function getCutoffStatus(config?: CutoffConfig, activeRequests?: Shopping
   return {
     isEnabled: true,
     isPassed: false,
-    formattedTarget: `יום ${targetDayName} בשעה ${config.time || "12:00"}`,
+    formattedTarget: `יום ${targetDayName} בשעה ${config.time || "16:00"}`,
     timeLeftFormatted,
   };
 }

@@ -3,9 +3,11 @@
 import Link from "next/link";
 import {
   ShoppingCart, FileText, ShoppingBag, RotateCcw, Settings, Star, Download,
-  Database, Edit3, Clock,
+  Database, Edit3, Clock, Boxes,
 } from "lucide-react";
 import { BottomSheet } from "./BottomSheet";
+import { TargetFramework } from "../types";
+import { TARGET_FRAMEWORKS } from "../lib/constants";
 
 interface MenuSheetProps {
   isOpen: boolean;
@@ -20,8 +22,10 @@ interface MenuSheetProps {
   onOpenCategories: () => void;
   onOpenStarManager: () => void;
   onOpenAdminRequests: () => void;
-  onExportProcurementList: () => void;
-  onExportOngoingList: () => void;
+  onExportProcurementList: (framework?: "all" | TargetFramework) => void;
+  onExportOngoingList: (framework?: "all" | TargetFramework) => void;
+  onExportSplitOngoingLists: () => void;
+  onExportSplitProcurementLists: () => void;
 }
 
 function MenuItem({
@@ -86,6 +90,8 @@ export function MenuSheet({
   onOpenAdminRequests,
   onExportProcurementList,
   onExportOngoingList,
+  onExportSplitOngoingLists,
+  onExportSplitProcurementLists,
 }: MenuSheetProps) {
   const wrap = (fn: () => void) => () => {
     onClose();
@@ -129,10 +135,62 @@ export function MenuSheet({
         )}
 
         {canPurchase && (
-          <div className="space-y-2">
-            <MenuSectionLabel>ייצוא</MenuSectionLabel>
-            <MenuItem icon={<Download className="w-4 h-4 text-blue-500" />} label="ייצוא רשימת רכש (Word)" onClick={wrap(onExportProcurementList)} />
-            <MenuItem icon={<Download className="w-4 h-4 text-emerald-500" />} label="ייצוא רשימה שוטפת (Word)" onClick={wrap(onExportOngoingList)} />
+          <div className="space-y-3 pt-2">
+            <MenuSectionLabel>הפקת רשימות לקניות וחלוקה (Word)</MenuSectionLabel>
+            
+            <div className="p-3 bg-[var(--foreground)]/[0.03] rounded-2xl border border-[var(--border)] space-y-2">
+              <div className="text-xs font-black text-indigo-600 dark:text-indigo-400 flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  <ShoppingCart className="w-3.5 h-3.5" />
+                  <span>רשימת סופר שוטפת</span>
+                </div>
+                <button
+                  onClick={wrap(() => onExportOngoingList("all"))}
+                  className="py-1 px-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-[11px] font-black transition-all cursor-pointer border-none shadow-xs"
+                >
+                  📑 רשימה מאוחדת
+                </button>
+              </div>
+              
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+                {TARGET_FRAMEWORKS.map((fw) => (
+                  <button
+                    key={fw.id}
+                    onClick={wrap(() => onExportOngoingList(fw.id))}
+                    className={`py-2 px-2 rounded-xl ${fw.pillInactive} border text-[11px] font-bold transition-all cursor-pointer text-center leading-tight`}
+                  >
+                    📄 {fw.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="p-3 bg-[var(--foreground)]/[0.03] rounded-2xl border border-[var(--border)] space-y-2">
+              <div className="text-xs font-black text-amber-600 dark:text-amber-400 flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  <Boxes className="w-3.5 h-3.5" />
+                  <span>רשימת ציוד ורכש</span>
+                </div>
+                <button
+                  onClick={wrap(() => onExportProcurementList("all"))}
+                  className="py-1 px-2.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-[11px] font-black transition-all cursor-pointer border-none shadow-xs"
+                >
+                  📑 רשימה מאוחדת
+                </button>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+                {TARGET_FRAMEWORKS.map((fw) => (
+                  <button
+                    key={fw.id}
+                    onClick={wrap(() => onExportProcurementList(fw.id))}
+                    className={`py-2 px-2 rounded-xl ${fw.pillInactive} border text-[11px] font-bold transition-all cursor-pointer text-center leading-tight`}
+                  >
+                    📦 {fw.name}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
         )}
       </div>

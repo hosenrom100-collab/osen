@@ -1,11 +1,11 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Product, ShoppingRequest } from "../types";
-import { Plus, Search, Star, X, Check, Flame, CheckCircle2, AlertTriangle, Minus, ArrowRight, Sparkles } from "lucide-react";
+import { Product, ShoppingRequest, TargetFramework } from "../types";
+import { Plus, Search, Star, X, Check, Flame, CheckCircle2, AlertTriangle, Minus, ArrowRight, Sparkles, MapPin } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { rankSimilarProducts, findSimilarProduct } from "../lib/stringUtils";
-import { MEASUREMENT_UNITS, CAT_COLOR, CAT_SOLID } from "../lib/constants";
+import { MEASUREMENT_UNITS, CAT_COLOR, CAT_SOLID, TARGET_FRAMEWORKS } from "../lib/constants";
 import { DEFAULT_CATEGORIES } from "../lib/constants";
 import { getQuantityStep, getMinQuantity, steppedQuantity } from "../lib/quantityUtils";
 
@@ -19,8 +19,10 @@ interface AddProductOverlayProps {
   isLogistics?: boolean;
   isFrozen?: boolean;
   initialMode?: "favorites" | "search";
-  onAddProduct: (name: string, category?: string, priority?: "normal" | "urgent", quantity?: string, notes?: string) => Promise<boolean>;
-  onRequestNewProduct: (name: string, category?: string, priority?: "normal" | "urgent", quantity?: string) => Promise<boolean>;
+  targetFramework?: TargetFramework;
+  onTargetFrameworkChange?: (fw: TargetFramework) => void;
+  onAddProduct: (name: string, category?: string, priority?: "normal" | "urgent", quantity?: string, notes?: string, requestedByOverride?: { uid: string; name: string }, targetFramework?: TargetFramework) => Promise<boolean>;
+  onRequestNewProduct: (name: string, category?: string, priority?: "normal" | "urgent", quantity?: string, targetFramework?: TargetFramework) => Promise<boolean>;
   requests: ShoppingRequest[];
 }
 
@@ -44,6 +46,8 @@ export function AddProductOverlay({
   isFrozen,
   categories = [],
   initialMode = "favorites",
+  targetFramework = "main",
+  onTargetFrameworkChange,
 }: AddProductOverlayProps) {
   const [activeMode, setActiveMode] = useState<"favorites" | "search">(initialMode);
   const [inputVal, setInputVal] = useState("");
@@ -51,12 +55,14 @@ export function AddProductOverlay({
   const [qtyValue, setQtyValue] = useState(1);
   const [qtyUnit, setQtyUnit] = useState("יחידות");
   const [urgent, setUrgent] = useState(false);
+  const [selectedFramework, setSelectedFramework] = useState<TargetFramework>(targetFramework);
+  const [showReminder, setShowReminder] = useState(false);
   const submittingRef = useRef(false);
 
   const canAddDirectly = isAdmin || isManager || isLogistics;
   const isUserBlockedByFreeze = isFrozen && !canAddDirectly;
 
-  // Reset state on open
+  // Reset state on open + check reminder preferences
   useEffect(() => {
     if (isOpen) {
       submittingRef.current = false;
@@ -66,8 +72,27 @@ export function AddProductOverlay({
       setQtyValue(1);
       setQtyUnit("יחידות");
       setUrgent(false);
+      setSelectedFramework(targetFramework);
+
+      const isDismissed = typeof window !== "undefined" && localStorage.getItem("hosen_dismiss_shopping_framework_reminder") === "true";
+      if (!isDismissed) {
+        setShowReminder(true);
+        const timer = setTimeout(() => {
+          setShowReminder(false);
+        }, 7000);
+        return () => clearTimeout(timer);
+      }
+    } else {
+      setShowReminder(false);
     }
-  }, [isOpen, initialMode]);
+  }, [isOpen, initialMode, targetFramework]);
+
+  const handleDismissReminder = (dontShowAgain: boolean) => {
+    setShowReminder(false);
+    if (dontShowAgain && typeof window !== "undefined") {
+      localStorage.setItem("hosen_dismiss_shopping_framework_reminder", "true");
+    }
+  };
 
   const alreadyInList = (name: string) =>
     requests.some((r) => r.name === name && r.status !== "deleted");
@@ -103,10 +128,10 @@ export function AddProductOverlay({
     let success: boolean;
     if (pending.isNew) {
       success = canAddDirectly
-        ? await onAddProduct(pending.name, pending.category, priority, finalQty)
-        : await onRequestNewProduct(pending.name, pending.category, priority, finalQty);
+        ? await onAddProduct(pending.name, pending.category, priority, finalQty, undefined, undefined, selectedFramework)
+        : await onRequestNewProduct(pending.name, pending.category, priority, finalQty, selectedFramework);
     } else {
-      success = await onAddProduct(pending.name, pending.category, priority, finalQty, pending.defaultNotes);
+      success = await onAddProduct(pending.name, pending.category, priority, finalQty, pending.defaultNotes, undefined, selectedFramework);
     }
 
     submittingRef.current = false;
@@ -152,6 +177,72 @@ export function AddProductOverlay({
             dir="rtl"
           >
             <div className="w-12 h-1 bg-[var(--border)] rounded-full mx-auto mb-4 md:hidden shrink-0" />
+
+            {/* Dissolve Reminder Banner */}
+            <AnimatePresence>
+              {showReminder && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0, marginBottom: 0 }}
+                  animate={{ opacity: 1, height: "auto", marginBottom: 10 }}
+                  exit={{ opacity: 0, height: 0, marginBottom: 0 }}
+                  transition={{ duration: 0.35, ease: "easeInOut" }}
+                  className="overflow-hidden shrink-0"
+                >
+                  <div className="p-3 bg-gradient-to-r from-amber-500/15 via-orange-500/10 to-amber-500/15 border border-amber-500/30 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 shadow-sm">
+                    <div className="flex items-center gap-2 text-xs font-bold text-amber-800 dark:text-amber-200">
+                      <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
+                      <span>שים לב שאתה מזין את הרשימה הנכונה!</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 mr-auto sm:mr-0 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => handleDismissReminder(false)}
+                        className="px-2.5 py-1 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 text-amber-800 dark:text-amber-200 text-[11px] font-bold transition-all cursor-pointer border-none"
+                      >
+                        הבנתי
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDismissReminder(true)}
+                        className="px-2.5 py-1 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-[11px] font-black transition-all cursor-pointer border-none shadow-xs"
+                      >
+                        אל תציג שוב
+                      </button>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* Framework context badge / switcher at the top */}
+            <div className="flex flex-col gap-2 p-2.5 mb-3 bg-[var(--foreground)]/[0.03] rounded-2xl border border-[var(--border)] shrink-0">
+              <span className="text-xs font-black text-[var(--foreground)] flex items-center gap-1.5 px-0.5">
+                <MapPin className="w-3.5 h-3.5 text-indigo-500" />
+                <span>הזמנה עבור מסגרת:</span>
+              </span>
+              <div className="flex flex-wrap items-center gap-1.5 bg-[var(--background)] p-1.5 rounded-xl border border-[var(--border)] shadow-xs">
+                {TARGET_FRAMEWORKS.map((fw) => {
+                  const active = selectedFramework === fw.id;
+                  return (
+                    <button
+                      key={fw.id}
+                      type="button"
+                      onClick={() => {
+                        setSelectedFramework(fw.id);
+                        if (onTargetFrameworkChange) onTargetFrameworkChange(fw.id);
+                      }}
+                      className={`px-2.5 py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer border whitespace-nowrap ${
+                        active
+                          ? `${fw.activeBg} border-transparent !text-white shadow-xs`
+                          : `${fw.pillInactive} border`
+                      }`}
+                    >
+                      {fw.name}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
 
             <div className="flex items-center justify-between mb-4 shrink-0">
               <h2 className="text-lg md:text-xl font-black flex items-center gap-2">

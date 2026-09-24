@@ -1,5 +1,13 @@
 import { Timestamp } from "firebase/firestore";
 
+export type TargetFramework =
+  | "main"
+  | "lower"
+  | "veterans_morning"
+  | "veterans_evening"
+  | "iron_swords_evening"
+  | "forest";
+
 export interface ShoppingRequest {
   id: string;
   name: string;
@@ -12,6 +20,7 @@ export interface ShoppingRequest {
   notes?: string;
   priority?: "low" | "normal" | "urgent";
   listType?: "supermarket" | "large";
+  targetFramework?: TargetFramework;
   updatedAt?: Timestamp | Date;
   updatedBy?: string;
 }
@@ -37,6 +46,7 @@ export interface NewProductRequest {
   notes?: string;
   quantity?: string;
   priority?: "normal" | "urgent";
+  targetFramework?: TargetFramework;
 }
 
 export interface CutoffConfig {
