@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { ShoppingRequest, TargetFramework } from "../types";
-import { Flame, Trash2, Minus, Plus, ArrowRightLeft, Package, ShoppingCart, User, ChevronDown } from "lucide-react";
+import { Flame, Trash2, Minus, Plus, ArrowRightLeft, User, ChevronDown } from "lucide-react";
 import { BottomSheet } from "./BottomSheet";
 import { TARGET_FRAMEWORKS } from "../lib/constants";
 import { MEASUREMENT_UNITS } from "../lib/constants";
@@ -231,26 +231,6 @@ export function ItemDetailSheet({
             </div>
           </div>
 
-          {/* Urgent toggle */}
-          <button
-            onClick={() => setIsUrgent((v) => !v)}
-            className={`w-full flex items-center justify-between border rounded-2xl p-3.5 transition-all cursor-pointer ${
-              isUrgent ? "border-rose-500/40 bg-rose-500/10" : "border-[var(--border)] bg-[var(--background)]/30"
-            }`}
-          >
-            <span className={`flex items-center gap-2 text-sm font-bold ${isUrgent ? "text-rose-500" : "text-[var(--foreground)]"}`}>
-              <Flame className="w-4 h-4" />
-              דחוף
-            </span>
-            <span
-              className={`w-10 h-6 rounded-full p-0.5 transition-all flex items-center ${
-                isUrgent ? "bg-rose-500 justify-end" : "bg-[var(--fill-strong)] justify-start"
-              }`}
-            >
-              <span className="w-5 h-5 rounded-full bg-white shadow-sm block" />
-            </span>
-          </button>
-
           {/* Notes */}
           <div>
             <label className="text-xs font-bold text-[var(--muted)] mb-1.5 block">
@@ -265,31 +245,45 @@ export function ItemDetailSheet({
             />
           </div>
 
-          {/* Move between lists */}
-          <button
-            onClick={() => {
-              if (item.listType === "large") onMoveToSupermarket(item.id);
-              else onMoveToEquipment(item.id);
-              onClose();
-            }}
-            className="w-full flex items-center gap-2.5 py-3 px-3.5 rounded-xl bg-[var(--fill)] hover:bg-[var(--fill-strong)] border border-[var(--border)] text-sm font-bold text-[var(--foreground)] transition-all cursor-pointer"
-          >
-            <ArrowRightLeft className="w-4 h-4 text-[var(--accent-text)] shrink-0" />
-            {item.listType === "large" ? (
-              <span className="flex items-center gap-1.5"><ShoppingCart className="w-3.5 h-3.5" /> העבר לרשימת הסופר</span>
-            ) : (
-              <span className="flex items-center gap-1.5"><Package className="w-3.5 h-3.5" /> העבר לרשימת ציוד ורכש</span>
-            )}
-          </button>
+          {/* Three secondary actions in one row: urgency (a toggle, saved with "שמור"), move to the other
+              list, and delete. Move and delete act immediately; delete is soft and offers undo. */}
+          <div className="grid grid-cols-3 gap-2">
+            <button
+              type="button"
+              onClick={() => setIsUrgent((v) => !v)}
+              aria-pressed={isUrgent}
+              className={`h-11 px-2 rounded-xl flex items-center justify-center gap-1.5 text-[13px] font-semibold border transition-colors cursor-pointer ${
+                isUrgent
+                  ? "bg-rose-600 !text-white border-transparent"
+                  : "bg-[var(--surface)] border-[var(--border)] text-[var(--foreground)] hover:bg-[var(--fill)]"
+              }`}
+            >
+              <Flame className={`w-4 h-4 shrink-0 ${isUrgent ? "" : "text-rose-500"}`} />
+              <span>דחוף</span>
+            </button>
 
-          {/* Delete */}
-          <button
-            onClick={handleDelete}
-            className="w-full flex items-center gap-2.5 py-3 px-3.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-sm font-bold text-rose-500 transition-all cursor-pointer"
-          >
-            <Trash2 className="w-4 h-4 shrink-0" />
-            מחק מהרשימה
-          </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (item.listType === "large") onMoveToSupermarket(item.id);
+                else onMoveToEquipment(item.id);
+                onClose();
+              }}
+              className="h-11 px-2 rounded-xl flex items-center justify-center gap-1.5 text-[13px] font-semibold border bg-[var(--surface)] border-[var(--border)] text-[var(--foreground)] hover:bg-[var(--fill)] transition-colors cursor-pointer"
+            >
+              <ArrowRightLeft className="w-4 h-4 shrink-0 text-[var(--accent-text)]" />
+              <span className="truncate">{item.listType === "large" ? "לסופר" : "לציוד ורכש"}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleDelete}
+              className="h-11 px-2 rounded-xl flex items-center justify-center gap-1.5 text-[13px] font-semibold border bg-rose-500/10 border-rose-500/20 text-rose-600 dark:text-rose-400 hover:bg-rose-500/20 transition-colors cursor-pointer"
+            >
+              <Trash2 className="w-4 h-4 shrink-0" />
+              <span>מחק</span>
+            </button>
+          </div>
         </div>
       </BottomSheet>
   );
