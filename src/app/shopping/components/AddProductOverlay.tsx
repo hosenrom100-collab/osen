@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { rankSimilarProducts, findSimilarProduct } from "../lib/stringUtils";
 import { MEASUREMENT_UNITS, CAT_COLOR, CAT_SOLID, TARGET_FRAMEWORKS } from "../lib/constants";
 import { DEFAULT_CATEGORIES } from "../lib/constants";
-import { getQuantityStep, getMinQuantity, steppedQuantity, parseQuantity } from "../lib/quantityUtils";
+import { getQuantityStep, getMinQuantity, steppedQuantity, parseQuantity, getQuickQtyChips } from "../lib/quantityUtils";
 
 interface AddProductOverlayProps {
   isOpen: boolean;
@@ -36,8 +36,6 @@ interface PendingAdd {
   defaultNotes?: string;
   isNew: boolean;
 }
-
-const QUICK_QTY_CHIPS = [1, 2, 3, 5, 10];
 
 export function AddProductOverlay({
   isOpen,
@@ -130,9 +128,11 @@ export function AddProductOverlay({
 
   const selectProduct = (product: Pick<Product, "name" | "category" | "defaultUnit" | "defaultNotes">) => {
     if (isUserBlockedByFreeze || alreadyInList(product.name)) return;
+    const unit = product.defaultUnit || "יחידות";
+    const initialQty = unit === "גרם" || unit === "מ״ל" ? 200 : 1;
     setPending({ name: product.name, category: product.category, defaultNotes: product.defaultNotes, isNew: false });
-    setQtyValue(1);
-    setQtyUnit(product.defaultUnit || "יחידות");
+    setQtyValue(initialQty);
+    setQtyUnit(unit);
     setUrgent(false);
   };
 
@@ -143,6 +143,15 @@ export function AddProductOverlay({
     setQtyValue(1);
     setQtyUnit("יחידות");
     setUrgent(false);
+  };
+
+  const handleUnitChange = (newUnit: string) => {
+    setQtyUnit(newUnit);
+    if ((newUnit === "גרם" || newUnit === "מ״ל") && qtyValue < 50) {
+      setQtyValue(200);
+    } else if ((newUnit === "יחידות" || newUnit === "ק״ג" || newUnit === "ליטר" || newUnit === "אריזות" || newUnit === "קופסאות" || newUnit === "בקבוקים") && qtyValue >= 50) {
+      setQtyValue(1);
+    }
   };
 
   const step = getQuantityStep(qtyUnit);
@@ -338,7 +347,7 @@ export function AddProductOverlay({
                     כמות
                   </label>
                   <div className="flex items-center gap-1.5 mb-2 overflow-x-auto no-scrollbar">
-                    {QUICK_QTY_CHIPS.map((q) => (
+                    {getQuickQtyChips(qtyUnit).map((q) => (
                       <button
                         key={q}
                         type="button"
@@ -379,7 +388,7 @@ export function AddProductOverlay({
                     </button>
                     <select
                       value={qtyUnit}
-                      onChange={(e) => setQtyUnit(e.target.value)}
+                      onChange={(e) => handleUnitChange(e.target.value)}
                       className="bg-[var(--background)] border border-[var(--border)] rounded-xl py-3 px-2 text-sm font-bold focus:outline-none focus:border-indigo-500/40 text-[var(--foreground)] shrink-0"
                     >
                       {MEASUREMENT_UNITS.map((u) => (
@@ -680,7 +689,7 @@ export function AddProductOverlay({
                   </div>
 
                   <div className="flex items-center gap-1.5 mb-2.5 overflow-x-auto no-scrollbar">
-                    {QUICK_QTY_CHIPS.map((q) => (
+                    {getQuickQtyChips(qtyUnit).map((q) => (
                       <button
                         key={q}
                         type="button"
@@ -722,7 +731,7 @@ export function AddProductOverlay({
                     </button>
                     <select
                       value={qtyUnit}
-                      onChange={(e) => setQtyUnit(e.target.value)}
+                      onChange={(e) => handleUnitChange(e.target.value)}
                       className="bg-[var(--background)] border border-[var(--border)] rounded-xl py-2.5 px-1.5 text-xs font-bold focus:outline-none focus:border-indigo-500/40 text-[var(--foreground)] shrink-0 max-w-[74px]"
                     >
                       {MEASUREMENT_UNITS.map((u) => (

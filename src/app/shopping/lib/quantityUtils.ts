@@ -18,6 +18,8 @@ const QUANTITY_STEP_BY_UNIT: Record<string, number> = {
 // The lowest sensible quantity per unit — weight/volume units are routinely bought in
 // fractions (0.5 ק"ג), unlike countable units which bottom out at 1.
 const MIN_QUANTITY_BY_UNIT: Record<string, number> = {
+  "גרם": 50,
+  "מ״ל": 50,
   "ק״ג": 0.5,
   "ליטר": 0.5,
 };
@@ -52,11 +54,21 @@ export function getMinQuantity(unit: string): number {
   return MIN_QUANTITY_BY_UNIT[unit] ?? 1;
 }
 
+export function getQuickQtyChips(unit: string): number[] {
+  if (unit === "גרם" || unit === "מ״ל") {
+    return [100, 200, 300, 400, 500, 750, 1000];
+  }
+  if (unit === "ק״ג" || unit === "ליטר") {
+    return [0.5, 1, 1.5, 2, 3, 5];
+  }
+  return [1, 2, 3, 5, 10];
+}
+
 // Moves `value` to the next/previous round multiple of `step` (e.g. 1 -> 50 -> 100,
 // not 1 -> 51 -> 101), so stepping a weight-based quantity always lands on a clean number.
 // `min` is the lowest value the unit may settle on (0.5 for ק"ג/ליטר, otherwise 1).
 export function steppedQuantity(value: number, step: number, direction: 1 | -1, min = 1): number {
-  if (step <= 1) return Math.max(min, value + direction * step);
+  if (step <= 1) return Math.max(min, Math.round((value + direction * step) * 100) / 100);
   if (direction > 0) {
     return Math.floor(value / step) * step + step;
   }

@@ -6,7 +6,7 @@ import { Flame, Trash2, Minus, Plus, ArrowRightLeft, Package, ShoppingCart } fro
 import { BottomSheet } from "./BottomSheet";
 import { TARGET_FRAMEWORKS } from "../lib/constants";
 import { MEASUREMENT_UNITS } from "../lib/constants";
-import { parseQuantity, buildQuantityString, getQuantityStep, getMinQuantity, steppedQuantity } from "../lib/quantityUtils";
+import { parseQuantity, buildQuantityString, getQuantityStep, getMinQuantity, steppedQuantity, getQuickQtyChips } from "../lib/quantityUtils";
 
 interface ItemDetailSheetProps {
   item: ShoppingRequest | null;
@@ -53,6 +53,15 @@ export function ItemDetailSheet({
   const step = getQuantityStep(qtyUnit);
   const min = getMinQuantity(qtyUnit);
   const fwMeta = TARGET_FRAMEWORKS.find((f) => f.id === (item.targetFramework || "main")) || TARGET_FRAMEWORKS[0];
+
+  const handleUnitChange = (newUnit: string) => {
+    setQtyUnit(newUnit);
+    if ((newUnit === "גרם" || newUnit === "מ״ל") && qtyValue < 50) {
+      setQtyValue(200);
+    } else if ((newUnit === "יחידות" || newUnit === "ק״ג" || newUnit === "ליטר" || newUnit === "אריזות" || newUnit === "קופסאות" || newUnit === "בקבוקים") && qtyValue >= 50) {
+      setQtyValue(1);
+    }
+  };
 
   const handleSave = () => {
     const cleanName = name.trim();
@@ -135,6 +144,25 @@ export function ItemDetailSheet({
             <label className="text-[10px] font-black text-[var(--muted)] uppercase tracking-widest mb-1.5 block">
               כמות
             </label>
+
+            {/* Quick quantity chips according to active unit */}
+            <div className="flex items-center gap-1.5 mb-2 overflow-x-auto no-scrollbar">
+              {getQuickQtyChips(qtyUnit).map((q) => (
+                <button
+                  key={q}
+                  type="button"
+                  onClick={() => setQtyValue(q)}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-black border transition-all cursor-pointer shrink-0 ${
+                    qtyValue === q
+                      ? "bg-indigo-600 !text-white border-transparent"
+                      : "bg-[var(--background)] border-[var(--border)] text-[var(--foreground)] hover:bg-[var(--foreground)]/5"
+                  }`}
+                >
+                  {q}
+                </button>
+              ))}
+            </div>
+
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setQtyValue((v) => steppedQuantity(v, step, -1, min))}
@@ -161,7 +189,7 @@ export function ItemDetailSheet({
               </button>
               <select
                 value={qtyUnit}
-                onChange={(e) => setQtyUnit(e.target.value)}
+                onChange={(e) => handleUnitChange(e.target.value)}
                 className="bg-[var(--background)] border border-[var(--border)] rounded-xl py-2.5 px-2 text-sm font-bold focus:outline-none focus:border-indigo-500/40 text-[var(--foreground)] shrink-0"
               >
                 {MEASUREMENT_UNITS.map((u) => (
