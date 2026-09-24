@@ -174,12 +174,11 @@ export default function ShoppingPage() {
   );
 
   const {
-    shareList,
     exportProcurementList,
     exportOngoingList,
     exportSplitOngoingLists,
     exportSplitProcurementLists,
-  } = useExport(requests, pool, showToast, categories);
+  } = useExport(requests, pool, showToast);
 
   const menuHasBadge =
     (canPurchase && pendingStoreAuthCount > 0) || (isAdmin && pendingRequestsCount > 0);
@@ -337,7 +336,6 @@ export default function ShoppingPage() {
                   onMoveToSupermarket={moveToSupermarket}
                   onExportOngoingList={exportOngoingList}
                   onExportProcurementList={exportProcurementList}
-                  onShareList={(fw) => shareList(listType, fw, cutoffStatus.deliveryDayFormatted)}
                 />
               )}
             </div>
