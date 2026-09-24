@@ -189,14 +189,14 @@ export function AdminProductRequestsModal({
               <Database className="w-6 h-6 text-[var(--accent-text)]" />
               <span>ניהול בקשות מוצרים חדשים</span>
               {requests.length > 0 && (
-                <span className="bg-rose-500 text-white text-xs px-2.5 py-0.5 rounded-full font-extrabold shadow-xs">
+                <span className="bg-rose-500 text-white text-xs px-2.5 py-0.5 rounded-full font-bold shadow-xs">
                   {requests.length} ממתינים
                 </span>
               )}
             </h3>
             <button
               onClick={onClose}
-              className="p-2 rounded-full hover:bg-[var(--foreground)]/5 text-[var(--muted)] cursor-pointer transition-colors"
+              className="p-2 rounded-full hover:bg-[var(--fill)] text-[var(--muted)] cursor-pointer transition-colors"
             >
               <X className="w-5 h-5" />
             </button>
@@ -238,7 +238,7 @@ export function AdminProductRequestsModal({
                           <div>
                             <div className="flex items-center gap-2 flex-wrap">
                               <h4 className="text-base font-bold text-[var(--foreground)]">{form.name}</h4>
-                              <span className="text-xs font-extrabold px-2 py-0.5 rounded-lg bg-[var(--accent-soft)] text-[var(--accent-text)] border border-[var(--accent-line)]">
+                              <span className="text-xs font-bold px-2 py-0.5 rounded-lg bg-[var(--accent-soft)] text-[var(--accent-text)] border border-[var(--accent-line)]">
                                 {form.category}
                               </span>
                             </div>
@@ -290,7 +290,7 @@ export function AdminProductRequestsModal({
                         className={`p-2 rounded-xl text-xs font-bold flex items-center gap-1 shrink-0 transition-colors cursor-pointer ${
                           isEditing
                             ? "bg-[var(--accent)] text-white"
-                            : "bg-[var(--foreground)]/5 hover:bg-[var(--foreground)]/10 text-[var(--foreground)]"
+                            : "bg-[var(--fill)] hover:bg-[var(--fill-strong)] text-[var(--foreground)]"
                         }`}
                         title="ערוך בקשה"
                       >
@@ -321,7 +321,7 @@ export function AdminProductRequestsModal({
                             >
                               <div className="flex items-center gap-2 flex-wrap min-w-0">
                                 <span className="font-bold text-[var(--foreground)]">{p.name}</span>
-                                <span className="text-xs font-extrabold px-1.5 py-0.5 rounded-lg bg-[var(--foreground)]/5 text-[var(--muted)]">
+                                <span className="text-xs font-bold px-1.5 py-0.5 rounded-lg bg-[var(--fill)] text-[var(--muted)]">
                                   {p.category}
                                 </span>
                                 {p.defaultNotes && (

@@ -98,7 +98,7 @@ export function ItemDetailSheet({
           <div className="flex gap-2.5">
             <button
               onClick={onClose}
-              className="flex-1 h-12 bg-[var(--foreground)]/[0.06] hover:bg-[var(--foreground)]/10 text-[var(--foreground)] text-[15px] font-semibold rounded-xl transition-all cursor-pointer border-none"
+              className="flex-1 h-12 bg-[var(--fill-strong)] hover:bg-[var(--fill-strong)] text-[var(--foreground)] text-[15px] font-semibold rounded-xl transition-all cursor-pointer border-none"
             >
               ביטול
             </button>
@@ -114,7 +114,7 @@ export function ItemDetailSheet({
       >
         <div className="space-y-4">
           {/* Assigned metadata indicator (Clickable Framework + Category + Requester) */}
-          <div className="p-3.5 rounded-2xl bg-[var(--foreground)]/[0.03] border border-[var(--border)] space-y-2.5 text-[13px]">
+          <div className="p-3.5 rounded-2xl bg-[var(--fill)] border border-[var(--border)] space-y-2.5 text-[13px]">
             {/* Row 1: Framework selector & Category */}
             <div className="flex items-center justify-between gap-2 flex-wrap">
               {/* Clickable Framework Selector */}
@@ -141,7 +141,7 @@ export function ItemDetailSheet({
               {item.category && (
                 <div className="flex items-center gap-1.5 shrink-0">
                   <span className="text-[var(--muted)] font-bold">קטגוריה:</span>
-                  <span className="font-bold text-[var(--foreground)] bg-[var(--foreground)]/5 px-2 py-0.5 rounded-lg">
+                  <span className="font-bold text-[var(--foreground)] bg-[var(--fill)] px-2 py-0.5 rounded-lg">
                     {item.category}
                   </span>
                 </div>
@@ -187,7 +187,7 @@ export function ItemDetailSheet({
                   className={`px-2.5 py-1 rounded-lg text-xs font-bold border transition-all cursor-pointer shrink-0 ${
                     qtyValue === q
                       ? "bg-[var(--accent)] !text-white border-transparent"
-                      : "bg-[var(--background)] border-[var(--border)] text-[var(--foreground)] hover:bg-[var(--foreground)]/5"
+                      : "bg-[var(--background)] border-[var(--border)] text-[var(--foreground)] hover:bg-[var(--fill)]"
                   }`}
                 >
                   {q}
@@ -198,7 +198,7 @@ export function ItemDetailSheet({
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setQtyValue((v) => steppedQuantity(v, step, -1, min))}
-                className="w-11 h-11 rounded-xl bg-[var(--foreground)]/5 hover:bg-[var(--foreground)]/10 border border-[var(--border)] flex items-center justify-center transition-all active:scale-90 cursor-pointer shrink-0"
+                className="w-11 h-11 rounded-xl bg-[var(--fill)] hover:bg-[var(--fill-strong)] border border-[var(--border)] flex items-center justify-center transition-all active:scale-90 cursor-pointer shrink-0"
               >
                 <Minus className="w-4 h-4 stroke-[3] text-[var(--foreground)]" />
               </button>
@@ -244,7 +244,7 @@ export function ItemDetailSheet({
             </span>
             <span
               className={`w-10 h-6 rounded-full p-0.5 transition-all flex items-center ${
-                isUrgent ? "bg-rose-500 justify-end" : "bg-[var(--foreground)]/15 justify-start"
+                isUrgent ? "bg-rose-500 justify-end" : "bg-[var(--fill-strong)] justify-start"
               }`}
             >
               <span className="w-5 h-5 rounded-full bg-white shadow-sm block" />
@@ -272,7 +272,7 @@ export function ItemDetailSheet({
               else onMoveToEquipment(item.id);
               onClose();
             }}
-            className="w-full flex items-center gap-2.5 py-3 px-3.5 rounded-xl bg-[var(--foreground)]/5 hover:bg-[var(--foreground)]/10 border border-[var(--border)] text-sm font-bold text-[var(--foreground)] transition-all cursor-pointer"
+            className="w-full flex items-center gap-2.5 py-3 px-3.5 rounded-xl bg-[var(--fill)] hover:bg-[var(--fill-strong)] border border-[var(--border)] text-sm font-bold text-[var(--foreground)] transition-all cursor-pointer"
           >
             <ArrowRightLeft className="w-4 h-4 text-[var(--accent-text)] shrink-0" />
             {item.listType === "large" ? (

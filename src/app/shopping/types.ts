@@ -61,6 +61,8 @@ export interface CutoffStatus {
   isPassed: boolean;
   formattedTarget: string;
   timeLeftFormatted: string;
+  /** Milliseconds until the cutoff; only set while the cutoff hasn't passed. */
+  msLeft?: number;
   deliveryDayFormatted?: string;
 }
 

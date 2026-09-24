@@ -8,7 +8,7 @@ import {
   doc, updateDoc, deleteDoc, setDoc, collection, query, where, onSnapshot, getDoc
 } from "firebase/firestore";
 import {
-  Loader2, ShoppingBag, Clock, Package, Plus, Truck
+  Loader2, ShoppingBag, Package, Plus
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { motion, AnimatePresence, MotionConfig } from "framer-motion";
@@ -200,7 +200,7 @@ export default function ShoppingPage() {
       {/* One switch for every animation on this screen: honors the OS "reduce motion" setting. */}
       <MotionConfig reducedMotion="user">
       <ConnectionStatusBanner />
-      <div dir="rtl" className="flex flex-col h-[100dvh] bg-[var(--background)] text-[var(--foreground)] overflow-hidden font-sans relative">
+      <div dir="rtl" className="shopping-theme flex flex-col h-[100dvh] bg-[var(--background)] text-[var(--foreground)] overflow-hidden font-sans relative">
         <ShoppingHeader
           listType={listType}
           setListType={setListType}
@@ -208,6 +208,7 @@ export default function ShoppingPage() {
           hasMenuBadge={menuHasBadge}
           onOpenMenu={() => setMenuOpen(true)}
           progress={progress}
+          cutoffStatus={cutoffStatus}
         />
 
         {/* ── Frozen list: the only cutoff state that needs a banner. The countdown lives in the page title. ── */}
@@ -255,31 +256,6 @@ export default function ShoppingPage() {
             {/* lg+: list column plus a sticky side rail; below lg it is just the list column. */}
             <div className="mx-auto pb-24 max-w-[700px] lg:max-w-[1060px] lg:grid lg:grid-cols-[minmax(0,700px)_320px] lg:justify-center lg:gap-8 lg:items-start">
             <div className="min-w-0">
-              {/* Large title — scrolls away with the content, like iOS. Carries the cutoff countdown
-                  that used to live in an auto-dismissing banner. */}
-              <div className="px-2.5 sm:px-4 pt-5 pb-1">
-                <h1 className="text-[28px] leading-tight font-extrabold text-[var(--foreground)]">
-                  {listType === "large" ? "ציוד ורכש" : "רשימת קניות"}
-                </h1>
-                {cutoffStatus.isEnabled && !isListFrozen && (
-                  <p className="mt-1.5 text-sm font-medium text-[var(--muted)] flex flex-wrap items-center gap-x-4 gap-y-1">
-                    <span className="inline-flex items-center gap-1.5">
-                      <Clock className="w-4 h-4 shrink-0" />
-                      <span>
-                        סגירת הזנות {cutoffStatus.formattedTarget} ·{" "}
-                        <strong className="font-bold text-[var(--foreground)]">{cutoffStatus.timeLeftFormatted}</strong>
-                      </span>
-                    </span>
-                    {cutoffStatus.deliveryDayFormatted && (
-                      <span className="inline-flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400">
-                        <Truck className="w-4 h-4 shrink-0" />
-                        <span>משלוח {cutoffStatus.deliveryDayFormatted}</span>
-                      </span>
-                    )}
-                  </p>
-                )}
-              </div>
-
               {/* Pending Store Authorization Requests */}
               {canPurchase && pendingStoreAuthCount > 0 && (
                 <div className="my-3 mx-2.5 sm:mx-4 p-3.5 rounded-2xl bg-[var(--accent)] text-white shadow-[var(--shadow-card)] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
@@ -308,7 +284,7 @@ export default function ShoppingPage() {
                 <div className="px-2.5 sm:px-4 pt-4 space-y-4 animate-pulse" aria-busy="true" aria-label="טוען את הרשימה">
                   <div className="flex gap-2">
                     {[64, 80, 96, 72].map((w) => (
-                      <div key={w} className="h-9 rounded-full bg-[var(--foreground)]/[0.07]" style={{ width: w }} />
+                      <div key={w} className="h-9 rounded-full bg-[var(--fill-strong)]" style={{ width: w }} />
                     ))}
                   </div>
                   {[4, 3].map((rows) => (
@@ -316,8 +292,8 @@ export default function ShoppingPage() {
                       <div className="h-11 border-b border-[var(--border)]" />
                       {Array.from({ length: rows }).map((_, i) => (
                         <div key={i} className="h-16 flex items-center gap-3 px-3 border-b border-[var(--border)] last:border-b-0">
-                          <div className="w-7 h-7 rounded-full bg-[var(--foreground)]/[0.07] mx-2" />
-                          <div className="h-4 rounded bg-[var(--foreground)]/[0.07] flex-1 max-w-[55%]" />
+                          <div className="w-7 h-7 rounded-full bg-[var(--fill-strong)] mx-2" />
+                          <div className="h-4 rounded bg-[var(--fill-strong)] flex-1 max-w-[55%]" />
                         </div>
                       ))}
                     </div>

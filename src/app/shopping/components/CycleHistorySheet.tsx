@@ -58,7 +58,7 @@ export function CycleHistorySheet({ isOpen, onClose, listType }: CycleHistoryShe
           {cycles.map((cycle) => {
             const expanded = openId === cycle.id;
             return (
-              <div key={cycle.id} className="rounded-2xl border border-[var(--border)] bg-[var(--foreground)]/[0.02] overflow-hidden">
+              <div key={cycle.id} className="rounded-2xl border border-[var(--border)] bg-[var(--fill)] overflow-hidden">
                 <button
                   onClick={() => setOpenId(expanded ? null : cycle.id)}
                   aria-expanded={expanded}

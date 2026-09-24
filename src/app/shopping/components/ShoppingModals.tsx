@@ -172,7 +172,7 @@ export function ShoppingModals({
                             </button>
                             <button
                               onClick={() => setEditingCatName(null)}
-                              className="p-1.5 bg-[var(--foreground)]/5 text-[var(--muted)] hover:bg-[var(--foreground)]/10 border border-[var(--border)] rounded-lg transition-colors cursor-pointer"
+                              className="p-1.5 bg-[var(--fill)] text-[var(--muted)] hover:bg-[var(--fill-strong)] border border-[var(--border)] rounded-lg transition-colors cursor-pointer"
                               title="ביטול"
                             >
                               <X className="w-4 h-4" />
@@ -187,7 +187,7 @@ export function ShoppingModals({
                                   setEditingCatName(cat);
                                   setEditingCatNewValue(cat);
                                 }}
-                                className="p-1.5 bg-[var(--foreground)]/5 hover:bg-[var(--foreground)]/10 text-[var(--muted)] hover:text-[var(--accent-text)] border border-[var(--border)] rounded-lg transition-all cursor-pointer"
+                                className="p-1.5 bg-[var(--fill)] hover:bg-[var(--fill-strong)] text-[var(--muted)] hover:text-[var(--accent-text)] border border-[var(--border)] rounded-lg transition-all cursor-pointer"
                                 title="ערוך קטגוריה"
                               >
                                 <Edit3 className="w-3.5 h-3.5" />
@@ -223,7 +223,7 @@ export function ShoppingModals({
                         onChange={(e) => setCutoffEnabled(e.target.checked)}
                         className="sr-only peer"
                       />
-                      <div className="w-9 h-5 bg-[var(--foreground)]/20 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
+                      <div className="w-9 h-5 bg-[var(--fill-strong)] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
                     </label>
                   </div>
 
@@ -345,7 +345,7 @@ export function ShoppingModals({
                   <button
                     type="button"
                     onClick={() => setStarModalSearchVal("")}
-                    className="absolute left-3 top-1/2 -translate-y-1/2 p-1 rounded-full text-[var(--muted)] hover:text-[var(--foreground)] hover:bg-[var(--foreground)]/10 transition-colors cursor-pointer border-none flex items-center justify-center"
+                    className="absolute left-3 top-1/2 -translate-y-1/2 p-1 rounded-full text-[var(--muted)] hover:text-[var(--foreground)] hover:bg-[var(--fill-strong)] transition-colors cursor-pointer border-none flex items-center justify-center"
                     title="נקה חיפוש"
                   >
                     <X className="w-4 h-4" />
@@ -386,7 +386,7 @@ export function ShoppingModals({
                           className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 border-none ${
                             isStar
                               ? "bg-amber-500 text-white shadow-sm"
-                              : "bg-[var(--foreground)]/5 text-[var(--muted)] hover:bg-[var(--foreground)]/10"
+                              : "bg-[var(--fill)] text-[var(--muted)] hover:bg-[var(--fill-strong)]"
                           }`}
                         >
                           <Star className={`w-3.5 h-3.5 ${isStar ? "fill-white" : ""}`} />

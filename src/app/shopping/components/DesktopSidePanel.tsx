@@ -41,7 +41,7 @@ export function DesktopSidePanel({
   const allDone = total > 0 && done === total;
 
   const secondaryBtn =
-    "w-full h-11 px-3.5 rounded-xl flex items-center gap-2.5 text-sm font-semibold bg-[var(--surface)] border border-[var(--border)] text-[var(--foreground)] hover:bg-[var(--foreground)]/[0.04] cursor-pointer transition-colors";
+    "w-full h-11 px-3.5 rounded-xl flex items-center gap-2.5 text-sm font-semibold bg-[var(--surface)] border border-[var(--border)] text-[var(--foreground)] hover:bg-[var(--fill)] cursor-pointer transition-colors";
 
   return (
     <div className="space-y-3">
@@ -55,7 +55,7 @@ export function DesktopSidePanel({
         ) : (
           <div className="flex items-center gap-4">
             <svg width="96" height="96" viewBox="0 0 96 96" role="img" aria-label={`${pct}% מהמוצרים נרכשו`} className="shrink-0">
-              <circle cx="48" cy="48" r={RING_RADIUS} fill="none" strokeWidth="8" className="stroke-[var(--foreground)]/10" />
+              <circle cx="48" cy="48" r={RING_RADIUS} fill="none" strokeWidth="8" className="stroke-[color:var(--fill-strong)]" />
               <circle
                 cx="48"
                 cy="48"
@@ -68,12 +68,12 @@ export function DesktopSidePanel({
                 transform="rotate(-90 48 48)"
                 className="stroke-emerald-500 transition-[stroke-dashoffset] duration-500 ease-out"
               />
-              <text x="48" y="55" textAnchor="middle" className="fill-[var(--foreground)] text-[20px] font-extrabold">
+              <text x="48" y="55" textAnchor="middle" className="fill-[var(--foreground)] text-[20px] font-bold">
                 {pct}%
               </text>
             </svg>
             <div className="min-w-0">
-              <div className="text-3xl font-extrabold tabular-nums leading-none text-[var(--foreground)]">
+              <div className="text-3xl font-bold tabular-nums leading-none text-[var(--foreground)]">
                 {done}
                 <span className="text-[var(--muted)] font-semibold">/{total}</span>
               </div>

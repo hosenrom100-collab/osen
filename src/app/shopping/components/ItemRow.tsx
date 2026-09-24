@@ -65,7 +65,7 @@ export const ItemRow = memo(function ItemRow({ item, onCheck, onOpenDetail, show
       onClick={() => {
         if (!checking) onOpenDetail(item);
       }}
-      className={`relative w-full flex items-center gap-3 px-3 py-2 min-h-[64px] hover:bg-[var(--foreground)]/[0.03] active:bg-[var(--foreground)]/[0.06] transition-colors text-right cursor-pointer ${
+      className={`relative w-full flex items-center gap-3 px-3 py-2 min-h-[64px] hover:bg-[var(--fill)] active:bg-[var(--fill-strong)] transition-colors text-right cursor-pointer ${
         checking ? "bg-emerald-500/10" : "bg-transparent"
       }`}
     >
@@ -116,7 +116,7 @@ export const ItemRow = memo(function ItemRow({ item, onCheck, onOpenDetail, show
           )}
         </div>
         {hasNotes && (
-          <div className="flex items-center gap-1 mt-0.5 text-[13px] text-[var(--muted)] font-medium truncate">
+          <div className="flex items-center gap-1 mt-0.5 text-[13px] text-amber-700 dark:text-amber-400 font-medium truncate">
             <MessageSquare className="w-3.5 h-3.5 shrink-0" />
             <span className="truncate">{item.notes}</span>
           </div>
@@ -125,7 +125,7 @@ export const ItemRow = memo(function ItemRow({ item, onCheck, onOpenDetail, show
 
       {/* Quantity — the number leads, the unit recedes */}
       <span className="shrink-0 text-right leading-tight">
-        <span className="text-base font-bold tabular-nums text-[var(--foreground)]">{qtyValue}</span>
+        <span className="text-base font-semibold tabular-nums text-[var(--foreground)]">{qtyValue}</span>
         <span className="text-[13px] font-medium text-[var(--muted)]"> {formatUnitShort(qtyUnit)}</span>
       </span>
 

@@ -122,7 +122,7 @@ export function CycleClosureModal({
                 <div className="flex items-center justify-end gap-2 flex-wrap">
                   <button
                     onClick={onClose}
-                    className="h-12 px-4 rounded-xl text-sm font-semibold bg-[var(--foreground)]/5 text-[var(--foreground)] hover:bg-[var(--foreground)]/10 transition-colors cursor-pointer border-none"
+                    className="h-12 px-4 rounded-xl text-sm font-semibold bg-[var(--fill)] text-[var(--foreground)] hover:bg-[var(--fill-strong)] transition-colors cursor-pointer border-none"
                   >
                     ביטול / המשך עריכה
                   </button>
@@ -183,7 +183,7 @@ export function CycleClosureModal({
                 <div className="flex items-center justify-end gap-2">
                   <button
                     onClick={() => setIsExportConfirmOpen(false)}
-                    className="h-12 px-4 rounded-xl text-sm font-semibold bg-[var(--foreground)]/5 text-[var(--foreground)] hover:bg-[var(--foreground)]/10 transition-colors cursor-pointer border-none flex items-center gap-1.5"
+                    className="h-12 px-4 rounded-xl text-sm font-semibold bg-[var(--fill)] text-[var(--foreground)] hover:bg-[var(--fill-strong)] transition-colors cursor-pointer border-none flex items-center gap-1.5"
                   >
                     <ArrowRight className="w-3.5 h-3.5" />
                     חזור
@@ -227,7 +227,7 @@ export function CycleClosureModal({
               },
             ].map((stat) => (
               <div key={stat.label} className={`rounded-2xl border p-3 text-center ${stat.cls}`}>
-                <div className="text-2xl font-extrabold tabular-nums leading-none">{stat.n}</div>
+                <div className="text-2xl font-bold tabular-nums leading-none">{stat.n}</div>
                 <div className="text-[13px] font-semibold mt-1.5 opacity-90">{stat.label}</div>
               </div>
             ))}
@@ -285,10 +285,10 @@ export function CycleClosureModal({
               </div>
             ) : (
               Object.entries(grouped).map(([category, items]) => (
-                <div key={category} className="bg-[var(--foreground)]/[0.02] border border-[var(--border)] rounded-2xl overflow-hidden">
-                  <div className="px-4 py-2.5 bg-[var(--foreground)]/5 border-b border-[var(--border)] flex items-center justify-between">
+                <div key={category} className="bg-[var(--fill)] border border-[var(--border)] rounded-2xl overflow-hidden">
+                  <div className="px-4 py-2.5 bg-[var(--fill)] border-b border-[var(--border)] flex items-center justify-between">
                     <span className="text-xs font-bold text-[var(--foreground)]">{category}</span>
-                    <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-[var(--foreground)]/10 text-[var(--muted)]">
+                    <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-[var(--fill-strong)] text-[var(--muted)]">
                       {items.length} מוצרים
                     </span>
                   </div>
@@ -303,7 +303,7 @@ export function CycleClosureModal({
                           <div className="flex items-center gap-2 flex-grow min-w-0">
                             <span className="font-bold text-[var(--foreground)] truncate">{item.name}</span>
                             {effectiveNotes && (
-                              <span className="text-xs font-semibold text-[var(--muted)] bg-[var(--foreground)]/5 px-2 py-0.5 rounded-lg truncate max-w-[160px]">
+                              <span className="text-xs font-semibold text-[var(--muted)] bg-[var(--fill)] px-2 py-0.5 rounded-lg truncate max-w-[160px]">
                                 💬 {effectiveNotes}
                               </span>
                             )}
@@ -341,7 +341,7 @@ export function CycleClosureModal({
                                   setEditingId(item.id);
                                   setEditingQtyVal(item.quantity || "1");
                                 }}
-                                className="px-2 py-1 rounded-lg bg-[var(--foreground)]/5 hover:bg-[var(--foreground)]/10 font-bold text-[var(--foreground)] flex items-center gap-1 cursor-pointer border-none"
+                                className="px-2 py-1 rounded-lg bg-[var(--fill)] hover:bg-[var(--fill-strong)] font-bold text-[var(--foreground)] flex items-center gap-1 cursor-pointer border-none"
                               >
                                 <span>{item.quantity || "1"}</span>
                                 <Edit2 className="w-3 h-3 text-[var(--muted)]" />

@@ -47,7 +47,7 @@ export function BottomSheet({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm"
+            className="absolute inset-0 bg-[#1B1F3B]/60 backdrop-blur-sm"
           />
           <motion.div
             ref={containerRef}
@@ -68,17 +68,17 @@ export function BottomSheet({
             dir="rtl"
             style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
           >
-            <div className="w-10 h-1.5 bg-[var(--foreground)]/15 rounded-full mx-auto mt-2.5 mb-0.5 md:hidden shrink-0" />
+            <div className="w-10 h-1.5 bg-[var(--fill-strong)] rounded-full mx-auto mt-2.5 mb-0.5 md:hidden shrink-0" />
 
             <div className="flex items-center justify-between gap-3 px-5 pt-3 pb-3 shrink-0">
-              <h2 className="text-lg font-extrabold flex items-center gap-2.5 text-[var(--foreground)] min-w-0">
+              <h2 className="text-lg font-bold flex items-center gap-2.5 text-[var(--foreground)] min-w-0">
                 {icon}
                 <span>{title}</span>
               </h2>
               <button
                 onClick={onClose}
                 aria-label="סגור"
-                className="w-10 h-10 shrink-0 flex items-center justify-center rounded-full bg-[var(--foreground)]/[0.06] hover:bg-[var(--foreground)]/10 text-[var(--muted)] cursor-pointer border-none transition-colors"
+                className="w-10 h-10 shrink-0 flex items-center justify-center rounded-full bg-[var(--fill-strong)] hover:bg-[var(--fill-strong)] text-[var(--muted)] cursor-pointer border-none transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>

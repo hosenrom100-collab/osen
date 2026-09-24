@@ -261,7 +261,7 @@ export function AddProductOverlay({
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-[100] bg-slate-950/60 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-6">
+        <div className="fixed inset-0 z-[100] bg-[#1B1F3B]/60 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-6">
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -287,7 +287,7 @@ export function AddProductOverlay({
               return (
                 <div className="shrink-0 mb-3">
                   <div className="flex items-center justify-between gap-2 mb-3">
-                    <h2 className="text-lg font-extrabold text-[var(--foreground)] flex items-center gap-2 min-w-0">
+                    <h2 className="text-lg font-bold text-[var(--foreground)] flex items-center gap-2 min-w-0">
                       <span className="truncate">הוספה לרשימה</span>
                       {!showStep2 && addedCount > 0 && (
                         <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 shrink-0">
@@ -298,7 +298,7 @@ export function AddProductOverlay({
                     <button
                       onClick={onClose}
                       aria-label="סגור"
-                      className="w-10 h-10 -ml-1.5 rounded-full hover:bg-[var(--foreground)]/5 text-[var(--muted)] cursor-pointer border-none bg-transparent shrink-0 flex items-center justify-center"
+                      className="w-10 h-10 -ml-1.5 rounded-full hover:bg-[var(--fill)] text-[var(--muted)] cursor-pointer border-none bg-transparent shrink-0 flex items-center justify-center"
                     >
                       <X className="w-5 h-5" />
                     </button>
@@ -322,11 +322,11 @@ export function AddProductOverlay({
                           }}
                           className={`h-9 px-3.5 rounded-full text-[13px] font-semibold whitespace-nowrap shrink-0 flex items-center gap-1.5 border transition-colors cursor-pointer ${
                             active
-                              ? `${f.activeBg} !text-white border-transparent`
-                              : "bg-[var(--surface)] text-[var(--foreground)]/80 border-[var(--border)] hover:bg-[var(--foreground)]/[0.05]"
+                              ? "bg-[var(--accent)] !text-white border-transparent"
+                              : "bg-[var(--surface)] text-[var(--foreground)]/80 border-[var(--border)] hover:bg-[var(--fill)]"
                           }`}
                         >
-                          {!active && <span aria-hidden className={`w-2 h-2 rounded-full ${f.dot}`} />}
+                          <span aria-hidden className={`w-2 h-2 rounded-full ${active ? "bg-white/85" : f.dot}`} />
                           {f.shortName}
                         </button>
                       );
@@ -340,7 +340,7 @@ export function AddProductOverlay({
               <div className="flex items-center gap-2 mb-3 shrink-0">
                 <button
                   onClick={() => setPending(null)}
-                  className="p-1.5 -mr-1.5 rounded-full hover:bg-[var(--foreground)]/5 text-[var(--muted)] cursor-pointer border-none bg-transparent shrink-0"
+                  className="p-1.5 -mr-1.5 rounded-full hover:bg-[var(--fill)] text-[var(--muted)] cursor-pointer border-none bg-transparent shrink-0"
                   title="חזרה לבחירת מוצר"
                 >
                   <ArrowRight className="w-5 h-5" />
@@ -422,7 +422,7 @@ export function AddProductOverlay({
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => setQtyValue((v) => steppedQuantity(v, step, -1, min))}
-                      className="w-12 h-12 rounded-xl bg-[var(--foreground)]/5 hover:bg-[var(--foreground)]/10 border border-[var(--border)] flex items-center justify-center transition-all active:scale-90 cursor-pointer shrink-0"
+                      className="w-12 h-12 rounded-xl bg-[var(--fill)] hover:bg-[var(--fill-strong)] border border-[var(--border)] flex items-center justify-center transition-all active:scale-90 cursor-pointer shrink-0"
                     >
                       <Minus className="w-5 h-5 stroke-[3] text-[var(--foreground)]" />
                     </button>
@@ -465,7 +465,7 @@ export function AddProductOverlay({
                     <Flame className="w-4 h-4" />
                     בקשה דחופה 🔥
                   </span>
-                  <span className={`w-10 h-6 rounded-full p-0.5 transition-all flex items-center ${urgent ? "bg-rose-500 justify-end" : "bg-[var(--foreground)]/15 justify-start"}`}>
+                  <span className={`w-10 h-6 rounded-full p-0.5 transition-all flex items-center ${urgent ? "bg-rose-500 justify-end" : "bg-[var(--fill-strong)] justify-start"}`}>
                     <span className="w-5 h-5 rounded-full bg-white shadow-sm block" />
                   </span>
                 </button>
@@ -495,7 +495,7 @@ export function AddProductOverlay({
                       if (e.key === "Escape") onClose();
                     }}
                     placeholder="חפש מוצר או הקלד שם חדש…"
-                    className="w-full h-12 rounded-2xl bg-[var(--foreground)]/[0.05] border border-transparent focus:border-[var(--accent)] focus:bg-[var(--surface)] pr-12 pl-11 text-base font-medium focus:outline-none transition-colors text-right placeholder:text-[var(--muted)] text-[var(--foreground)]"
+                    className="w-full h-12 rounded-2xl bg-[var(--fill)] border border-transparent focus:border-[var(--accent)] focus:bg-[var(--surface)] pr-12 pl-11 text-base font-medium focus:outline-none transition-colors text-right placeholder:text-[var(--muted)] text-[var(--foreground)]"
                   />
                   {inputVal && (
                     <button
@@ -504,7 +504,7 @@ export function AddProductOverlay({
                         setInputVal("");
                         searchInputRef.current?.focus();
                       }}
-                      className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full text-[var(--muted)] hover:text-[var(--foreground)] hover:bg-[var(--foreground)]/10 transition-colors cursor-pointer border-none bg-transparent flex items-center justify-center"
+                      className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full text-[var(--muted)] hover:text-[var(--foreground)] hover:bg-[var(--fill-strong)] transition-colors cursor-pointer border-none bg-transparent flex items-center justify-center"
                       title="נקה חיפוש"
                       aria-label="נקה חיפוש"
                     >
@@ -748,7 +748,7 @@ export function AddProductOverlay({
                     </div>
                     <button
                       onClick={() => setPending(null)}
-                      className="p-1 rounded-full hover:bg-[var(--foreground)]/5 text-[var(--muted)] cursor-pointer border-none bg-transparent shrink-0"
+                      className="p-1 rounded-full hover:bg-[var(--fill)] text-[var(--muted)] cursor-pointer border-none bg-transparent shrink-0"
                       title="ביטול"
                     >
                       <X className="w-4 h-4" />
@@ -775,7 +775,7 @@ export function AddProductOverlay({
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => setQtyValue((v) => steppedQuantity(v, step, -1, min))}
-                      className="w-11 h-11 rounded-xl bg-[var(--foreground)]/5 hover:bg-[var(--foreground)]/10 border border-[var(--border)] flex items-center justify-center transition-all active:scale-90 cursor-pointer shrink-0"
+                      className="w-11 h-11 rounded-xl bg-[var(--fill)] hover:bg-[var(--fill-strong)] border border-[var(--border)] flex items-center justify-center transition-all active:scale-90 cursor-pointer shrink-0"
                     >
                       <Minus className="w-5 h-5 stroke-[3] text-[var(--foreground)]" />
                     </button>

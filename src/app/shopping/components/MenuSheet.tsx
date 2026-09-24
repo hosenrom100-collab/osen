@@ -48,7 +48,7 @@ function MenuItem({
   const className = `w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl border transition-all text-sm font-bold text-right cursor-pointer ${
     danger
       ? "bg-rose-500/10 hover:bg-rose-500/20 border-rose-500/20 text-rose-500"
-      : "bg-[var(--foreground)]/[0.03] hover:bg-[var(--foreground)]/[0.06] border-[var(--border)] text-[var(--foreground)]"
+      : "bg-[var(--fill)] hover:bg-[var(--fill-strong)] border-[var(--border)] text-[var(--foreground)]"
   }`;
   const content = (
     <>
@@ -150,7 +150,7 @@ export function MenuSheet({
           <div className="space-y-3 pt-2">
             <MenuSectionLabel>הפקת רשימות לקניות וחלוקה (Word)</MenuSectionLabel>
             
-            <div className="p-3 bg-[var(--foreground)]/[0.03] rounded-2xl border border-[var(--border)] space-y-2">
+            <div className="p-3 bg-[var(--fill)] rounded-2xl border border-[var(--border)] space-y-2">
               <div className="text-xs font-bold text-[var(--accent-text)] flex items-center justify-between">
                 <div className="flex items-center gap-1.5">
                   <ShoppingCart className="w-3.5 h-3.5" />
@@ -181,7 +181,7 @@ export function MenuSheet({
               </div>
             </div>
 
-            <div className="p-3 bg-[var(--foreground)]/[0.03] rounded-2xl border border-[var(--border)] space-y-2">
+            <div className="p-3 bg-[var(--fill)] rounded-2xl border border-[var(--border)] space-y-2">
               <div className="text-xs font-bold text-amber-700 dark:text-amber-400 flex items-center justify-between">
                 <div className="flex items-center gap-1.5">
                   <Boxes className="w-3.5 h-3.5" />
