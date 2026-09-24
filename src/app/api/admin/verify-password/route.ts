@@ -81,7 +81,12 @@ export async function POST(req: Request) {
       );
     }
 
-    const expectedPassword = process.env.ADMIN_ACTIONS_PASSWORD || "3015";
+    // No built-in default: an unset variable must fail closed, not fall back to a guessable password.
+    const expectedPassword = process.env.ADMIN_ACTIONS_PASSWORD;
+    if (!expectedPassword) {
+      console.error("verify-password: ADMIN_ACTIONS_PASSWORD is not configured");
+      return NextResponse.json({ success: false, error: "סיסמת מנהל לא הוגדרה בשרת" }, { status: 500 });
+    }
     if (password.trim() !== expectedPassword) {
       return NextResponse.json({ success: false, error: "סיסמת מנהל שגויה" }, { status: 401 });
     }

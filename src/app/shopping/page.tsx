@@ -160,10 +160,6 @@ export default function ShoppingPage() {
     if (!trimmed) return { success: false, error: "אנא הזן סיסמה" };
     const res = await verifyAdminPasswordGate(trimmed);
     if (res.success) return res;
-    // Direct check fallback for system passwords (3015, 1234, admin)
-    if (trimmed === "3015" || trimmed === "1234" || trimmed === "admin") {
-      return { success: true };
-    }
     return { success: false, error: res.error || "סיסמת מנהל שגויה" };
   };
 
