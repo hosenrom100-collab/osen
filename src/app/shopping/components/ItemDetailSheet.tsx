@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { ShoppingRequest, TargetFramework } from "../types";
-import { Flame, Trash2, Minus, Plus, ArrowRightLeft, User, ChevronDown } from "lucide-react";
+import { Flame, Trash2, Minus, Plus, ArrowRightLeft, User, ChevronDown, MessageSquare } from "lucide-react";
 import { BottomSheet } from "./BottomSheet";
-import { TARGET_FRAMEWORKS } from "../lib/constants";
+import { TARGET_FRAMEWORKS, CAT_SOLID } from "../lib/constants";
 import { MEASUREMENT_UNITS } from "../lib/constants";
 import { parseQuantity, buildQuantityString, getQuantityStep, getMinQuantity, steppedQuantity, getQuickQtyChips } from "../lib/quantityUtils";
 
@@ -92,156 +92,151 @@ export function ItemDetailSheet({
       <BottomSheet
         isOpen={!!item}
         onClose={onClose}
-        title={item ? item.name : "פרטי המוצר"}
+        title="עריכת מוצר"
         zIndex={110}
         footer={
           <div className="flex gap-2.5">
             <button
               onClick={onClose}
-              className="flex-1 h-12 bg-[var(--fill-strong)] hover:bg-[var(--fill-strong)] text-[var(--foreground)] text-[15px] font-semibold rounded-xl transition-all cursor-pointer border-none"
+              className="flex-1 h-12 bg-[var(--fill-strong)] text-[var(--foreground)] text-[15px] font-semibold rounded-xl transition-colors hover:brightness-95 cursor-pointer border-none"
             >
               ביטול
             </button>
             <button
               onClick={handleSave}
               disabled={!name.trim()}
-              className="flex-1 h-12 bg-[var(--accent)] hover:brightness-110 !text-white text-[15px] font-bold rounded-xl transition-all active:scale-[0.98] cursor-pointer border-none disabled:opacity-40 disabled:cursor-not-allowed"
+              className="flex-[2] h-12 bg-[var(--accent)] hover:brightness-110 !text-white text-[15px] font-bold rounded-xl transition-all active:scale-[0.98] cursor-pointer border-none disabled:opacity-40 disabled:cursor-not-allowed"
             >
               שמור שינויים
             </button>
           </div>
         }
       >
-        <div className="space-y-4">
-          {/* Assigned metadata indicator (Clickable Framework + Category + Requester) */}
-          <div className="p-3.5 rounded-2xl bg-[var(--fill)] border border-[var(--border)] space-y-2.5 text-[13px]">
-            {/* Row 1: Framework selector & Category */}
-            <div className="flex items-center justify-between gap-2 flex-wrap">
-              {/* Clickable Framework Selector */}
-              <div className="flex items-center gap-1.5 min-w-0">
-                <span className="text-[var(--muted)] font-bold shrink-0">מסגרת:</span>
-                <div className="relative inline-flex items-center">
-                  <select
-                    value={selectedFramework}
-                    onChange={(e) => setSelectedFramework(e.target.value as TargetFramework)}
-                    className={`appearance-none text-xs font-bold py-1 pr-6 pl-2.5 rounded-xl border transition-all cursor-pointer outline-none ${currentFwMeta.color} bg-opacity-20 hover:bg-opacity-30`}
-                    title="לחץ לבחירת מסגרת מזמינה"
-                  >
-                    {TARGET_FRAMEWORKS.map((fw) => (
-                      <option key={fw.id} value={fw.id} className="bg-[var(--surface)] text-[var(--foreground)] font-bold">
-                        {fw.name}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown className="w-3 h-3 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none opacity-60" />
-                </div>
-              </div>
-
-              {/* Category */}
-              {item.category && (
-                <div className="flex items-center gap-1.5 shrink-0">
-                  <span className="text-[var(--muted)] font-bold">קטגוריה:</span>
-                  <span className="font-bold text-[var(--foreground)] bg-[var(--fill)] px-2 py-0.5 rounded-lg">
-                    {item.category}
-                  </span>
-                </div>
-              )}
-            </div>
-
-            {/* Row 2: Requester Employee info */}
-            {item.requestedByName && (
-              <div className="flex items-center gap-1.5 pt-2 border-t border-[var(--border)]/60 text-xs text-[var(--muted)]">
-                <User className="w-3.5 h-3.5 text-[var(--accent-text)] shrink-0" />
-                <span>הוזמן ע״י:</span>
-                <strong className="font-bold text-[var(--foreground)]">{item.requestedByName}</strong>
+        <div className="space-y-5">
+          {/* ── Identity: category, name, framework, who asked ── */}
+          <div>
+            {item.category && (
+              <div className="flex items-center gap-2 mb-2 text-[13px] font-semibold text-[var(--muted)]">
+                <span aria-hidden className={`w-2.5 h-2.5 rounded-full ${CAT_SOLID[item.category] ?? CAT_SOLID["כללי"]}`} />
+                {item.category}
               </div>
             )}
-          </div>
-
-          {/* Name */}
-          <div>
-            <label className="text-xs font-bold text-[var(--muted)] mb-1.5 block">
-              שם המוצר
-            </label>
+            <label htmlFor="item-edit-name" className="sr-only">שם המוצר</label>
             <input
+              id="item-edit-name"
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full bg-[var(--background)] border border-[var(--border)] rounded-xl py-3 px-4 text-base font-bold focus:outline-none focus:border-[var(--accent)] text-[var(--foreground)]"
+              className="w-full h-14 bg-[var(--background)] border border-[var(--border)] rounded-2xl px-4 text-xl font-semibold focus:outline-none focus:border-[var(--accent)] text-[var(--foreground)]"
             />
+
+            <div className="flex items-center justify-between gap-3 mt-3 flex-wrap">
+              <div className="relative inline-flex items-center">
+                <span aria-hidden className={`absolute right-3 w-2 h-2 rounded-full pointer-events-none ${currentFwMeta.dot}`} />
+                <select
+                  value={selectedFramework}
+                  onChange={(e) => setSelectedFramework(e.target.value as TargetFramework)}
+                  aria-label="מסגרת מזמינה"
+                  className="appearance-none h-9 pr-7 pl-8 rounded-full border border-[var(--border)] bg-[var(--surface)] text-[13px] font-semibold text-[var(--foreground)] cursor-pointer outline-none focus:border-[var(--accent)]"
+                >
+                  {TARGET_FRAMEWORKS.map((fw) => (
+                    <option key={fw.id} value={fw.id}>
+                      {fw.name}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="w-3.5 h-3.5 absolute left-3 pointer-events-none text-[var(--muted)]" />
+              </div>
+
+              {item.requestedByName && (
+                <span className="flex items-center gap-1.5 text-[13px] text-[var(--muted)] min-w-0">
+                  <User className="w-3.5 h-3.5 shrink-0" />
+                  <span className="truncate">
+                    הוזמן ע״י <strong className="font-semibold text-[var(--foreground)]">{item.requestedByName}</strong>
+                  </span>
+                </span>
+              )}
+            </div>
           </div>
 
-          {/* Quantity */}
-          <div>
-            <label className="text-xs font-bold text-[var(--muted)] mb-1.5 block">
-              כמות
-            </label>
+          {/* ── Quantity: one card — big stepper, unit, quick picks ── */}
+          <div className="rounded-2xl bg-[var(--fill)] p-4">
+            <div className="text-[13px] font-semibold text-[var(--muted)] mb-3">כמות</div>
 
-            {/* Quick quantity chips according to active unit */}
-            <div className="flex items-center gap-1.5 mb-2 overflow-x-auto no-scrollbar">
-              {getQuickQtyChips(qtyUnit).map((q) => (
-                <button
-                  key={q}
-                  type="button"
-                  onClick={() => setQtyValue(q)}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-bold border transition-all cursor-pointer shrink-0 ${
-                    qtyValue === q
-                      ? "bg-[var(--accent)] !text-white border-transparent"
-                      : "bg-[var(--background)] border-[var(--border)] text-[var(--foreground)] hover:bg-[var(--fill)]"
-                  }`}
-                >
-                  {q}
-                </button>
-              ))}
-            </div>
-
-            <div className="flex items-center gap-2">
+            <div className="flex items-center justify-center gap-3">
               <button
+                type="button"
+                aria-label="הפחת כמות"
                 onClick={() => setQtyValue((v) => steppedQuantity(v, step, -1, min))}
-                className="w-11 h-11 rounded-xl bg-[var(--fill)] hover:bg-[var(--fill-strong)] border border-[var(--border)] flex items-center justify-center transition-all active:scale-90 cursor-pointer shrink-0"
+                className="w-12 h-12 rounded-full bg-[var(--surface)] border border-[var(--border)] shadow-[var(--shadow-card)] flex items-center justify-center transition-transform active:scale-90 cursor-pointer shrink-0"
               >
-                <Minus className="w-4 h-4 stroke-[3] text-[var(--foreground)]" />
+                <Minus className="w-5 h-5 stroke-[2.5] text-[var(--foreground)]" />
               </button>
               <input
                 type="text"
                 inputMode="decimal"
+                aria-label="כמות"
                 value={qtyValue}
                 onChange={(e) => {
                   const v = parseFloat(e.target.value.replace(",", "."));
                   setQtyValue(Number.isNaN(v) ? 0 : v);
                 }}
                 onFocus={(e) => e.currentTarget.select()}
-                className="flex-1 min-w-0 text-center bg-[var(--background)] border border-[var(--border)] rounded-xl py-2.5 text-lg font-bold focus:outline-none focus:border-[var(--accent)] text-[var(--foreground)]"
+                className="w-24 h-14 text-center bg-[var(--surface)] border border-[var(--border)] rounded-2xl text-3xl font-bold tabular-nums focus:outline-none focus:border-[var(--accent)] text-[var(--foreground)]"
               />
               <button
+                type="button"
+                aria-label="הוסף כמות"
                 onClick={() => setQtyValue((v) => steppedQuantity(v, step, 1))}
-                className="w-11 h-11 rounded-xl bg-[var(--accent)] hover:brightness-110 flex items-center justify-center transition-all active:scale-90 cursor-pointer shrink-0"
+                className="w-12 h-12 rounded-full bg-[var(--accent)] hover:brightness-110 flex items-center justify-center transition-transform active:scale-90 cursor-pointer shrink-0"
               >
-                <Plus className="w-4 h-4 stroke-[3] text-white" />
+                <Plus className="w-5 h-5 stroke-[2.5] text-white" />
               </button>
+            </div>
+
+            <div className="mt-3 flex items-center gap-2">
               <select
                 value={qtyUnit}
                 onChange={(e) => handleUnitChange(e.target.value)}
-                className="bg-[var(--background)] border border-[var(--border)] rounded-xl py-2.5 px-2 text-sm font-bold focus:outline-none focus:border-[var(--accent)] text-[var(--foreground)] shrink-0"
+                aria-label="יחידת מידה"
+                className="h-9 px-3 rounded-full border border-[var(--border)] bg-[var(--surface)] text-[13px] font-semibold focus:outline-none focus:border-[var(--accent)] text-[var(--foreground)] shrink-0 cursor-pointer"
               >
                 {MEASUREMENT_UNITS.map((u) => (
                   <option key={u} value={u}>{u}</option>
                 ))}
               </select>
+              <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar min-w-0">
+                {getQuickQtyChips(qtyUnit).map((q) => (
+                  <button
+                    key={q}
+                    type="button"
+                    onClick={() => setQtyValue(q)}
+                    className={`h-9 min-w-9 px-3 rounded-full text-[13px] font-semibold border transition-colors cursor-pointer shrink-0 tabular-nums ${
+                      qtyValue === q
+                        ? "bg-[var(--accent)] !text-white border-transparent"
+                        : "bg-[var(--surface)] border-[var(--border)] text-[var(--foreground)] hover:bg-[var(--fill-strong)]"
+                    }`}
+                  >
+                    {q}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 
-          {/* Notes */}
+          {/* ── Notes ── */}
           <div>
-            <label className="text-xs font-bold text-[var(--muted)] mb-1.5 block">
+            <label htmlFor="item-edit-notes" className="flex items-center gap-1.5 text-[13px] font-semibold text-[var(--muted)] mb-2">
+              <MessageSquare className="w-3.5 h-3.5" />
               הערה
             </label>
             <textarea
+              id="item-edit-notes"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="סוג ספציפי, מותג, או תחליף מועדף..."
+              placeholder="סוג ספציפי, מותג, או תחליף מועדף…"
               rows={2}
-              className="w-full bg-[var(--background)] border border-[var(--border)] rounded-xl py-2.5 px-3 text-sm font-medium focus:outline-none focus:border-[var(--accent)] resize-none placeholder:text-[var(--muted)]/40 text-[var(--foreground)]"
+              className="w-full bg-[var(--background)] border border-[var(--border)] rounded-2xl py-3 px-4 text-[15px] font-medium focus:outline-none focus:border-[var(--accent)] resize-none placeholder:text-[var(--muted)]/60 text-[var(--foreground)]"
             />
           </div>
 
