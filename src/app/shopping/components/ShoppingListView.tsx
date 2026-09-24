@@ -175,17 +175,17 @@ export function ShoppingListView({
       </AnimatePresence>
 
       {/* ── Framework Filter Control ── */}
-      <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 p-2 bg-[var(--foreground)]/[0.03] rounded-2xl border border-[var(--border)] mt-2 mb-2.5">
+      <div className="flex items-center gap-1.5 sm:gap-2 p-2 bg-[var(--foreground)]/[0.03] rounded-2xl border border-[var(--border)] mt-2 mb-2.5 overflow-x-auto no-scrollbar">
         <button
           onClick={() => setSelectedFramework?.("all")}
-          className={`py-1.5 px-3 rounded-xl text-xs font-black transition-all cursor-pointer border flex items-center justify-center gap-1.5 whitespace-nowrap ${
+          className={`py-1.5 px-3 rounded-xl text-xs font-black transition-all cursor-pointer border flex items-center justify-center gap-1.5 whitespace-nowrap shrink-0 ${
             selectedFramework === "all"
-              ? "bg-slate-800 dark:bg-slate-200 !text-white dark:!text-slate-900 border-transparent shadow-xs"
+              ? "bg-zinc-800 dark:bg-zinc-200 !text-white dark:!text-zinc-900 border-transparent shadow-xs"
               : "text-[var(--muted)] hover:text-[var(--foreground)] bg-[var(--background)] border-[var(--border)]"
           }`}
         >
           <span>כל המסגרות</span>
-          <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${selectedFramework === "all" ? "bg-white/20 text-white dark:text-slate-900" : "bg-[var(--foreground)]/10 text-[var(--muted)]"}`}>
+          <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${selectedFramework === "all" ? "bg-white/20 !text-white dark:!text-zinc-900" : "bg-[var(--foreground)]/10 text-[var(--muted)]"}`}>
             {totalCategoryRequests.length}
           </span>
         </button>
@@ -197,7 +197,7 @@ export function ShoppingListView({
             <button
               key={fw.id}
               onClick={() => setSelectedFramework?.(fw.id)}
-              className={`py-1.5 px-3 rounded-xl text-xs font-black transition-all cursor-pointer border flex items-center justify-center gap-1.5 whitespace-nowrap ${
+              className={`py-1.5 px-3 rounded-xl text-xs font-black transition-all cursor-pointer border flex items-center justify-center gap-1.5 whitespace-nowrap shrink-0 ${
                 active
                   ? `${fw.activeBg} border-transparent !text-white shadow-xs`
                   : `${fw.pillInactive} border`
@@ -390,7 +390,7 @@ export function ShoppingListView({
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 20 }}
-            className="fixed bottom-24 md:bottom-8 left-1/2 -translate-x-1/2 z-[90] bg-slate-900 text-white rounded-2xl shadow-xl px-4 py-3 flex items-center gap-3 max-w-[92vw]"
+            className="fixed bottom-24 md:bottom-8 left-1/2 -translate-x-1/2 z-[90] bg-zinc-900 !text-white rounded-2xl shadow-xl px-4 py-3 flex items-center gap-3 max-w-[92vw]"
           >
             <span className="text-xs font-bold truncate">{undo.label}</span>
             <button
