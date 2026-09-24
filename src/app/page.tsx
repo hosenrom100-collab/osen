@@ -19,6 +19,7 @@ import {
 import { format, addMonths, differenceInDays, parseISO, isValid } from "date-fns";
 import { he } from "date-fns/locale";
 import { ScheduleEditorModal } from "@/components/home/ScheduleEditorModal";
+import { FRAMEWORK_LABELS } from "@/app/shopping/lib/constants";
 
 interface GroupStat   { id: string; name: string; present: number; absent: number; total: number }
 interface PresentPat  { id: string; firstName: string; lastName: string; hosenType?: string }
@@ -80,7 +81,17 @@ export default function Home() {
   const [recentNotifications, setRecentNotifications] = useState<any[]>([]);
   const [unreadNotifCount, setUnreadNotifCount] = useState(0);
   const [activeShoppingCount, setActiveShoppingCount] = useState(0);
+  const [shoppingFramework, setShoppingFramework] = useState<string>("all");
   const [pendingStoreAuthCount, setPendingStoreAuthCount] = useState(0);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("shopping_selected_framework");
+      if (saved) setShoppingFramework(saved);
+    } catch (e) {
+      console.error(e);
+    }
+  }, []);
 
   useEffect(() => {
     if (!isAdmin && !isManager && !isLogistics) return;
@@ -426,7 +437,17 @@ export default function Home() {
             collection(db, "shopping_requests"),
             where("status", "in", ["approved", "pending"])
           ));
-          setActiveShoppingCount(shoppingSnap.size);
+          let savedFw = "all";
+          try {
+            savedFw = localStorage.getItem("shopping_selected_framework") || "all";
+            setShoppingFramework(savedFw);
+          } catch (e) {}
+
+          const items = shoppingSnap.docs.map((d) => d.data());
+          const count = (!savedFw || savedFw === "all")
+            ? items.length
+            : items.filter((it: any) => (it.targetFramework || "main") === savedFw).length;
+          setActiveShoppingCount(count);
         } catch (err) {
           console.error("Error fetching shopping count:", err);
         }
@@ -825,7 +846,10 @@ export default function Home() {
                 <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border)]">
                   <div className="flex items-center gap-2">
                     <ShoppingCart className="w-4 h-4 text-indigo-500" />
-                    <h2 className="text-sm font-black text-[var(--foreground)]">רשימת קניות פעילה</h2>
+                    <h2 className="text-sm font-black text-[var(--foreground)]">
+                      רשימת קניות פעילה
+                      {shoppingFramework !== "all" && FRAMEWORK_LABELS[shoppingFramework] ? ` (${FRAMEWORK_LABELS[shoppingFramework]})` : ""}
+                    </h2>
                   </div>
                   <Link href="/shopping"
                     className="text-[10px] font-black text-indigo-500 hover:underline flex items-center gap-0.5">
@@ -836,7 +860,10 @@ export default function Home() {
                   {activeShoppingCount === 0 ? (
                     <div className="text-center py-6 md:py-8 text-[var(--muted)] space-y-1.5 md:space-y-2">
                       <CheckCircle className="w-7 h-7 md:w-8 md:h-8 mx-auto stroke-1 text-emerald-500 opacity-60" />
-                      <p className="text-xs font-black text-[var(--foreground)]">אין פריטים לקנייה</p>
+                      <p className="text-xs font-black text-[var(--foreground)]">
+                        אין פריטים לקנייה
+                        {shoppingFramework !== "all" && FRAMEWORK_LABELS[shoppingFramework] ? ` עבור ${FRAMEWORK_LABELS[shoppingFramework]}` : ""}
+                      </p>
                       <p className="text-[10px] text-[var(--muted)] font-bold hidden md:block">רשימת הקניות ריקה או שכל הפריטים כבר נקנו</p>
                     </div>
                   ) : (
@@ -846,7 +873,10 @@ export default function Home() {
                           <ShoppingCart className="w-4.5 h-4.5 md:w-5 md:h-5" />
                         </div>
                         <div>
-                          <p className="text-sm font-black text-[var(--foreground)]">{activeShoppingCount} מוצרים ברשימת הקניות</p>
+                          <p className="text-sm font-black text-[var(--foreground)]">
+                            {activeShoppingCount} מוצרים ברשימת הקניות
+                            {shoppingFramework !== "all" && FRAMEWORK_LABELS[shoppingFramework] ? ` (${FRAMEWORK_LABELS[shoppingFramework]})` : ""}
+                          </p>
                           <p className="text-[10px] text-[var(--muted)] font-bold hidden sm:block">ישנם מוצרים הממתינים לרכישה בסופרמרקט או כציוד גדול</p>
                         </div>
                       </div>
@@ -934,7 +964,10 @@ export default function Home() {
                   <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border)]">
                     <div className="flex items-center gap-2">
                       <ShoppingCart className="w-4 h-4 text-indigo-500" />
-                      <h2 className="text-sm font-black text-[var(--foreground)]">רשימת קניות פעילה</h2>
+                      <h2 className="text-sm font-black text-[var(--foreground)]">
+                        רשימת קניות פעילה
+                        {shoppingFramework !== "all" && FRAMEWORK_LABELS[shoppingFramework] ? ` (${FRAMEWORK_LABELS[shoppingFramework]})` : ""}
+                      </h2>
                     </div>
                     <Link href="/shopping"
                       className="text-[10px] font-black text-indigo-500 hover:underline flex items-center gap-0.5">
@@ -945,7 +978,10 @@ export default function Home() {
                     {activeShoppingCount === 0 ? (
                       <div className="text-center py-6 md:py-8 text-[var(--muted)] space-y-1.5 md:space-y-2">
                         <CheckCircle className="w-7 h-7 md:w-8 md:h-8 mx-auto stroke-1 text-emerald-500 opacity-60" />
-                        <p className="text-xs font-black text-[var(--foreground)]">אין פריטים לקנייה</p>
+                        <p className="text-xs font-black text-[var(--foreground)]">
+                          אין פריטים לקנייה
+                          {shoppingFramework !== "all" && FRAMEWORK_LABELS[shoppingFramework] ? ` עבור ${FRAMEWORK_LABELS[shoppingFramework]}` : ""}
+                        </p>
                         <p className="text-[10px] text-[var(--muted)] font-bold hidden md:block">רשימת הקניות ריקה או שכל הפריטים כבר נקנו</p>
                       </div>
                     ) : (
@@ -955,7 +991,10 @@ export default function Home() {
                             <ShoppingCart className="w-4.5 h-4.5 md:w-5 md:h-5" />
                           </div>
                           <div>
-                            <p className="text-sm font-black text-[var(--foreground)]">{activeShoppingCount} מוצרים ברשימת הקניות</p>
+                            <p className="text-sm font-black text-[var(--foreground)]">
+                              {activeShoppingCount} מוצרים ברשימת הקניות
+                              {shoppingFramework !== "all" && FRAMEWORK_LABELS[shoppingFramework] ? ` (${FRAMEWORK_LABELS[shoppingFramework]})` : ""}
+                            </p>
                             <p className="text-[10px] text-[var(--muted)] font-bold hidden sm:block">ישנם מוצרים הממתינים לרכישה בסופרמרקט או כציוד גדול</p>
                           </div>
                         </div>

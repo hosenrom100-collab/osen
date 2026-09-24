@@ -15,6 +15,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 
 import { TargetFramework } from "./types";
+import { TARGET_FRAMEWORKS } from "./lib/constants";
 import { CycleClosureModal } from "./components/CycleClosureModal";
 import { ShoppingListView } from "./components/ShoppingListView";
 import { AddProductOverlay } from "./components/AddProductOverlay";
@@ -46,18 +47,59 @@ export default function ShoppingPage() {
   const [isAddingCat, setIsAddingCat] = useState(false);
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
 
-  // Set default ordering framework according to user's assigned complex if available
+  // Initialize and persist framework selection from / to localStorage
   useEffect(() => {
-    if (!user) return;
-    getDoc(doc(db, "users", user.uid)).then((snapshot) => {
-      if (snapshot.exists()) {
-        const data = snapshot.data();
-        if (data.assignedComplex === "lower") {
-          setOrderingFramework("lower");
+    try {
+      const saved = localStorage.getItem("shopping_selected_framework");
+      if (saved && (saved === "all" || TARGET_FRAMEWORKS.some((f) => f.id === saved))) {
+        setSelectedFramework(saved as "all" | TargetFramework);
+        if (saved !== "all") {
+          setOrderingFramework(saved as TargetFramework);
         }
+        return;
       }
-    }).catch((err) => console.error("Error checking user framework:", err));
+    } catch (e) {
+      console.error("Error reading saved framework:", e);
+    }
+
+    // If no saved preference, default to assigned complex if available
+    if (user) {
+      getDoc(doc(db, "users", user.uid)).then((snapshot) => {
+        if (snapshot.exists()) {
+          const data = snapshot.data();
+          if (data.assignedComplex === "lower") {
+            setSelectedFramework("lower");
+            setOrderingFramework("lower");
+          }
+        }
+      }).catch((err) => console.error("Error checking user framework:", err));
+    }
   }, [user]);
+
+  const handleFrameworkChange = (fw: "all" | TargetFramework) => {
+    setSelectedFramework(fw);
+    try {
+      localStorage.setItem("shopping_selected_framework", fw);
+    } catch (e) {
+      console.error("Error saving framework to localStorage:", e);
+    }
+    if (fw !== "all") {
+      setOrderingFramework(fw);
+    }
+  };
+
+  const handleOrderingFrameworkChange = (fw: TargetFramework) => {
+    setOrderingFramework(fw);
+    try {
+      localStorage.setItem("shopping_ordering_framework", fw);
+      if (selectedFramework !== "all") {
+        setSelectedFramework(fw);
+        localStorage.setItem("shopping_selected_framework", fw);
+      }
+    } catch (e) {
+      console.error("Error saving ordering framework to localStorage:", e);
+    }
+  };
 
   const {
     requests, pool, loading, setLoading, pendingRequestsCount, categories, setCategories,
@@ -282,12 +324,18 @@ export default function ShoppingPage() {
                   activeCategory={activeCategory}
                   setActiveCategory={setActiveCategory}
                   selectedFramework={selectedFramework}
-                  setSelectedFramework={setSelectedFramework}
+                  setSelectedFramework={handleFrameworkChange}
+                  canPurchase={canPurchase}
+                  isAdmin={isAdmin}
+                  isLogistics={isLogistics}
+                  currentUser={user}
                   onChangeStatus={changeStatus}
                   onUpdateItem={updateItem}
                   onUpdateQuantity={updateQuantity}
                   onMoveToEquipment={moveToEquipment}
                   onMoveToSupermarket={moveToSupermarket}
+                  onExportOngoingList={exportOngoingList}
+                  onExportProcurementList={exportProcurementList}
                 />
               )}
             </div>
@@ -320,7 +368,7 @@ export default function ShoppingPage() {
           categories={categories}
           requests={requests}
           targetFramework={orderingFramework}
-          onTargetFrameworkChange={setOrderingFramework}
+          onTargetFrameworkChange={handleOrderingFrameworkChange}
           onAddProduct={addProduct}
           onRequestNewProduct={requestNewProduct}
           onUpdateQuantity={updateQuantity}
@@ -342,6 +390,7 @@ export default function ShoppingPage() {
           isLogistics={isLogistics}
           pendingStoreAuthCount={pendingStoreAuthCount}
           pendingRequestsCount={pendingRequestsCount}
+          requests={requests}
           onOpenCategories={() => setIsAddingCat(true)}
           onOpenStarManager={() => setShowManageStarModal(true)}
           onOpenAdminRequests={() => setShowAdminRequestsModal(true)}

@@ -6,7 +6,7 @@ import {
   Database, Edit3, Clock, Boxes,
 } from "lucide-react";
 import { BottomSheet } from "./BottomSheet";
-import { TargetFramework } from "../types";
+import { TargetFramework, ShoppingRequest } from "../types";
 import { TARGET_FRAMEWORKS } from "../lib/constants";
 
 interface MenuSheetProps {
@@ -19,6 +19,7 @@ interface MenuSheetProps {
   isLogistics: boolean;
   pendingStoreAuthCount: number;
   pendingRequestsCount: number;
+  requests?: ShoppingRequest[];
   onOpenCategories: () => void;
   onOpenStarManager: () => void;
   onOpenAdminRequests: () => void;
@@ -85,6 +86,7 @@ export function MenuSheet({
   isLogistics,
   pendingStoreAuthCount,
   pendingRequestsCount,
+  requests = [],
   onOpenCategories,
   onOpenStarManager,
   onOpenAdminRequests,
@@ -97,6 +99,13 @@ export function MenuSheet({
     onClose();
     fn();
   };
+
+  const activeSupermarket = requests.filter(
+    (r) => (r.status === "approved" || r.status === "pending" || r.status === "purchased") && r.listType !== "large"
+  );
+  const activeProcurement = requests.filter(
+    (r) => (r.status === "approved" || r.status === "pending" || r.status === "purchased") && r.listType === "large"
+  );
 
   return (
     <BottomSheet isOpen={isOpen} onClose={onClose} title="פעולות ותפריט" icon={<Settings className="w-4 h-4 text-indigo-500" />}>
@@ -148,20 +157,24 @@ export function MenuSheet({
                   onClick={wrap(() => onExportOngoingList("all"))}
                   className="py-1 px-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-[11px] font-black transition-all cursor-pointer border-none shadow-xs"
                 >
-                  📑 רשימה מאוחדת
+                  📑 רשימה מאוחדת ({activeSupermarket.length})
                 </button>
               </div>
               
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
-                {TARGET_FRAMEWORKS.map((fw) => (
-                  <button
-                    key={fw.id}
-                    onClick={wrap(() => onExportOngoingList(fw.id))}
-                    className={`py-2 px-2 rounded-xl ${fw.pillInactive} border text-[11px] font-bold transition-all cursor-pointer text-center leading-tight`}
-                  >
-                    📄 {fw.name}
-                  </button>
-                ))}
+                {TARGET_FRAMEWORKS.map((fw) => {
+                  const count = activeSupermarket.filter((r) => (r.targetFramework || "main") === fw.id).length;
+                  return (
+                    <button
+                      key={fw.id}
+                      onClick={wrap(() => onExportOngoingList(fw.id))}
+                      className={`py-2 px-2 rounded-xl ${fw.pillInactive} border text-[11px] font-bold transition-all cursor-pointer text-center leading-tight flex items-center justify-between gap-1`}
+                    >
+                      <span className="truncate">📄 {fw.name}</span>
+                      <span className="text-[10px] font-black opacity-80 shrink-0">({count})</span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
@@ -175,20 +188,24 @@ export function MenuSheet({
                   onClick={wrap(() => onExportProcurementList("all"))}
                   className="py-1 px-2.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-[11px] font-black transition-all cursor-pointer border-none shadow-xs"
                 >
-                  📑 רשימה מאוחדת
+                  📑 רשימה מאוחדת ({activeProcurement.length})
                 </button>
               </div>
 
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
-                {TARGET_FRAMEWORKS.map((fw) => (
-                  <button
-                    key={fw.id}
-                    onClick={wrap(() => onExportProcurementList(fw.id))}
-                    className={`py-2 px-2 rounded-xl ${fw.pillInactive} border text-[11px] font-bold transition-all cursor-pointer text-center leading-tight`}
-                  >
-                    📦 {fw.name}
-                  </button>
-                ))}
+                {TARGET_FRAMEWORKS.map((fw) => {
+                  const count = activeProcurement.filter((r) => (r.targetFramework || "main") === fw.id).length;
+                  return (
+                    <button
+                      key={fw.id}
+                      onClick={wrap(() => onExportProcurementList(fw.id))}
+                      className={`py-2 px-2 rounded-xl ${fw.pillInactive} border text-[11px] font-bold transition-all cursor-pointer text-center leading-tight flex items-center justify-between gap-1`}
+                    >
+                      <span className="truncate">📦 {fw.name}</span>
+                      <span className="text-[10px] font-black opacity-80 shrink-0">({count})</span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
           </div>

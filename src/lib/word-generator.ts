@@ -140,7 +140,9 @@ export const downloadDocx = async (doc: Document, filename: string) => {
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
-  window.URL.revokeObjectURL(url);
+  setTimeout(() => {
+    window.URL.revokeObjectURL(url);
+  }, 2000);
 };
 
 export const generateDocxBlobWithLetterhead = async (bodyDoc: Document): Promise<Blob> => {
@@ -323,7 +325,9 @@ export const generateDocxWithLetterhead = async (bodyDoc: Document, filename: st
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
-    window.URL.revokeObjectURL(url);
+    setTimeout(() => {
+      window.URL.revokeObjectURL(url);
+    }, 2000);
   } catch (error) {
     console.error("Error generating docx with letterhead:", error);
     await downloadDocx(bodyDoc, filename);

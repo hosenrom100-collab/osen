@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { ShoppingRequest, TargetFramework } from "../types";
-import { Flame, Trash2, Minus, Plus, ArrowRightLeft, Package, ShoppingCart } from "lucide-react";
+import { Flame, Trash2, Minus, Plus, ArrowRightLeft, Package, ShoppingCart, User, ChevronDown } from "lucide-react";
 import { BottomSheet } from "./BottomSheet";
 import { TARGET_FRAMEWORKS } from "../lib/constants";
 import { MEASUREMENT_UNITS } from "../lib/constants";
@@ -37,6 +37,7 @@ export function ItemDetailSheet({
   const [qtyUnit, setQtyUnit] = useState("יחידות");
   const [notes, setNotes] = useState("");
   const [isUrgent, setIsUrgent] = useState(false);
+  const [selectedFramework, setSelectedFramework] = useState<TargetFramework>("main");
 
   useEffect(() => {
     if (!item) return;
@@ -46,13 +47,14 @@ export function ItemDetailSheet({
     setQtyUnit(unit);
     setNotes(item.notes || "");
     setIsUrgent(item.priority === "urgent");
+    setSelectedFramework(item.targetFramework || "main");
   }, [item]);
 
   if (!item) return null;
 
   const step = getQuantityStep(qtyUnit);
   const min = getMinQuantity(qtyUnit);
-  const fwMeta = TARGET_FRAMEWORKS.find((f) => f.id === (item.targetFramework || "main")) || TARGET_FRAMEWORKS[0];
+  const currentFwMeta = TARGET_FRAMEWORKS.find((f) => f.id === selectedFramework) || TARGET_FRAMEWORKS[0];
 
   const handleUnitChange = (newUnit: string) => {
     setQtyUnit(newUnit);
@@ -73,7 +75,7 @@ export function ItemDetailSheet({
       buildQuantityString(qtyValue, qtyUnit),
       notes.trim(),
       isUrgent ? "urgent" : "normal",
-      item.targetFramework || "main"
+      selectedFramework
     );
     onClose();
   };
@@ -111,17 +113,47 @@ export function ItemDetailSheet({
         }
       >
         <div className="space-y-4">
-          {/* Assigned metadata indicator (Framework + Category - Read-only) */}
-          <div className="flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-[var(--foreground)]/[0.03] border border-[var(--border)] text-xs">
-            <div className="flex items-center gap-1.5">
-              <span className="text-[var(--muted)] font-bold">מסגרת:</span>
-              <span className={`w-2 h-2 rounded-full ${fwMeta.badgeActive.split(" ")[0] || "bg-indigo-500"}`} />
-              <span className="font-black text-[var(--foreground)]">{fwMeta.name}</span>
+          {/* Assigned metadata indicator (Clickable Framework + Category + Requester) */}
+          <div className="p-3 rounded-2xl bg-[var(--foreground)]/[0.03] border border-[var(--border)] space-y-2.5 text-xs">
+            {/* Row 1: Framework selector & Category */}
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              {/* Clickable Framework Selector */}
+              <div className="flex items-center gap-1.5 min-w-0">
+                <span className="text-[var(--muted)] font-bold shrink-0">מסגרת:</span>
+                <div className="relative inline-flex items-center">
+                  <select
+                    value={selectedFramework}
+                    onChange={(e) => setSelectedFramework(e.target.value as TargetFramework)}
+                    className={`appearance-none text-xs font-black py-1 pr-6 pl-2.5 rounded-xl border transition-all cursor-pointer outline-none ${currentFwMeta.color} bg-opacity-20 hover:bg-opacity-30`}
+                    title="לחץ לבחירת מסגרת מזמינה"
+                  >
+                    {TARGET_FRAMEWORKS.map((fw) => (
+                      <option key={fw.id} value={fw.id} className="bg-[var(--surface)] text-[var(--foreground)] font-bold">
+                        {fw.name}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="w-3 h-3 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none opacity-60" />
+                </div>
+              </div>
+
+              {/* Category */}
+              {item.category && (
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <span className="text-[var(--muted)] font-bold">קטגוריה:</span>
+                  <span className="font-black text-[var(--foreground)] bg-[var(--foreground)]/5 px-2 py-0.5 rounded-lg">
+                    {item.category}
+                  </span>
+                </div>
+              )}
             </div>
-            {item.category && (
-              <div className="flex items-center gap-1.5">
-                <span className="text-[var(--muted)] font-bold">קטגוריה:</span>
-                <span className="font-black text-[var(--foreground)]">{item.category}</span>
+
+            {/* Row 2: Requester Employee info */}
+            {item.requestedByName && (
+              <div className="flex items-center gap-1.5 pt-2 border-t border-[var(--border)]/60 text-[11px] text-[var(--muted)]">
+                <User className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+                <span>הוזמן ע״י:</span>
+                <strong className="font-black text-[var(--foreground)]">{item.requestedByName}</strong>
               </div>
             )}
           </div>

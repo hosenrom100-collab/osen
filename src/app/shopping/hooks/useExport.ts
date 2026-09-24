@@ -4,7 +4,7 @@ import * as XLSX from "xlsx";
 import { format } from "date-fns";
 import { ShoppingRequest, Product, TargetFramework } from "../types";
 import { toDateOrNull } from "../lib/dateUtils";
-import { FRAMEWORK_LABELS } from "../lib/constants";
+import { FRAMEWORK_LABELS, TARGET_FRAMEWORKS } from "../lib/constants";
 import { generateShoppingListWord, generateDocxWithLetterhead } from "@/lib/word-generator";
 
 export function useExport(
@@ -61,6 +61,11 @@ export function useExport(
     const frameworkTitle = `רשימת קניות סופר - ${label}`;
     const filename = `רשימת_קניות_${label.replace(/["״\s]/g, "_")}`;
 
+    if (filtered.length === 0) {
+      showToast(`אין פריטים פעילים ברשימה עבור "${label}"`, "warning");
+      return;
+    }
+
     await exportItemsToWord(filtered, {
       title: frameworkTitle,
       subtitle: "מרכז חוסן - חרבות ברזל",
@@ -80,6 +85,11 @@ export function useExport(
     const frameworkTitle = `רשימת רכש וציוד - ${label}`;
     const filename = `רשימת_רכש_${label.replace(/["״\s]/g, "_")}`;
 
+    if (filtered.length === 0) {
+      showToast(`אין פריטים פעילים ברשימה עבור "${label}"`, "warning");
+      return;
+    }
+
     await exportItemsToWord(filtered, {
       title: frameworkTitle,
       subtitle: "מרכז חוסן - חרבות ברזל",
@@ -90,18 +100,53 @@ export function useExport(
   };
 
   const exportSplitOngoingLists = async () => {
-    await exportOngoingList("main");
-    // small timeout so browser allows multiple downloads
-    setTimeout(async () => {
-      await exportOngoingList("lower");
-    }, 600);
+    const active = requests.filter(
+      (r) => (r.status === "approved" || r.status === "pending" || r.status === "purchased") && r.listType !== "large"
+    );
+    const frameworksWithItems = TARGET_FRAMEWORKS.filter((fw) =>
+      active.some((r) => (r.targetFramework || "main") === fw.id)
+    );
+
+    if (frameworksWithItems.length === 0) {
+      showToast("אין פריטים פעילים לייצוא", "warning");
+      return;
+    }
+
+    for (let i = 0; i < frameworksWithItems.length; i++) {
+      const fw = frameworksWithItems[i];
+      if (i === 0) {
+        await exportOngoingList(fw.id);
+      } else {
+        setTimeout(async () => {
+          await exportOngoingList(fw.id);
+        }, i * 800);
+      }
+    }
   };
 
   const exportSplitProcurementLists = async () => {
-    await exportProcurementList("main");
-    setTimeout(async () => {
-      await exportProcurementList("lower");
-    }, 600);
+    const active = requests.filter(
+      (r) => (r.status === "approved" || r.status === "pending" || r.status === "purchased") && r.listType === "large"
+    );
+    const frameworksWithItems = TARGET_FRAMEWORKS.filter((fw) =>
+      active.some((r) => (r.targetFramework || "main") === fw.id)
+    );
+
+    if (frameworksWithItems.length === 0) {
+      showToast("אין פריטים פעילים לייצוא", "warning");
+      return;
+    }
+
+    for (let i = 0; i < frameworksWithItems.length; i++) {
+      const fw = frameworksWithItems[i];
+      if (i === 0) {
+        await exportProcurementList(fw.id);
+      } else {
+        setTimeout(async () => {
+          await exportProcurementList(fw.id);
+        }, i * 800);
+      }
+    }
   };
 
   return {

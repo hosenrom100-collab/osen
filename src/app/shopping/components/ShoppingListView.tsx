@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { User } from "firebase/auth";
 import { ShoppingRequest, Product, TargetFramework } from "../types";
 import {
-  Flame, ShoppingBag, ChevronDown, Check, RotateCcw, Undo2, Trash2,
+  Flame, ShoppingBag, ChevronDown, Check, RotateCcw, Undo2, Trash2, Download,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { CAT_SOLID, TARGET_FRAMEWORKS } from "../lib/constants";
@@ -34,6 +34,8 @@ interface ShoppingListViewProps {
   onUpdateQuantity: OnUpdateQuantity;
   onMoveToEquipment: OnMoveList;
   onMoveToSupermarket: OnMoveList;
+  onExportOngoingList?: (framework?: "all" | TargetFramework) => void;
+  onExportProcurementList?: (framework?: "all" | TargetFramework) => void;
 }
 
 const UNDO_TIMEOUT_MS = 5000;
@@ -46,10 +48,13 @@ export function ShoppingListView({
   setActiveCategory,
   selectedFramework = "all",
   setSelectedFramework,
+  canPurchase,
   onChangeStatus,
   onUpdateItem,
   onMoveToEquipment,
   onMoveToSupermarket,
+  onExportOngoingList,
+  onExportProcurementList,
 }: ShoppingListViewProps) {
   const [purchasedCollapsed, setPurchasedCollapsed] = useState(true);
   const [deletedCollapsed, setDeletedCollapsed] = useState(true);
@@ -277,6 +282,31 @@ export function ShoppingListView({
           >
             <span>{activeCategory}</span>
             <span className="text-[10px]">✕</span>
+          </button>
+        )}
+
+        {/* Quick Export for the currently selected framework / view */}
+        {canPurchase && (
+          <button
+            onClick={() => {
+              if (listType === "large") {
+                onExportProcurementList?.(selectedFramework);
+              } else {
+                onExportOngoingList?.(selectedFramework);
+              }
+            }}
+            title={
+              selectedFramework === "all"
+                ? `הורד רשימה מאוחדת (${listType === "large" ? "ציוד ורכש" : "סופר"})`
+                : `הורד רשימת ${currentFw?.name || ""} (${listType === "large" ? "ציוד ורכש" : "סופר"})`
+            }
+            aria-label="הורד רשימה כקובץ Word"
+            className="py-1.5 px-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer border bg-[var(--surface)] text-[var(--foreground)] border-[var(--border)] hover:bg-[var(--foreground)]/[0.05] flex items-center gap-1.5 shrink-0 shadow-xs mr-auto"
+          >
+            <Download className="w-3.5 h-3.5 text-indigo-500" />
+            <span className="hidden sm:inline text-[11px] font-bold">
+              {selectedFramework === "all" ? "הורד רשימה" : `הורד ${currentFw?.shortName || "רשימה"}`}
+            </span>
           </button>
         )}
       </div>
