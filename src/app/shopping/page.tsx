@@ -141,6 +141,17 @@ export default function ShoppingPage() {
   const menuHasBadge =
     (canPurchase && pendingStoreAuthCount > 0) || (isAdmin && pendingRequestsCount > 0);
 
+  // Auto-dismiss cutoff banner after 4.5s on mobile to maximize list real estate
+  const [showCutoffBanner, setShowCutoffBanner] = useState(true);
+
+  useEffect(() => {
+    if (!cutoffStatus.isEnabled || isListFrozen) return;
+    const timer = setTimeout(() => {
+      setShowCutoffBanner(false);
+    }, 4500);
+    return () => clearTimeout(timer);
+  }, [cutoffStatus.isEnabled, isListFrozen]);
+
   return (
     <RoleGuard allowedRoles={["admin", "manager", "instructor", "social_worker", "employee", "logistics"]} redirectTo="/">
       <ConnectionStatusBanner />
@@ -151,58 +162,77 @@ export default function ShoppingPage() {
           setActiveCategory={setActiveCategory}
           hasMenuBadge={menuHasBadge}
           onOpenMenu={() => setMenuOpen(true)}
+          cutoffStatus={cutoffStatus}
+          isCutoffBannerVisible={showCutoffBanner}
+          onToggleCutoffBanner={() => setShowCutoffBanner((prev) => !prev)}
         />
 
-        {/* ── Weekly cutoff status ── */}
-        {cutoffStatus.isEnabled && (
-          <div className="px-3 md:px-6 pt-2 shrink-0">
-            {isListFrozen ? (
-              <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/25 flex items-center justify-between flex-wrap gap-2.5 text-right" dir="rtl">
-                <div className="flex items-center gap-2.5">
-                  <span className="text-lg shrink-0">🔒</span>
-                  <div>
-                    <h4 className="text-xs font-black text-amber-700 dark:text-amber-400">
-                      מועד הקציבה השבועי חלף ({cutoffStatus.formattedTarget})
-                    </h4>
-                    <p className="text-[11px] font-bold text-[var(--foreground)]/70 mt-0.5">
-                      {isAdmin || isLogistics
-                        ? `הרשימה מוקפאת להזנות. קיימים ${currentActiveItems.length} מוצרים הממתינים לרכש.`
-                        : `הרשימה הוקפאה להזנות לקראת ביצוע רכש.`}
-                      {cutoffStatus.deliveryDayFormatted && ` (קבלת משלוח: ${cutoffStatus.deliveryDayFormatted})`}
-                    </p>
+        {/* ── Weekly cutoff status (Auto-collapsible to save screen space) ── */}
+        <AnimatePresence>
+          {cutoffStatus.isEnabled && (isListFrozen || showCutoffBanner) && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.25 }}
+              className="overflow-hidden px-2.5 sm:px-4 md:px-6 pt-1.5 shrink-0"
+            >
+              {isListFrozen ? (
+                <div className="p-2.5 sm:p-3 rounded-2xl bg-amber-500/10 border border-amber-500/25 flex items-center justify-between flex-wrap gap-2 text-right" dir="rtl">
+                  <div className="flex items-center gap-2">
+                    <span className="text-base shrink-0">🔒</span>
+                    <div>
+                      <h4 className="text-xs font-black text-amber-700 dark:text-amber-400">
+                        מועד הקציבה השבועי חלף ({cutoffStatus.formattedTarget})
+                      </h4>
+                      <p className="text-[11px] font-bold text-[var(--foreground)]/70 mt-0.5">
+                        {isAdmin || isLogistics
+                          ? `הרשימה מוקפאת להזנות (${currentActiveItems.length} מוצרים).`
+                          : `הרשימה הוקפאה להזנות לקראת ביצוע רכש.`}
+                        {cutoffStatus.deliveryDayFormatted && ` (משלוח: ${cutoffStatus.deliveryDayFormatted})`}
+                      </p>
+                    </div>
                   </div>
-                </div>
-                {(isAdmin || isLogistics) && (
-                  <button
-                    onClick={() => setShowCycleClosureModal(true)}
-                    className="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 !text-white text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 border-none shrink-0"
-                  >
-                    <Package className="w-4 h-4 text-white" />
-                    <span>הפקת רשימה להדפסה</span>
-                  </button>
-                )}
-              </div>
-            ) : (
-              <div className="px-3 py-1.5 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-between text-[11px] font-bold text-indigo-700 dark:text-indigo-300 flex-wrap gap-2" dir="rtl">
-                <div className="flex items-center gap-3 flex-wrap">
-                  <span className="flex items-center gap-1.5">
-                    <Clock className="w-3.5 h-3.5 text-indigo-500" />
-                    סגירת הזנות: <strong>{cutoffStatus.formattedTarget}</strong>
-                  </span>
-                  {cutoffStatus.deliveryDayFormatted && (
-                    <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-bold">
-                      <Truck className="w-3.5 h-3.5" />
-                      <span>קבלת משלוח: <strong>{cutoffStatus.deliveryDayFormatted}</strong></span>
-                    </span>
+                  {(isAdmin || isLogistics) && (
+                    <button
+                      onClick={() => setShowCycleClosureModal(true)}
+                      className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 !text-white text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 border-none shrink-0"
+                    >
+                      <Package className="w-3.5 h-3.5 text-white" />
+                      <span>הפקת רשימה</span>
+                    </button>
                   )}
                 </div>
-                <span className="font-black bg-indigo-500/20 px-2 py-0.5 rounded-full">
-                  {cutoffStatus.timeLeftFormatted}
-                </span>
-              </div>
-            )}
-          </div>
-        )}
+              ) : (
+                <div className="px-3 py-1.5 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-between text-[11px] font-bold text-indigo-700 dark:text-indigo-300 gap-2" dir="rtl">
+                  <div className="flex items-center gap-2 min-w-0 truncate">
+                    <Clock className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+                    <span className="truncate">סגירת הזנות: <strong>{cutoffStatus.formattedTarget}</strong></span>
+                    {cutoffStatus.deliveryDayFormatted && (
+                      <span className="hidden sm:inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-bold shrink-0">
+                        <Truck className="w-3.5 h-3.5" />
+                        <span>משלוח: <strong>{cutoffStatus.deliveryDayFormatted}</strong></span>
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <span className="font-black bg-indigo-500/20 px-2 py-0.5 rounded-full text-[10px]">
+                      {cutoffStatus.timeLeftFormatted}
+                    </span>
+                    <button
+                      onClick={() => setShowCutoffBanner(false)}
+                      className="p-1 rounded-lg hover:bg-indigo-500/20 text-indigo-500 transition-colors border-none cursor-pointer bg-transparent"
+                      aria-label="סגור הודעה"
+                      title="סגור הודעה"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Main Content Body */}
         <main className="flex-1 overflow-hidden flex flex-col relative bg-[var(--background)]">

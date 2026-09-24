@@ -121,30 +121,41 @@ export function ShoppingListView({
   const showFrameworkTag = selectedFramework === "all";
 
   return (
-    <div dir="rtl" className="w-full max-w-2xl mx-auto pb-24 px-3 sm:px-4">
-      {/* ── Framework filter: one scrollable row, grey — only the active pick gets color ── */}
-      <div className="flex items-center gap-1.5 pt-2.5 pb-2 overflow-x-auto no-scrollbar">
+    <div dir="rtl" className="w-full max-w-2xl mx-auto pb-24 px-2.5 sm:px-4">
+      {/* ── Unified Single Filter Bar: Frameworks + Urgent + Active Category filter in one line ── */}
+      <div className="flex items-center gap-1.5 pt-2 pb-2 overflow-x-auto no-scrollbar">
         <button
-          onClick={() => setSelectedFramework?.("all")}
+          onClick={() => {
+            setSelectedFramework?.("all");
+            setActiveCategory(null);
+            setShowUrgentOnly(false);
+          }}
           className={`py-1.5 px-3 rounded-xl text-xs font-black transition-all cursor-pointer border flex items-center justify-center gap-1.5 whitespace-nowrap shrink-0 ${
-            selectedFramework === "all"
+            selectedFramework === "all" && !urgentFilterActive && activeCategory === null
               ? "bg-zinc-800 dark:bg-zinc-200 !text-white dark:!text-zinc-900 border-transparent shadow-xs"
               : "text-[var(--muted)] hover:text-[var(--foreground)] bg-[var(--surface)] border-[var(--border)]"
           }`}
         >
-          <span>כל המסגרות</span>
-          <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${selectedFramework === "all" ? "bg-white/20 !text-white dark:!text-zinc-900" : "bg-[var(--foreground)]/10 text-[var(--muted)]"}`}>
+          <span>הכל</span>
+          <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
+            selectedFramework === "all" && !urgentFilterActive && activeCategory === null
+              ? "bg-white/20 !text-white dark:!text-zinc-900"
+              : "bg-[var(--foreground)]/10 text-[var(--muted)]"
+          }`}>
             {totalCategoryRequests.length}
           </span>
         </button>
 
         {TARGET_FRAMEWORKS.map((fw) => {
           const count = totalCategoryRequests.filter((r) => (r.targetFramework || "main") === fw.id).length;
-          const active = selectedFramework === fw.id;
+          const active = selectedFramework === fw.id && !urgentFilterActive;
           return (
             <button
               key={fw.id}
-              onClick={() => setSelectedFramework?.(fw.id)}
+              onClick={() => {
+                setSelectedFramework?.(fw.id);
+                setShowUrgentOnly(false);
+              }}
               className={`py-1.5 px-3 rounded-xl text-xs font-black transition-all cursor-pointer border flex items-center justify-center gap-1.5 whitespace-nowrap shrink-0 ${
                 active
                   ? `${fw.activeBg} border-transparent !text-white shadow-xs`
@@ -158,23 +169,6 @@ export function ShoppingListView({
             </button>
           );
         })}
-      </div>
-
-      {/* ── Slim status line ── */}
-      <div className="flex items-center gap-2 pb-2.5">
-        <button
-          onClick={() => {
-            setActiveCategory(null);
-            setShowUrgentOnly(false);
-          }}
-          className={`px-3 py-1.5 rounded-full text-xs font-black transition-all cursor-pointer border ${
-            activeCategory === null && !urgentFilterActive
-              ? "bg-indigo-600 !text-white border-transparent"
-              : "bg-[var(--foreground)]/5 border-[var(--border)] text-[var(--foreground)]"
-          }`}
-        >
-          {activeRequests.length} פתוחים
-        </button>
 
         {urgentCount > 0 && (
           <button
@@ -182,14 +176,27 @@ export function ShoppingListView({
               setActiveCategory(null);
               setShowUrgentOnly((v) => !v);
             }}
-            className={`px-3 py-1.5 rounded-full text-xs font-black transition-all cursor-pointer border flex items-center gap-1 ${
+            className={`py-1.5 px-3 rounded-xl text-xs font-black transition-all cursor-pointer border flex items-center justify-center gap-1.5 whitespace-nowrap shrink-0 ${
               urgentFilterActive
-                ? "bg-rose-600 !text-white border-transparent"
-                : "bg-rose-500/10 border-rose-500/20 text-rose-500"
+                ? "bg-rose-600 !text-white border-transparent shadow-xs"
+                : "bg-rose-500/10 border-rose-500/20 text-rose-600 dark:text-rose-400 hover:bg-rose-500/20"
             }`}
           >
             <Flame className="w-3.5 h-3.5" />
-            {urgentCount} דחוף
+            <span>דחוף</span>
+            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${urgentFilterActive ? "bg-white/20 !text-white" : "bg-rose-500/20 text-rose-600 dark:text-rose-400"}`}>
+              {urgentCount}
+            </span>
+          </button>
+        )}
+
+        {activeCategory !== null && (
+          <button
+            onClick={() => setActiveCategory(null)}
+            className="py-1.5 px-2.5 rounded-xl text-xs font-black bg-indigo-500/10 border border-indigo-500/20 text-indigo-600 dark:text-indigo-400 flex items-center gap-1 whitespace-nowrap shrink-0 cursor-pointer hover:bg-indigo-500/20"
+          >
+            <span>{activeCategory}</span>
+            <span className="text-[10px]">✕</span>
           </button>
         )}
       </div>
