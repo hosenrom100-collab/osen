@@ -9,6 +9,10 @@ export function getCutoffStatus(config?: CutoffConfig, activeRequests?: Shopping
   const daysHebrew = ["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת"];
   const targetDayName = daysHebrew[config.day] ?? "שני";
   const [targetHour, targetMinute] = (config.time || "16:00").split(":").map(Number);
+  const deliveryDayFormatted =
+    config.deliveryDay !== undefined && config.deliveryDay !== null && config.deliveryDay >= 0 && daysHebrew[config.deliveryDay]
+      ? `יום ${daysHebrew[config.deliveryDay]}`
+      : undefined;
 
   const now = new Date();
   const currentDay = now.getDay();
@@ -33,6 +37,7 @@ export function getCutoffStatus(config?: CutoffConfig, activeRequests?: Shopping
         isPassed: true,
         formattedTarget: `יום ${targetDayName} בשעה ${config.time || "16:00"}`,
         timeLeftFormatted: "המועד חלף",
+        deliveryDayFormatted,
       };
     } else {
       // Roll over to next week's target date
@@ -62,5 +67,6 @@ export function getCutoffStatus(config?: CutoffConfig, activeRequests?: Shopping
     isPassed: false,
     formattedTarget: `יום ${targetDayName} בשעה ${config.time || "16:00"}`,
     timeLeftFormatted,
+    deliveryDayFormatted,
   };
 }

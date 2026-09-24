@@ -11,7 +11,7 @@ import { getCutoffStatus } from "../lib/cutoffUtils";
 import { DEFAULT_CATEGORIES } from "../lib/constants";
 import { toDateOrNull } from "../lib/dateUtils";
 
-const DEFAULT_CUTOFF: CutoffConfig = { enabled: true, day: 1, time: "16:00" };
+const DEFAULT_CUTOFF: CutoffConfig = { enabled: true, day: 1, time: "16:00", deliveryDay: null };
 
 function normalizeCutoff(saved?: CutoffConfig): { config: CutoffConfig; needsUpdate: boolean } {
   if (!saved) {
@@ -19,7 +19,15 @@ function normalizeCutoff(saved?: CutoffConfig): { config: CutoffConfig; needsUpd
   }
   // If saved config is legacy Thursday (day 4), or old 18:00 cutoff, permanently migrate to Monday 16:00
   if (saved.day === 4 || saved.day === undefined || (saved.day === 1 && saved.time === "18:00")) {
-    return { config: { enabled: saved.enabled ?? true, day: 1, time: "16:00" }, needsUpdate: true };
+    return {
+      config: {
+        enabled: saved.enabled ?? true,
+        day: 1,
+        time: "16:00",
+        deliveryDay: saved.deliveryDay !== undefined ? saved.deliveryDay : null,
+      },
+      needsUpdate: true,
+    };
   }
   return { config: saved, needsUpdate: false };
 }

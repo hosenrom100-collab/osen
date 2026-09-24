@@ -8,7 +8,7 @@ import {
   doc, updateDoc, deleteDoc, setDoc, collection, query, where, onSnapshot, writeBatch, getDocs, getDoc
 } from "firebase/firestore";
 import {
-  Loader2, ShoppingBag, Clock, Package, Plus, X
+  Loader2, ShoppingBag, Clock, Package, Plus, X, Truck
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { motion, AnimatePresence } from "framer-motion";
@@ -168,6 +168,7 @@ export default function ShoppingPage() {
                       {isAdmin || isLogistics
                         ? `הרשימה מוקפאת להזנות. קיימים ${currentActiveItems.length} מוצרים הממתינים לרכש.`
                         : `הרשימה הוקפאה להזנות לקראת ביצוע רכש.`}
+                      {cutoffStatus.deliveryDayFormatted && ` (קבלת משלוח: ${cutoffStatus.deliveryDayFormatted})`}
                     </p>
                   </div>
                 </div>
@@ -182,11 +183,19 @@ export default function ShoppingPage() {
                 )}
               </div>
             ) : (
-              <div className="px-3 py-1.5 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-between text-[11px] font-bold text-indigo-700 dark:text-indigo-300" dir="rtl">
-                <span className="flex items-center gap-1.5">
-                  <Clock className="w-3.5 h-3.5 text-indigo-500" />
-                  סגירת הזנות: <strong>{cutoffStatus.formattedTarget}</strong>
-                </span>
+              <div className="px-3 py-1.5 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-between text-[11px] font-bold text-indigo-700 dark:text-indigo-300 flex-wrap gap-2" dir="rtl">
+                <div className="flex items-center gap-3 flex-wrap">
+                  <span className="flex items-center gap-1.5">
+                    <Clock className="w-3.5 h-3.5 text-indigo-500" />
+                    סגירת הזנות: <strong>{cutoffStatus.formattedTarget}</strong>
+                  </span>
+                  {cutoffStatus.deliveryDayFormatted && (
+                    <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-bold">
+                      <Truck className="w-3.5 h-3.5" />
+                      <span>קבלת משלוח: <strong>{cutoffStatus.deliveryDayFormatted}</strong></span>
+                    </span>
+                  )}
+                </div>
                 <span className="font-black bg-indigo-500/20 px-2 py-0.5 rounded-full">
                   {cutoffStatus.timeLeftFormatted}
                 </span>

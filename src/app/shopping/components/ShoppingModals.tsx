@@ -69,6 +69,7 @@ export function ShoppingModals({
   const [cutoffEnabled, setCutoffEnabled] = useState(cutoffConfig?.enabled ?? true);
   const [cutoffDay, setCutoffDay] = useState(cutoffConfig?.day ?? 1);
   const [cutoffTime, setCutoffTime] = useState(cutoffConfig?.time ?? "16:00");
+  const [cutoffDeliveryDay, setCutoffDeliveryDay] = useState<number | null>(cutoffConfig?.deliveryDay !== undefined ? cutoffConfig.deliveryDay : null);
   const [isSavingCutoff, setIsSavingCutoff] = useState(false);
 
   useEffect(() => {
@@ -76,6 +77,7 @@ export function ShoppingModals({
       setCutoffEnabled(cutoffConfig.enabled);
       setCutoffDay(cutoffConfig.day ?? 1);
       setCutoffTime(cutoffConfig.time || "16:00");
+      setCutoffDeliveryDay(cutoffConfig.deliveryDay !== undefined ? cutoffConfig.deliveryDay : null);
     }
   }, [cutoffConfig]);
 
@@ -240,14 +242,55 @@ export function ShoppingModals({
                   </div>
 
                   {cutoffEnabled && (
-                    <div className="grid grid-cols-2 gap-2 mb-3">
+                    <div className="space-y-2.5 mb-3">
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-[10px] font-bold text-[var(--muted)] mb-1 block">יום סגירת הזנות:</label>
+                          <select
+                            value={cutoffDay}
+                            onChange={(e) => setCutoffDay(Number(e.target.value))}
+                            className="w-full bg-[var(--background)] border border-[var(--border)] rounded-xl py-2 px-2 text-xs font-bold text-[var(--foreground)]"
+                          >
+                            <option value={0}>יום ראשון</option>
+                            <option value={1}>יום שני</option>
+                            <option value={2}>יום שלישי</option>
+                            <option value={3}>יום רביעי</option>
+                            <option value={4}>יום חמישי</option>
+                            <option value={5}>יום שישי</option>
+                            <option value={6}>יום שבת</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="text-[10px] font-bold text-[var(--muted)] mb-1 block">שעת סגירה:</label>
+                          <input
+                            type="time"
+                            value={cutoffTime}
+                            onChange={(e) => setCutoffTime(e.target.value)}
+                            className="w-full bg-[var(--background)] border border-[var(--border)] rounded-xl py-2 px-2 text-xs font-bold text-center text-[var(--foreground)]"
+                          />
+                        </div>
+                      </div>
+
                       <div>
-                        <label className="text-[10px] font-bold text-[var(--muted)] mb-1 block">יום בשבוע:</label>
+                        <div className="flex items-center justify-between mb-1">
+                          <label className="text-[10px] font-bold text-[var(--muted)]">יום קבלת משלוח (ללא שעה):</label>
+                          {cutoffDeliveryDay !== null && (
+                            <button
+                              type="button"
+                              onClick={() => setCutoffDeliveryDay(null)}
+                              className="text-[10px] text-indigo-500 hover:underline bg-transparent border-none cursor-pointer p-0 font-bold"
+                            >
+                              נקה בחירה
+                            </button>
+                          )}
+                        </div>
                         <select
-                          value={cutoffDay}
-                          onChange={(e) => setCutoffDay(Number(e.target.value))}
+                          value={cutoffDeliveryDay !== null && cutoffDeliveryDay !== undefined ? cutoffDeliveryDay : ""}
+                          onChange={(e) => setCutoffDeliveryDay(e.target.value === "" ? null : Number(e.target.value))}
                           className="w-full bg-[var(--background)] border border-[var(--border)] rounded-xl py-2 px-2 text-xs font-bold text-[var(--foreground)]"
                         >
+                          <option value="">ללא / לא מוגדר</option>
                           <option value={0}>יום ראשון</option>
                           <option value={1}>יום שני</option>
                           <option value={2}>יום שלישי</option>
@@ -257,30 +300,25 @@ export function ShoppingModals({
                           <option value={6}>יום שבת</option>
                         </select>
                       </div>
-
-                      <div>
-                        <label className="text-[10px] font-bold text-[var(--muted)] mb-1 block">שעת סגירה:</label>
-                        <input
-                          type="time"
-                          value={cutoffTime}
-                          onChange={(e) => setCutoffTime(e.target.value)}
-                          className="w-full bg-[var(--background)] border border-[var(--border)] rounded-xl py-2 px-2 text-xs font-bold text-center text-[var(--foreground)]"
-                        />
-                      </div>
                     </div>
                   )}
 
                   <button
                     onClick={async () => {
                       setIsSavingCutoff(true);
-                      await onSaveCutoffConfig({ enabled: cutoffEnabled, day: cutoffDay, time: cutoffTime });
+                      await onSaveCutoffConfig({
+                        enabled: cutoffEnabled,
+                        day: cutoffDay,
+                        time: cutoffTime,
+                        deliveryDay: cutoffDeliveryDay !== null && cutoffDeliveryDay !== undefined && cutoffDeliveryDay >= 0 ? cutoffDeliveryDay : null,
+                      });
                       setIsSavingCutoff(false);
                     }}
                     disabled={isSavingCutoff}
                     className="w-full py-2 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:hover:bg-indigo-900/60 text-indigo-600 dark:text-indigo-300 text-xs font-bold rounded-xl transition-all cursor-pointer border-none flex items-center justify-center gap-1.5"
                   >
                     {isSavingCutoff ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
-                    <span>שמור הגדרות קציבה</span>
+                    <span>שמור הגדרות קציבה ומשלוח</span>
                   </button>
                 </div>
               )}
