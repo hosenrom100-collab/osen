@@ -9,6 +9,8 @@ interface ShoppingHeaderProps {
   setActiveCategory: (cat: string | null) => void;
   hasMenuBadge: boolean;
   onOpenMenu: () => void;
+  /** Purchased vs total for what the list is currently showing; drawn as a thin line under the header. */
+  progress?: { done: number; total: number };
 }
 
 export function ShoppingHeader({
@@ -17,11 +19,12 @@ export function ShoppingHeader({
   setActiveCategory,
   hasMenuBadge,
   onOpenMenu,
+  progress,
 }: ShoppingHeaderProps) {
   const router = useRouter();
 
   return (
-    <header className="shrink-0 bg-[var(--background)]/90 backdrop-blur-md border-b border-[var(--border)] z-40">
+    <header className="relative shrink-0 bg-[var(--background)]/90 backdrop-blur-md border-b border-[var(--border)] z-40">
       <div className="flex items-center justify-between px-2.5 sm:px-4 md:px-6 h-13 sm:h-14 gap-2">
         {/* Right side: Back button & compact title */}
         <div className="flex items-center gap-1.5 shrink-0 min-w-0">
@@ -83,6 +86,23 @@ export function ShoppingHeader({
           </button>
         </div>
       </div>
+
+      {/* Always-visible progress: no matter how far down the list you are, the line under the header says how much is left. */}
+      {progress && progress.total > 0 && (
+        <div
+          role="progressbar"
+          aria-label="התקדמות הרכישה"
+          aria-valuemin={0}
+          aria-valuemax={progress.total}
+          aria-valuenow={progress.done}
+          className="absolute bottom-0 inset-x-0 h-[3px]"
+        >
+          <div
+            className="h-full bg-emerald-500 transition-[width] duration-500 ease-out"
+            style={{ width: `${Math.round((progress.done / progress.total) * 100)}%` }}
+          />
+        </div>
+      )}
     </header>
   );
 }

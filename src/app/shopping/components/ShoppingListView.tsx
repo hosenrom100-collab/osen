@@ -112,7 +112,6 @@ export function ShoppingListView({
   // Progress is scoped to the framework filter, like the list itself — "12 of 30" should
   // describe what is on screen, not the whole cycle.
   const totalItems = activeRequests.length + sessionPurchased.length;
-  const progressPct = totalItems === 0 ? 0 : Math.round((sessionPurchased.length / totalItems) * 100);
   const allDone = activeRequests.length === 0 && sessionPurchased.length > 0;
 
   const urgentCount = activeRequests.filter((r) => r.priority === "urgent").length;
@@ -254,21 +253,6 @@ export function ShoppingListView({
             )}
           </div>
 
-          {totalItems > 0 && (
-            <div
-              role="progressbar"
-              aria-valuemin={0}
-              aria-valuemax={totalItems}
-              aria-valuenow={sessionPurchased.length}
-              aria-label="התקדמות הרכישה"
-              className="mt-2.5 h-1.5 rounded-full bg-[var(--foreground)]/10 overflow-hidden"
-            >
-              <div
-                className="h-full rounded-full bg-emerald-500 transition-[width] duration-500 ease-out"
-                style={{ width: `${progressPct}%` }}
-              />
-            </div>
-          )}
         </div>
       )}
 

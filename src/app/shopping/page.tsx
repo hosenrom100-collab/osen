@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { RoleGuard } from "@/components/auth/RoleGuard";
 import { ConnectionStatusBanner } from "@/components/ui/ConnectionStatusBanner";
 import { db } from "@/lib/firebase/config";
@@ -22,6 +22,7 @@ import { AddProductOverlay } from "./components/AddProductOverlay";
 import { ShoppingModals } from "./components/ShoppingModals";
 import { ShoppingHeader } from "./components/ShoppingHeader";
 import { MenuSheet } from "./components/MenuSheet";
+import { DesktopSidePanel } from "./components/DesktopSidePanel";
 import { AdminProductRequestsModal } from "./components/AdminProductRequestsModal";
 import { closeCycle } from "./lib/closeCycle";
 import { CycleHistorySheet } from "./components/CycleHistorySheet";
@@ -181,6 +182,16 @@ export default function ShoppingPage() {
     exportSplitProcurementLists,
   } = useExport(requests, pool, showToast);
 
+  // Purchased vs total for what the list shows (list type + framework filter) — feeds the header line and the desktop rail.
+  const progress = useMemo(() => {
+    const inScope = (r: (typeof requests)[number]) =>
+      (listType === "large" ? r.listType === "large" : r.listType !== "large") &&
+      (selectedFramework === "all" || (r.targetFramework || "main") === selectedFramework);
+    const done = requests.filter((r) => r.status === "purchased" && inScope(r)).length;
+    const open = requests.filter((r) => (r.status === "approved" || r.status === "pending") && inScope(r)).length;
+    return { done, total: done + open };
+  }, [requests, listType, selectedFramework]);
+
   const menuHasBadge =
     (canPurchase && pendingStoreAuthCount > 0) || (isAdmin && pendingRequestsCount > 0);
 
@@ -196,6 +207,7 @@ export default function ShoppingPage() {
           setActiveCategory={setActiveCategory}
           hasMenuBadge={menuHasBadge}
           onOpenMenu={() => setMenuOpen(true)}
+          progress={progress}
         />
 
         {/* ── Frozen list: the only cutoff state that needs a banner. The countdown lives in the page title. ── */}
@@ -240,7 +252,9 @@ export default function ShoppingPage() {
                 <Loader2 className={`w-5 h-5 text-[var(--accent-text)] ${isRefreshing ? "animate-spin" : ""}`} />
               </div>
             )}
-            <div className="max-w-[700px] mx-auto pb-24">
+            {/* lg+: list column plus a sticky side rail; below lg it is just the list column. */}
+            <div className="mx-auto pb-24 max-w-[700px] lg:max-w-[1060px] lg:grid lg:grid-cols-[minmax(0,700px)_320px] lg:justify-center lg:gap-8 lg:items-start">
+            <div className="min-w-0">
               {/* Large title — scrolls away with the content, like iOS. Carries the cutoff countdown
                   that used to live in an auto-dismissing banner. */}
               <div className="px-2.5 sm:px-4 pt-5 pb-1">
@@ -333,6 +347,28 @@ export default function ShoppingPage() {
                 />
               )}
             </div>
+
+            <aside className="hidden lg:block sticky top-4 pt-5" aria-label="סיכום ופעולות">
+              <DesktopSidePanel
+                listType={listType}
+                scopeLabel={
+                  selectedFramework === "all"
+                    ? "כל המסגרות"
+                    : TARGET_FRAMEWORKS.find((f) => f.id === selectedFramework)?.shortName ?? ""
+                }
+                done={progress.done}
+                total={progress.total}
+                canPurchase={canPurchase}
+                showCloseCycle={isListFrozen && (isAdmin || isLogistics)}
+                onAdd={() => setOverlayOpen(true)}
+                onExport={() =>
+                  listType === "large" ? exportProcurementList(selectedFramework) : exportOngoingList(selectedFramework)
+                }
+                onOpenHistory={() => setShowCycleHistory(true)}
+                onCloseCycle={() => setShowCycleClosureModal(true)}
+              />
+            </aside>
+            </div>
           </div>
         </main>
 
@@ -342,7 +378,7 @@ export default function ShoppingPage() {
         <motion.button
           whileTap={{ scale: 0.95 }}
           onClick={() => setOverlayOpen(true)}
-          className="fixed bottom-24 md:bottom-8 left-4 sm:left-6 z-[55] h-14 pr-4 pl-5 rounded-full bg-[var(--accent)] !text-white shadow-[var(--shadow-pop)] flex items-center gap-2 cursor-pointer border-none hover:brightness-110 transition-[filter]"
+          className="lg:hidden fixed bottom-24 md:bottom-8 left-4 sm:left-6 z-[55] h-14 pr-4 pl-5 rounded-full bg-[var(--accent)] !text-white shadow-[var(--shadow-pop)] flex items-center gap-2 cursor-pointer border-none hover:brightness-110 transition-[filter]"
           aria-label="הוסף מוצר לרשימה"
         >
           <Plus className="w-6 h-6 stroke-[2.5]" />
