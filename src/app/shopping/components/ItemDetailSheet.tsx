@@ -92,20 +92,20 @@ export function ItemDetailSheet({
       <BottomSheet
         isOpen={!!item}
         onClose={onClose}
-        title="פרטי המוצר"
+        title={item ? item.name : "פרטי המוצר"}
         zIndex={110}
         footer={
           <div className="flex gap-2.5">
             <button
               onClick={onClose}
-              className="flex-1 py-3.5 bg-[var(--foreground)]/5 hover:bg-[var(--foreground)]/10 text-[var(--muted)] text-sm font-bold rounded-2xl transition-all cursor-pointer border-none"
+              className="flex-1 h-12 bg-[var(--foreground)]/[0.06] hover:bg-[var(--foreground)]/10 text-[var(--foreground)] text-[15px] font-semibold rounded-xl transition-all cursor-pointer border-none"
             >
               ביטול
             </button>
             <button
               onClick={handleSave}
               disabled={!name.trim()}
-              className="flex-1 py-3.5 bg-[var(--accent)] hover:brightness-110 !text-white text-sm font-bold rounded-2xl shadow-md transition-all active:scale-[0.98] cursor-pointer border-none disabled:opacity-40 disabled:cursor-not-allowed"
+              className="flex-1 h-12 bg-[var(--accent)] hover:brightness-110 !text-white text-[15px] font-bold rounded-xl transition-all active:scale-[0.98] cursor-pointer border-none disabled:opacity-40 disabled:cursor-not-allowed"
             >
               שמור שינויים
             </button>
@@ -114,7 +114,7 @@ export function ItemDetailSheet({
       >
         <div className="space-y-4">
           {/* Assigned metadata indicator (Clickable Framework + Category + Requester) */}
-          <div className="p-3 rounded-2xl bg-[var(--foreground)]/[0.03] border border-[var(--border)] space-y-2.5 text-xs">
+          <div className="p-3.5 rounded-2xl bg-[var(--foreground)]/[0.03] border border-[var(--border)] space-y-2.5 text-[13px]">
             {/* Row 1: Framework selector & Category */}
             <div className="flex items-center justify-between gap-2 flex-wrap">
               {/* Clickable Framework Selector */}

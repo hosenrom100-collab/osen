@@ -1,12 +1,11 @@
 "use client";
 
 import React, { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 import {
   Package, FileText, Trash2, Plus, X, AlertCircle, CheckCircle2, ShoppingBag, Edit2, Lock, ArrowRight, Loader2
 } from "lucide-react";
 import { ShoppingRequest, Product } from "../types";
-import { useFocusTrap } from "@/hooks/useFocusTrap";
+import { BottomSheet } from "./BottomSheet";
 
 export interface CycleClosureModalProps {
   isOpen: boolean;
@@ -55,11 +54,6 @@ export function CycleClosureModal({
   // On by default: an unbought item silently vanishing is the costly mistake, an item that
   // stays on the list one more week is easy to remove.
   const [carryOver, setCarryOver] = useState(true);
-
-  const dialogTitleId = "cycle-closure-title";
-  const containerRef = useFocusTrap<HTMLDivElement>(isOpen);
-
-  if (!isOpen) return null;
 
   const activeItems = requests.filter(
     (r) =>
@@ -112,49 +106,131 @@ export function CycleClosureModal({
     }
   };
 
-  return (
-    <AnimatePresence>
-      <div className="fixed inset-0 z-[140] flex items-center justify-center p-4">
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          onClick={onClose}
-          className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-        />
+  const footer = (
+          <div className="space-y-3">
+            {!isExportConfirmOpen ? (
+              <>
+                <div className="flex items-center justify-between text-xs font-bold text-[var(--muted)]">
+                  <span>סה"כ {activeItems.length} מוצרים ב-{Object.keys(grouped).length} קטגוריות</span>
+                  {activeItems.length > 0 && (
+                    <span className="text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                      <CheckCircle2 className="w-4 h-4" /> מוכן להדפסה
+                    </span>
+                  )}
+                </div>
 
-        <motion.div
-          ref={containerRef}
-          initial={{ opacity: 0, scale: 0.95, y: 10 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.95, y: 10 }}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby={dialogTitleId}
-          tabIndex={-1}
-          onKeyDown={(e) => {
-            if (e.key === "Escape") onClose();
-          }}
-          className="relative bg-[var(--surface)] border border-[var(--border)] rounded-3xl w-full max-w-2xl p-6 md:p-8 shadow-2xl flex flex-col max-h-[90vh] overflow-hidden text-right"
-          dir="rtl"
-        >
-          {/* Header */}
-          <div className="flex items-center justify-between pb-4 border-b border-[var(--border)] shrink-0">
-            <div>
-              <h3 id={dialogTitleId} className="text-xl font-bold flex items-center gap-2 text-[var(--foreground)]">
-                <Package className="w-6 h-6 text-[var(--accent-text)]" aria-hidden="true" />
-                <span>סגירת סבב קניות וייצוא להדפסה</span>
-              </h3>
-              <p className="text-xs text-[var(--muted)] font-semibold mt-1">
-                בדיקה סופית ואישור עבור <strong>{listType === "large" ? "ציוד ורכש" : "קניות סופר"}</strong> לפני ארכוב הסבב
-              </p>
-            </div>
-            <button
-              onClick={onClose}
-              className="p-2 rounded-full hover:bg-[var(--foreground)]/5 text-[var(--muted)] transition-colors cursor-pointer border-none bg-transparent"
-            >
-              <X className="w-5 h-5" />
-            </button>
+                <div className="flex items-center justify-end gap-2 flex-wrap">
+                  <button
+                    onClick={onClose}
+                    className="h-12 px-4 rounded-xl text-sm font-semibold bg-[var(--foreground)]/5 text-[var(--foreground)] hover:bg-[var(--foreground)]/10 transition-colors cursor-pointer border-none"
+                  >
+                    ביטול / המשך עריכה
+                  </button>
+
+                  <button
+                    onClick={() => { setIsExportConfirmOpen(true); setConfirmPassword(""); setConfirmError(""); }}
+                    disabled={isProcessing || activeItems.length === 0}
+                    className="h-12 px-5 rounded-xl text-sm font-bold bg-[var(--accent)] hover:brightness-110 !text-white transition-all shadow-lg shadow-indigo-600/20 active:scale-95 cursor-pointer disabled:opacity-50 flex items-center gap-2 border-none"
+                  >
+                    <FileText className="w-4 h-4 text-white" />
+                    <span>ייצא רשימה להדפסה (Word)</span>
+                  </button>
+                </div>
+              </>
+            ) : (
+              <div className="space-y-3">
+                <p className="text-xs text-[var(--foreground)]/80 font-medium leading-relaxed flex items-start gap-2">
+                  <Lock className="w-4 h-4 text-rose-500 shrink-0 mt-0.5" />
+                  <span>
+                    תופק רשימה להדפסה (Word) עבור <strong>{activeItems.length}</strong> פריטים, והסבב ייסגר
+                    וישמר ב״סבבים קודמים״. אנא הזן סיסמת מנהל לאישור.
+                  </span>
+                </p>
+                {unpurchasedCount > 0 && (
+                  <label className="flex items-start gap-2.5 p-3 rounded-xl bg-amber-500/5 border border-amber-500/20 cursor-pointer text-xs font-bold text-[var(--foreground)]">
+                    <input
+                      type="checkbox"
+                      checked={carryOver}
+                      onChange={(e) => setCarryOver(e.target.checked)}
+                      className="mt-0.5 w-4 h-4 accent-amber-500 shrink-0"
+                    />
+                    <span>
+                      העבר את <strong>{unpurchasedCount}</strong> המוצרים שלא נרכשו לסבב הבא
+                      <span className="block text-xs font-semibold text-[var(--muted)] mt-0.5">
+                        {carryOver ? "יישארו ברשימה עם הכמויות וההערות." : "יימחקו מהרשימה (יישמרו רק בהיסטוריה)."}
+                      </span>
+                    </span>
+                  </label>
+                )}
+                <div>
+                  <label htmlFor="cycle-closure-password" className="sr-only">סיסמת מנהל</label>
+                  <input
+                    id="cycle-closure-password"
+                    type="password"
+                    autoFocus
+                    value={confirmPassword}
+                    onChange={(e) => { setConfirmPassword(e.target.value); setConfirmError(""); }}
+                    onKeyDown={(e) => { if (e.key === "Enter") handleConfirmedClose(); }}
+                    placeholder="הזן סיסמת מנהל..."
+                    aria-invalid={!!confirmError}
+                    aria-describedby={confirmError ? "cycle-closure-password-error" : undefined}
+                    className="w-full bg-[var(--background)] border border-[var(--border)] rounded-xl py-2.5 px-3 text-sm font-bold focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 outline-none text-center tracking-widest text-[var(--foreground)]"
+                  />
+                  {confirmError && (
+                    <span id="cycle-closure-password-error" className="text-xs text-rose-500 font-bold mt-1.5 block">{confirmError}</span>
+                  )}
+                </div>
+                <div className="flex items-center justify-end gap-2">
+                  <button
+                    onClick={() => setIsExportConfirmOpen(false)}
+                    className="h-12 px-4 rounded-xl text-sm font-semibold bg-[var(--foreground)]/5 text-[var(--foreground)] hover:bg-[var(--foreground)]/10 transition-colors cursor-pointer border-none flex items-center gap-1.5"
+                  >
+                    <ArrowRight className="w-3.5 h-3.5" />
+                    חזור
+                  </button>
+                  <button
+                    onClick={handleConfirmedClose}
+                    disabled={isProcessing}
+                    className="h-12 px-5 rounded-xl text-sm font-bold bg-rose-600 hover:bg-rose-700 !text-white transition-all shadow-lg active:scale-95 cursor-pointer disabled:opacity-50 flex items-center gap-2 border-none"
+                  >
+                    {isProcessing ? <Loader2 className="w-4 h-4 animate-spin text-white" /> : <Lock className="w-4 h-4 text-white" />}
+                    <span>אשר, ייצא וסגור סבב</span>
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+  );
+
+  return (
+    <BottomSheet
+      isOpen={isOpen}
+      onClose={onClose}
+      title="סגירת סבב קניות"
+      icon={<Package className="w-5 h-5 text-[var(--accent-text)]" aria-hidden="true" />}
+      zIndex={140}
+      size="lg"
+      footer={footer}
+    >
+          <p className="text-sm text-[var(--muted)] font-medium mb-4">
+            בדיקה סופית לפני ארכוב הסבב של <strong className="text-[var(--foreground)]">{listType === "large" ? "ציוד ורכש" : "קניות סופר"}</strong>. הסבב נשמר ב״סבבים קודמים״.
+          </p>
+
+          <div className="grid grid-cols-3 gap-2 mb-4">
+            {[
+              { n: purchasedCount, label: "נרכשו", cls: "bg-emerald-500/10 border-emerald-500/25 text-emerald-700 dark:text-emerald-400" },
+              { n: unpurchasedCount, label: "לא נרכשו", cls: "bg-amber-500/10 border-amber-500/25 text-amber-700 dark:text-amber-400" },
+              {
+                n: carryOver ? unpurchasedCount : 0,
+                label: "יועברו הלאה",
+                cls: "bg-[var(--accent-soft)] border-[var(--accent-line)] text-[var(--accent-text)]",
+              },
+            ].map((stat) => (
+              <div key={stat.label} className={`rounded-2xl border p-3 text-center ${stat.cls}`}>
+                <div className="text-2xl font-extrabold tabular-nums leading-none">{stat.n}</div>
+                <div className="text-[13px] font-semibold mt-1.5 opacity-90">{stat.label}</div>
+              </div>
+            ))}
           </div>
 
           {/* Quick Add Bar - "מוצרי דקה ה-90" */}
@@ -289,112 +365,6 @@ export function CycleClosureModal({
             )}
           </div>
 
-          {/* Footer Summary & Action Buttons */}
-          <div className="pt-4 border-t border-[var(--border)] shrink-0 space-y-3">
-            {!isExportConfirmOpen ? (
-              <>
-                <div className="flex items-center justify-between text-xs font-bold text-[var(--muted)]">
-                  <span>סה"כ {activeItems.length} מוצרים ב-{Object.keys(grouped).length} קטגוריות</span>
-                  {activeItems.length > 0 && (
-                    <span className="text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-                      <CheckCircle2 className="w-4 h-4" /> מוכן להדפסה
-                    </span>
-                  )}
-                </div>
-                {activeItems.length > 0 && (
-                  <div className="flex items-center gap-2 text-xs font-bold">
-                    <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
-                      {purchasedCount} נרכשו
-                    </span>
-                    <span className="px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400">
-                      {unpurchasedCount} לא נרכשו
-                    </span>
-                  </div>
-                )}
-
-                <div className="flex items-center justify-end gap-2 flex-wrap">
-                  <button
-                    onClick={onClose}
-                    className="px-4 py-2.5 rounded-xl text-xs font-bold bg-[var(--foreground)]/5 text-[var(--foreground)] hover:bg-[var(--foreground)]/10 transition-colors cursor-pointer border-none"
-                  >
-                    ביטול / המשך עריכה
-                  </button>
-
-                  <button
-                    onClick={() => { setIsExportConfirmOpen(true); setConfirmPassword(""); setConfirmError(""); }}
-                    disabled={isProcessing || activeItems.length === 0}
-                    className="px-5 py-2.5 rounded-xl text-xs font-bold bg-[var(--accent)] hover:brightness-110 !text-white transition-all shadow-lg shadow-indigo-600/20 active:scale-95 cursor-pointer disabled:opacity-50 flex items-center gap-2 border-none"
-                  >
-                    <FileText className="w-4 h-4 text-white" />
-                    <span>ייצא רשימה להדפסה (Word)</span>
-                  </button>
-                </div>
-              </>
-            ) : (
-              <div className="space-y-3">
-                <p className="text-xs text-[var(--foreground)]/80 font-medium leading-relaxed flex items-start gap-2">
-                  <Lock className="w-4 h-4 text-rose-500 shrink-0 mt-0.5" />
-                  <span>
-                    תופק רשימה להדפסה (Word) עבור <strong>{activeItems.length}</strong> פריטים, והסבב ייסגר
-                    וישמר ב״סבבים קודמים״. אנא הזן סיסמת מנהל לאישור.
-                  </span>
-                </p>
-                {unpurchasedCount > 0 && (
-                  <label className="flex items-start gap-2.5 p-3 rounded-xl bg-amber-500/5 border border-amber-500/20 cursor-pointer text-xs font-bold text-[var(--foreground)]">
-                    <input
-                      type="checkbox"
-                      checked={carryOver}
-                      onChange={(e) => setCarryOver(e.target.checked)}
-                      className="mt-0.5 w-4 h-4 accent-amber-500 shrink-0"
-                    />
-                    <span>
-                      העבר את <strong>{unpurchasedCount}</strong> המוצרים שלא נרכשו לסבב הבא
-                      <span className="block text-xs font-semibold text-[var(--muted)] mt-0.5">
-                        {carryOver ? "יישארו ברשימה עם הכמויות וההערות." : "יימחקו מהרשימה (יישמרו רק בהיסטוריה)."}
-                      </span>
-                    </span>
-                  </label>
-                )}
-                <div>
-                  <label htmlFor="cycle-closure-password" className="sr-only">סיסמת מנהל</label>
-                  <input
-                    id="cycle-closure-password"
-                    type="password"
-                    autoFocus
-                    value={confirmPassword}
-                    onChange={(e) => { setConfirmPassword(e.target.value); setConfirmError(""); }}
-                    onKeyDown={(e) => { if (e.key === "Enter") handleConfirmedClose(); }}
-                    placeholder="הזן סיסמת מנהל..."
-                    aria-invalid={!!confirmError}
-                    aria-describedby={confirmError ? "cycle-closure-password-error" : undefined}
-                    className="w-full bg-[var(--background)] border border-[var(--border)] rounded-xl py-2.5 px-3 text-sm font-bold focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 outline-none text-center tracking-widest text-[var(--foreground)]"
-                  />
-                  {confirmError && (
-                    <span id="cycle-closure-password-error" className="text-xs text-rose-500 font-bold mt-1.5 block">{confirmError}</span>
-                  )}
-                </div>
-                <div className="flex items-center justify-end gap-2">
-                  <button
-                    onClick={() => setIsExportConfirmOpen(false)}
-                    className="px-4 py-2.5 rounded-xl text-xs font-bold bg-[var(--foreground)]/5 text-[var(--foreground)] hover:bg-[var(--foreground)]/10 transition-colors cursor-pointer border-none flex items-center gap-1.5"
-                  >
-                    <ArrowRight className="w-3.5 h-3.5" />
-                    חזור
-                  </button>
-                  <button
-                    onClick={handleConfirmedClose}
-                    disabled={isProcessing}
-                    className="px-5 py-2.5 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-700 !text-white transition-all shadow-lg active:scale-95 cursor-pointer disabled:opacity-50 flex items-center gap-2 border-none"
-                  >
-                    {isProcessing ? <Loader2 className="w-4 h-4 animate-spin text-white" /> : <Lock className="w-4 h-4 text-white" />}
-                    <span>אשר, ייצא וסגור סבב</span>
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        </motion.div>
-      </div>
-    </AnimatePresence>
+    </BottomSheet>
   );
 }

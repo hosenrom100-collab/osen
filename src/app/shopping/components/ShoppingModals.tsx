@@ -8,7 +8,7 @@ import {
   Edit3, Settings, X, Plus, Minus, Trash2, Check, ShoppingBag, CheckCircle2,
   Receipt, Star, Upload, Loader2, Search, MessageSquare, Clock
 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { BottomSheet } from "./BottomSheet";
 
 const CAT_COLOR: Record<string, string> = {
   "גבינות ומחלבה":       "text-amber-500 bg-amber-500/10 border-amber-500/20",
@@ -87,36 +87,22 @@ export function ShoppingModals({
   return (
     <>
       {/* ── CATEGORY MANAGEMENT DIALOG ── */}
-      <AnimatePresence>
-        {isAddingCat && (
-          <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setIsAddingCat(false)}
-              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-            />
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="relative bg-[var(--surface)] border border-[var(--border)] rounded-3xl w-full max-w-md p-8 shadow-2xl text-right flex flex-col max-h-[85vh] overflow-hidden"
-              dir="rtl"
-            >
-              <div className="flex items-center justify-between mb-6 shrink-0">
-                <h3 className="text-xl font-bold flex items-center gap-2 text-[var(--foreground)]">
-                  <Edit3 className="w-5 h-5 text-[var(--accent-text)]" />
-                  ניהול קטגוריות רכש
-                </h3>
-                <button
-                  onClick={() => setIsAddingCat(false)}
-                  className="p-2 rounded-full hover:bg-[var(--foreground)]/5 text-[var(--muted)]"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
+      <BottomSheet
+        isOpen={isAddingCat}
+        onClose={() => setIsAddingCat(false)}
+        title="ניהול קטגוריות רכש"
+        icon={<Edit3 className="w-5 h-5 text-[var(--accent-text)]" />}
+        zIndex={120}
+        size="md"
+        footer={
+          <button
+            onClick={() => setIsAddingCat(false)}
+            className="w-full h-12 bg-[var(--accent)] hover:brightness-110 !text-white text-[15px] font-bold rounded-xl transition-all active:scale-[0.98] cursor-pointer border-none"
+          >
+            סגור
+          </button>
+        }
+      >
               <div className="mb-6 shrink-0">
                 <label className="text-xs font-bold text-[var(--muted)] mb-1.5 block">
                   הוסף קטגוריה חדשה
@@ -323,48 +309,25 @@ export function ShoppingModals({
                 </div>
               )}
 
-              <button
-                onClick={() => setIsAddingCat(false)}
-                className="w-full py-4 bg-[var(--accent)] hover:brightness-110 !text-white text-sm font-bold rounded-2xl shadow-lg transition-all active:scale-[0.98] shrink-0 cursor-pointer border-none"
-              >
-                סגור
-              </button>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+      </BottomSheet>
 
       {/* ── MANAGE FREQUENT PRODUCTS MODAL ── */}
-      <AnimatePresence>
-        {showManageStarModal && (
-          <div className="fixed inset-0 z-[130] flex items-center justify-center p-4">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setShowManageStarModal(false)}
-              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-            />
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="relative bg-[var(--surface)] border border-[var(--border)] rounded-3xl w-full max-w-lg p-6 md:p-8 shadow-2xl text-right flex flex-col max-h-[90vh] overflow-hidden z-10"
-              dir="rtl"
-            >
-              <div className="flex items-center justify-between mb-4 shrink-0">
-                <h3 className="text-lg md:text-xl font-bold flex items-center gap-2 text-[var(--foreground)]">
-                  <Star className="w-5 h-5 text-amber-500 fill-amber-500" />
-                  <span>ניהול מוצרים נפוצים</span>
-                </h3>
-                <button
-                  onClick={() => setShowManageStarModal(false)}
-                  className="p-2 rounded-full hover:bg-[var(--foreground)]/5 text-[var(--muted)] border-none cursor-pointer"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
+      <BottomSheet
+        isOpen={showManageStarModal}
+        onClose={() => setShowManageStarModal(false)}
+        title="ניהול מוצרים נפוצים"
+        icon={<Star className="w-5 h-5 text-amber-500 fill-amber-500" />}
+        zIndex={130}
+        size="lg"
+        footer={
+          <button
+            onClick={() => setShowManageStarModal(false)}
+            className="w-full h-12 bg-amber-500 hover:bg-amber-600 !text-white text-[15px] font-bold rounded-xl transition-all active:scale-[0.98] cursor-pointer border-none"
+          >
+            סיום
+          </button>
+        }
+      >
               <p className="text-xs text-[var(--muted)] font-bold mb-4 shrink-0">
                 סמן מוצרים מתוך הפול כדי להציג אותם ברשימת המוצרים הנפוצים בעת פתיחת חלונית הוספת מוצר.
               </p>
@@ -435,16 +398,7 @@ export function ShoppingModals({
                 })()}
               </div>
 
-              <button
-                onClick={() => setShowManageStarModal(false)}
-                className="w-full py-4 bg-amber-500 hover:bg-amber-600 !text-white text-sm font-bold rounded-2xl shadow-lg transition-all active:scale-[0.98] shrink-0 cursor-pointer border-none"
-              >
-                סיום
-              </button>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+      </BottomSheet>
 
 
     </>
