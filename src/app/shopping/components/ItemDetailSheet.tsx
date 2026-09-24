@@ -4,14 +4,14 @@ import { useEffect, useState } from "react";
 import { ShoppingRequest, TargetFramework } from "../types";
 import { Flame, Trash2, Minus, Plus, ArrowRightLeft, Package, ShoppingCart } from "lucide-react";
 import { BottomSheet } from "./BottomSheet";
-import { CAT_SOLID, TARGET_FRAMEWORKS } from "../lib/constants";
+import { TARGET_FRAMEWORKS } from "../lib/constants";
 import { MEASUREMENT_UNITS } from "../lib/constants";
 import { parseQuantity, buildQuantityString, getQuantityStep, getMinQuantity, steppedQuantity } from "../lib/quantityUtils";
 
 interface ItemDetailSheetProps {
   item: ShoppingRequest | null;
   onClose: () => void;
-  categories: string[];
+  categories?: string[];
   onUpdateItem: (id: string, name: string, category: string, quantity: string, notes: string, priority: "low" | "normal" | "urgent", targetFramework?: TargetFramework) => void;
   onDelete: (id: string) => void;
   onMoveToEquipment: (id: string) => void;
@@ -33,7 +33,6 @@ export function ItemDetailSheet({
   onMoveToSupermarket,
 }: ItemDetailSheetProps) {
   const [name, setName] = useState("");
-  const [category, setCategory] = useState("");
   const [qtyValue, setQtyValue] = useState(1);
   const [qtyUnit, setQtyUnit] = useState("יחידות");
   const [notes, setNotes] = useState("");
@@ -43,7 +42,6 @@ export function ItemDetailSheet({
     if (!item) return;
     const { value, unit } = parseQuantity(item.quantity);
     setName(item.name);
-    setCategory(item.category);
     setQtyValue(value);
     setQtyUnit(unit);
     setNotes(item.notes || "");
@@ -62,7 +60,7 @@ export function ItemDetailSheet({
     onUpdateItem(
       item.id,
       cleanName,
-      category,
+      item.category,
       buildQuantityString(qtyValue, qtyUnit),
       notes.trim(),
       isUrgent ? "urgent" : "normal",
@@ -104,13 +102,19 @@ export function ItemDetailSheet({
         }
       >
         <div className="space-y-4">
-          {/* Assigned framework indicator (Read-only) */}
+          {/* Assigned metadata indicator (Framework + Category - Read-only) */}
           <div className="flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-[var(--foreground)]/[0.03] border border-[var(--border)] text-xs">
-            <span className="text-[var(--muted)] font-bold">מסגרת משויכת:</span>
             <div className="flex items-center gap-1.5">
+              <span className="text-[var(--muted)] font-bold">מסגרת:</span>
               <span className={`w-2 h-2 rounded-full ${fwMeta.badgeActive.split(" ")[0] || "bg-indigo-500"}`} />
               <span className="font-black text-[var(--foreground)]">{fwMeta.name}</span>
             </div>
+            {item.category && (
+              <div className="flex items-center gap-1.5">
+                <span className="text-[var(--muted)] font-bold">קטגוריה:</span>
+                <span className="font-black text-[var(--foreground)]">{item.category}</span>
+              </div>
+            )}
           </div>
 
           {/* Name */}
@@ -199,29 +203,6 @@ export function ItemDetailSheet({
               rows={2}
               className="w-full bg-[var(--background)] border border-[var(--border)] rounded-xl py-2.5 px-3 text-sm font-medium focus:outline-none focus:border-indigo-500/50 resize-none placeholder:text-[var(--muted)]/40 text-[var(--foreground)]"
             />
-          </div>
-
-          {/* Category */}
-          <div>
-            <label className="text-[10px] font-black text-[var(--muted)] uppercase tracking-widest mb-1.5 block">
-              קטגוריה
-            </label>
-            <div className="flex flex-wrap gap-2">
-              {categories.map((c) => (
-                <button
-                  key={c}
-                  type="button"
-                  onClick={() => setCategory(c)}
-                  className={`py-1.5 px-3 rounded-full text-xs font-bold border transition-all ${
-                    category === c
-                      ? `${CAT_SOLID[c] ?? CAT_SOLID["כללי"]} !text-white shadow-sm border-transparent`
-                      : "bg-[var(--background)] border-[var(--border)] text-[var(--muted)] hover:text-[var(--foreground)]"
-                  }`}
-                >
-                  {c}
-                </button>
-              ))}
-            </div>
           </div>
 
           {/* Move between lists */}
