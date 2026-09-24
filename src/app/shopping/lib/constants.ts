@@ -46,6 +46,7 @@ export const CAT_SOLID: Record<string, string> = {
 export const TARGET_FRAMEWORKS = [
   {
     id: "main" as const,
+    dot: "bg-blue-500",
     name: "קבוצת ״ראשית״",
     shortName: "ראשית",
     color: "text-blue-600 dark:text-blue-400 bg-blue-500/10 border-blue-500/25",
@@ -56,6 +57,7 @@ export const TARGET_FRAMEWORKS = [
   },
   {
     id: "lower" as const,
+    dot: "bg-emerald-500",
     name: "חוסן תחתון (+בישול)",
     shortName: "תחתון (+בישול)",
     color: "text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/25",
@@ -66,6 +68,7 @@ export const TARGET_FRAMEWORKS = [
   },
   {
     id: "veterans_morning" as const,
+    dot: "bg-amber-500",
     name: "ותיקים בוקר",
     shortName: "ותיקים בוקר",
     color: "text-amber-600 dark:text-amber-400 bg-amber-500/10 border-amber-500/25",
@@ -76,6 +79,7 @@ export const TARGET_FRAMEWORKS = [
   },
   {
     id: "veterans_evening" as const,
+    dot: "bg-purple-500",
     name: "ותיקים ערב",
     shortName: "ותיקים ערב",
     color: "text-purple-600 dark:text-purple-400 bg-purple-500/10 border-purple-500/25",
@@ -86,6 +90,7 @@ export const TARGET_FRAMEWORKS = [
   },
   {
     id: "iron_swords_evening" as const,
+    dot: "bg-rose-500",
     name: "ח.ברזל ערב",
     shortName: "ח.ברזל ערב",
     color: "text-rose-600 dark:text-rose-400 bg-rose-500/10 border-rose-500/25",
@@ -96,6 +101,7 @@ export const TARGET_FRAMEWORKS = [
   },
   {
     id: "forest" as const,
+    dot: "bg-teal-500",
     name: "יער",
     shortName: "יער",
     color: "text-teal-600 dark:text-teal-400 bg-teal-500/10 border-teal-500/25",

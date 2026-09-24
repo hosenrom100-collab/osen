@@ -2,7 +2,7 @@
 
 import { memo, useEffect, useRef, useState } from "react";
 import { ShoppingRequest } from "../types";
-import { Check, Flame, ChevronLeft, MessageSquare } from "lucide-react";
+import { Check, ChevronLeft, MessageSquare } from "lucide-react";
 import { motion } from "framer-motion";
 import { formatUnitShort, parseQuantity } from "../lib/quantityUtils";
 import { TARGET_FRAMEWORKS } from "../lib/constants";
@@ -65,55 +65,71 @@ export const ItemRow = memo(function ItemRow({ item, onCheck, onOpenDetail, show
       onClick={() => {
         if (!checking) onOpenDetail(item);
       }}
-      className={`relative w-full flex items-center gap-3 px-3 py-2.5 min-h-[60px] rounded-2xl border border-transparent hover:bg-[var(--foreground)]/[0.03] active:bg-[var(--foreground)]/[0.05] transition-colors text-right cursor-pointer overflow-hidden ${
-        checking ? "bg-emerald-500/10" : "bg-[var(--surface)]"
+      className={`relative w-full flex items-center gap-3 px-3 py-2 min-h-[64px] hover:bg-[var(--foreground)]/[0.03] active:bg-[var(--foreground)]/[0.06] transition-colors text-right cursor-pointer ${
+        checking ? "bg-emerald-500/10" : "bg-transparent"
       }`}
     >
-      {/* Urgent marker: a thin stripe, not a full color wash — same information, far less noise */}
-      {isUrgent && <span className="absolute right-0 top-0 bottom-0 w-1 bg-rose-500" />}
+      {/* Urgent marker: a thin stripe at the edge of the card, not a color wash */}
+      {isUrgent && (
+        <>
+          <span aria-hidden className="absolute right-0 top-0 bottom-0 w-[3px] bg-rose-500" />
+          <span className="sr-only">דחוף</span>
+        </>
+      )}
 
-      {/* Checkbox — 44px, easy to hit one-handed while walking the aisles */}
+      {/* Checkbox — 44px hit area around a 28px circle: easy to hit one-handed in the aisle, calm to look at */}
       <span
         role="button"
         aria-label="סמן כנרכש"
         onClick={handleCheck}
-        className={`w-11 h-11 shrink-0 rounded-full border-2 flex items-center justify-center transition-all active:scale-90 cursor-pointer ${
-          checking
-            ? "bg-emerald-500 border-emerald-500 text-white"
-            : "border-[var(--muted)]/35 hover:border-indigo-500 hover:bg-indigo-500/10 text-[var(--accent-text)]"
-        }`}
+        className="group/check w-11 h-11 shrink-0 flex items-center justify-center cursor-pointer"
       >
-        <Check className={`w-5 h-5 transition-opacity stroke-[3] ${checking ? "opacity-100" : "opacity-0 hover:opacity-100"}`} />
+        <span
+          className={`w-7 h-7 rounded-full border-2 flex items-center justify-center transition-all group-active/check:scale-90 ${
+            checking
+              ? "bg-emerald-500 border-emerald-500 text-white"
+              : "border-[var(--muted)]/50 group-hover/check:border-[var(--accent)] group-hover/check:bg-[var(--accent-soft)]"
+          }`}
+        >
+          <Check
+            className={`w-4 h-4 stroke-[3] transition-opacity ${
+              checking ? "opacity-100" : "opacity-0 group-hover/check:opacity-70 text-[var(--accent-text)]"
+            }`}
+          />
+        </span>
       </span>
 
       {/* Name + meta */}
       <div className="min-w-0 flex-1 text-right">
-        <div className="flex items-center gap-1.5">
-          {isUrgent && <Flame className="w-3.5 h-3.5 text-rose-500 shrink-0" />}
-          <span className={`text-[15px] font-bold text-[var(--foreground)] truncate transition-opacity ${checking ? "line-through opacity-50" : ""}`}>
+        <div className="flex items-center gap-2">
+          <span
+            className={`text-base font-semibold text-[var(--foreground)] truncate transition-opacity ${
+              checking ? "line-through opacity-50" : ""
+            }`}
+          >
             {item.name}
           </span>
           {showFrameworkTag && (
-            <span className={`text-xs font-bold px-1.5 py-0.5 rounded-lg border shrink-0 ${fwMeta.color}`}>
+            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border shrink-0 ${fwMeta.color}`}>
               {fwMeta.shortName}
             </span>
           )}
         </div>
         {hasNotes && (
-          <div className="flex items-center gap-0.5 mt-0.5 text-xs text-amber-600 dark:text-amber-400 font-medium truncate">
-            <MessageSquare className="w-3 h-3 shrink-0" />
+          <div className="flex items-center gap-1 mt-0.5 text-[13px] text-[var(--muted)] font-medium truncate">
+            <MessageSquare className="w-3.5 h-3.5 shrink-0" />
             <span className="truncate">{item.notes}</span>
           </div>
         )}
       </div>
 
-      {/* Quantity */}
-      <span className="shrink-0 text-xs font-bold text-[var(--foreground)]/70 bg-[var(--foreground)]/5 px-2 py-1 rounded-lg">
-        {qtyValue}
-        <span className="opacity-60 font-bold"> {formatUnitShort(qtyUnit)}</span>
+      {/* Quantity — the number leads, the unit recedes */}
+      <span className="shrink-0 text-right leading-tight">
+        <span className="text-base font-bold tabular-nums text-[var(--foreground)]">{qtyValue}</span>
+        <span className="text-[13px] font-medium text-[var(--muted)]"> {formatUnitShort(qtyUnit)}</span>
       </span>
 
-      <ChevronLeft className="w-4 h-4 text-[var(--muted)]/50 shrink-0" />
+      <ChevronLeft className="w-4 h-4 text-[var(--muted)]/40 shrink-0" />
     </motion.button>
   );
 });

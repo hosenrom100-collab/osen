@@ -1,8 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { ArrowRight, ShoppingCart, Boxes, Settings, Clock } from "lucide-react";
-import { CutoffStatus } from "../types";
+import { ArrowRight, ShoppingCart, Boxes, Settings } from "lucide-react";
 
 interface ShoppingHeaderProps {
   listType: "supermarket" | "large";
@@ -10,9 +9,6 @@ interface ShoppingHeaderProps {
   setActiveCategory: (cat: string | null) => void;
   hasMenuBadge: boolean;
   onOpenMenu: () => void;
-  cutoffStatus?: CutoffStatus;
-  isCutoffBannerVisible?: boolean;
-  onToggleCutoffBanner?: () => void;
 }
 
 export function ShoppingHeader({
@@ -21,20 +17,17 @@ export function ShoppingHeader({
   setActiveCategory,
   hasMenuBadge,
   onOpenMenu,
-  cutoffStatus,
-  isCutoffBannerVisible,
-  onToggleCutoffBanner,
 }: ShoppingHeaderProps) {
   const router = useRouter();
 
   return (
-    <header className="shrink-0 bg-[var(--background)] border-b border-[var(--border)] z-40">
+    <header className="shrink-0 bg-[var(--background)]/90 backdrop-blur-md border-b border-[var(--border)] z-40">
       <div className="flex items-center justify-between px-2.5 sm:px-4 md:px-6 h-13 sm:h-14 gap-2">
         {/* Right side: Back button & compact title */}
         <div className="flex items-center gap-1.5 shrink-0 min-w-0">
           <button
             onClick={() => router.push("/")}
-            className="w-8.5 h-8.5 shrink-0 flex items-center justify-center rounded-xl hover:bg-[var(--foreground)]/5 border-none bg-transparent cursor-pointer transition-colors"
+            className="w-10 h-10 shrink-0 flex items-center justify-center rounded-xl hover:bg-[var(--foreground)]/5 border-none bg-transparent cursor-pointer transition-colors"
             aria-label="חזרה"
           >
             <ArrowRight className="w-5 h-5 text-[var(--muted)]" />
@@ -45,15 +38,15 @@ export function ShoppingHeader({
         </div>
 
         {/* Center: Segmented switcher (Supermarket / Equipment) */}
-        <div className="flex bg-[var(--foreground)]/[0.05] p-0.5 rounded-xl border border-[var(--border)] shrink-0">
+        <div className="flex bg-[var(--foreground)]/[0.06] p-0.5 rounded-xl shrink-0">
           <button
             onClick={() => {
               setListType("supermarket");
               setActiveCategory(null);
             }}
-            className={`px-3 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 border-none cursor-pointer ${
+            className={`px-4 h-9 rounded-lg text-[13px] font-semibold transition-all flex items-center gap-1.5 border-none cursor-pointer ${
               listType === "supermarket"
-                ? "bg-[var(--surface)] text-[var(--accent-text)] shadow-xs"
+                ? "bg-[var(--surface)] text-[var(--accent-text)] shadow-[var(--shadow-card)]"
                 : "text-[var(--muted)] hover:text-[var(--foreground)] bg-transparent"
             }`}
           >
@@ -65,9 +58,9 @@ export function ShoppingHeader({
               setListType("large");
               setActiveCategory(null);
             }}
-            className={`px-3 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 border-none cursor-pointer ${
+            className={`px-4 h-9 rounded-lg text-[13px] font-semibold transition-all flex items-center gap-1.5 border-none cursor-pointer ${
               listType === "large"
-                ? "bg-[var(--surface)] text-[var(--accent-text)] shadow-xs"
+                ? "bg-[var(--surface)] text-[var(--accent-text)] shadow-[var(--shadow-card)]"
                 : "text-[var(--muted)] hover:text-[var(--foreground)] bg-transparent"
             }`}
           >
@@ -76,28 +69,16 @@ export function ShoppingHeader({
           </button>
         </div>
 
-        {/* Left side: Cutoff mini-indicator & Menu button */}
+        {/* Left side: menu */}
         <div className="flex items-center gap-1 shrink-0">
-          {cutoffStatus?.isEnabled && !cutoffStatus.isPassed && !isCutoffBannerVisible && (
-            <button
-              onClick={onToggleCutoffBanner}
-              className="px-2 py-1 rounded-lg bg-[var(--accent-soft)] hover:bg-[var(--accent-soft-hover)] text-[var(--accent-text)] text-xs font-bold flex items-center gap-1 border-none cursor-pointer transition-colors"
-              title={`סגירת הזנות: ${cutoffStatus.formattedTarget} (${cutoffStatus.timeLeftFormatted})`}
-              aria-label="הצג מועד סגירת הזנות"
-            >
-              <Clock className="w-3.5 h-3.5 shrink-0 text-[var(--accent-text)]" />
-              <span className="hidden md:inline">{cutoffStatus.timeLeftFormatted}</span>
-            </button>
-          )}
-
           <button
             onClick={onOpenMenu}
-            className="relative w-8.5 h-8.5 shrink-0 flex items-center justify-center rounded-xl hover:bg-[var(--foreground)]/5 border-none bg-transparent cursor-pointer transition-colors"
+            className="relative w-10 h-10 shrink-0 flex items-center justify-center rounded-xl hover:bg-[var(--foreground)]/5 border-none bg-transparent cursor-pointer transition-colors"
             aria-label="תפריט"
           >
             <Settings className="w-5 h-5 text-[var(--muted)]" />
             {hasMenuBadge && (
-              <span className="absolute top-1.5 left-1.5 w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
+              <span className="absolute top-2 left-2 w-2.5 h-2.5 rounded-full bg-rose-500 ring-2 ring-[var(--background)]" />
             )}
           </button>
         </div>

@@ -8,7 +8,7 @@ import {
   doc, updateDoc, deleteDoc, setDoc, collection, query, where, onSnapshot, getDoc
 } from "firebase/firestore";
 import {
-  Loader2, ShoppingBag, Clock, Package, Plus, X, Truck
+  Loader2, ShoppingBag, Clock, Package, Plus, Truck
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { motion, AnimatePresence } from "framer-motion";
@@ -185,17 +185,6 @@ export default function ShoppingPage() {
   const menuHasBadge =
     (canPurchase && pendingStoreAuthCount > 0) || (isAdmin && pendingRequestsCount > 0);
 
-  // Auto-dismiss cutoff banner after 4.5s on mobile to maximize list real estate
-  const [showCutoffBanner, setShowCutoffBanner] = useState(true);
-
-  useEffect(() => {
-    if (!cutoffStatus.isEnabled || isListFrozen) return;
-    const timer = setTimeout(() => {
-      setShowCutoffBanner(false);
-    }, 4500);
-    return () => clearTimeout(timer);
-  }, [cutoffStatus.isEnabled, isListFrozen]);
-
   return (
     <RoleGuard allowedRoles={["admin", "manager", "instructor", "social_worker", "employee", "logistics"]} redirectTo="/">
       <ConnectionStatusBanner />
@@ -206,77 +195,38 @@ export default function ShoppingPage() {
           setActiveCategory={setActiveCategory}
           hasMenuBadge={menuHasBadge}
           onOpenMenu={() => setMenuOpen(true)}
-          cutoffStatus={cutoffStatus}
-          isCutoffBannerVisible={showCutoffBanner}
-          onToggleCutoffBanner={() => setShowCutoffBanner((prev) => !prev)}
         />
 
-        {/* ── Weekly cutoff status (Auto-collapsible to save screen space) ── */}
-        <AnimatePresence>
-          {cutoffStatus.isEnabled && (isListFrozen || showCutoffBanner) && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: "auto", opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.25 }}
-              className="overflow-hidden px-2.5 sm:px-4 md:px-6 pt-1.5 shrink-0"
-            >
-              {isListFrozen ? (
-                <div className="p-2.5 sm:p-3 rounded-2xl bg-amber-500/10 border border-amber-500/25 flex items-center justify-between flex-wrap gap-2 text-right" dir="rtl">
-                  <div className="flex items-center gap-2">
-                    <span className="text-base shrink-0">🔒</span>
-                    <div>
-                      <h4 className="text-xs font-bold text-amber-700 dark:text-amber-400">
-                        מועד הקציבה השבועי חלף ({cutoffStatus.formattedTarget})
-                      </h4>
-                      <p className="text-xs font-bold text-[var(--foreground)]/70 mt-0.5">
-                        {isAdmin || isLogistics
-                          ? `הרשימה מוקפאת להזנות (${currentActiveItems.length} מוצרים).`
-                          : `הרשימה הוקפאה להזנות לקראת ביצוע רכש.`}
-                        {cutoffStatus.deliveryDayFormatted && ` (משלוח: ${cutoffStatus.deliveryDayFormatted})`}
-                      </p>
-                    </div>
-                  </div>
-                  {(isAdmin || isLogistics) && (
-                    <button
-                      onClick={() => setShowCycleClosureModal(true)}
-                      className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 !text-white text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 border-none shrink-0"
-                    >
-                      <Package className="w-3.5 h-3.5 text-white" />
-                      <span>הפקת רשימה</span>
-                    </button>
-                  )}
+        {/* ── Frozen list: the only cutoff state that needs a banner. The countdown lives in the page title. ── */}
+        {cutoffStatus.isEnabled && isListFrozen && (
+          <div className="px-2.5 sm:px-4 md:px-6 pt-2 shrink-0">
+            <div className="max-w-[700px] mx-auto p-3 rounded-2xl bg-amber-500/10 border border-amber-500/25 flex items-center justify-between flex-wrap gap-3 text-right" dir="rtl">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <span className="text-lg shrink-0">🔒</span>
+                <div className="min-w-0">
+                  <h4 className="text-sm font-bold text-amber-700 dark:text-amber-400">
+                    מועד הקציבה השבועי חלף ({cutoffStatus.formattedTarget})
+                  </h4>
+                  <p className="text-[13px] font-medium text-[var(--muted)] mt-0.5">
+                    {isAdmin || isLogistics
+                      ? `הרשימה מוקפאת להזנות (${currentActiveItems.length} מוצרים).`
+                      : `הרשימה הוקפאה להזנות לקראת ביצוע רכש.`}
+                    {cutoffStatus.deliveryDayFormatted && ` משלוח: ${cutoffStatus.deliveryDayFormatted}.`}
+                  </p>
                 </div>
-              ) : (
-                <div className="px-3 py-1.5 rounded-xl bg-[var(--accent-soft)] border border-[var(--accent-line)] flex items-center justify-between text-xs font-bold text-[var(--accent-text)] gap-2" dir="rtl">
-                  <div className="flex items-center gap-2 min-w-0 truncate">
-                    <Clock className="w-3.5 h-3.5 text-[var(--accent-text)] shrink-0" />
-                    <span className="truncate">סגירת הזנות: <strong>{cutoffStatus.formattedTarget}</strong></span>
-                    {cutoffStatus.deliveryDayFormatted && (
-                      <span className="hidden sm:inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-bold shrink-0">
-                        <Truck className="w-3.5 h-3.5" />
-                        <span>משלוח: <strong>{cutoffStatus.deliveryDayFormatted}</strong></span>
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    <span className="font-bold bg-indigo-500/20 px-2 py-0.5 rounded-full text-xs">
-                      {cutoffStatus.timeLeftFormatted}
-                    </span>
-                    <button
-                      onClick={() => setShowCutoffBanner(false)}
-                      className="p-1 rounded-lg hover:bg-[var(--accent-soft-hover)] text-[var(--accent-text)] transition-colors border-none cursor-pointer bg-transparent"
-                      aria-label="סגור הודעה"
-                      title="סגור הודעה"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
+              </div>
+              {(isAdmin || isLogistics) && (
+                <button
+                  onClick={() => setShowCycleClosureModal(true)}
+                  className="h-10 px-4 rounded-xl bg-amber-500 hover:bg-amber-600 !text-white text-sm font-bold transition-all flex items-center gap-2 cursor-pointer active:scale-95 border-none shrink-0"
+                >
+                  <Package className="w-4 h-4 text-white" />
+                  <span>הפקת רשימה</span>
+                </button>
               )}
-            </motion.div>
-          )}
-        </AnimatePresence>
+            </div>
+          </div>
+        )}
 
         {/* Main Content Body */}
         <main className="flex-1 overflow-hidden flex flex-col relative bg-[var(--background)]">
@@ -290,9 +240,34 @@ export default function ShoppingPage() {
               </div>
             )}
             <div className="max-w-[700px] mx-auto pb-24">
+              {/* Large title — scrolls away with the content, like iOS. Carries the cutoff countdown
+                  that used to live in an auto-dismissing banner. */}
+              <div className="px-2.5 sm:px-4 pt-5 pb-1">
+                <h1 className="text-[28px] leading-tight font-extrabold text-[var(--foreground)]">
+                  {listType === "large" ? "ציוד ורכש" : "רשימת קניות"}
+                </h1>
+                {cutoffStatus.isEnabled && !isListFrozen && (
+                  <p className="mt-1.5 text-sm font-medium text-[var(--muted)] flex flex-wrap items-center gap-x-4 gap-y-1">
+                    <span className="inline-flex items-center gap-1.5">
+                      <Clock className="w-4 h-4 shrink-0" />
+                      <span>
+                        סגירת הזנות {cutoffStatus.formattedTarget} ·{" "}
+                        <strong className="font-bold text-[var(--foreground)]">{cutoffStatus.timeLeftFormatted}</strong>
+                      </span>
+                    </span>
+                    {cutoffStatus.deliveryDayFormatted && (
+                      <span className="inline-flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
+                        <Truck className="w-4 h-4 shrink-0" />
+                        <span>משלוח {cutoffStatus.deliveryDayFormatted}</span>
+                      </span>
+                    )}
+                  </p>
+                )}
+              </div>
+
               {/* Pending Store Authorization Requests */}
               {canPurchase && pendingStoreAuthCount > 0 && (
-                <div className="my-3 mx-2 md:mx-0 p-3.5 rounded-2xl bg-[var(--accent)] text-white shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                <div className="my-3 mx-2.5 sm:mx-4 p-3.5 rounded-2xl bg-[var(--accent)] text-white shadow-[var(--shadow-card)] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                   <div className="flex items-center gap-3">
                     <div className="p-2.5 bg-white/15 rounded-xl shrink-0">
                       <ShoppingBag className="w-5 h-5 text-white" />
@@ -315,8 +290,23 @@ export default function ShoppingPage() {
               )}
 
               {loading ? (
-                <div className="flex flex-col items-center justify-center py-32 gap-4">
-                  <Loader2 className="w-8 h-8 text-[var(--accent-text)] animate-spin" />
+                <div className="px-2.5 sm:px-4 pt-4 space-y-4 animate-pulse" aria-busy="true" aria-label="טוען את הרשימה">
+                  <div className="flex gap-2">
+                    {[64, 80, 96, 72].map((w) => (
+                      <div key={w} className="h-9 rounded-full bg-[var(--foreground)]/[0.07]" style={{ width: w }} />
+                    ))}
+                  </div>
+                  {[4, 3].map((rows) => (
+                    <div key={rows} className="rounded-2xl bg-[var(--surface)] border border-[var(--border)] overflow-hidden">
+                      <div className="h-11 border-b border-[var(--border)]" />
+                      {Array.from({ length: rows }).map((_, i) => (
+                        <div key={i} className="h-16 flex items-center gap-3 px-3 border-b border-[var(--border)] last:border-b-0">
+                          <div className="w-7 h-7 rounded-full bg-[var(--foreground)]/[0.07] mx-2" />
+                          <div className="h-4 rounded bg-[var(--foreground)]/[0.07] flex-1 max-w-[55%]" />
+                        </div>
+                      ))}
+                    </div>
+                  ))}
                 </div>
               ) : (
                 <ShoppingListView
@@ -338,6 +328,7 @@ export default function ShoppingPage() {
                   onMoveToSupermarket={moveToSupermarket}
                   onExportOngoingList={exportOngoingList}
                   onExportProcurementList={exportProcurementList}
+                  onAddClick={() => setOverlayOpen(true)}
                 />
               )}
             </div>
@@ -348,17 +339,16 @@ export default function ShoppingPage() {
              already cover favorites vs. search, so a menu in front of it was one extra
              decision with no payoff. ── */}
         <motion.button
-          whileHover={{ scale: 1.08 }}
-          whileTap={{ scale: 0.92 }}
+          whileTap={{ scale: 0.95 }}
           onClick={() => {
             setOverlayInitialMode("favorites");
             setOverlayOpen(true);
           }}
-          className="fixed bottom-24 md:bottom-8 left-6 z-[55] w-14 h-14 rounded-full bg-gradient-to-tr from-indigo-600 to-indigo-500 text-white shadow-xl shadow-indigo-600/30 flex items-center justify-center cursor-pointer border-none transition-all active:scale-95"
+          className="fixed bottom-24 md:bottom-8 left-4 sm:left-6 z-[55] h-14 pr-4 pl-5 rounded-full bg-[var(--accent)] !text-white shadow-[var(--shadow-pop)] flex items-center gap-2 cursor-pointer border-none hover:brightness-110 transition-[filter]"
           aria-label="הוסף מוצר לרשימה"
-          title="הוסף מוצר לרשימה"
         >
-          <Plus className="w-7 h-7 stroke-[2.5]" />
+          <Plus className="w-6 h-6 stroke-[2.5]" />
+          <span className="text-[15px] font-bold">הוסף מוצר</span>
         </motion.button>
 
         {/* Add Product Overlay */}
@@ -498,13 +488,13 @@ export default function ShoppingPage() {
               exit={{ opacity: 0, y: -20, scale: 0.9 }}
               role="status"
               aria-live={toast.type === "warning" ? "assertive" : "polite"}
-              className={`fixed top-16 md:top-24 left-1/2 -translate-x-1/2 z-[150] px-6 py-3.5 rounded-2xl shadow-xl flex items-center gap-3 max-w-md w-[90%] border backdrop-blur-md ${
+              className={`fixed top-16 md:top-24 left-1/2 -translate-x-1/2 z-[150] px-5 py-3 rounded-2xl shadow-[var(--shadow-pop)] flex items-center gap-3 max-w-md w-[90%] border backdrop-blur-md ${
                 toast.type === "success"
                   ? "bg-emerald-50/95 dark:bg-emerald-950/90 border-emerald-300 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200"
                   : "bg-amber-50/95 dark:bg-amber-950/90 border-amber-300 dark:border-amber-800 text-amber-800 dark:text-amber-200"
               }`}
             >
-              <span className="text-xs font-bold leading-relaxed">{toast.message}</span>
+              <span className="text-sm font-semibold leading-relaxed">{toast.message}</span>
             </motion.div>
           )}
         </AnimatePresence>
