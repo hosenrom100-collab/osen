@@ -5,7 +5,7 @@ import { RoleGuard } from "@/components/auth/RoleGuard";
 import { ConnectionStatusBanner } from "@/components/ui/ConnectionStatusBanner";
 import { db } from "@/lib/firebase/config";
 import {
-  doc, updateDoc, deleteDoc, setDoc, collection, query, where, onSnapshot, writeBatch, getDocs, getDoc
+  doc, updateDoc, deleteDoc, setDoc, collection, query, where, onSnapshot, getDoc
 } from "firebase/firestore";
 import {
   Loader2, ShoppingBag, Clock, Package, Plus, X, Truck
@@ -26,6 +26,7 @@ import { AdminProductRequestsModal } from "./components/AdminProductRequestsModa
 import { closeCycle } from "./lib/closeCycle";
 import { CycleHistorySheet } from "./components/CycleHistorySheet";
 import { useShoppingData } from "./hooks/useShoppingData";
+import { useLastCycleItems } from "./hooks/useLastCycle";
 import { useExport } from "./hooks/useExport";
 import { useShoppingActions } from "./hooks/useShoppingActions";
 import { usePullToRefresh } from "./hooks/usePullToRefresh";
@@ -109,6 +110,8 @@ export default function ShoppingPage() {
     activeRequests, sessionPurchased, currentActiveItems, cutoffStatus, isListFrozen,
     refetchSettings,
   } = useShoppingData(user, isAdmin, listType);
+
+  const lastCycleItems = useLastCycleItems(listType, overlayOpen);
 
   const { pullDistance, isRefreshing, handlers: pullToRefreshHandlers } = usePullToRefresh(refetchSettings);
 
@@ -370,6 +373,7 @@ export default function ShoppingPage() {
           pool={pool}
           categories={categories}
           requests={requests}
+          lastCycleItems={lastCycleItems}
           targetFramework={orderingFramework}
           onTargetFrameworkChange={handleOrderingFrameworkChange}
           onAddProduct={addProduct}

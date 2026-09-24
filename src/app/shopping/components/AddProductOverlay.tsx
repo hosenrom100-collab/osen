@@ -1,13 +1,13 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Product, ShoppingRequest, TargetFramework } from "../types";
-import { Plus, Search, Star, X, Flame, CheckCircle2, AlertTriangle, Minus, ArrowRight, Sparkles, MapPin } from "lucide-react";
+import { CycleItemSnapshot, Product, ShoppingRequest, TargetFramework } from "../types";
+import { Plus, Search, Star, X, Flame, CheckCircle2, AlertTriangle, Minus, ArrowRight, Sparkles, MapPin, History } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { rankSimilarProducts, findSimilarProduct } from "../lib/stringUtils";
 import { MEASUREMENT_UNITS, CAT_COLOR, CAT_SOLID, TARGET_FRAMEWORKS } from "../lib/constants";
 import { DEFAULT_CATEGORIES } from "../lib/constants";
-import { getQuantityStep, getMinQuantity, steppedQuantity, parseQuantity, getQuickQtyChips } from "../lib/quantityUtils";
+import { getQuantityStep, getMinQuantity, steppedQuantity, parseQuantity, getQuickQtyChips, formatUnitShort } from "../lib/quantityUtils";
 
 interface AddProductOverlayProps {
   isOpen: boolean;
@@ -28,6 +28,8 @@ interface AddProductOverlayProps {
   /** Called when the stepper is decremented down to zero — removes the item from the list. */
   onRemoveItem: (id: string) => void;
   requests: ShoppingRequest[];
+  /** Items of the last closed cycle — offered as one-tap re-orders for what isn't on the list yet. */
+  lastCycleItems?: CycleItemSnapshot[];
 }
 
 interface PendingAdd {
@@ -51,6 +53,7 @@ export function AddProductOverlay({
   isLogistics,
   isFrozen,
   categories = [],
+  lastCycleItems = [],
   initialMode = "favorites",
   targetFramework = "main",
   onTargetFrameworkChange,
@@ -116,6 +119,47 @@ export function AddProductOverlay({
     if (!success) return;
     setAddedCount((c) => c + 1);
     setFeedback(`✓ "${product.name}" נוסף`);
+  };
+
+  // "Ordered last cycle" suggestions: only what this framework ordered last time and that
+  // isn't on its list now (any status but deleted, matching alreadyInList's notion of "in").
+  const normName = (s: string) => s.trim().toLowerCase();
+  const namesInList = new Set(
+    requests
+      .filter((r) => r.status !== "deleted" && (r.targetFramework || "main") === selectedFramework)
+      .map((r) => normName(r.name))
+  );
+  const lastOrdered = lastCycleItems.filter((item, idx, all) => {
+    const key = normName(item.name);
+    return (
+      item.targetFramework === selectedFramework &&
+      !namesInList.has(key) &&
+      all.findIndex((o) => o.targetFramework === selectedFramework && normName(o.name) === key) === idx
+    );
+  });
+
+  const addFromLast = async (item: CycleItemSnapshot) => {
+    if (isUserBlockedByFreeze || favBusy) return;
+    setFavBusy(true);
+    const success = await onAddProduct(item.name, item.category, "normal", item.quantity, item.notes || undefined, undefined, selectedFramework);
+    setFavBusy(false);
+    if (!success) return;
+    setAddedCount((c) => c + 1);
+    setFeedback(`✓ "${item.name}" נוסף (${item.quantity})`);
+  };
+
+  const addAllFromLast = async () => {
+    if (isUserBlockedByFreeze || favBusy) return;
+    setFavBusy(true);
+    let added = 0;
+    for (const item of lastOrdered) {
+      const success = await onAddProduct(item.name, item.category, "normal", item.quantity, item.notes || undefined, undefined, selectedFramework);
+      if (success) added++;
+    }
+    setFavBusy(false);
+    if (added === 0) return;
+    setAddedCount((c) => c + added);
+    setFeedback(`✓ נוספו ${added} מוצרים מהסבב הקודם`);
   };
 
   const quickInc = (request: ShoppingRequest) => onUpdateQuantity(request.id, request.quantity, 1);
@@ -572,6 +616,42 @@ export function AddProductOverlay({
                      list turns green and grows a +/− stepper right there, so adjusting a
                      quantity never needs a separate screen. */
                   <div className={`flex-1 overflow-y-auto min-h-0 space-y-3 pr-1 no-scrollbar ${showQuickBar ? "pb-56" : "pb-4"}`}>
+                    {lastOrdered.length > 0 && (
+                      <div className="rounded-2xl border border-indigo-500/20 bg-indigo-500/[0.05] p-3">
+                        <div className="flex items-center justify-between gap-2 mb-2">
+                          <span className="text-[11px] font-black text-indigo-700 dark:text-indigo-300 flex items-center gap-1.5">
+                            <History className="w-3.5 h-3.5" />
+                            הוזמנו בסבב הקודם ({lastOrdered.length})
+                          </span>
+                          <button
+                            type="button"
+                            onClick={addAllFromLast}
+                            disabled={isUserBlockedByFreeze || favBusy}
+                            className="px-2.5 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-500 !text-white text-[11px] font-black border-none cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                          >
+                            הוסף הכל
+                          </button>
+                        </div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {lastOrdered.map((item) => {
+                            const { value, unit } = parseQuantity(item.quantity);
+                            return (
+                              <button
+                                key={item.name}
+                                type="button"
+                                onClick={() => addFromLast(item)}
+                                disabled={isUserBlockedByFreeze || favBusy}
+                                className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl border border-indigo-500/25 bg-[var(--surface)] text-xs font-bold text-[var(--foreground)] cursor-pointer hover:bg-indigo-500/10 disabled:opacity-40 disabled:cursor-not-allowed"
+                              >
+                                <Plus className="w-3 h-3 text-indigo-500 stroke-[3]" />
+                                <span>{item.name}</span>
+                                <span className="text-[10px] text-[var(--muted)]">{value} {formatUnitShort(unit)}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
                     {starProducts.length === 0 ? (
                       <div className="py-12 text-center bg-[var(--foreground)]/[0.02] border border-dashed border-[var(--border)] rounded-2xl p-6">
                         <Sparkles className="w-8 h-8 text-amber-500 mx-auto mb-2 opacity-60" />
