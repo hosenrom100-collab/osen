@@ -8,7 +8,7 @@ import {
   doc, updateDoc, deleteDoc, setDoc, collection, query, where, onSnapshot, writeBatch, getDocs, getDoc
 } from "firebase/firestore";
 import {
-  Loader2, ShoppingBag, Clock, Package, Plus, Star, Search, X
+  Loader2, ShoppingBag, Clock, Package, Plus, X
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { motion, AnimatePresence } from "framer-motion";
@@ -40,7 +40,6 @@ export default function ShoppingPage() {
   // Overlay state
   const [overlayOpen, setOverlayOpen] = useState(false);
   const [overlayInitialMode, setOverlayInitialMode] = useState<"favorites" | "search">("favorites");
-  const [fabOpen, setFabOpen] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: "success" | "warning" } | null>(null);
 
   // Category State
@@ -256,78 +255,22 @@ export default function ShoppingPage() {
           </div>
         </main>
 
-        {/* ── Floating Action Button (FAB) Speed Dial - Listonic style ── */}
-        <div className="fixed bottom-24 md:bottom-8 left-6 z-[55] flex flex-col items-start gap-2.5">
-          <AnimatePresence>
-            {fabOpen && (
-              <>
-                {/* Backdrop to dismiss speed dial on click outside */}
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  onClick={() => setFabOpen(false)}
-                  className="fixed inset-0 z-[-1] bg-slate-950/20 backdrop-blur-[2px]"
-                />
-
-                {/* Search option button */}
-                <motion.button
-                  initial={{ opacity: 0, y: 15, scale: 0.8 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: 15, scale: 0.8 }}
-                  transition={{ duration: 0.15 }}
-                  onClick={() => {
-                    setFabOpen(false);
-                    setOverlayInitialMode("search");
-                    setOverlayOpen(true);
-                  }}
-                  className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-[var(--surface)] text-[var(--foreground)] border border-[var(--border)] shadow-xl hover:bg-indigo-50 dark:hover:bg-indigo-950/50 transition-all cursor-pointer font-black text-xs group"
-                >
-                  <span className="w-8 h-8 rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center group-hover:scale-110 transition-transform">
-                    <Search className="w-4 h-4" />
-                  </span>
-                  <span>חיפוש בהקלדה</span>
-                </motion.button>
-
-                {/* Favorites option button */}
-                <motion.button
-                  initial={{ opacity: 0, y: 15, scale: 0.8 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: 15, scale: 0.8 }}
-                  transition={{ duration: 0.15, delay: 0.05 }}
-                  onClick={() => {
-                    setFabOpen(false);
-                    setOverlayInitialMode("favorites");
-                    setOverlayOpen(true);
-                  }}
-                  className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-[var(--surface)] text-[var(--foreground)] border border-[var(--border)] shadow-xl hover:bg-amber-50 dark:hover:bg-amber-950/50 transition-all cursor-pointer font-black text-xs group"
-                >
-                  <span className="w-8 h-8 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center group-hover:scale-110 transition-transform">
-                    <Star className="w-4 h-4 fill-amber-500" />
-                  </span>
-                  <span>מוצרים נפוצים</span>
-                </motion.button>
-              </>
-            )}
-          </AnimatePresence>
-
-          {/* Main FAB Toggle */}
-          <motion.button
-            whileHover={{ scale: 1.08 }}
-            whileTap={{ scale: 0.92 }}
-            onClick={() => setFabOpen((prev) => !prev)}
-            className="w-14 h-14 rounded-full bg-gradient-to-tr from-indigo-600 to-indigo-500 text-white shadow-xl shadow-indigo-600/30 flex items-center justify-center cursor-pointer border-none transition-all active:scale-95"
-            aria-label="הוסף מוצר לרשימה"
-            title="הוסף מוצר לרשימה"
-          >
-            <motion.div
-              animate={{ rotate: fabOpen ? 45 : 0 }}
-              transition={{ duration: 0.2 }}
-            >
-              <Plus className="w-7 h-7 stroke-[2.5]" />
-            </motion.div>
-          </motion.button>
-        </div>
+        {/* ── Floating Action Button: opens the add sheet directly — the tabs inside it
+             already cover favorites vs. search, so a menu in front of it was one extra
+             decision with no payoff. ── */}
+        <motion.button
+          whileHover={{ scale: 1.08 }}
+          whileTap={{ scale: 0.92 }}
+          onClick={() => {
+            setOverlayInitialMode("favorites");
+            setOverlayOpen(true);
+          }}
+          className="fixed bottom-24 md:bottom-8 left-6 z-[55] w-14 h-14 rounded-full bg-gradient-to-tr from-indigo-600 to-indigo-500 text-white shadow-xl shadow-indigo-600/30 flex items-center justify-center cursor-pointer border-none transition-all active:scale-95"
+          aria-label="הוסף מוצר לרשימה"
+          title="הוסף מוצר לרשימה"
+        >
+          <Plus className="w-7 h-7 stroke-[2.5]" />
+        </motion.button>
 
         {/* Add Product Overlay */}
         <AddProductOverlay
@@ -341,6 +284,8 @@ export default function ShoppingPage() {
           onTargetFrameworkChange={setOrderingFramework}
           onAddProduct={addProduct}
           onRequestNewProduct={requestNewProduct}
+          onUpdateQuantity={updateQuantity}
+          onRemoveItem={(id) => changeStatus(id, "deleted")}
           isAdmin={isAdmin}
           isManager={isManager}
           isLogistics={isLogistics}

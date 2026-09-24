@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { User } from "firebase/auth";
 import { ShoppingRequest, Product, TargetFramework } from "../types";
 import {
-  Flame, ShoppingBag, ChevronDown, Check, RotateCcw, Undo2, Trash2, MapPin, AlertTriangle,
+  Flame, ShoppingBag, ChevronDown, Check, RotateCcw, Undo2, Trash2,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { CAT_SOLID, TARGET_FRAMEWORKS } from "../lib/constants";
@@ -71,26 +71,6 @@ export function ShoppingListView({
     undoTimerRef.current = setTimeout(() => setUndo(null), UNDO_TIMEOUT_MS);
   };
 
-  const [showReminder, setShowReminder] = useState(false);
-
-  useEffect(() => {
-    const isDismissed = typeof window !== "undefined" && localStorage.getItem("hosen_dismiss_shopping_framework_reminder") === "true";
-    if (!isDismissed) {
-      setShowReminder(true);
-      const timer = setTimeout(() => {
-        setShowReminder(false);
-      }, 7000);
-      return () => clearTimeout(timer);
-    }
-  }, []);
-
-  const handleDismissReminder = (dontShowAgain: boolean) => {
-    setShowReminder(false);
-    if (dontShowAgain && typeof window !== "undefined") {
-      localStorage.setItem("hosen_dismiss_shopping_framework_reminder", "true");
-    }
-  };
-
   const totalCategoryRequests = requests.filter(
     (r) =>
       (r.status === "approved" || r.status === "pending") &&
@@ -136,52 +116,20 @@ export function ShoppingListView({
     showUndo(`נמחק: ${item?.name ?? ""}`, () => onChangeStatus(id, "approved"));
   };
 
+  // Framework tag on each row only earns its keep when the list mixes frameworks —
+  // filtered to one, the header already said which, so repeating it per row is noise.
+  const showFrameworkTag = selectedFramework === "all";
+
   return (
     <div dir="rtl" className="w-full max-w-2xl mx-auto pb-24 px-3 sm:px-4">
-      {/* ── Dissolve Reminder Banner ── */}
-      <AnimatePresence>
-        {showReminder && (
-          <motion.div
-            initial={{ opacity: 0, height: 0, marginBottom: 0 }}
-            animate={{ opacity: 1, height: "auto", marginBottom: 10 }}
-            exit={{ opacity: 0, height: 0, marginBottom: 0 }}
-            transition={{ duration: 0.35, ease: "easeInOut" }}
-            className="overflow-hidden mt-2"
-          >
-            <div className="p-3 bg-gradient-to-r from-amber-500/15 via-orange-500/10 to-amber-500/15 border border-amber-500/30 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 shadow-sm text-right">
-              <div className="flex items-center gap-2 text-xs font-bold text-amber-800 dark:text-amber-200">
-                <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
-                <span>שים לב שאתה מזין וצופה ברשימה / המסגרת הנכונה!</span>
-              </div>
-              <div className="flex items-center gap-1.5 mr-auto sm:mr-0 shrink-0">
-                <button
-                  type="button"
-                  onClick={() => handleDismissReminder(false)}
-                  className="px-2.5 py-1 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 text-amber-800 dark:text-amber-200 text-[11px] font-bold transition-all cursor-pointer border-none"
-                >
-                  הבנתי
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleDismissReminder(true)}
-                  className="px-2.5 py-1 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-[11px] font-black transition-all cursor-pointer border-none shadow-xs"
-                >
-                  אל תציג שוב
-                </button>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* ── Framework Filter Control ── */}
-      <div className="flex items-center gap-1.5 sm:gap-2 p-2 bg-[var(--foreground)]/[0.03] rounded-2xl border border-[var(--border)] mt-2 mb-2.5 overflow-x-auto no-scrollbar">
+      {/* ── Framework filter: one scrollable row, grey — only the active pick gets color ── */}
+      <div className="flex items-center gap-1.5 pt-2.5 pb-2 overflow-x-auto no-scrollbar">
         <button
           onClick={() => setSelectedFramework?.("all")}
           className={`py-1.5 px-3 rounded-xl text-xs font-black transition-all cursor-pointer border flex items-center justify-center gap-1.5 whitespace-nowrap shrink-0 ${
             selectedFramework === "all"
               ? "bg-zinc-800 dark:bg-zinc-200 !text-white dark:!text-zinc-900 border-transparent shadow-xs"
-              : "text-[var(--muted)] hover:text-[var(--foreground)] bg-[var(--background)] border-[var(--border)]"
+              : "text-[var(--muted)] hover:text-[var(--foreground)] bg-[var(--surface)] border-[var(--border)]"
           }`}
         >
           <span>כל המסגרות</span>
@@ -200,11 +148,11 @@ export function ShoppingListView({
               className={`py-1.5 px-3 rounded-xl text-xs font-black transition-all cursor-pointer border flex items-center justify-center gap-1.5 whitespace-nowrap shrink-0 ${
                 active
                   ? `${fw.activeBg} border-transparent !text-white shadow-xs`
-                  : `${fw.pillInactive} border`
+                  : "text-[var(--muted)] hover:text-[var(--foreground)] bg-[var(--surface)] border-[var(--border)]"
               }`}
             >
               <span>{fw.name}</span>
-              <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${active ? fw.badgeActive : fw.badgeInactive}`}>
+              <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${active ? fw.badgeActive : "bg-[var(--foreground)]/10 text-[var(--muted)]"}`}>
                 {count}
               </span>
             </button>
@@ -213,7 +161,7 @@ export function ShoppingListView({
       </div>
 
       {/* ── Slim status line ── */}
-      <div className="flex items-center gap-2 pb-3">
+      <div className="flex items-center gap-2 pb-2.5">
         <button
           onClick={() => {
             setActiveCategory(null);
@@ -274,7 +222,7 @@ export function ShoppingListView({
               <AnimatePresence initial={false}>
                 <div className="space-y-0.5">
                   {catItems.map((item) => (
-                    <ItemRow key={item.id} item={item} onCheck={handleCheck} onOpenDetail={setDetailItem} />
+                    <ItemRow key={item.id} item={item} onCheck={handleCheck} onOpenDetail={setDetailItem} showFrameworkTag={showFrameworkTag} />
                   ))}
                 </div>
               </AnimatePresence>

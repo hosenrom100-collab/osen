@@ -89,7 +89,14 @@ export function useShoppingActions(
       return false;
     }
 
-    const activeRequestsList = requests;
+    // Scoped to this framework and list type — the same product may legitimately
+    // be requested once per framework (e.g. once for "main" and once for "lower").
+    const activeRequestsList = requests.filter(
+      (r) =>
+        r.status !== "deleted" &&
+        (listType === "large" ? r.listType === "large" : r.listType !== "large") &&
+        (r.targetFramework || "main") === targetFramework
+    );
     const similarName = findSimilarRequestStrict(cleanName, activeRequestsList);
     if (similarName) {
       showToast(`המוצר כבר הוזמן לרשימה בשם דומה: "${similarName}"!`, "warning");

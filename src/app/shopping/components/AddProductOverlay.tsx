@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { rankSimilarProducts, findSimilarProduct } from "../lib/stringUtils";
 import { MEASUREMENT_UNITS, CAT_COLOR, CAT_SOLID, TARGET_FRAMEWORKS } from "../lib/constants";
 import { DEFAULT_CATEGORIES } from "../lib/constants";
-import { getQuantityStep, getMinQuantity, steppedQuantity } from "../lib/quantityUtils";
+import { getQuantityStep, getMinQuantity, steppedQuantity, parseQuantity } from "../lib/quantityUtils";
 
 interface AddProductOverlayProps {
   isOpen: boolean;
@@ -23,6 +23,10 @@ interface AddProductOverlayProps {
   onTargetFrameworkChange?: (fw: TargetFramework) => void;
   onAddProduct: (name: string, category?: string, priority?: "normal" | "urgent", quantity?: string, notes?: string, requestedByOverride?: { uid: string; name: string }, targetFramework?: TargetFramework) => Promise<boolean>;
   onRequestNewProduct: (name: string, category?: string, priority?: "normal" | "urgent", quantity?: string, targetFramework?: TargetFramework) => Promise<boolean>;
+  /** Powers the inline +/− stepper on the favorites list — adjusts an already-requested item's quantity in place. */
+  onUpdateQuantity: (id: string, currentQtyStr: string, increment: number) => void;
+  /** Called when the stepper is decremented down to zero — removes the item from the list. */
+  onRemoveItem: (id: string) => void;
   requests: ShoppingRequest[];
 }
 
@@ -42,6 +46,8 @@ export function AddProductOverlay({
   requests,
   onAddProduct,
   onRequestNewProduct,
+  onUpdateQuantity,
+  onRemoveItem,
   isAdmin,
   isManager,
   isLogistics,
@@ -58,7 +64,6 @@ export function AddProductOverlay({
   const [qtyUnit, setQtyUnit] = useState("יחידות");
   const [urgent, setUrgent] = useState(false);
   const [selectedFramework, setSelectedFramework] = useState<TargetFramework>(targetFramework);
-  const [showReminder, setShowReminder] = useState(false);
   const [addedCount, setAddedCount] = useState(0);
   const [feedback, setFeedback] = useState<string | null>(null);
   const submittingRef = useRef(false);
@@ -67,31 +72,19 @@ export function AddProductOverlay({
   const canAddDirectly = isAdmin || isManager || isLogistics;
   const isUserBlockedByFreeze = isFrozen && !canAddDirectly;
 
-  // Reset state on open + check reminder preferences
+  // Reset state on open
   useEffect(() => {
-    if (isOpen) {
-      submittingRef.current = false;
-      setActiveMode(initialMode);
-      setInputVal("");
-      setPending(null);
-      setQtyValue(1);
-      setQtyUnit("יחידות");
-      setUrgent(false);
-      setSelectedFramework(targetFramework);
-      setAddedCount(0);
-      setFeedback(null);
-
-      const isDismissed = typeof window !== "undefined" && localStorage.getItem("hosen_dismiss_shopping_framework_reminder") === "true";
-      if (!isDismissed) {
-        setShowReminder(true);
-        const timer = setTimeout(() => {
-          setShowReminder(false);
-        }, 7000);
-        return () => clearTimeout(timer);
-      }
-    } else {
-      setShowReminder(false);
-    }
+    if (!isOpen) return;
+    submittingRef.current = false;
+    setActiveMode(initialMode);
+    setInputVal("");
+    setPending(null);
+    setQtyValue(1);
+    setQtyUnit("יחידות");
+    setUrgent(false);
+    setSelectedFramework(targetFramework);
+    setAddedCount(0);
+    setFeedback(null);
   }, [isOpen, initialMode, targetFramework]);
 
   // Ephemeral confirmation toast — fades on its own, never blocks the next pick
@@ -101,19 +94,39 @@ export function AddProductOverlay({
     return () => clearTimeout(t);
   }, [feedback]);
 
-  const handleDismissReminder = (dontShowAgain: boolean) => {
-    setShowReminder(false);
-    if (dontShowAgain && typeof window !== "undefined") {
-      localStorage.setItem("hosen_dismiss_shopping_framework_reminder", "true");
-    }
-  };
-
   // Scoped to the currently selected framework — the same product can be requested
   // separately for each framework, so a "lower" request must not block "main", etc.
   const alreadyInList = (name: string) =>
     requests.some(
       (r) => r.name === name && r.status !== "deleted" && (r.targetFramework || "main") === selectedFramework
     );
+
+  const getActiveRequest = (name: string) =>
+    requests.find(
+      (r) => r.name === name && r.status !== "deleted" && (r.targetFramework || "main") === selectedFramework
+    );
+
+  // Favorites tap-to-add: one tap adds qty 1 directly, no quantity screen in between.
+  // Further taps become +/− on the same row once it's in the list. Uses its own busy
+  // flag (state, not a ref) so the guard never runs into "ref read during render" lint.
+  const [favBusy, setFavBusy] = useState(false);
+  const quickAdd = async (product: Pick<Product, "name" | "category" | "defaultUnit" | "defaultNotes">) => {
+    if (isUserBlockedByFreeze || favBusy) return;
+    setFavBusy(true);
+    const success = await onAddProduct(product.name, product.category, "normal", "1", product.defaultNotes, undefined, selectedFramework);
+    setFavBusy(false);
+    if (!success) return;
+    setAddedCount((c) => c + 1);
+    setFeedback(`✓ "${product.name}" נוסף`);
+  };
+
+  const quickInc = (request: ShoppingRequest) => onUpdateQuantity(request.id, request.quantity, 1);
+
+  const quickDec = (request: ShoppingRequest) => {
+    const { value } = parseQuantity(request.quantity);
+    if (value <= 1) onRemoveItem(request.id);
+    else onUpdateQuantity(request.id, request.quantity, -1);
+  };
 
   const selectProduct = (product: Pick<Product, "name" | "category" | "defaultUnit" | "defaultNotes">) => {
     if (isUserBlockedByFreeze || alreadyInList(product.name)) return;
@@ -209,58 +222,66 @@ export function AddProductOverlay({
           >
             <div className="w-12 h-1 bg-[var(--border)] rounded-full mx-auto mb-2.5 md:hidden shrink-0" />
 
-            {/* Framework context bar — single scrollable row to save vertical space */}
-            <div className="flex items-center gap-1.5 mb-2.5 shrink-0">
-              <MapPin className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
-              <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
-                {TARGET_FRAMEWORKS.map((fw) => {
-                  const active = selectedFramework === fw.id;
-                  return (
+            {/* Framework context bar — the color IS the "are you sure this is the right list?"
+                cue, replacing a text banner. It also holds the switcher, so this is the
+                only place framework color appears at all. */}
+            {(() => {
+              const fw = TARGET_FRAMEWORKS.find((f) => f.id === selectedFramework) || TARGET_FRAMEWORKS[0];
+              return (
+                <div className={`${fw.activeBg} rounded-2xl p-2.5 mb-2.5 shrink-0`}>
+                  <div className="flex items-center justify-between gap-2 mb-2 px-0.5">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <MapPin className="w-3.5 h-3.5 text-white shrink-0" />
+                      <span className="text-xs font-black text-white truncate">מזמין עבור: {fw.name}</span>
+                    </div>
+                    {!showStep2 && addedCount > 0 && (
+                      <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-white/20 text-white shrink-0">
+                        נוספו {addedCount}
+                      </span>
+                    )}
                     <button
-                      key={fw.id}
-                      type="button"
-                      onClick={() => {
-                        setSelectedFramework(fw.id);
-                        if (onTargetFrameworkChange) onTargetFrameworkChange(fw.id);
-                      }}
-                      className={`px-2.5 py-1.5 rounded-lg text-[11px] font-black transition-all cursor-pointer border whitespace-nowrap shrink-0 ${
-                        active
-                          ? `${fw.activeBg} border-transparent !text-white shadow-xs`
-                          : `${fw.pillInactive} border`
-                      }`}
+                      onClick={onClose}
+                      className="p-1 -ml-1 rounded-full hover:bg-white/15 text-white cursor-pointer border-none bg-transparent shrink-0"
                     >
-                      {fw.shortName}
+                      <X className="w-4 h-4" />
                     </button>
-                  );
-                })}
-              </div>
-            </div>
+                  </div>
+                  <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+                    {TARGET_FRAMEWORKS.map((f) => {
+                      const active = selectedFramework === f.id;
+                      return (
+                        <button
+                          key={f.id}
+                          type="button"
+                          onClick={() => {
+                            setSelectedFramework(f.id);
+                            if (onTargetFrameworkChange) onTargetFrameworkChange(f.id);
+                          }}
+                          className={`px-2.5 py-1.5 rounded-lg text-[11px] font-black transition-all cursor-pointer border-none whitespace-nowrap shrink-0 ${
+                            active ? "bg-white/25 text-white" : "bg-white/10 text-white/70 hover:text-white hover:bg-white/15"
+                          }`}
+                        >
+                          {f.shortName}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })()}
 
-            <div className="flex items-center justify-between mb-3 shrink-0 gap-2">
-              <h2 className="text-base md:text-xl font-black flex items-center gap-2 min-w-0">
-                {showStep2 ? (
-                  <button
-                    onClick={() => setPending(null)}
-                    className="p-1.5 -mr-1.5 rounded-full hover:bg-[var(--foreground)]/5 text-[var(--muted)] cursor-pointer border-none bg-transparent shrink-0"
-                    title="חזרה לבחירת מוצר"
-                  >
-                    <ArrowRight className="w-5 h-5" />
-                  </button>
-                ) : null}
-                <span className="truncate">{showStep2 ? "כמה להוסיף?" : "הוספת מוצר לרשימה"}</span>
-                {!showStep2 && addedCount > 0 && (
-                  <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 shrink-0">
-                    נוספו {addedCount}
-                  </span>
-                )}
-              </h2>
-              <button
-                onClick={onClose}
-                className="p-2 rounded-full hover:bg-[var(--foreground)]/5 text-[var(--muted)] cursor-pointer border-none bg-transparent shrink-0"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+            {showStep2 && (
+              <div className="flex items-center gap-2 mb-3 shrink-0">
+                <button
+                  onClick={() => setPending(null)}
+                  className="p-1.5 -mr-1.5 rounded-full hover:bg-[var(--foreground)]/5 text-[var(--muted)] cursor-pointer border-none bg-transparent shrink-0"
+                  title="חזרה לבחירת מוצר"
+                >
+                  <ArrowRight className="w-5 h-5" />
+                </button>
+                <h2 className="text-base font-black truncate">כמה להוסיף?</h2>
+              </div>
+            )}
 
             {/* Confirmation toast — floats over the content, never shifts layout */}
             <div className="relative shrink-0 h-0">
@@ -280,42 +301,6 @@ export function AddProductOverlay({
                 )}
               </AnimatePresence>
             </div>
-
-            {/* Dissolve Reminder Banner */}
-            <AnimatePresence>
-              {showReminder && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0, marginBottom: 0 }}
-                  animate={{ opacity: 1, height: "auto", marginBottom: 10 }}
-                  exit={{ opacity: 0, height: 0, marginBottom: 0 }}
-                  transition={{ duration: 0.35, ease: "easeInOut" }}
-                  className="overflow-hidden shrink-0"
-                >
-                  <div className="p-2.5 bg-gradient-to-r from-amber-500/15 via-orange-500/10 to-amber-500/15 border border-amber-500/30 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 shadow-sm">
-                    <div className="flex items-center gap-2 text-[11px] font-bold text-amber-800 dark:text-amber-200">
-                      <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
-                      <span>שים לב שאתה מזין את הרשימה הנכונה!</span>
-                    </div>
-                    <div className="flex items-center gap-1.5 mr-auto sm:mr-0 shrink-0">
-                      <button
-                        type="button"
-                        onClick={() => handleDismissReminder(false)}
-                        className="px-2.5 py-1 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 text-amber-800 dark:text-amber-200 text-[11px] font-bold transition-all cursor-pointer border-none"
-                      >
-                        הבנתי
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleDismissReminder(true)}
-                        className="px-2.5 py-1 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-[11px] font-black transition-all cursor-pointer border-none shadow-xs"
-                      >
-                        אל תציג שוב
-                      </button>
-                    </div>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
 
             {showStep2 && pending ? (
               /* ── Step 2: new product needs a category before it can be added ── */
@@ -574,18 +559,10 @@ export function AddProductOverlay({
                     )}
                   </div>
                 ) : (
-                  /* Favorites / Frequent Products View (Listonic Style Cards - No Keyboard) */
-                  <div className={`flex-1 overflow-y-auto min-h-0 space-y-4 pr-1 no-scrollbar ${showQuickBar ? "pb-56" : "pb-4"}`}>
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-black text-[var(--foreground)] flex items-center gap-1.5">
-                        <Star className="w-4 h-4 text-amber-500 fill-amber-500" />
-                        מוצרים נפוצים לבחירה מהירה
-                      </span>
-                      <span className="text-[10px] font-bold text-[var(--muted)]">
-                        נגיעה להוספה
-                      </span>
-                    </div>
-
+                  /* Favorites view — one row per product, tap to add. A row already in the
+                     list turns green and grows a +/− stepper right there, so adjusting a
+                     quantity never needs a separate screen. */
+                  <div className={`flex-1 overflow-y-auto min-h-0 space-y-3 pr-1 no-scrollbar ${showQuickBar ? "pb-56" : "pb-4"}`}>
                     {starProducts.length === 0 ? (
                       <div className="py-12 text-center bg-[var(--foreground)]/[0.02] border border-dashed border-[var(--border)] rounded-2xl p-6">
                         <Sparkles className="w-8 h-8 text-amber-500 mx-auto mb-2 opacity-60" />
@@ -601,43 +578,58 @@ export function AddProductOverlay({
                       </div>
                     ) : (
                       Object.entries(frequentByCategory).map(([catName, items]) => (
-                        <div key={catName} className="space-y-2">
-                          <div className="sticky -top-px z-10 bg-[var(--surface)] flex items-center gap-2 py-1">
-                            <span className={`inline-block text-[10px] font-black px-2.5 py-0.5 rounded-lg ${CAT_COLOR[catName] || CAT_COLOR["כללי"]}`}>
-                              {catName}
-                            </span>
-                            <div className="flex-1 h-[1px] bg-[var(--border)]/60" />
+                        <div key={catName} className="space-y-1.5">
+                          <div className="sticky -top-px z-10 bg-[var(--surface)] py-1.5 text-[11px] font-black text-[var(--muted)]">
+                            {catName}
                           </div>
-                          <div className="grid grid-cols-3 gap-2">
+                          <div className="space-y-1.5">
                             {items.map((p) => {
-                              const inList = alreadyInList(p.name);
-                              const disabled = inList || isUserBlockedByFreeze;
+                              const request = getActiveRequest(p.name);
+                              const inList = !!request;
+                              const qty = request ? parseQuantity(request.quantity).value : 0;
                               return (
-                                <button
+                                <div
                                   key={p.id}
-                                  onClick={() => selectProduct(p)}
-                                  disabled={disabled}
-                                  className={`p-2.5 rounded-2xl border text-right transition-all flex flex-col justify-between gap-1.5 active:scale-95 cursor-pointer min-h-[60px] shadow-xs relative overflow-hidden group ${
-                                    disabled
-                                      ? "bg-[var(--foreground)]/[0.02] border-[var(--border)]/40 opacity-45 cursor-not-allowed"
-                                      : "bg-[var(--surface)] hover:bg-indigo-500/5 border-[var(--border)] hover:border-indigo-500/30"
+                                  className={`flex items-center justify-between gap-3 px-3.5 py-2.5 rounded-2xl border transition-colors ${
+                                    inList
+                                      ? "bg-emerald-500/[0.07] border-emerald-500/25"
+                                      : "bg-[var(--surface)] border-[var(--border)]"
                                   }`}
                                 >
-                                  <div className="flex items-start justify-between gap-1 w-full">
-                                    <span className="text-[11px] font-black text-[var(--foreground)] line-clamp-2 leading-tight">
-                                      {p.name}
-                                    </span>
-                                    {inList ? (
-                                      <span className="p-0.5 rounded-full bg-emerald-500/10 text-emerald-500 shrink-0">
-                                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-                                      </span>
-                                    ) : (
-                                      <span className="p-0.5 rounded-full bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 group-hover:bg-indigo-600 group-hover:text-white transition-colors shrink-0">
-                                        <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
-                                      </span>
-                                    )}
-                                  </div>
-                                </button>
+                                  <span className="text-sm font-bold text-[var(--foreground)] truncate">{p.name}</span>
+
+                                  {inList && request ? (
+                                    <div className="flex items-center gap-2 shrink-0">
+                                      <button
+                                        type="button"
+                                        onClick={() => quickDec(request)}
+                                        disabled={isUserBlockedByFreeze}
+                                        className="w-7 h-7 rounded-lg border border-emerald-500/35 bg-[var(--surface)] text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-black cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                                      >
+                                        <Minus className="w-3.5 h-3.5 stroke-[3]" />
+                                      </button>
+                                      <span className="min-w-[18px] text-center text-sm font-black text-emerald-600 dark:text-emerald-400">{qty}</span>
+                                      <button
+                                        type="button"
+                                        onClick={() => quickInc(request)}
+                                        disabled={isUserBlockedByFreeze}
+                                        className="w-7 h-7 rounded-lg border-none bg-emerald-600 text-white flex items-center justify-center font-black cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                                      >
+                                        <Plus className="w-3.5 h-3.5 stroke-[3]" />
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      aria-label={`הוסף ${p.name}`}
+                                      onClick={() => quickAdd(p)}
+                                      disabled={isUserBlockedByFreeze || favBusy}
+                                      className="w-8 h-8 rounded-xl border-none bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-600 hover:text-white flex items-center justify-center shrink-0 cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                                    >
+                                      <Plus className="w-4 h-4 stroke-[2.5]" />
+                                    </button>
+                                  )}
+                                </div>
                               );
                             })}
                           </div>
