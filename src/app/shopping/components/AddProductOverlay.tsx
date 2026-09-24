@@ -108,8 +108,12 @@ export function AddProductOverlay({
     }
   };
 
+  // Scoped to the currently selected framework — the same product can be requested
+  // separately for each framework, so a "lower" request must not block "main", etc.
   const alreadyInList = (name: string) =>
-    requests.some((r) => r.name === name && r.status !== "deleted");
+    requests.some(
+      (r) => r.name === name && r.status !== "deleted" && (r.targetFramework || "main") === selectedFramework
+    );
 
   const selectProduct = (product: Pick<Product, "name" | "category" | "defaultUnit" | "defaultNotes">) => {
     if (isUserBlockedByFreeze || alreadyInList(product.name)) return;
