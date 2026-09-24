@@ -584,7 +584,7 @@ export function AddProductOverlay({
                                   </span>
                                 </div>
                                 {inList ? (
-                                  <span className="flex items-center gap-1 text-[13px] font-semibold text-emerald-600 dark:text-emerald-400 shrink-0">
+                                  <span className="flex items-center gap-1 text-[13px] font-semibold text-emerald-700 dark:text-emerald-400 shrink-0">
                                     <CheckCircle2 className="w-5 h-5" /> ברשימה
                                   </span>
                                 ) : (
@@ -666,14 +666,14 @@ export function AddProductOverlay({
                                   >
                                     <span className="text-[15px] font-semibold leading-snug line-clamp-2 text-[var(--foreground)]">{p.name}</span>
                                     <div className="flex items-center justify-between">
-                                      <span aria-hidden className="text-emerald-600 dark:text-emerald-400"><CheckCircle2 className="w-5 h-5" /></span>
+                                      <span aria-hidden className="text-emerald-700 dark:text-emerald-400"><CheckCircle2 className="w-5 h-5" /></span>
                                       <div className="flex items-center gap-1.5">
                                         <button
                                           type="button"
                                           aria-label={`הפחת ${p.name}`}
                                           onClick={() => quickDec(request)}
                                           disabled={isUserBlockedByFreeze}
-                                          className="w-9 h-9 rounded-full border border-emerald-500/40 bg-[var(--surface)] text-emerald-600 dark:text-emerald-400 flex items-center justify-center cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                                          className="w-9 h-9 rounded-full border border-emerald-500/40 bg-[var(--surface)] text-emerald-700 dark:text-emerald-400 flex items-center justify-center cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
                                         >
                                           <Minus className="w-4 h-4 stroke-[3]" />
                                         </button>

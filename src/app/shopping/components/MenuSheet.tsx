@@ -182,7 +182,7 @@ export function MenuSheet({
             </div>
 
             <div className="p-3 bg-[var(--foreground)]/[0.03] rounded-2xl border border-[var(--border)] space-y-2">
-              <div className="text-xs font-bold text-amber-600 dark:text-amber-400 flex items-center justify-between">
+              <div className="text-xs font-bold text-amber-700 dark:text-amber-400 flex items-center justify-between">
                 <div className="flex items-center gap-1.5">
                   <Boxes className="w-3.5 h-3.5" />
                   <span>רשימת ציוד ורכש</span>

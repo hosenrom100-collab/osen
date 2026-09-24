@@ -325,7 +325,7 @@ export function AdminProductRequestsModal({
                                   {p.category}
                                 </span>
                                 {p.defaultNotes && (
-                                  <span className="text-xs text-amber-600 dark:text-amber-400 italic">({p.defaultNotes})</span>
+                                  <span className="text-xs text-amber-700 dark:text-amber-400 italic">({p.defaultNotes})</span>
                                 )}
                               </div>
 

@@ -11,7 +11,7 @@ import {
   Loader2, ShoppingBag, Clock, Package, Plus, Truck
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, MotionConfig } from "framer-motion";
 import Link from "next/link";
 
 import { TargetFramework } from "./types";
@@ -186,6 +186,8 @@ export default function ShoppingPage() {
 
   return (
     <RoleGuard allowedRoles={["admin", "manager", "instructor", "social_worker", "employee", "logistics"]} redirectTo="/">
+      {/* One switch for every animation on this screen: honors the OS "reduce motion" setting. */}
+      <MotionConfig reducedMotion="user">
       <ConnectionStatusBanner />
       <div dir="rtl" className="flex flex-col h-[100dvh] bg-[var(--background)] text-[var(--foreground)] overflow-hidden font-sans relative">
         <ShoppingHeader
@@ -255,7 +257,7 @@ export default function ShoppingPage() {
                       </span>
                     </span>
                     {cutoffStatus.deliveryDayFormatted && (
-                      <span className="inline-flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
+                      <span className="inline-flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400">
                         <Truck className="w-4 h-4 shrink-0" />
                         <span>משלוח {cutoffStatus.deliveryDayFormatted}</span>
                       </span>
@@ -495,6 +497,7 @@ export default function ShoppingPage() {
         </AnimatePresence>
       </div>
       <ConfirmDialog />
+      </MotionConfig>
     </RoleGuard>
   );
 }

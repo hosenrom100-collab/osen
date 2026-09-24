@@ -199,7 +199,7 @@ export function ShoppingListView({
                 {sessionPurchased.length}
                 <span className="text-[var(--muted)] font-semibold">/{totalItems}</span>
               </span>
-              <span className={`text-[13px] font-semibold truncate ${allDone ? "text-emerald-600 dark:text-emerald-400" : "text-[var(--muted)]"}`}>
+              <span className={`text-[13px] font-semibold truncate ${allDone ? "text-emerald-700 dark:text-emerald-400" : "text-[var(--muted)]"}`}>
                 {allDone ? "הכל נרכש 🎉" : "נרכשו"}
               </span>
             </div>
@@ -321,7 +321,7 @@ export function ShoppingListView({
             const hasOpenInCat = activeRequests.some((r) => r.category === cat);
             if (boughtInCat === 0 || hasOpenInCat) return null;
             return (
-              <div key={cat} className="mb-3 flex items-center gap-2 px-2 py-1 text-[13px] font-semibold text-emerald-600 dark:text-emerald-400">
+              <div key={cat} className="mb-3 flex items-center gap-2 px-2 py-1 text-[13px] font-semibold text-emerald-700 dark:text-emerald-400">
                 <Check className="w-4 h-4 stroke-[3]" />
                 <span>{cat}</span>
                 <span className="text-[var(--muted)] font-medium">הושלם ({boughtInCat})</span>

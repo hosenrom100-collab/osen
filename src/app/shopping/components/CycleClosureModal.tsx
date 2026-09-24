@@ -113,7 +113,7 @@ export function CycleClosureModal({
                 <div className="flex items-center justify-between text-xs font-bold text-[var(--muted)]">
                   <span>סה"כ {activeItems.length} מוצרים ב-{Object.keys(grouped).length} קטגוריות</span>
                   {activeItems.length > 0 && (
-                    <span className="text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                    <span className="text-emerald-700 dark:text-emerald-400 flex items-center gap-1">
                       <CheckCircle2 className="w-4 h-4" /> מוכן להדפסה
                     </span>
                   )}
@@ -235,7 +235,7 @@ export function CycleClosureModal({
 
           {/* Quick Add Bar - "מוצרי דקה ה-90" */}
           <div className="my-4 p-4 rounded-2xl bg-amber-500/5 border border-amber-500/20 shrink-0">
-            <span className="text-xs font-bold text-amber-600 dark:text-amber-400 block mb-2">
+            <span className="text-xs font-bold text-amber-700 dark:text-amber-400 block mb-2">
               ⚡ הוספת מוצר של הרגע האחרון (דקה ה-90):
             </span>
             <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
