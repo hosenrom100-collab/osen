@@ -39,7 +39,7 @@ export function ShoppingHeader({
           >
             <ArrowRight className="w-5 h-5 text-[var(--muted)]" />
           </button>
-          <span className="hidden sm:inline-block text-sm font-black text-[var(--foreground)] truncate">
+          <span className="hidden sm:inline-block text-sm font-bold text-[var(--foreground)] truncate">
             רשימת קניות
           </span>
         </div>
@@ -51,9 +51,9 @@ export function ShoppingHeader({
               setListType("supermarket");
               setActiveCategory(null);
             }}
-            className={`px-3 py-1 rounded-lg text-xs font-black transition-all flex items-center gap-1.5 border-none cursor-pointer ${
+            className={`px-3 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 border-none cursor-pointer ${
               listType === "supermarket"
-                ? "bg-[var(--surface)] text-indigo-600 dark:text-indigo-400 shadow-xs"
+                ? "bg-[var(--surface)] text-[var(--accent-text)] shadow-xs"
                 : "text-[var(--muted)] hover:text-[var(--foreground)] bg-transparent"
             }`}
           >
@@ -65,9 +65,9 @@ export function ShoppingHeader({
               setListType("large");
               setActiveCategory(null);
             }}
-            className={`px-3 py-1 rounded-lg text-xs font-black transition-all flex items-center gap-1.5 border-none cursor-pointer ${
+            className={`px-3 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 border-none cursor-pointer ${
               listType === "large"
-                ? "bg-[var(--surface)] text-indigo-600 dark:text-indigo-400 shadow-xs"
+                ? "bg-[var(--surface)] text-[var(--accent-text)] shadow-xs"
                 : "text-[var(--muted)] hover:text-[var(--foreground)] bg-transparent"
             }`}
           >
@@ -81,11 +81,11 @@ export function ShoppingHeader({
           {cutoffStatus?.isEnabled && !cutoffStatus.isPassed && !isCutoffBannerVisible && (
             <button
               onClick={onToggleCutoffBanner}
-              className="px-2 py-1 rounded-lg bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 text-[11px] font-black flex items-center gap-1 border-none cursor-pointer transition-colors"
+              className="px-2 py-1 rounded-lg bg-[var(--accent-soft)] hover:bg-[var(--accent-soft-hover)] text-[var(--accent-text)] text-xs font-bold flex items-center gap-1 border-none cursor-pointer transition-colors"
               title={`סגירת הזנות: ${cutoffStatus.formattedTarget} (${cutoffStatus.timeLeftFormatted})`}
               aria-label="הצג מועד סגירת הזנות"
             >
-              <Clock className="w-3.5 h-3.5 shrink-0 text-indigo-500" />
+              <Clock className="w-3.5 h-3.5 shrink-0 text-[var(--accent-text)]" />
               <span className="hidden md:inline">{cutoffStatus.timeLeftFormatted}</span>
             </button>
           )}

@@ -226,10 +226,10 @@ export default function ShoppingPage() {
                   <div className="flex items-center gap-2">
                     <span className="text-base shrink-0">🔒</span>
                     <div>
-                      <h4 className="text-xs font-black text-amber-700 dark:text-amber-400">
+                      <h4 className="text-xs font-bold text-amber-700 dark:text-amber-400">
                         מועד הקציבה השבועי חלף ({cutoffStatus.formattedTarget})
                       </h4>
-                      <p className="text-[11px] font-bold text-[var(--foreground)]/70 mt-0.5">
+                      <p className="text-xs font-bold text-[var(--foreground)]/70 mt-0.5">
                         {isAdmin || isLogistics
                           ? `הרשימה מוקפאת להזנות (${currentActiveItems.length} מוצרים).`
                           : `הרשימה הוקפאה להזנות לקראת ביצוע רכש.`}
@@ -240,7 +240,7 @@ export default function ShoppingPage() {
                   {(isAdmin || isLogistics) && (
                     <button
                       onClick={() => setShowCycleClosureModal(true)}
-                      className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 !text-white text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 border-none shrink-0"
+                      className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 !text-white text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 border-none shrink-0"
                     >
                       <Package className="w-3.5 h-3.5 text-white" />
                       <span>הפקת רשימה</span>
@@ -248,9 +248,9 @@ export default function ShoppingPage() {
                   )}
                 </div>
               ) : (
-                <div className="px-3 py-1.5 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-between text-[11px] font-bold text-indigo-700 dark:text-indigo-300 gap-2" dir="rtl">
+                <div className="px-3 py-1.5 rounded-xl bg-[var(--accent-soft)] border border-[var(--accent-line)] flex items-center justify-between text-xs font-bold text-[var(--accent-text)] gap-2" dir="rtl">
                   <div className="flex items-center gap-2 min-w-0 truncate">
-                    <Clock className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+                    <Clock className="w-3.5 h-3.5 text-[var(--accent-text)] shrink-0" />
                     <span className="truncate">סגירת הזנות: <strong>{cutoffStatus.formattedTarget}</strong></span>
                     {cutoffStatus.deliveryDayFormatted && (
                       <span className="hidden sm:inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-bold shrink-0">
@@ -260,12 +260,12 @@ export default function ShoppingPage() {
                     )}
                   </div>
                   <div className="flex items-center gap-1.5 shrink-0">
-                    <span className="font-black bg-indigo-500/20 px-2 py-0.5 rounded-full text-[10px]">
+                    <span className="font-bold bg-indigo-500/20 px-2 py-0.5 rounded-full text-xs">
                       {cutoffStatus.timeLeftFormatted}
                     </span>
                     <button
                       onClick={() => setShowCutoffBanner(false)}
-                      className="p-1 rounded-lg hover:bg-indigo-500/20 text-indigo-500 transition-colors border-none cursor-pointer bg-transparent"
+                      className="p-1 rounded-lg hover:bg-[var(--accent-soft-hover)] text-[var(--accent-text)] transition-colors border-none cursor-pointer bg-transparent"
                       aria-label="סגור הודעה"
                       title="סגור הודעה"
                     >
@@ -286,20 +286,20 @@ export default function ShoppingPage() {
                 className="flex items-center justify-center overflow-hidden transition-[height]"
                 style={{ height: isRefreshing ? 44 : Math.min(pullDistance, 80) }}
               >
-                <Loader2 className={`w-5 h-5 text-indigo-500 ${isRefreshing ? "animate-spin" : ""}`} />
+                <Loader2 className={`w-5 h-5 text-[var(--accent-text)] ${isRefreshing ? "animate-spin" : ""}`} />
               </div>
             )}
             <div className="max-w-[700px] mx-auto pb-24">
               {/* Pending Store Authorization Requests */}
               {canPurchase && pendingStoreAuthCount > 0 && (
-                <div className="my-3 mx-2 md:mx-0 p-3.5 rounded-2xl bg-indigo-600 text-white shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                <div className="my-3 mx-2 md:mx-0 p-3.5 rounded-2xl bg-[var(--accent)] text-white shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                   <div className="flex items-center gap-3">
                     <div className="p-2.5 bg-white/15 rounded-xl shrink-0">
                       <ShoppingBag className="w-5 h-5 text-white" />
                     </div>
                     <div>
                       <div className="flex items-center gap-2">
-                        <span className="font-black text-sm">אישור קניות אד-הוק</span>
+                        <span className="font-bold text-sm">אישור קניות אד-הוק</span>
                         <span className="px-2 py-0.5 bg-white/20 text-xs font-bold rounded-full">
                           {pendingStoreAuthCount} ממתינות
                         </span>
@@ -316,7 +316,7 @@ export default function ShoppingPage() {
 
               {loading ? (
                 <div className="flex flex-col items-center justify-center py-32 gap-4">
-                  <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
+                  <Loader2 className="w-8 h-8 text-[var(--accent-text)] animate-spin" />
                 </div>
               ) : (
                 <ShoppingListView
@@ -504,7 +504,7 @@ export default function ShoppingPage() {
                   : "bg-amber-50/95 dark:bg-amber-950/90 border-amber-300 dark:border-amber-800 text-amber-800 dark:text-amber-200"
               }`}
             >
-              <span className="text-xs font-black leading-relaxed">{toast.message}</span>
+              <span className="text-xs font-bold leading-relaxed">{toast.message}</span>
             </motion.div>
           )}
         </AnimatePresence>

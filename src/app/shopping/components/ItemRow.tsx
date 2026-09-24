@@ -80,7 +80,7 @@ export const ItemRow = memo(function ItemRow({ item, onCheck, onOpenDetail, show
         className={`w-11 h-11 shrink-0 rounded-full border-2 flex items-center justify-center transition-all active:scale-90 cursor-pointer ${
           checking
             ? "bg-emerald-500 border-emerald-500 text-white"
-            : "border-[var(--muted)]/35 hover:border-indigo-500 hover:bg-indigo-500/10 text-indigo-500"
+            : "border-[var(--muted)]/35 hover:border-indigo-500 hover:bg-indigo-500/10 text-[var(--accent-text)]"
         }`}
       >
         <Check className={`w-5 h-5 transition-opacity stroke-[3] ${checking ? "opacity-100" : "opacity-0 hover:opacity-100"}`} />
@@ -94,13 +94,13 @@ export const ItemRow = memo(function ItemRow({ item, onCheck, onOpenDetail, show
             {item.name}
           </span>
           {showFrameworkTag && (
-            <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-md border shrink-0 ${fwMeta.color}`}>
+            <span className={`text-xs font-bold px-1.5 py-0.5 rounded-lg border shrink-0 ${fwMeta.color}`}>
               {fwMeta.shortName}
             </span>
           )}
         </div>
         {hasNotes && (
-          <div className="flex items-center gap-0.5 mt-0.5 text-[11px] text-amber-600 dark:text-amber-400 font-medium truncate">
+          <div className="flex items-center gap-0.5 mt-0.5 text-xs text-amber-600 dark:text-amber-400 font-medium truncate">
             <MessageSquare className="w-3 h-3 shrink-0" />
             <span className="truncate">{item.notes}</span>
           </div>
@@ -108,7 +108,7 @@ export const ItemRow = memo(function ItemRow({ item, onCheck, onOpenDetail, show
       </div>
 
       {/* Quantity */}
-      <span className="shrink-0 text-xs font-black text-[var(--foreground)]/70 bg-[var(--foreground)]/5 px-2 py-1 rounded-lg">
+      <span className="shrink-0 text-xs font-bold text-[var(--foreground)]/70 bg-[var(--foreground)]/5 px-2 py-1 rounded-lg">
         {qtyValue}
         <span className="opacity-60 font-bold"> {formatUnitShort(qtyUnit)}</span>
       </span>

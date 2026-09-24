@@ -16,7 +16,7 @@ const CAT_COLOR: Record<string, string> = {
   "פירות וירקות":         "text-emerald-500 bg-emerald-500/10 border-emerald-500/20",
   "לחם ומאפים":           "text-orange-500 bg-orange-500/10 border-orange-500/20",
   "חומרי ניקוי":          "text-cyan-500 bg-cyan-500/10 border-cyan-500/20",
-  "מוצרי נייר וחד פעמי": "text-indigo-500 bg-indigo-500/10 border-indigo-500/20",
+  "מוצרי נייר וחד פעמי": "text-[var(--accent-text)] bg-[var(--accent-soft)] border-[var(--accent-line)]",
   "טואלטיקה והיגיינה":   "text-teal-500 bg-teal-500/10 border-teal-500/20",
   "שימורים ובישול":       "text-slate-500 bg-slate-500/10 border-slate-500/20",
   "קפואים":               "text-sky-500 bg-sky-500/10 border-sky-500/20",
@@ -101,12 +101,12 @@ export function ShoppingModals({
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="relative bg-[var(--surface)] border border-[var(--border)] rounded-[2.5rem] w-full max-w-md p-8 shadow-2xl text-right flex flex-col max-h-[85vh] overflow-hidden"
+              className="relative bg-[var(--surface)] border border-[var(--border)] rounded-3xl w-full max-w-md p-8 shadow-2xl text-right flex flex-col max-h-[85vh] overflow-hidden"
               dir="rtl"
             >
               <div className="flex items-center justify-between mb-6 shrink-0">
-                <h3 className="text-xl font-black flex items-center gap-2 text-[var(--foreground)]">
-                  <Edit3 className="w-5 h-5 text-indigo-500" />
+                <h3 className="text-xl font-bold flex items-center gap-2 text-[var(--foreground)]">
+                  <Edit3 className="w-5 h-5 text-[var(--accent-text)]" />
                   ניהול קטגוריות רכש
                 </h3>
                 <button
@@ -118,7 +118,7 @@ export function ShoppingModals({
               </div>
 
               <div className="mb-6 shrink-0">
-                <label className="text-[10px] font-black text-[var(--muted)] uppercase tracking-widest mb-1.5 block">
+                <label className="text-xs font-bold text-[var(--muted)] mb-1.5 block">
                   הוסף קטגוריה חדשה
                 </label>
                 <div className="flex gap-2">
@@ -133,7 +133,7 @@ export function ShoppingModals({
                       }
                     }}
                     placeholder="שם הקטגוריה..."
-                    className="flex-grow bg-[var(--background)] border border-[var(--border)] rounded-xl py-3 px-4 text-xs font-bold focus:border-indigo-500 outline-none text-[var(--foreground)]"
+                    className="flex-grow bg-[var(--background)] border border-[var(--border)] rounded-xl py-3 px-4 text-xs font-bold focus:border-[var(--accent)] outline-none text-[var(--foreground)]"
                   />
                   <button
                     onClick={() => {
@@ -142,7 +142,7 @@ export function ShoppingModals({
                         setNewCatName("");
                       }
                     }}
-                    className="px-5 py-3 bg-indigo-600 hover:bg-indigo-500 !text-white rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1 shrink-0 shadow-md shadow-indigo-600/10 active:scale-95 border-none"
+                    className="px-5 py-3 bg-[var(--accent)] hover:brightness-110 !text-white rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1 shrink-0 shadow-md shadow-indigo-600/10 active:scale-95 border-none"
                   >
                     <Plus className="w-4 h-4 text-white" />
                     <span>הוסף</span>
@@ -151,7 +151,7 @@ export function ShoppingModals({
               </div>
 
               <div className="flex-grow overflow-y-auto divide-y divide-[var(--border)]/60 pr-1 no-scrollbar mb-6">
-                <span className="text-[10px] font-black text-[var(--muted)] uppercase tracking-widest mb-2 block shrink-0">
+                <span className="text-xs font-bold text-[var(--muted)] mb-2 block shrink-0">
                   קטגוריות קיימות:
                 </span>
                 <div className="space-y-1">
@@ -165,7 +165,7 @@ export function ShoppingModals({
                               type="text"
                               value={editingCatNewValue}
                               onChange={(e) => setEditingCatNewValue(e.target.value)}
-                              className="flex-grow bg-[var(--background)] border border-[var(--border)] rounded-lg px-2 py-1.5 text-xs font-bold focus:outline-none focus:border-indigo-500/50 text-[var(--foreground)]"
+                              className="flex-grow bg-[var(--background)] border border-[var(--border)] rounded-lg px-2 py-1.5 text-xs font-bold focus:outline-none focus:border-[var(--accent)] text-[var(--foreground)]"
                               autoFocus
                               onKeyDown={(e) => {
                                 if (e.key === "Enter") {
@@ -201,7 +201,7 @@ export function ShoppingModals({
                                   setEditingCatName(cat);
                                   setEditingCatNewValue(cat);
                                 }}
-                                className="p-1.5 bg-[var(--foreground)]/5 hover:bg-[var(--foreground)]/10 text-[var(--muted)] hover:text-indigo-500 border border-[var(--border)] rounded-lg transition-all cursor-pointer"
+                                className="p-1.5 bg-[var(--foreground)]/5 hover:bg-[var(--foreground)]/10 text-[var(--muted)] hover:text-[var(--accent-text)] border border-[var(--border)] rounded-lg transition-all cursor-pointer"
                                 title="ערוך קטגוריה"
                               >
                                 <Edit3 className="w-3.5 h-3.5" />
@@ -226,8 +226,8 @@ export function ShoppingModals({
               {onSaveCutoffConfig && (
                 <div className="pt-3 border-t border-[var(--border)] mb-4 shrink-0 text-right" dir="rtl">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-black flex items-center gap-1.5 text-[var(--foreground)]">
-                      <Clock className="w-4 h-4 text-indigo-500" />
+                    <span className="text-xs font-bold flex items-center gap-1.5 text-[var(--foreground)]">
+                      <Clock className="w-4 h-4 text-[var(--accent-text)]" />
                       מועד קציבה שבועי (Cutoff)
                     </span>
                     <label className="relative inline-flex items-center cursor-pointer">
@@ -245,7 +245,7 @@ export function ShoppingModals({
                     <div className="space-y-2.5 mb-3">
                       <div className="grid grid-cols-2 gap-2">
                         <div>
-                          <label className="text-[10px] font-bold text-[var(--muted)] mb-1 block">יום סגירת הזנות:</label>
+                          <label className="text-xs font-bold text-[var(--muted)] mb-1 block">יום סגירת הזנות:</label>
                           <select
                             value={cutoffDay}
                             onChange={(e) => setCutoffDay(Number(e.target.value))}
@@ -262,7 +262,7 @@ export function ShoppingModals({
                         </div>
 
                         <div>
-                          <label className="text-[10px] font-bold text-[var(--muted)] mb-1 block">שעת סגירה:</label>
+                          <label className="text-xs font-bold text-[var(--muted)] mb-1 block">שעת סגירה:</label>
                           <input
                             type="time"
                             value={cutoffTime}
@@ -274,12 +274,12 @@ export function ShoppingModals({
 
                       <div>
                         <div className="flex items-center justify-between mb-1">
-                          <label className="text-[10px] font-bold text-[var(--muted)]">יום קבלת משלוח (ללא שעה):</label>
+                          <label className="text-xs font-bold text-[var(--muted)]">יום קבלת משלוח (ללא שעה):</label>
                           {cutoffDeliveryDay !== null && (
                             <button
                               type="button"
                               onClick={() => setCutoffDeliveryDay(null)}
-                              className="text-[10px] text-indigo-500 hover:underline bg-transparent border-none cursor-pointer p-0 font-bold"
+                              className="text-xs text-[var(--accent-text)] hover:underline bg-transparent border-none cursor-pointer p-0 font-bold"
                             >
                               נקה בחירה
                             </button>
@@ -315,7 +315,7 @@ export function ShoppingModals({
                       setIsSavingCutoff(false);
                     }}
                     disabled={isSavingCutoff}
-                    className="w-full py-2 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:hover:bg-indigo-900/60 text-indigo-600 dark:text-indigo-300 text-xs font-bold rounded-xl transition-all cursor-pointer border-none flex items-center justify-center gap-1.5"
+                    className="w-full py-2 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:hover:bg-indigo-900/60 text-[var(--accent-text)] text-xs font-bold rounded-xl transition-all cursor-pointer border-none flex items-center justify-center gap-1.5"
                   >
                     {isSavingCutoff ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
                     <span>שמור הגדרות קציבה ומשלוח</span>
@@ -325,7 +325,7 @@ export function ShoppingModals({
 
               <button
                 onClick={() => setIsAddingCat(false)}
-                className="w-full py-4 bg-indigo-600 hover:bg-indigo-500 !text-white text-sm font-black rounded-2xl shadow-lg transition-all active:scale-[0.98] shrink-0 cursor-pointer border-none"
+                className="w-full py-4 bg-[var(--accent)] hover:brightness-110 !text-white text-sm font-bold rounded-2xl shadow-lg transition-all active:scale-[0.98] shrink-0 cursor-pointer border-none"
               >
                 סגור
               </button>
@@ -349,11 +349,11 @@ export function ShoppingModals({
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="relative bg-[var(--surface)] border border-[var(--border)] rounded-[2.5rem] w-full max-w-lg p-6 md:p-8 shadow-2xl text-right flex flex-col max-h-[90vh] overflow-hidden z-10"
+              className="relative bg-[var(--surface)] border border-[var(--border)] rounded-3xl w-full max-w-lg p-6 md:p-8 shadow-2xl text-right flex flex-col max-h-[90vh] overflow-hidden z-10"
               dir="rtl"
             >
               <div className="flex items-center justify-between mb-4 shrink-0">
-                <h3 className="text-lg md:text-xl font-black flex items-center gap-2 text-[var(--foreground)]">
+                <h3 className="text-lg md:text-xl font-bold flex items-center gap-2 text-[var(--foreground)]">
                   <Star className="w-5 h-5 text-amber-500 fill-amber-500" />
                   <span>ניהול מוצרים נפוצים</span>
                 </h3>
@@ -403,7 +403,7 @@ export function ShoppingModals({
                     return (
                       <div className="py-12 text-center opacity-40">
                         <ShoppingBag className="w-10 h-10 mx-auto mb-2 text-[var(--muted)]" />
-                        <p className="text-xs font-black">לא נמצאו מוצרים תואמים בפול</p>
+                        <p className="text-xs font-bold">לא נמצאו מוצרים תואמים בפול</p>
                       </div>
                     );
                   }
@@ -414,13 +414,13 @@ export function ShoppingModals({
                       <div key={p.id} className="py-3 flex items-center justify-between gap-4">
                         <div className="flex flex-col items-start gap-1 min-w-0 flex-1">
                           <span className="text-xs font-bold text-[var(--foreground)] truncate">{p.name}</span>
-                          <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-md ${CAT_COLOR[p.category] ?? CAT_COLOR["כללי"]}`}>
+                          <span className={`text-xs font-bold px-1.5 py-0.5 rounded-lg ${CAT_COLOR[p.category] ?? CAT_COLOR["כללי"]}`}>
                             {p.category}
                           </span>
                         </div>
                         <button
                           onClick={() => onToggleStarProduct(p.id, isStar)}
-                          className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 border-none ${
+                          className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 border-none ${
                             isStar
                               ? "bg-amber-500 text-white shadow-sm"
                               : "bg-[var(--foreground)]/5 text-[var(--muted)] hover:bg-[var(--foreground)]/10"
@@ -437,7 +437,7 @@ export function ShoppingModals({
 
               <button
                 onClick={() => setShowManageStarModal(false)}
-                className="w-full py-4 bg-amber-500 hover:bg-amber-600 !text-white text-sm font-black rounded-2xl shadow-lg transition-all active:scale-[0.98] shrink-0 cursor-pointer border-none"
+                className="w-full py-4 bg-amber-500 hover:bg-amber-600 !text-white text-sm font-bold rounded-2xl shadow-lg transition-all active:scale-[0.98] shrink-0 cursor-pointer border-none"
               >
                 סיום
               </button>

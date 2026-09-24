@@ -43,13 +43,13 @@ export function CycleHistorySheet({ isOpen, onClose, listType }: CycleHistoryShe
       isOpen={isOpen}
       onClose={onClose}
       title={`סבבים קודמים · ${listType === "large" ? "ציוד ורכש" : "סופר"}`}
-      icon={<History className="w-4 h-4 text-indigo-500" />}
+      icon={<History className="w-4 h-4 text-[var(--accent-text)]" />}
     >
       {error ? (
         <p className="py-10 text-center text-xs font-bold text-rose-500">שגיאה בטעינת ההיסטוריה. נסה שוב.</p>
       ) : cycles === null ? (
         <div className="py-10 flex justify-center">
-          <Loader2 className="w-6 h-6 text-indigo-500 animate-spin" />
+          <Loader2 className="w-6 h-6 text-[var(--accent-text)] animate-spin" />
         </div>
       ) : cycles.length === 0 ? (
         <p className="py-10 text-center text-xs font-bold text-[var(--muted)]">עוד לא נסגר אף סבב.</p>
@@ -65,10 +65,10 @@ export function CycleHistorySheet({ isOpen, onClose, listType }: CycleHistoryShe
                   className="w-full flex items-center gap-3 px-4 py-3 text-right cursor-pointer border-none bg-transparent"
                 >
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm font-black text-[var(--foreground)]">
+                    <div className="text-sm font-bold text-[var(--foreground)]">
                       {format(cycle.closedAt, "dd/MM/yyyy")}
                     </div>
-                    <div className="text-[11px] font-bold text-[var(--muted)] mt-0.5">
+                    <div className="text-xs font-bold text-[var(--muted)] mt-0.5">
                       {cycle.purchasedCount} נרכשו · {cycle.unpurchasedCount} לא נרכשו
                       {cycle.carriedOverCount > 0 && ` (${cycle.carriedOverCount} הועברו הלאה)`}
                       {cycle.closedByName && ` · נסגר ע״י ${cycle.closedByName}`}
@@ -94,7 +94,7 @@ export function CycleHistorySheet({ isOpen, onClose, listType }: CycleHistoryShe
                             {item.name}
                           </span>
                           {item.priority === "urgent" && <Flame className="w-3 h-3 text-rose-500 shrink-0" />}
-                          <span className="text-[11px] text-[var(--muted)] shrink-0">
+                          <span className="text-xs text-[var(--muted)] shrink-0">
                             {value} {formatUnitShort(unit)}
                           </span>
                         </li>

@@ -98,14 +98,14 @@ export function ItemDetailSheet({
           <div className="flex gap-2.5">
             <button
               onClick={onClose}
-              className="flex-1 py-3.5 bg-[var(--foreground)]/5 hover:bg-[var(--foreground)]/10 text-[var(--muted)] text-sm font-black rounded-2xl transition-all cursor-pointer border-none"
+              className="flex-1 py-3.5 bg-[var(--foreground)]/5 hover:bg-[var(--foreground)]/10 text-[var(--muted)] text-sm font-bold rounded-2xl transition-all cursor-pointer border-none"
             >
               ביטול
             </button>
             <button
               onClick={handleSave}
               disabled={!name.trim()}
-              className="flex-1 py-3.5 bg-indigo-600 hover:bg-indigo-500 !text-white text-sm font-black rounded-2xl shadow-md transition-all active:scale-[0.98] cursor-pointer border-none disabled:opacity-40 disabled:cursor-not-allowed"
+              className="flex-1 py-3.5 bg-[var(--accent)] hover:brightness-110 !text-white text-sm font-bold rounded-2xl shadow-md transition-all active:scale-[0.98] cursor-pointer border-none disabled:opacity-40 disabled:cursor-not-allowed"
             >
               שמור שינויים
             </button>
@@ -124,7 +124,7 @@ export function ItemDetailSheet({
                   <select
                     value={selectedFramework}
                     onChange={(e) => setSelectedFramework(e.target.value as TargetFramework)}
-                    className={`appearance-none text-xs font-black py-1 pr-6 pl-2.5 rounded-xl border transition-all cursor-pointer outline-none ${currentFwMeta.color} bg-opacity-20 hover:bg-opacity-30`}
+                    className={`appearance-none text-xs font-bold py-1 pr-6 pl-2.5 rounded-xl border transition-all cursor-pointer outline-none ${currentFwMeta.color} bg-opacity-20 hover:bg-opacity-30`}
                     title="לחץ לבחירת מסגרת מזמינה"
                   >
                     {TARGET_FRAMEWORKS.map((fw) => (
@@ -141,7 +141,7 @@ export function ItemDetailSheet({
               {item.category && (
                 <div className="flex items-center gap-1.5 shrink-0">
                   <span className="text-[var(--muted)] font-bold">קטגוריה:</span>
-                  <span className="font-black text-[var(--foreground)] bg-[var(--foreground)]/5 px-2 py-0.5 rounded-lg">
+                  <span className="font-bold text-[var(--foreground)] bg-[var(--foreground)]/5 px-2 py-0.5 rounded-lg">
                     {item.category}
                   </span>
                 </div>
@@ -150,30 +150,30 @@ export function ItemDetailSheet({
 
             {/* Row 2: Requester Employee info */}
             {item.requestedByName && (
-              <div className="flex items-center gap-1.5 pt-2 border-t border-[var(--border)]/60 text-[11px] text-[var(--muted)]">
-                <User className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+              <div className="flex items-center gap-1.5 pt-2 border-t border-[var(--border)]/60 text-xs text-[var(--muted)]">
+                <User className="w-3.5 h-3.5 text-[var(--accent-text)] shrink-0" />
                 <span>הוזמן ע״י:</span>
-                <strong className="font-black text-[var(--foreground)]">{item.requestedByName}</strong>
+                <strong className="font-bold text-[var(--foreground)]">{item.requestedByName}</strong>
               </div>
             )}
           </div>
 
           {/* Name */}
           <div>
-            <label className="text-[10px] font-black text-[var(--muted)] uppercase tracking-widest mb-1.5 block">
+            <label className="text-xs font-bold text-[var(--muted)] mb-1.5 block">
               שם המוצר
             </label>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full bg-[var(--background)] border border-[var(--border)] rounded-xl py-3 px-4 text-base font-bold focus:outline-none focus:border-indigo-500/50 text-[var(--foreground)]"
+              className="w-full bg-[var(--background)] border border-[var(--border)] rounded-xl py-3 px-4 text-base font-bold focus:outline-none focus:border-[var(--accent)] text-[var(--foreground)]"
             />
           </div>
 
           {/* Quantity */}
           <div>
-            <label className="text-[10px] font-black text-[var(--muted)] uppercase tracking-widest mb-1.5 block">
+            <label className="text-xs font-bold text-[var(--muted)] mb-1.5 block">
               כמות
             </label>
 
@@ -184,9 +184,9 @@ export function ItemDetailSheet({
                   key={q}
                   type="button"
                   onClick={() => setQtyValue(q)}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-black border transition-all cursor-pointer shrink-0 ${
+                  className={`px-2.5 py-1 rounded-lg text-xs font-bold border transition-all cursor-pointer shrink-0 ${
                     qtyValue === q
-                      ? "bg-indigo-600 !text-white border-transparent"
+                      ? "bg-[var(--accent)] !text-white border-transparent"
                       : "bg-[var(--background)] border-[var(--border)] text-[var(--foreground)] hover:bg-[var(--foreground)]/5"
                   }`}
                 >
@@ -211,18 +211,18 @@ export function ItemDetailSheet({
                   setQtyValue(Number.isNaN(v) ? 0 : v);
                 }}
                 onFocus={(e) => e.currentTarget.select()}
-                className="flex-1 min-w-0 text-center bg-[var(--background)] border border-[var(--border)] rounded-xl py-2.5 text-lg font-black focus:outline-none focus:border-indigo-500/50 text-[var(--foreground)]"
+                className="flex-1 min-w-0 text-center bg-[var(--background)] border border-[var(--border)] rounded-xl py-2.5 text-lg font-bold focus:outline-none focus:border-[var(--accent)] text-[var(--foreground)]"
               />
               <button
                 onClick={() => setQtyValue((v) => steppedQuantity(v, step, 1))}
-                className="w-11 h-11 rounded-xl bg-indigo-600 hover:bg-indigo-500 flex items-center justify-center transition-all active:scale-90 cursor-pointer shrink-0"
+                className="w-11 h-11 rounded-xl bg-[var(--accent)] hover:brightness-110 flex items-center justify-center transition-all active:scale-90 cursor-pointer shrink-0"
               >
                 <Plus className="w-4 h-4 stroke-[3] text-white" />
               </button>
               <select
                 value={qtyUnit}
                 onChange={(e) => handleUnitChange(e.target.value)}
-                className="bg-[var(--background)] border border-[var(--border)] rounded-xl py-2.5 px-2 text-sm font-bold focus:outline-none focus:border-indigo-500/40 text-[var(--foreground)] shrink-0"
+                className="bg-[var(--background)] border border-[var(--border)] rounded-xl py-2.5 px-2 text-sm font-bold focus:outline-none focus:border-[var(--accent)] text-[var(--foreground)] shrink-0"
               >
                 {MEASUREMENT_UNITS.map((u) => (
                   <option key={u} value={u}>{u}</option>
@@ -238,7 +238,7 @@ export function ItemDetailSheet({
               isUrgent ? "border-rose-500/40 bg-rose-500/10" : "border-[var(--border)] bg-[var(--background)]/30"
             }`}
           >
-            <span className={`flex items-center gap-2 text-sm font-black ${isUrgent ? "text-rose-500" : "text-[var(--foreground)]"}`}>
+            <span className={`flex items-center gap-2 text-sm font-bold ${isUrgent ? "text-rose-500" : "text-[var(--foreground)]"}`}>
               <Flame className="w-4 h-4" />
               דחוף
             </span>
@@ -253,7 +253,7 @@ export function ItemDetailSheet({
 
           {/* Notes */}
           <div>
-            <label className="text-[10px] font-black text-[var(--muted)] uppercase tracking-widest mb-1.5 block">
+            <label className="text-xs font-bold text-[var(--muted)] mb-1.5 block">
               הערה
             </label>
             <textarea
@@ -261,7 +261,7 @@ export function ItemDetailSheet({
               onChange={(e) => setNotes(e.target.value)}
               placeholder="סוג ספציפי, מותג, או תחליף מועדף..."
               rows={2}
-              className="w-full bg-[var(--background)] border border-[var(--border)] rounded-xl py-2.5 px-3 text-sm font-medium focus:outline-none focus:border-indigo-500/50 resize-none placeholder:text-[var(--muted)]/40 text-[var(--foreground)]"
+              className="w-full bg-[var(--background)] border border-[var(--border)] rounded-xl py-2.5 px-3 text-sm font-medium focus:outline-none focus:border-[var(--accent)] resize-none placeholder:text-[var(--muted)]/40 text-[var(--foreground)]"
             />
           </div>
 
@@ -274,7 +274,7 @@ export function ItemDetailSheet({
             }}
             className="w-full flex items-center gap-2.5 py-3 px-3.5 rounded-xl bg-[var(--foreground)]/5 hover:bg-[var(--foreground)]/10 border border-[var(--border)] text-sm font-bold text-[var(--foreground)] transition-all cursor-pointer"
           >
-            <ArrowRightLeft className="w-4 h-4 text-indigo-500 shrink-0" />
+            <ArrowRightLeft className="w-4 h-4 text-[var(--accent-text)] shrink-0" />
             {item.listType === "large" ? (
               <span className="flex items-center gap-1.5"><ShoppingCart className="w-3.5 h-3.5" /> העבר לרשימת הסופר</span>
             ) : (

@@ -180,16 +180,16 @@ export function AdminProductRequestsModal({
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, scale: 0.95 }}
-          className="relative bg-[var(--surface)] border border-[var(--border)] rounded-[2.5rem] w-full max-w-xl p-6 shadow-2xl flex flex-col max-h-[85vh] text-right"
+          className="relative bg-[var(--surface)] border border-[var(--border)] rounded-3xl w-full max-w-xl p-6 shadow-2xl flex flex-col max-h-[85vh] text-right"
           dir="rtl"
         >
           {/* Header */}
           <div className="flex items-center justify-between mb-4 border-b border-[var(--border)] pb-3 shrink-0">
-            <h3 className="text-xl font-black flex items-center gap-2">
-              <Database className="w-6 h-6 text-indigo-500" />
+            <h3 className="text-xl font-bold flex items-center gap-2">
+              <Database className="w-6 h-6 text-[var(--accent-text)]" />
               <span>ניהול בקשות מוצרים חדשים</span>
               {requests.length > 0 && (
-                <span className="bg-rose-500 text-white text-[10px] px-2.5 py-0.5 rounded-full font-extrabold shadow-xs">
+                <span className="bg-rose-500 text-white text-xs px-2.5 py-0.5 rounded-full font-extrabold shadow-xs">
                   {requests.length} ממתינים
                 </span>
               )}
@@ -210,7 +210,7 @@ export function AdminProductRequestsModal({
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="חפש בקשות..."
-              className="w-full bg-[var(--background)] border border-[var(--border)] rounded-xl py-2.5 pr-10 pl-4 text-sm font-bold focus:outline-none focus:border-indigo-500"
+              className="w-full bg-[var(--background)] border border-[var(--border)] rounded-xl py-2.5 pr-10 pl-4 text-sm font-bold focus:outline-none focus:border-[var(--accent)]"
             />
           </div>
 
@@ -237,19 +237,19 @@ export function AdminProductRequestsModal({
                         {!isEditing ? (
                           <div>
                             <div className="flex items-center gap-2 flex-wrap">
-                              <h4 className="text-base font-black text-[var(--foreground)]">{form.name}</h4>
-                              <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-md bg-indigo-500/10 text-indigo-500 border border-indigo-500/20">
+                              <h4 className="text-base font-bold text-[var(--foreground)]">{form.name}</h4>
+                              <span className="text-xs font-extrabold px-2 py-0.5 rounded-lg bg-[var(--accent-soft)] text-[var(--accent-text)] border border-[var(--accent-line)]">
                                 {form.category}
                               </span>
                             </div>
-                            <span className="text-[11px] text-[var(--muted)] mt-0.5 block">
+                            <span className="text-xs text-[var(--muted)] mt-0.5 block">
                               מבקש/ת: <span className="font-bold text-[var(--foreground)]/80">{req.requestedByName}</span>
                             </span>
                           </div>
                         ) : (
-                          <div className="space-y-2.5 bg-[var(--surface)] p-3 rounded-xl border border-indigo-500/30">
+                          <div className="space-y-2.5 bg-[var(--surface)] p-3 rounded-xl border border-[var(--accent-line)]">
                             <div>
-                              <label className="text-[10px] font-bold text-[var(--muted)] mb-1 block">שם המוצר:</label>
+                              <label className="text-xs font-bold text-[var(--muted)] mb-1 block">שם המוצר:</label>
                               <input
                                 type="text"
                                 value={form.name}
@@ -258,7 +258,7 @@ export function AdminProductRequestsModal({
                               />
                             </div>
                             <div>
-                              <label className="text-[10px] font-bold text-[var(--muted)] mb-1 block">קטגוריה:</label>
+                              <label className="text-xs font-bold text-[var(--muted)] mb-1 block">קטגוריה:</label>
                               <select
                                 value={form.category}
                                 onChange={(e) => handleFieldChange(req.id, "category", e.target.value)}
@@ -272,7 +272,7 @@ export function AdminProductRequestsModal({
                               </select>
                             </div>
                             <div>
-                              <label className="text-[10px] font-bold text-[var(--muted)] mb-1 block">הערה קבועה (אופציונלי):</label>
+                              <label className="text-xs font-bold text-[var(--muted)] mb-1 block">הערה קבועה (אופציונלי):</label>
                               <input
                                 type="text"
                                 value={form.defaultNotes}
@@ -289,7 +289,7 @@ export function AdminProductRequestsModal({
                         onClick={() => setEditingId(isEditing ? null : req.id)}
                         className={`p-2 rounded-xl text-xs font-bold flex items-center gap-1 shrink-0 transition-colors cursor-pointer ${
                           isEditing
-                            ? "bg-indigo-600 text-white"
+                            ? "bg-[var(--accent)] text-white"
                             : "bg-[var(--foreground)]/5 hover:bg-[var(--foreground)]/10 text-[var(--foreground)]"
                         }`}
                         title="ערוך בקשה"
@@ -309,7 +309,7 @@ export function AdminProductRequestsModal({
                     {/* Advisor Section - Similar Existing Products */}
                     {similarProducts.length > 0 && (
                       <div className="bg-amber-500/10 border border-amber-500/30 p-3 rounded-2xl flex flex-col gap-2">
-                        <div className="flex items-center gap-1.5 text-amber-700 dark:text-amber-300 font-black text-xs">
+                        <div className="flex items-center gap-1.5 text-amber-700 dark:text-amber-300 font-bold text-xs">
                           <Lightbulb className="w-4 h-4 text-amber-500 shrink-0" />
                           <span>יועץ מוצרים: נמצאו מוצרים דומים שכבר קיימים במערכת!</span>
                         </div>
@@ -321,21 +321,21 @@ export function AdminProductRequestsModal({
                             >
                               <div className="flex items-center gap-2 flex-wrap min-w-0">
                                 <span className="font-bold text-[var(--foreground)]">{p.name}</span>
-                                <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded-md bg-[var(--foreground)]/5 text-[var(--muted)]">
+                                <span className="text-xs font-extrabold px-1.5 py-0.5 rounded-lg bg-[var(--foreground)]/5 text-[var(--muted)]">
                                   {p.category}
                                 </span>
                                 {p.defaultNotes && (
-                                  <span className="text-[10px] text-amber-600 dark:text-amber-400 italic">({p.defaultNotes})</span>
+                                  <span className="text-xs text-amber-600 dark:text-amber-400 italic">({p.defaultNotes})</span>
                                 )}
                               </div>
 
                               <button
                                 onClick={() => handleSendExistingAlternative(req.id, p)}
                                 disabled={processing === req.id}
-                                className="px-2.5 py-1.5 rounded-lg text-[11px] font-black bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-500/20 border border-indigo-500/20 transition-all flex items-center justify-center gap-1 shrink-0 cursor-pointer"
+                                className="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-[var(--accent-soft)] text-[var(--accent-text)] hover:bg-[var(--accent-soft-hover)] border border-[var(--accent-line)] transition-all flex items-center justify-center gap-1 shrink-0 cursor-pointer"
                                 title="שלח מוצר קיים זה לרשימת הקניות וסגור את הבקשה"
                               >
-                                <ShoppingCart className="w-3 h-3 text-indigo-500" />
+                                <ShoppingCart className="w-3 h-3 text-[var(--accent-text)]" />
                                 <span>שלח מוצר קיים זה לרשימה</span>
                               </button>
                             </div>
@@ -360,14 +360,14 @@ export function AdminProductRequestsModal({
                         <button
                           onClick={() => handleReject(req.id)}
                           disabled={processing === req.id}
-                          className="px-3.5 py-2 rounded-xl text-xs font-black bg-rose-500/10 text-rose-500 hover:bg-rose-500/20 transition-colors disabled:opacity-50 cursor-pointer"
+                          className="px-3.5 py-2 rounded-xl text-xs font-bold bg-rose-500/10 text-rose-500 hover:bg-rose-500/20 transition-colors disabled:opacity-50 cursor-pointer"
                         >
                           דחה בקשה
                         </button>
                         <button
                           onClick={() => handleApprove(req)}
                           disabled={processing === req.id}
-                          className="px-4 py-2 rounded-xl text-xs font-black bg-emerald-600 hover:bg-emerald-500 !text-white transition-all shadow-md active:scale-95 disabled:opacity-50 cursor-pointer flex items-center gap-1"
+                          className="px-4 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 !text-white transition-all shadow-md active:scale-95 disabled:opacity-50 cursor-pointer flex items-center gap-1"
                         >
                           <Check className="w-4 h-4" />
                           <span>אשר והוסף לפול</span>

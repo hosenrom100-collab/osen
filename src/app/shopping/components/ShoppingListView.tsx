@@ -154,17 +154,17 @@ export function ShoppingListView({
         <div className="relative" ref={fwDropdownRef}>
           <button
             onClick={() => setIsFwDropdownOpen((v) => !v)}
-            className={`py-1.5 px-3 rounded-xl text-xs font-black transition-all cursor-pointer border flex items-center gap-1.5 shadow-xs select-none ${
+            className={`py-1.5 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer border flex items-center gap-1.5 shadow-xs select-none ${
               selectedFramework === "all"
                 ? "bg-[var(--surface)] text-[var(--foreground)] border-[var(--border)] hover:bg-[var(--foreground)]/[0.04]"
-                : `${currentFw?.activeBg ?? "bg-indigo-600"} !text-white border-transparent`
+                : `${currentFw?.activeBg ?? "bg-[var(--accent)]"} !text-white border-transparent`
             }`}
             aria-haspopup="true"
             aria-expanded={isFwDropdownOpen}
           >
             <span>{selectedFramework === "all" ? "כל המסגרות" : currentFw?.name}</span>
             <span
-              className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+              className={`text-xs px-1.5 py-0.2 rounded-full font-bold ${
                 selectedFramework === "all"
                   ? "bg-[var(--foreground)]/10 text-[var(--muted)]"
                   : "bg-white/20 !text-white"
@@ -196,7 +196,7 @@ export function ShoppingListView({
                     setSelectedFramework?.("all");
                     setIsFwDropdownOpen(false);
                   }}
-                  className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-black transition-colors cursor-pointer border-none text-right ${
+                  className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer border-none text-right ${
                     selectedFramework === "all"
                       ? "bg-zinc-800 dark:bg-zinc-200 !text-white dark:!text-zinc-900"
                       : "bg-transparent text-[var(--foreground)] hover:bg-[var(--foreground)]/5"
@@ -207,7 +207,7 @@ export function ShoppingListView({
                     <span>כל המסגרות</span>
                   </div>
                   <span
-                    className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
+                    className={`text-xs px-1.5 py-0.5 rounded-full font-bold ${
                       selectedFramework === "all"
                         ? "bg-white/20 !text-white dark:!text-zinc-900"
                         : "bg-[var(--foreground)]/10 text-[var(--muted)]"
@@ -229,7 +229,7 @@ export function ShoppingListView({
                         setSelectedFramework?.(fw.id);
                         setIsFwDropdownOpen(false);
                       }}
-                      className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-black transition-colors cursor-pointer border-none text-right ${
+                      className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer border-none text-right ${
                         active
                           ? `${fw.activeBg} !text-white`
                           : "bg-transparent text-[var(--foreground)] hover:bg-[var(--foreground)]/5"
@@ -240,7 +240,7 @@ export function ShoppingListView({
                         <span>{fw.name}</span>
                       </div>
                       <span
-                        className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
+                        className={`text-xs px-1.5 py-0.5 rounded-full font-bold ${
                           active ? "bg-white/20 !text-white" : "bg-[var(--foreground)]/10 text-[var(--muted)]"
                         }`}
                       >
@@ -261,7 +261,7 @@ export function ShoppingListView({
               setActiveCategory(null);
               setShowUrgentOnly((v) => !v);
             }}
-            className={`py-1.5 px-3 rounded-xl text-xs font-black transition-all cursor-pointer border flex items-center justify-center gap-1.5 whitespace-nowrap shrink-0 shadow-xs ${
+            className={`py-1.5 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer border flex items-center justify-center gap-1.5 whitespace-nowrap shrink-0 shadow-xs ${
               urgentFilterActive
                 ? "bg-rose-600 !text-white border-transparent"
                 : "bg-rose-500/10 border-rose-500/20 text-rose-600 dark:text-rose-400 hover:bg-rose-500/20"
@@ -270,7 +270,7 @@ export function ShoppingListView({
             <Flame className="w-3.5 h-3.5" />
             <span>דחוף</span>
             <span
-              className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
+              className={`text-xs px-1.5 py-0.5 rounded-full font-bold ${
                 urgentFilterActive ? "bg-white/20 !text-white" : "bg-rose-500/20 text-rose-600 dark:text-rose-400"
               }`}
             >
@@ -283,11 +283,11 @@ export function ShoppingListView({
         {activeCategory !== null && (
           <button
             onClick={() => setActiveCategory(null)}
-            className="py-1.5 px-2.5 rounded-xl text-xs font-black bg-indigo-500/10 border border-indigo-500/20 text-indigo-600 dark:text-indigo-400 flex items-center gap-1 whitespace-nowrap shrink-0 cursor-pointer hover:bg-indigo-500/20"
+            className="py-1.5 px-2.5 rounded-xl text-xs font-bold bg-[var(--accent-soft)] border border-[var(--accent-line)] text-[var(--accent-text)] flex items-center gap-1 whitespace-nowrap shrink-0 cursor-pointer hover:bg-[var(--accent-soft-hover)]"
             title="בטל סינון קטגוריה"
           >
             <span>{activeCategory}</span>
-            <span className="text-[10px]">✕</span>
+            <span className="text-xs">✕</span>
           </button>
         )}
 
@@ -309,8 +309,8 @@ export function ShoppingListView({
             aria-label="הורד רשימה כקובץ Word"
             className="py-1.5 px-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer border bg-[var(--surface)] text-[var(--foreground)] border-[var(--border)] hover:bg-[var(--foreground)]/[0.05] flex items-center gap-1.5 shrink-0 shadow-xs mr-auto"
           >
-            <Download className="w-3.5 h-3.5 text-indigo-500" />
-            <span className="hidden sm:inline text-[11px] font-bold">
+            <Download className="w-3.5 h-3.5 text-[var(--accent-text)]" />
+            <span className="hidden sm:inline text-xs font-bold">
               {selectedFramework === "all" ? "הורד רשימה" : `הורד ${currentFw?.shortName || "רשימה"}`}
             </span>
           </button>
@@ -320,7 +320,7 @@ export function ShoppingListView({
       {/* ── Progress: how much of what's on screen is already in the cart ── */}
       {totalItems > 0 && (
         <div className="px-1 pb-3" aria-live="polite">
-          <div className="flex items-center justify-between text-[11px] font-black mb-1">
+          <div className="flex items-center justify-between text-xs font-bold mb-1">
             <span className={allDone ? "text-emerald-600 dark:text-emerald-400" : "text-[var(--foreground)]/70"}>
               {allDone ? "הכל נרכש 🎉" : `${sessionPurchased.length} מתוך ${totalItems} נרכשו`}
             </span>
@@ -346,17 +346,17 @@ export function ShoppingListView({
       {allDone ? (
         <div className="py-12 text-center bg-emerald-500/5 border border-emerald-500/20 rounded-3xl p-8 my-4">
           <div className="text-4xl mb-2">🎉</div>
-          <h3 className="text-lg font-black text-emerald-700 dark:text-emerald-300">סיימנו! הכל נרכש</h3>
+          <h3 className="text-lg font-bold text-emerald-700 dark:text-emerald-300">סיימנו! הכל נרכש</h3>
           <p className="text-xs text-[var(--muted)] font-bold mt-1">
             שכחת משהו? אפשר להחזיר מוצר מהרשימה שלמטה, או להוסיף חדש בכפתור ➕
           </p>
         </div>
       ) : activeRequests.length === 0 ? (
         <div className="py-16 text-center bg-[var(--surface)] border border-[var(--border)] rounded-3xl p-8 my-4 shadow-sm">
-          <div className="w-16 h-16 rounded-full bg-indigo-500/10 text-indigo-500 flex items-center justify-center mx-auto mb-3">
+          <div className="w-16 h-16 rounded-full bg-[var(--accent-soft)] text-[var(--accent-text)] flex items-center justify-center mx-auto mb-3">
             <ShoppingBag className="w-8 h-8" />
           </div>
-          <h3 className="text-lg font-black text-[var(--foreground)]">רשימת הקניות ריקה כרגע</h3>
+          <h3 className="text-lg font-bold text-[var(--foreground)]">רשימת הקניות ריקה כרגע</h3>
           <p className="text-xs text-[var(--muted)] font-bold mt-1">תוכל להוסיף מוצרים חדשים בלחיצה על כפתור ה-➕ הציף</p>
         </div>
       ) : (
@@ -378,7 +378,7 @@ export function ShoppingListView({
               <div key={cat} className="mb-2 flex items-center gap-2 px-1 py-1.5 text-[12px] font-bold text-emerald-600 dark:text-emerald-400">
                 <Check className="w-3.5 h-3.5 stroke-[3]" />
                 <span>{cat}</span>
-                <span className="text-[11px] text-[var(--muted)]">הושלם ({boughtInCat})</span>
+                <span className="text-xs text-[var(--muted)]">הושלם ({boughtInCat})</span>
               </div>
             );
           }
@@ -388,8 +388,8 @@ export function ShoppingListView({
               {/* Sticky so the current aisle stays named while scrolling a long list */}
               <div className="sticky top-0 z-10 flex items-center gap-2 py-1.5 px-1 bg-[var(--background)]">
                 <span className={`w-2.5 h-2.5 rounded-full ${CAT_SOLID[cat] ?? CAT_SOLID["כללי"]}`} />
-                <h2 className="text-sm font-black text-[var(--foreground)]">{cat}</h2>
-                <span className="text-[11px] font-bold text-[var(--muted)]">{catItems.length}</span>
+                <h2 className="text-sm font-bold text-[var(--foreground)]">{cat}</h2>
+                <span className="text-xs font-bold text-[var(--muted)]">{catItems.length}</span>
               </div>
 
               <AnimatePresence initial={false}>
@@ -409,7 +409,7 @@ export function ShoppingListView({
         <div className="mt-6 border-t border-[var(--border)] pt-4">
           <button
             onClick={() => setPurchasedCollapsed(!purchasedCollapsed)}
-            className="flex items-center gap-2 text-xs font-black text-emerald-600 dark:text-emerald-400 cursor-pointer bg-emerald-500/10 hover:bg-emerald-500/20 px-3.5 py-2 rounded-xl border border-emerald-500/20 transition-all"
+            className="flex items-center gap-2 text-xs font-bold text-emerald-600 dark:text-emerald-400 cursor-pointer bg-emerald-500/10 hover:bg-emerald-500/20 px-3.5 py-2 rounded-xl border border-emerald-500/20 transition-all"
           >
             <Check className="w-3.5 h-3.5" />
             <span>נרכשו ({sessionPurchased.length})</span>
@@ -437,7 +437,7 @@ export function ShoppingListView({
                     <span className="text-sm font-bold text-[var(--foreground)] line-through opacity-60 truncate flex-1">
                       {item.name}
                     </span>
-                    <span className="text-[11px] font-bold text-[var(--muted)] shrink-0 flex items-center gap-1">
+                    <span className="text-xs font-bold text-[var(--muted)] shrink-0 flex items-center gap-1">
                       <RotateCcw className="w-3 h-3" /> בטל
                     </span>
                   </button>
@@ -453,7 +453,7 @@ export function ShoppingListView({
         <div className="mt-4">
           <button
             onClick={() => setDeletedCollapsed(!deletedCollapsed)}
-            className="flex items-center gap-1.5 text-[11px] font-bold text-[var(--muted)] hover:text-[var(--foreground)] cursor-pointer py-1"
+            className="flex items-center gap-1.5 text-xs font-bold text-[var(--muted)] hover:text-[var(--foreground)] cursor-pointer py-1"
           >
             <span>פריטים שנמחקו ({sessionDeleted.length})</span>
             <ChevronDown className={`w-3.5 h-3.5 transition-transform ${deletedCollapsed ? "" : "rotate-180"}`} />
@@ -473,13 +473,13 @@ export function ShoppingListView({
                     <div className="flex items-center gap-1.5 shrink-0">
                       <button
                         onClick={() => onChangeStatus(item.id, "approved")}
-                        className="px-2.5 py-1 rounded-lg bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-bold hover:bg-indigo-500/20 cursor-pointer shrink-0 border-none"
+                        className="px-2.5 py-1 rounded-lg bg-[var(--accent-soft)] text-[var(--accent-text)] font-bold hover:bg-[var(--accent-soft-hover)] cursor-pointer shrink-0 border-none"
                       >
                         החזר
                       </button>
                       <button
                         onClick={() => onChangeStatus(item.id, "permanently_delete")}
-                        className="p-1.5 rounded-lg bg-rose-500/10 text-rose-600 dark:text-rose-400 hover:bg-rose-500/20 cursor-pointer shrink-0 border-none flex items-center gap-1 font-bold text-[11px]"
+                        className="p-1.5 rounded-lg bg-rose-500/10 text-rose-600 dark:text-rose-400 hover:bg-rose-500/20 cursor-pointer shrink-0 border-none flex items-center gap-1 font-bold text-xs"
                         title="הסר לצמיתות"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -520,7 +520,7 @@ export function ShoppingListView({
                 setUndo(null);
                 if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
               }}
-              className="text-xs font-black text-indigo-300 hover:text-indigo-200 flex items-center gap-1 shrink-0 cursor-pointer border-none bg-transparent"
+              className="text-xs font-bold text-indigo-300 hover:text-indigo-200 flex items-center gap-1 shrink-0 cursor-pointer border-none bg-transparent"
             >
               <Undo2 className="w-3.5 h-3.5" />
               בטל

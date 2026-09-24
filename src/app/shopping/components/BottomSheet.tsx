@@ -54,7 +54,7 @@ export function BottomSheet({
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: "100%", opacity: 0.5 }}
             transition={{ type: "spring", damping: 28, stiffness: 260 }}
-            className={`relative w-full md:max-w-lg bg-[var(--surface)] border-t md:border border-[var(--border)] rounded-t-[1.5rem] md:rounded-[2rem] shadow-2xl text-right flex flex-col overflow-hidden ${
+            className={`relative w-full md:max-w-lg bg-[var(--surface)] border-t md:border border-[var(--border)] rounded-t-[1.5rem] md:rounded-3xl shadow-2xl text-right flex flex-col overflow-hidden ${
               maxHeight ? "max-h-[88vh]" : ""
             }`}
             dir="rtl"
@@ -63,7 +63,7 @@ export function BottomSheet({
             <div className="w-12 h-1 bg-[var(--border)] rounded-full mx-auto mt-3 mb-1 md:hidden shrink-0" />
 
             <div className="flex items-center justify-between px-5 pt-4 pb-3 shrink-0 border-b border-[var(--border)]/60">
-              <h2 className="text-base font-black flex items-center gap-2 text-[var(--foreground)]">
+              <h2 className="text-base font-bold flex items-center gap-2 text-[var(--foreground)]">
                 {icon}
                 <span>{title}</span>
               </h2>

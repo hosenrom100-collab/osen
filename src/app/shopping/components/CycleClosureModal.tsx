@@ -135,14 +135,14 @@ export function CycleClosureModal({
           onKeyDown={(e) => {
             if (e.key === "Escape") onClose();
           }}
-          className="relative bg-[var(--surface)] border border-[var(--border)] rounded-[2.5rem] w-full max-w-2xl p-6 md:p-8 shadow-2xl flex flex-col max-h-[90vh] overflow-hidden text-right"
+          className="relative bg-[var(--surface)] border border-[var(--border)] rounded-3xl w-full max-w-2xl p-6 md:p-8 shadow-2xl flex flex-col max-h-[90vh] overflow-hidden text-right"
           dir="rtl"
         >
           {/* Header */}
           <div className="flex items-center justify-between pb-4 border-b border-[var(--border)] shrink-0">
             <div>
-              <h3 id={dialogTitleId} className="text-xl font-black flex items-center gap-2 text-[var(--foreground)]">
-                <Package className="w-6 h-6 text-indigo-500" aria-hidden="true" />
+              <h3 id={dialogTitleId} className="text-xl font-bold flex items-center gap-2 text-[var(--foreground)]">
+                <Package className="w-6 h-6 text-[var(--accent-text)]" aria-hidden="true" />
                 <span>סגירת סבב קניות וייצוא להדפסה</span>
               </h3>
               <p className="text-xs text-[var(--muted)] font-semibold mt-1">
@@ -159,7 +159,7 @@ export function CycleClosureModal({
 
           {/* Quick Add Bar - "מוצרי דקה ה-90" */}
           <div className="my-4 p-4 rounded-2xl bg-amber-500/5 border border-amber-500/20 shrink-0">
-            <span className="text-xs font-black text-amber-600 dark:text-amber-400 block mb-2">
+            <span className="text-xs font-bold text-amber-600 dark:text-amber-400 block mb-2">
               ⚡ הוספת מוצר של הרגע האחרון (דקה ה-90):
             </span>
             <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
@@ -192,7 +192,7 @@ export function CycleClosureModal({
               <button
                 onClick={handleQuickAdd}
                 disabled={isAdding || !newName.trim()}
-                className="px-4 py-2 bg-amber-500 hover:bg-amber-600 !text-white rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1 cursor-pointer disabled:opacity-50 border-none shadow-xs"
+                className="px-4 py-2 bg-amber-500 hover:bg-amber-600 !text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1 cursor-pointer disabled:opacity-50 border-none shadow-xs"
               >
                 <Plus className="w-4 h-4 text-white" />
                 <span>הוסף לסבב</span>
@@ -211,8 +211,8 @@ export function CycleClosureModal({
               Object.entries(grouped).map(([category, items]) => (
                 <div key={category} className="bg-[var(--foreground)]/[0.02] border border-[var(--border)] rounded-2xl overflow-hidden">
                   <div className="px-4 py-2.5 bg-[var(--foreground)]/5 border-b border-[var(--border)] flex items-center justify-between">
-                    <span className="text-xs font-black text-[var(--foreground)]">{category}</span>
-                    <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-[var(--foreground)]/10 text-[var(--muted)]">
+                    <span className="text-xs font-bold text-[var(--foreground)]">{category}</span>
+                    <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-[var(--foreground)]/10 text-[var(--muted)]">
                       {items.length} מוצרים
                     </span>
                   </div>
@@ -227,7 +227,7 @@ export function CycleClosureModal({
                           <div className="flex items-center gap-2 flex-grow min-w-0">
                             <span className="font-bold text-[var(--foreground)] truncate">{item.name}</span>
                             {effectiveNotes && (
-                              <span className="text-[10px] font-semibold text-[var(--muted)] bg-[var(--foreground)]/5 px-2 py-0.5 rounded-md truncate max-w-[160px]">
+                              <span className="text-xs font-semibold text-[var(--muted)] bg-[var(--foreground)]/5 px-2 py-0.5 rounded-lg truncate max-w-[160px]">
                                 💬 {effectiveNotes}
                               </span>
                             )}
@@ -302,7 +302,7 @@ export function CycleClosureModal({
                   )}
                 </div>
                 {activeItems.length > 0 && (
-                  <div className="flex items-center gap-2 text-[11px] font-black">
+                  <div className="flex items-center gap-2 text-xs font-bold">
                     <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
                       {purchasedCount} נרכשו
                     </span>
@@ -323,7 +323,7 @@ export function CycleClosureModal({
                   <button
                     onClick={() => { setIsExportConfirmOpen(true); setConfirmPassword(""); setConfirmError(""); }}
                     disabled={isProcessing || activeItems.length === 0}
-                    className="px-5 py-2.5 rounded-xl text-xs font-black bg-indigo-600 hover:bg-indigo-500 !text-white transition-all shadow-lg shadow-indigo-600/20 active:scale-95 cursor-pointer disabled:opacity-50 flex items-center gap-2 border-none"
+                    className="px-5 py-2.5 rounded-xl text-xs font-bold bg-[var(--accent)] hover:brightness-110 !text-white transition-all shadow-lg shadow-indigo-600/20 active:scale-95 cursor-pointer disabled:opacity-50 flex items-center gap-2 border-none"
                   >
                     <FileText className="w-4 h-4 text-white" />
                     <span>ייצא רשימה להדפסה (Word)</span>
@@ -349,7 +349,7 @@ export function CycleClosureModal({
                     />
                     <span>
                       העבר את <strong>{unpurchasedCount}</strong> המוצרים שלא נרכשו לסבב הבא
-                      <span className="block text-[11px] font-semibold text-[var(--muted)] mt-0.5">
+                      <span className="block text-xs font-semibold text-[var(--muted)] mt-0.5">
                         {carryOver ? "יישארו ברשימה עם הכמויות וההערות." : "יימחקו מהרשימה (יישמרו רק בהיסטוריה)."}
                       </span>
                     </span>
@@ -384,7 +384,7 @@ export function CycleClosureModal({
                   <button
                     onClick={handleConfirmedClose}
                     disabled={isProcessing}
-                    className="px-5 py-2.5 rounded-xl text-xs font-black bg-rose-600 hover:bg-rose-700 !text-white transition-all shadow-lg active:scale-95 cursor-pointer disabled:opacity-50 flex items-center gap-2 border-none"
+                    className="px-5 py-2.5 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-700 !text-white transition-all shadow-lg active:scale-95 cursor-pointer disabled:opacity-50 flex items-center gap-2 border-none"
                   >
                     {isProcessing ? <Loader2 className="w-4 h-4 animate-spin text-white" /> : <Lock className="w-4 h-4 text-white" />}
                     <span>אשר, ייצא וסגור סבב</span>

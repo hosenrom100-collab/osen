@@ -55,7 +55,7 @@ function MenuItem({
       {icon}
       <span className="flex-1">{label}</span>
       {!!badge && badge > 0 && (
-        <span className="bg-rose-500 text-white text-[10px] px-1.5 py-0.5 rounded-full font-black">{badge}</span>
+        <span className="bg-rose-500 text-white text-xs px-1.5 py-0.5 rounded-full font-bold">{badge}</span>
       )}
     </>
   );
@@ -74,7 +74,7 @@ function MenuItem({
 }
 
 function MenuSectionLabel({ children }: { children: React.ReactNode }) {
-  return <div className="text-[10px] font-black text-[var(--muted)] uppercase tracking-widest px-1 pt-1">{children}</div>;
+  return <div className="text-xs font-bold text-[var(--muted)] px-1 pt-1">{children}</div>;
 }
 
 export function MenuSheet({
@@ -110,7 +110,7 @@ export function MenuSheet({
   );
 
   return (
-    <BottomSheet isOpen={isOpen} onClose={onClose} title="פעולות ותפריט" icon={<Settings className="w-4 h-4 text-indigo-500" />}>
+    <BottomSheet isOpen={isOpen} onClose={onClose} title="פעולות ותפריט" icon={<Settings className="w-4 h-4 text-[var(--accent-text)]" />}>
       <div className="space-y-4">
         <div className="space-y-2">
           <MenuSectionLabel>קנייה אד-הוק</MenuSectionLabel>
@@ -130,7 +130,7 @@ export function MenuSheet({
         {canPurchase && (
           <div className="space-y-2">
             <MenuSectionLabel>ניהול הרשימה</MenuSectionLabel>
-            <MenuItem icon={<Edit3 className="w-4 h-4 text-indigo-500" />} label="ניהול קטגוריות ומועד קציבה" onClick={wrap(onOpenCategories)} />
+            <MenuItem icon={<Edit3 className="w-4 h-4 text-[var(--accent-text)]" />} label="ניהול קטגוריות ומועד קציבה" onClick={wrap(onOpenCategories)} />
             {(isAdmin || isManager || isLogistics) && (
               <MenuItem icon={<Star className="w-4 h-4 text-amber-500" />} label="ניהול מוצרים נפוצים" onClick={wrap(onOpenStarManager)} />
             )}
@@ -151,14 +151,14 @@ export function MenuSheet({
             <MenuSectionLabel>הפקת רשימות לקניות וחלוקה (Word)</MenuSectionLabel>
             
             <div className="p-3 bg-[var(--foreground)]/[0.03] rounded-2xl border border-[var(--border)] space-y-2">
-              <div className="text-xs font-black text-indigo-600 dark:text-indigo-400 flex items-center justify-between">
+              <div className="text-xs font-bold text-[var(--accent-text)] flex items-center justify-between">
                 <div className="flex items-center gap-1.5">
                   <ShoppingCart className="w-3.5 h-3.5" />
                   <span>רשימת סופר שוטפת</span>
                 </div>
                 <button
                   onClick={wrap(() => onExportOngoingList("all"))}
-                  className="py-1 px-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-[11px] font-black transition-all cursor-pointer border-none shadow-xs"
+                  className="py-1 px-2.5 rounded-lg bg-[var(--accent)] hover:brightness-110 text-white text-xs font-bold transition-all cursor-pointer border-none shadow-xs"
                 >
                   📑 רשימה מאוחדת ({activeSupermarket.length})
                 </button>
@@ -171,10 +171,10 @@ export function MenuSheet({
                     <button
                       key={fw.id}
                       onClick={wrap(() => onExportOngoingList(fw.id))}
-                      className={`py-2 px-2 rounded-xl ${fw.pillInactive} border text-[11px] font-bold transition-all cursor-pointer text-center leading-tight flex items-center justify-between gap-1`}
+                      className={`py-2 px-2 rounded-xl ${fw.pillInactive} border text-xs font-bold transition-all cursor-pointer text-center leading-tight flex items-center justify-between gap-1`}
                     >
                       <span className="truncate">📄 {fw.name}</span>
-                      <span className="text-[10px] font-black opacity-80 shrink-0">({count})</span>
+                      <span className="text-xs font-bold opacity-80 shrink-0">({count})</span>
                     </button>
                   );
                 })}
@@ -182,14 +182,14 @@ export function MenuSheet({
             </div>
 
             <div className="p-3 bg-[var(--foreground)]/[0.03] rounded-2xl border border-[var(--border)] space-y-2">
-              <div className="text-xs font-black text-amber-600 dark:text-amber-400 flex items-center justify-between">
+              <div className="text-xs font-bold text-amber-600 dark:text-amber-400 flex items-center justify-between">
                 <div className="flex items-center gap-1.5">
                   <Boxes className="w-3.5 h-3.5" />
                   <span>רשימת ציוד ורכש</span>
                 </div>
                 <button
                   onClick={wrap(() => onExportProcurementList("all"))}
-                  className="py-1 px-2.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-[11px] font-black transition-all cursor-pointer border-none shadow-xs"
+                  className="py-1 px-2.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold transition-all cursor-pointer border-none shadow-xs"
                 >
                   📑 רשימה מאוחדת ({activeProcurement.length})
                 </button>
@@ -202,10 +202,10 @@ export function MenuSheet({
                     <button
                       key={fw.id}
                       onClick={wrap(() => onExportProcurementList(fw.id))}
-                      className={`py-2 px-2 rounded-xl ${fw.pillInactive} border text-[11px] font-bold transition-all cursor-pointer text-center leading-tight flex items-center justify-between gap-1`}
+                      className={`py-2 px-2 rounded-xl ${fw.pillInactive} border text-xs font-bold transition-all cursor-pointer text-center leading-tight flex items-center justify-between gap-1`}
                     >
                       <span className="truncate">📦 {fw.name}</span>
-                      <span className="text-[10px] font-black opacity-80 shrink-0">({count})</span>
+                      <span className="text-xs font-bold opacity-80 shrink-0">({count})</span>
                     </button>
                   );
                 })}
