@@ -38,7 +38,6 @@ export function ItemDetailSheet({
   const [qtyUnit, setQtyUnit] = useState("יחידות");
   const [notes, setNotes] = useState("");
   const [isUrgent, setIsUrgent] = useState(false);
-  const [framework, setFramework] = useState<TargetFramework>("main");
 
   useEffect(() => {
     if (!item) return;
@@ -49,18 +48,26 @@ export function ItemDetailSheet({
     setQtyUnit(unit);
     setNotes(item.notes || "");
     setIsUrgent(item.priority === "urgent");
-    setFramework(item.targetFramework || "main");
   }, [item]);
 
   if (!item) return null;
 
   const step = getQuantityStep(qtyUnit);
   const min = getMinQuantity(qtyUnit);
+  const fwMeta = TARGET_FRAMEWORKS.find((f) => f.id === (item.targetFramework || "main")) || TARGET_FRAMEWORKS[0];
 
   const handleSave = () => {
     const cleanName = name.trim();
     if (!cleanName) return;
-    onUpdateItem(item.id, cleanName, category, buildQuantityString(qtyValue, qtyUnit), notes.trim(), isUrgent ? "urgent" : "normal", framework);
+    onUpdateItem(
+      item.id,
+      cleanName,
+      category,
+      buildQuantityString(qtyValue, qtyUnit),
+      notes.trim(),
+      isUrgent ? "urgent" : "normal",
+      item.targetFramework || "main"
+    );
     onClose();
   };
 
@@ -96,7 +103,16 @@ export function ItemDetailSheet({
           </div>
         }
       >
-        <div className="space-y-5">
+        <div className="space-y-4">
+          {/* Assigned framework indicator (Read-only) */}
+          <div className="flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-[var(--foreground)]/[0.03] border border-[var(--border)] text-xs">
+            <span className="text-[var(--muted)] font-bold">מסגרת משויכת:</span>
+            <div className="flex items-center gap-1.5">
+              <span className={`w-2 h-2 rounded-full ${fwMeta.badgeActive.split(" ")[0] || "bg-indigo-500"}`} />
+              <span className="font-black text-[var(--foreground)]">{fwMeta.name}</span>
+            </div>
+          </div>
+
           {/* Name */}
           <div>
             <label className="text-[10px] font-black text-[var(--muted)] uppercase tracking-widest mb-1.5 block">
@@ -170,32 +186,6 @@ export function ItemDetailSheet({
               <span className="w-5 h-5 rounded-full bg-white shadow-sm block" />
             </span>
           </button>
-
-          {/* Framework Selection */}
-          <div>
-            <label className="text-[10px] font-black text-[var(--muted)] uppercase tracking-widest mb-1.5 block">
-              מסגרת יעד (חלוקה)
-            </label>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-              {TARGET_FRAMEWORKS.map((fw) => {
-                const active = framework === fw.id;
-                return (
-                  <button
-                    key={fw.id}
-                    type="button"
-                    onClick={() => setFramework(fw.id)}
-                    className={`py-2.5 px-2 rounded-xl text-xs font-black border transition-all cursor-pointer text-center leading-tight ${
-                      active
-                        ? `${fw.activeBg} border-transparent !text-white shadow-sm`
-                        : `${fw.pillInactive} border`
-                    }`}
-                  >
-                    {fw.name}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
 
           {/* Notes */}
           <div>
