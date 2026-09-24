@@ -116,84 +116,164 @@ export function ShoppingListView({
     showUndo(`נמחק: ${item?.name ?? ""}`, () => onChangeStatus(id, "approved"));
   };
 
+  const [isFwDropdownOpen, setIsFwDropdownOpen] = useState(false);
+  const fwDropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (fwDropdownRef.current && !fwDropdownRef.current.contains(e.target as Node)) {
+        setIsFwDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const currentFw = TARGET_FRAMEWORKS.find((f) => f.id === selectedFramework);
+
   // Framework tag on each row only earns its keep when the list mixes frameworks —
   // filtered to one, the header already said which, so repeating it per row is noise.
   const showFrameworkTag = selectedFramework === "all";
 
   return (
     <div dir="rtl" className="w-full max-w-2xl mx-auto pb-24 px-2.5 sm:px-4">
-      {/* ── Unified Single Filter Bar: Frameworks + Urgent + Active Category filter in one line ── */}
-      <div className="flex items-center gap-1.5 pt-2 pb-2 overflow-x-auto no-scrollbar">
-        <button
-          onClick={() => {
-            setSelectedFramework?.("all");
-            setActiveCategory(null);
-            setShowUrgentOnly(false);
-          }}
-          className={`py-1.5 px-3 rounded-xl text-xs font-black transition-all cursor-pointer border flex items-center justify-center gap-1.5 whitespace-nowrap shrink-0 ${
-            selectedFramework === "all" && !urgentFilterActive && activeCategory === null
-              ? "bg-zinc-800 dark:bg-zinc-200 !text-white dark:!text-zinc-900 border-transparent shadow-xs"
-              : "text-[var(--muted)] hover:text-[var(--foreground)] bg-[var(--surface)] border-[var(--border)]"
-          }`}
-        >
-          <span>הכל</span>
-          <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
-            selectedFramework === "all" && !urgentFilterActive && activeCategory === null
-              ? "bg-white/20 !text-white dark:!text-zinc-900"
-              : "bg-[var(--foreground)]/10 text-[var(--muted)]"
-          }`}>
-            {totalCategoryRequests.length}
-          </span>
-        </button>
-
-        {TARGET_FRAMEWORKS.map((fw) => {
-          const count = totalCategoryRequests.filter((r) => (r.targetFramework || "main") === fw.id).length;
-          const active = selectedFramework === fw.id && !urgentFilterActive;
-          return (
-            <button
-              key={fw.id}
-              onClick={() => {
-                setSelectedFramework?.(fw.id);
-                setShowUrgentOnly(false);
-              }}
-              className={`py-1.5 px-3 rounded-xl text-xs font-black transition-all cursor-pointer border flex items-center justify-center gap-1.5 whitespace-nowrap shrink-0 ${
-                active
-                  ? `${fw.activeBg} border-transparent !text-white shadow-xs`
-                  : "text-[var(--muted)] hover:text-[var(--foreground)] bg-[var(--surface)] border-[var(--border)]"
+      {/* ── Framework Pill Dropdown + Urgent Filter + Category Filter ── */}
+      <div className="flex items-center gap-2 pt-2 pb-2 relative z-30">
+        {/* Framework Dropdown Trigger */}
+        <div className="relative" ref={fwDropdownRef}>
+          <button
+            onClick={() => setIsFwDropdownOpen((v) => !v)}
+            className={`py-1.5 px-3 rounded-xl text-xs font-black transition-all cursor-pointer border flex items-center gap-1.5 shadow-xs select-none ${
+              selectedFramework === "all"
+                ? "bg-[var(--surface)] text-[var(--foreground)] border-[var(--border)] hover:bg-[var(--foreground)]/[0.04]"
+                : `${currentFw?.activeBg ?? "bg-indigo-600"} !text-white border-transparent`
+            }`}
+            aria-haspopup="true"
+            aria-expanded={isFwDropdownOpen}
+          >
+            <span>{selectedFramework === "all" ? "כל המסגרות" : currentFw?.name}</span>
+            <span
+              className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                selectedFramework === "all"
+                  ? "bg-[var(--foreground)]/10 text-[var(--muted)]"
+                  : "bg-white/20 !text-white"
               }`}
             >
-              <span>{fw.name}</span>
-              <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${active ? fw.badgeActive : "bg-[var(--foreground)]/10 text-[var(--muted)]"}`}>
-                {count}
-              </span>
-            </button>
-          );
-        })}
+              {selectedFramework === "all"
+                ? totalCategoryRequests.length
+                : totalCategoryRequests.filter((r) => (r.targetFramework || "main") === selectedFramework).length}
+            </span>
+            <ChevronDown
+              className={`w-3.5 h-3.5 transition-transform duration-200 opacity-70 ${
+                isFwDropdownOpen ? "rotate-180" : ""
+              }`}
+            />
+          </button>
 
+          {/* Dropdown Menu */}
+          <AnimatePresence>
+            {isFwDropdownOpen && (
+              <motion.div
+                initial={{ opacity: 0, y: -6, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -6, scale: 0.95 }}
+                transition={{ duration: 0.15 }}
+                className="absolute right-0 top-full mt-1.5 w-52 bg-[var(--surface)] border border-[var(--border)] rounded-2xl shadow-xl p-1.5 z-50 overflow-hidden"
+              >
+                <button
+                  onClick={() => {
+                    setSelectedFramework?.("all");
+                    setIsFwDropdownOpen(false);
+                  }}
+                  className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-black transition-colors cursor-pointer border-none text-right ${
+                    selectedFramework === "all"
+                      ? "bg-zinc-800 dark:bg-zinc-200 !text-white dark:!text-zinc-900"
+                      : "bg-transparent text-[var(--foreground)] hover:bg-[var(--foreground)]/5"
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-zinc-400" />
+                    <span>כל המסגרות</span>
+                  </div>
+                  <span
+                    className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
+                      selectedFramework === "all"
+                        ? "bg-white/20 !text-white dark:!text-zinc-900"
+                        : "bg-[var(--foreground)]/10 text-[var(--muted)]"
+                    }`}
+                  >
+                    {totalCategoryRequests.length}
+                  </span>
+                </button>
+
+                <div className="h-px bg-[var(--border)] my-1" />
+
+                {TARGET_FRAMEWORKS.map((fw) => {
+                  const count = totalCategoryRequests.filter((r) => (r.targetFramework || "main") === fw.id).length;
+                  const active = selectedFramework === fw.id;
+                  return (
+                    <button
+                      key={fw.id}
+                      onClick={() => {
+                        setSelectedFramework?.(fw.id);
+                        setIsFwDropdownOpen(false);
+                      }}
+                      className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-black transition-colors cursor-pointer border-none text-right ${
+                        active
+                          ? `${fw.activeBg} !text-white`
+                          : "bg-transparent text-[var(--foreground)] hover:bg-[var(--foreground)]/5"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-current opacity-70" />
+                        <span>{fw.name}</span>
+                      </div>
+                      <span
+                        className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
+                          active ? "bg-white/20 !text-white" : "bg-[var(--foreground)]/10 text-[var(--muted)]"
+                        }`}
+                      >
+                        {count}
+                      </span>
+                    </button>
+                  );
+                })}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
+        {/* Urgent Filter Button */}
         {urgentCount > 0 && (
           <button
             onClick={() => {
               setActiveCategory(null);
               setShowUrgentOnly((v) => !v);
             }}
-            className={`py-1.5 px-3 rounded-xl text-xs font-black transition-all cursor-pointer border flex items-center justify-center gap-1.5 whitespace-nowrap shrink-0 ${
+            className={`py-1.5 px-3 rounded-xl text-xs font-black transition-all cursor-pointer border flex items-center justify-center gap-1.5 whitespace-nowrap shrink-0 shadow-xs ${
               urgentFilterActive
-                ? "bg-rose-600 !text-white border-transparent shadow-xs"
+                ? "bg-rose-600 !text-white border-transparent"
                 : "bg-rose-500/10 border-rose-500/20 text-rose-600 dark:text-rose-400 hover:bg-rose-500/20"
             }`}
           >
             <Flame className="w-3.5 h-3.5" />
             <span>דחוף</span>
-            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${urgentFilterActive ? "bg-white/20 !text-white" : "bg-rose-500/20 text-rose-600 dark:text-rose-400"}`}>
+            <span
+              className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
+                urgentFilterActive ? "bg-white/20 !text-white" : "bg-rose-500/20 text-rose-600 dark:text-rose-400"
+              }`}
+            >
               {urgentCount}
             </span>
           </button>
         )}
 
+        {/* Active Category Filter Reset */}
         {activeCategory !== null && (
           <button
             onClick={() => setActiveCategory(null)}
             className="py-1.5 px-2.5 rounded-xl text-xs font-black bg-indigo-500/10 border border-indigo-500/20 text-indigo-600 dark:text-indigo-400 flex items-center gap-1 whitespace-nowrap shrink-0 cursor-pointer hover:bg-indigo-500/20"
+            title="בטל סינון קטגוריה"
           >
             <span>{activeCategory}</span>
             <span className="text-[10px]">✕</span>
