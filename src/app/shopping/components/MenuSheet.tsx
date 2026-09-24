@@ -3,7 +3,7 @@
 import Link from "next/link";
 import {
   ShoppingCart, FileText, ShoppingBag, RotateCcw, Settings, Star, Download,
-  Database, Edit3, Clock, Boxes,
+  Database, Edit3, Clock, Boxes, History,
 } from "lucide-react";
 import { BottomSheet } from "./BottomSheet";
 import { TargetFramework, ShoppingRequest } from "../types";
@@ -23,6 +23,7 @@ interface MenuSheetProps {
   onOpenCategories: () => void;
   onOpenStarManager: () => void;
   onOpenAdminRequests: () => void;
+  onOpenCycleHistory: () => void;
   onExportProcurementList: (framework?: "all" | TargetFramework) => void;
   onExportOngoingList: (framework?: "all" | TargetFramework) => void;
   onExportSplitOngoingLists: () => void;
@@ -90,6 +91,7 @@ export function MenuSheet({
   onOpenCategories,
   onOpenStarManager,
   onOpenAdminRequests,
+  onOpenCycleHistory,
   onExportProcurementList,
   onExportOngoingList,
   onExportSplitOngoingLists,
@@ -132,6 +134,7 @@ export function MenuSheet({
             {(isAdmin || isManager || isLogistics) && (
               <MenuItem icon={<Star className="w-4 h-4 text-amber-500" />} label="ניהול מוצרים נפוצים" onClick={wrap(onOpenStarManager)} />
             )}
+            <MenuItem icon={<History className="w-4 h-4 text-slate-500" />} label="סבבים קודמים" onClick={wrap(onOpenCycleHistory)} />
             {isAdmin && (
               <MenuItem
                 icon={<Database className="w-4 h-4 text-amber-500" />}

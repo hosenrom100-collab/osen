@@ -17,7 +17,7 @@ export interface CycleClosureModalProps {
   categories: string[];
   onAddProduct: (name: string, category: string, priority?: "low" | "normal" | "urgent", qty?: string, notes?: string) => Promise<void>;
   onExportList: () => Promise<void>;
-  onCloseCycle: () => Promise<void>;
+  onCloseCycle: (options: { carryOver: boolean }) => Promise<void>;
   onRemoveItem: (id: string) => Promise<void>;
   onUpdateQuantity: (id: string, newQty: string) => Promise<void>;
   onVerifyPassword: (password: string) => Promise<{ success: boolean; error?: string }>;
@@ -52,6 +52,9 @@ export function CycleClosureModal({
   const [isExportConfirmOpen, setIsExportConfirmOpen] = useState(false);
   const [confirmPassword, setConfirmPassword] = useState("");
   const [confirmError, setConfirmError] = useState("");
+  // On by default: an unbought item silently vanishing is the costly mistake, an item that
+  // stays on the list one more week is easy to remove.
+  const [carryOver, setCarryOver] = useState(true);
 
   const dialogTitleId = "cycle-closure-title";
   const containerRef = useFocusTrap<HTMLDivElement>(isOpen);
@@ -71,6 +74,9 @@ export function CycleClosureModal({
     acc[cat].push(item);
     return acc;
   }, {} as Record<string, ShoppingRequest[]>);
+
+  const unpurchasedCount = activeItems.filter((r) => r.status !== "purchased").length;
+  const purchasedCount = activeItems.length - unpurchasedCount;
 
   const handleQuickAdd = async () => {
     if (!newName.trim()) return;
@@ -96,7 +102,7 @@ export function CycleClosureModal({
     setIsProcessing(true);
     try {
       await onExportList();
-      await onCloseCycle();
+      await onCloseCycle({ carryOver: carryOver && unpurchasedCount > 0 });
       setIsExportConfirmOpen(false);
       onClose();
     } catch (err) {
@@ -295,6 +301,16 @@ export function CycleClosureModal({
                     </span>
                   )}
                 </div>
+                {activeItems.length > 0 && (
+                  <div className="flex items-center gap-2 text-[11px] font-black">
+                    <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                      {purchasedCount} נרכשו
+                    </span>
+                    <span className="px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                      {unpurchasedCount} לא נרכשו
+                    </span>
+                  </div>
+                )}
 
                 <div className="flex items-center justify-end gap-2 flex-wrap">
                   <button
@@ -319,9 +335,26 @@ export function CycleClosureModal({
                 <p className="text-xs text-[var(--foreground)]/80 font-medium leading-relaxed flex items-start gap-2">
                   <Lock className="w-4 h-4 text-rose-500 shrink-0 mt-0.5" />
                   <span>
-                    תופק רשימה להדפסה (Word) עבור <strong>{activeItems.length}</strong> פריטים. אנא הזן סיסמת מנהל לאישור.
+                    תופק רשימה להדפסה (Word) עבור <strong>{activeItems.length}</strong> פריטים, והסבב ייסגר
+                    וישמר ב״סבבים קודמים״. אנא הזן סיסמת מנהל לאישור.
                   </span>
                 </p>
+                {unpurchasedCount > 0 && (
+                  <label className="flex items-start gap-2.5 p-3 rounded-xl bg-amber-500/5 border border-amber-500/20 cursor-pointer text-xs font-bold text-[var(--foreground)]">
+                    <input
+                      type="checkbox"
+                      checked={carryOver}
+                      onChange={(e) => setCarryOver(e.target.checked)}
+                      className="mt-0.5 w-4 h-4 accent-amber-500 shrink-0"
+                    />
+                    <span>
+                      העבר את <strong>{unpurchasedCount}</strong> המוצרים שלא נרכשו לסבב הבא
+                      <span className="block text-[11px] font-semibold text-[var(--muted)] mt-0.5">
+                        {carryOver ? "יישארו ברשימה עם הכמויות וההערות." : "יימחקו מהרשימה (יישמרו רק בהיסטוריה)."}
+                      </span>
+                    </span>
+                  </label>
+                )}
                 <div>
                   <label htmlFor="cycle-closure-password" className="sr-only">סיסמת מנהל</label>
                   <input
@@ -354,7 +387,7 @@ export function CycleClosureModal({
                     className="px-5 py-2.5 rounded-xl text-xs font-black bg-rose-600 hover:bg-rose-700 !text-white transition-all shadow-lg active:scale-95 cursor-pointer disabled:opacity-50 flex items-center gap-2 border-none"
                   >
                     {isProcessing ? <Loader2 className="w-4 h-4 animate-spin text-white" /> : <Lock className="w-4 h-4 text-white" />}
-                    <span>אשר וייצא</span>
+                    <span>אשר, ייצא וסגור סבב</span>
                   </button>
                 </div>
               </div>

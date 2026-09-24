@@ -23,6 +23,8 @@ import { ShoppingModals } from "./components/ShoppingModals";
 import { ShoppingHeader } from "./components/ShoppingHeader";
 import { MenuSheet } from "./components/MenuSheet";
 import { AdminProductRequestsModal } from "./components/AdminProductRequestsModal";
+import { closeCycle } from "./lib/closeCycle";
+import { CycleHistorySheet } from "./components/CycleHistorySheet";
 import { useShoppingData } from "./hooks/useShoppingData";
 import { useExport } from "./hooks/useExport";
 import { useShoppingActions } from "./hooks/useShoppingActions";
@@ -116,6 +118,7 @@ export default function ShoppingPage() {
   // Admin Product Requests Modal State
   const [showAdminRequestsModal, setShowAdminRequestsModal] = useState(false);
   const [showCycleClosureModal, setShowCycleClosureModal] = useState(false);
+  const [showCycleHistory, setShowCycleHistory] = useState(false);
 
   const canPurchase = isAdmin || role === "manager" || role === "admin" || role === "logistics" || isManager;
 
@@ -394,6 +397,7 @@ export default function ShoppingPage() {
           onOpenCategories={() => setIsAddingCat(true)}
           onOpenStarManager={() => setShowManageStarModal(true)}
           onOpenAdminRequests={() => setShowAdminRequestsModal(true)}
+          onOpenCycleHistory={() => setShowCycleHistory(true)}
           onExportProcurementList={exportProcurementList}
           onExportOngoingList={exportOngoingList}
           onExportSplitOngoingLists={exportSplitOngoingLists}
@@ -444,27 +448,14 @@ export default function ShoppingPage() {
               await exportSplitOngoingLists();
             }
           }}
-          onCloseCycle={async () => {
-            // Batch-delete all active & deleted items of the current list type to reset for next week
-            const statusesToClear = ["pending", "approved", "purchased", "deleted"];
-            const q = query(
-              collection(db, "shopping_requests"),
-              where("status", "in", statusesToClear)
+          onCloseCycle={async ({ carryOver }) => {
+            const { purchased, carriedOver, dropped } = await closeCycle({ listType, carryOver, user });
+            showToast(
+              carriedOver > 0
+                ? `הסבב נסגר ונשמר בהיסטוריה (${purchased} נרכשו). ${carriedOver} מוצרים הועברו לסבב הבא.`
+                : `הסבב נסגר ונשמר בהיסטוריה (${purchased} נרכשו, ${dropped} הוסרו). הרשימה מוכנה לשבוע הבא.`,
+              "success"
             );
-            const snap = await getDocs(q);
-            const batch = writeBatch(db);
-            let count = 0;
-            snap.forEach((d) => {
-              const data = d.data();
-              const itemListType = data.listType || "supermarket";
-              const matchesList = listType === "large" ? itemListType === "large" : itemListType !== "large";
-              if (matchesList) {
-                batch.delete(d.ref);
-                count++;
-              }
-            });
-            if (count > 0) await batch.commit();
-            showToast(`סבב נסגר בהצלחה! ${count} מוצרים נמחקו, הרשימה מוכנה לשבוע הבא.`, "success");
           }}
           onRemoveItem={async (id) => {
             await deleteDoc(doc(db, "shopping_requests", id));
@@ -472,6 +463,12 @@ export default function ShoppingPage() {
           onUpdateQuantity={async (id, newQty) => {
             await updateDoc(doc(db, "shopping_requests", id), { quantity: newQty });
           }}
+        />
+
+        <CycleHistorySheet
+          isOpen={showCycleHistory}
+          onClose={() => setShowCycleHistory(false)}
+          listType={listType}
         />
 
         {/* Settings sheets */}

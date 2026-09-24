@@ -88,3 +88,27 @@ export interface StoreAuthorizationRequest {
   notes?: string;
   storeName?: string;
 }
+
+/** One line of a closed cycle, frozen as it was when the cycle ended. */
+export interface CycleItemSnapshot {
+  name: string;
+  category: string;
+  quantity: string;
+  notes: string;
+  priority: "low" | "normal" | "urgent";
+  targetFramework: TargetFramework;
+  requestedByName: string;
+  purchased: boolean;
+}
+
+/** A closed shopping cycle, saved to `shopping_cycles` before the live items are cleared. */
+export interface CycleRecord {
+  id: string;
+  listType: "supermarket" | "large";
+  closedAt: Date;
+  closedByName: string;
+  purchasedCount: number;
+  unpurchasedCount: number;
+  carriedOverCount: number;
+  items: CycleItemSnapshot[];
+}

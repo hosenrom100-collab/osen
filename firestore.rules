@@ -175,6 +175,14 @@ service cloud.firestore {
       allow delete: if isShoppingManager();
     }
 
+    // Closed shopping cycles — an immutable history written once when a cycle is closed
+    // (the live items are cleared right after, so this is the only record of that week).
+    match /shopping_cycles/{docId} {
+      allow read: if isStaff();
+      allow create: if isShoppingManager();
+      allow update, delete: if false;
+    }
+
     // Product Pool
     match /product_pool/{docId} {
       allow read: if isAuthenticated();
