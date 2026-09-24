@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { User } from "firebase/auth";
 import { ShoppingRequest, Product, TargetFramework } from "../types";
 import {
-  Flame, ShoppingBag, ChevronDown, Check, RotateCcw, Undo2, Trash2, Download,
+  Flame, ShoppingBag, ChevronDown, Check, RotateCcw, Undo2, Trash2, Download, Share2,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { CAT_SOLID, TARGET_FRAMEWORKS } from "../lib/constants";
@@ -36,6 +36,7 @@ interface ShoppingListViewProps {
   onMoveToSupermarket: OnMoveList;
   onExportOngoingList?: (framework?: "all" | TargetFramework) => void;
   onExportProcurementList?: (framework?: "all" | TargetFramework) => void;
+  onShareList?: (framework: "all" | TargetFramework) => void;
 }
 
 const UNDO_TIMEOUT_MS = 5000;
@@ -55,6 +56,7 @@ export function ShoppingListView({
   onMoveToSupermarket,
   onExportOngoingList,
   onExportProcurementList,
+  onShareList,
 }: ShoppingListViewProps) {
   const [purchasedCollapsed, setPurchasedCollapsed] = useState(true);
   const [deletedCollapsed, setDeletedCollapsed] = useState(true);
@@ -105,6 +107,12 @@ export function ShoppingListView({
       (listType === "large" ? r.listType === "large" : r.listType !== "large") &&
       (!selectedFramework || selectedFramework === "all" || (r.targetFramework || "main") === selectedFramework)
   );
+
+  // Progress is scoped to the framework filter, like the list itself — "12 of 30" should
+  // describe what is on screen, not the whole cycle.
+  const totalItems = activeRequests.length + sessionPurchased.length;
+  const progressPct = totalItems === 0 ? 0 : Math.round((sessionPurchased.length / totalItems) * 100);
+  const allDone = activeRequests.length === 0 && sessionPurchased.length > 0;
 
   const urgentCount = activeRequests.filter((r) => r.priority === "urgent").length;
   // Guard against a stale toggle once the last urgent item is purchased/removed elsewhere.
@@ -285,34 +293,80 @@ export function ShoppingListView({
           </button>
         )}
 
-        {/* Quick Export for the currently selected framework / view */}
-        {canPurchase && (
-          <button
-            onClick={() => {
-              if (listType === "large") {
-                onExportProcurementList?.(selectedFramework);
-              } else {
-                onExportOngoingList?.(selectedFramework);
+        {/* Share (everyone) + Word export (purchasers) for the currently selected framework / view */}
+        <div className="mr-auto flex items-center gap-1.5 shrink-0">
+          {onShareList && activeRequests.length > 0 && (
+            <button
+              onClick={() => onShareList(selectedFramework)}
+              title="שתף את הרשימה (וואטסאפ)"
+              aria-label="שתף את הרשימה"
+              className="py-1.5 px-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer border bg-[var(--surface)] text-[var(--foreground)] border-[var(--border)] hover:bg-[var(--foreground)]/[0.05] flex items-center gap-1.5 shrink-0 shadow-xs"
+            >
+              <Share2 className="w-3.5 h-3.5 text-emerald-500" />
+              <span className="hidden sm:inline text-[11px] font-bold">שתף</span>
+            </button>
+          )}
+          {canPurchase && (
+            <button
+              onClick={() => {
+                if (listType === "large") {
+                  onExportProcurementList?.(selectedFramework);
+                } else {
+                  onExportOngoingList?.(selectedFramework);
+                }
+              }}
+              title={
+                selectedFramework === "all"
+                  ? `הורד רשימה מאוחדת (${listType === "large" ? "ציוד ורכש" : "סופר"})`
+                  : `הורד רשימת ${currentFw?.name || ""} (${listType === "large" ? "ציוד ורכש" : "סופר"})`
               }
-            }}
-            title={
-              selectedFramework === "all"
-                ? `הורד רשימה מאוחדת (${listType === "large" ? "ציוד ורכש" : "סופר"})`
-                : `הורד רשימת ${currentFw?.name || ""} (${listType === "large" ? "ציוד ורכש" : "סופר"})`
-            }
-            aria-label="הורד רשימה כקובץ Word"
-            className="py-1.5 px-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer border bg-[var(--surface)] text-[var(--foreground)] border-[var(--border)] hover:bg-[var(--foreground)]/[0.05] flex items-center gap-1.5 shrink-0 shadow-xs mr-auto"
-          >
-            <Download className="w-3.5 h-3.5 text-indigo-500" />
-            <span className="hidden sm:inline text-[11px] font-bold">
-              {selectedFramework === "all" ? "הורד רשימה" : `הורד ${currentFw?.shortName || "רשימה"}`}
-            </span>
-          </button>
-        )}
+              aria-label="הורד רשימה כקובץ Word"
+              className="py-1.5 px-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer border bg-[var(--surface)] text-[var(--foreground)] border-[var(--border)] hover:bg-[var(--foreground)]/[0.05] flex items-center gap-1.5 shrink-0 shadow-xs"
+            >
+              <Download className="w-3.5 h-3.5 text-indigo-500" />
+              <span className="hidden sm:inline text-[11px] font-bold">
+                {selectedFramework === "all" ? "הורד רשימה" : `הורד ${currentFw?.shortName || "רשימה"}`}
+              </span>
+            </button>
+          )}
+        </div>
       </div>
 
+      {/* ── Progress: how much of what's on screen is already in the cart ── */}
+      {totalItems > 0 && (
+        <div className="px-1 pb-3" aria-live="polite">
+          <div className="flex items-center justify-between text-[11px] font-black mb-1">
+            <span className={allDone ? "text-emerald-600 dark:text-emerald-400" : "text-[var(--foreground)]/70"}>
+              {allDone ? "הכל נרכש 🎉" : `${sessionPurchased.length} מתוך ${totalItems} נרכשו`}
+            </span>
+            <span className="text-[var(--muted)]">{progressPct}%</span>
+          </div>
+          <div
+            role="progressbar"
+            aria-valuemin={0}
+            aria-valuemax={totalItems}
+            aria-valuenow={sessionPurchased.length}
+            aria-label="התקדמות הרכישה"
+            className="h-1.5 rounded-full bg-[var(--foreground)]/10 overflow-hidden"
+          >
+            <div
+              className="h-full rounded-full bg-emerald-500 transition-[width] duration-500 ease-out"
+              style={{ width: `${progressPct}%` }}
+            />
+          </div>
+        </div>
+      )}
+
       {/* ── Active items, grouped by category ── */}
-      {activeRequests.length === 0 ? (
+      {allDone ? (
+        <div className="py-12 text-center bg-emerald-500/5 border border-emerald-500/20 rounded-3xl p-8 my-4">
+          <div className="text-4xl mb-2">🎉</div>
+          <h3 className="text-lg font-black text-emerald-700 dark:text-emerald-300">סיימנו! הכל נרכש</h3>
+          <p className="text-xs text-[var(--muted)] font-bold mt-1">
+            שכחת משהו? אפשר להחזיר מוצר מהרשימה שלמטה, או להוסיף חדש בכפתור ➕
+          </p>
+        </div>
+      ) : activeRequests.length === 0 ? (
         <div className="py-16 text-center bg-[var(--surface)] border border-[var(--border)] rounded-3xl p-8 my-4 shadow-sm">
           <div className="w-16 h-16 rounded-full bg-indigo-500/10 text-indigo-500 flex items-center justify-center mx-auto mb-3">
             <ShoppingBag className="w-8 h-8" />
@@ -326,11 +380,28 @@ export function ShoppingListView({
           const catItems = activeRequests.filter(
             (r) => r.category === cat && (!urgentFilterActive || r.priority === "urgent")
           );
-          if (catItems.length === 0) return null;
+          if (catItems.length === 0) {
+            // A finished aisle collapses to one quiet line instead of disappearing — you can
+            // see it's done, not lost. Skipped under the urgent filter, where "no urgent items
+            // here" would otherwise read as "everything here is bought".
+            const boughtInCat = urgentFilterActive
+              ? 0
+              : sessionPurchased.filter((r) => r.category === cat).length;
+            const hasOpenInCat = activeRequests.some((r) => r.category === cat);
+            if (boughtInCat === 0 || hasOpenInCat) return null;
+            return (
+              <div key={cat} className="mb-2 flex items-center gap-2 px-1 py-1.5 text-[12px] font-bold text-emerald-600 dark:text-emerald-400">
+                <Check className="w-3.5 h-3.5 stroke-[3]" />
+                <span>{cat}</span>
+                <span className="text-[11px] text-[var(--muted)]">הושלם ({boughtInCat})</span>
+              </div>
+            );
+          }
 
           return (
             <div key={cat} className="mb-4 last:mb-2">
-              <div className="flex items-center gap-2 py-1.5 px-1">
+              {/* Sticky so the current aisle stays named while scrolling a long list */}
+              <div className="sticky top-0 z-10 flex items-center gap-2 py-1.5 px-1 bg-[var(--background)]">
                 <span className={`w-2.5 h-2.5 rounded-full ${CAT_SOLID[cat] ?? CAT_SOLID["כללי"]}`} />
                 <h2 className="text-sm font-black text-[var(--foreground)]">{cat}</h2>
                 <span className="text-[11px] font-bold text-[var(--muted)]">{catItems.length}</span>

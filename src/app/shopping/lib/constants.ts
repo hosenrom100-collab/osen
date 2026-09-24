@@ -30,6 +30,19 @@ export const CAT_COLOR: Record<string, string> = {
   "כללי":                 "text-slate-400 bg-slate-400/10 border-slate-400/20",
 };
 
+export const CAT_EMOJI: Record<string, string> = {
+  "גבינות ומחלבה":       "🧀",
+  "בשר ודגים":            "🥩",
+  "פירות וירקות":         "🥬",
+  "לחם ומאפים":           "🍞",
+  "חומרי ניקוי":          "🧽",
+  "מוצרי נייר וחד פעמי": "🧻",
+  "טואלטיקה והיגיינה":   "🧴",
+  "שימורים ובישול":       "🥫",
+  "קפואים":               "🧊",
+  "כללי":                 "📦",
+};
+
 export const CAT_SOLID: Record<string, string> = {
   "גבינות ומחלבה":       "bg-amber-500 border-amber-400",
   "בשר ודגים":            "bg-rose-500 border-rose-400",

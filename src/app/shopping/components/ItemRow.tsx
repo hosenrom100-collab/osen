@@ -1,11 +1,15 @@
 "use client";
 
-import { memo } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import { ShoppingRequest } from "../types";
 import { Check, Flame, ChevronLeft, MessageSquare } from "lucide-react";
 import { motion } from "framer-motion";
 import { formatUnitShort, parseQuantity } from "../lib/quantityUtils";
 import { TARGET_FRAMEWORKS } from "../lib/constants";
+
+// How long the row lingers, visibly checked, before it leaves the list. Long enough to
+// register "yes, that one was marked" without slowing down a fast walk down the aisle.
+const CHECK_FEEDBACK_MS = 450;
 
 interface ItemRowProps {
   item: ShoppingRequest;
@@ -28,10 +32,26 @@ export const ItemRow = memo(function ItemRow({ item, onCheck, onOpenDetail, show
   const hasNotes = !!(item.notes && item.notes.trim());
   const fwMeta = TARGET_FRAMEWORKS.find((f) => f.id === (item.targetFramework || "main")) || TARGET_FRAMEWORKS[0];
 
+  // Local "just checked" state: the row shows the tick and strikethrough first, and only
+  // then hands off to onCheck (which removes it from the list). Without this the row
+  // vanishes with no confirmation of what was marked — and on touch there is no hover tick.
+  const [checking, setChecking] = useState(false);
+  const resetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => () => {
+    if (resetTimerRef.current) clearTimeout(resetTimerRef.current);
+  }, []);
+
   const handleCheck = (e: React.MouseEvent) => {
     e.stopPropagation();
+    if (checking) return;
     if (typeof navigator !== "undefined" && navigator.vibrate) navigator.vibrate(15);
-    onCheck(item);
+    setChecking(true);
+    // Deliberately not cancelled on unmount: if the row disappears mid-animation (filter
+    // change), the purchase the user tapped must still go through.
+    setTimeout(() => onCheck(item), CHECK_FEEDBACK_MS);
+    // If the write is rejected the row stays in the list — don't leave it stuck "checked".
+    resetTimerRef.current = setTimeout(() => setChecking(false), CHECK_FEEDBACK_MS + 2000);
   };
 
   return (
@@ -42,8 +62,12 @@ export const ItemRow = memo(function ItemRow({ item, onCheck, onOpenDetail, show
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.12 }}
-      onClick={() => onOpenDetail(item)}
-      className="relative w-full flex items-center gap-3 px-3 py-2.5 min-h-[60px] rounded-2xl border border-transparent bg-[var(--surface)] hover:bg-[var(--foreground)]/[0.03] active:bg-[var(--foreground)]/[0.05] transition-colors text-right cursor-pointer overflow-hidden"
+      onClick={() => {
+        if (!checking) onOpenDetail(item);
+      }}
+      className={`relative w-full flex items-center gap-3 px-3 py-2.5 min-h-[60px] rounded-2xl border border-transparent hover:bg-[var(--foreground)]/[0.03] active:bg-[var(--foreground)]/[0.05] transition-colors text-right cursor-pointer overflow-hidden ${
+        checking ? "bg-emerald-500/10" : "bg-[var(--surface)]"
+      }`}
     >
       {/* Urgent marker: a thin stripe, not a full color wash — same information, far less noise */}
       {isUrgent && <span className="absolute right-0 top-0 bottom-0 w-1 bg-rose-500" />}
@@ -53,16 +77,22 @@ export const ItemRow = memo(function ItemRow({ item, onCheck, onOpenDetail, show
         role="button"
         aria-label="סמן כנרכש"
         onClick={handleCheck}
-        className="w-11 h-11 shrink-0 rounded-full border-2 border-[var(--muted)]/35 hover:border-indigo-500 hover:bg-indigo-500/10 text-indigo-500 flex items-center justify-center transition-all active:scale-90 cursor-pointer"
+        className={`w-11 h-11 shrink-0 rounded-full border-2 flex items-center justify-center transition-all active:scale-90 cursor-pointer ${
+          checking
+            ? "bg-emerald-500 border-emerald-500 text-white"
+            : "border-[var(--muted)]/35 hover:border-indigo-500 hover:bg-indigo-500/10 text-indigo-500"
+        }`}
       >
-        <Check className="w-5 h-5 opacity-0 hover:opacity-100 transition-opacity stroke-[3]" />
+        <Check className={`w-5 h-5 transition-opacity stroke-[3] ${checking ? "opacity-100" : "opacity-0 hover:opacity-100"}`} />
       </span>
 
       {/* Name + meta */}
       <div className="min-w-0 flex-1 text-right">
         <div className="flex items-center gap-1.5">
           {isUrgent && <Flame className="w-3.5 h-3.5 text-rose-500 shrink-0" />}
-          <span className="text-[15px] font-bold text-[var(--foreground)] truncate">{item.name}</span>
+          <span className={`text-[15px] font-bold text-[var(--foreground)] truncate transition-opacity ${checking ? "line-through opacity-50" : ""}`}>
+            {item.name}
+          </span>
           {showFrameworkTag && (
             <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-md border shrink-0 ${fwMeta.color}`}>
               {fwMeta.shortName}

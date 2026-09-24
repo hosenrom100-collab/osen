@@ -5,12 +5,14 @@ import { format } from "date-fns";
 import { ShoppingRequest, Product, TargetFramework } from "../types";
 import { toDateOrNull } from "../lib/dateUtils";
 import { FRAMEWORK_LABELS, TARGET_FRAMEWORKS } from "../lib/constants";
+import { buildShareText } from "../lib/shareText";
 import { generateShoppingListWord, generateDocxWithLetterhead } from "@/lib/word-generator";
 
 export function useExport(
   requests: ShoppingRequest[],
   pool: Product[],
-  showToast: (message: string, type: "success" | "warning") => void
+  showToast: (message: string, type: "success" | "warning") => void,
+  categories: string[] = []
 ) {
   const exportItemsToWord = async (
     items: ShoppingRequest[],
@@ -149,7 +151,48 @@ export function useExport(
     }
   };
 
+  // Native share sheet on phones (straight into WhatsApp); clipboard where there isn't one.
+  const shareList = async (
+    listType: "supermarket" | "large",
+    framework: "all" | TargetFramework = "all",
+    deliveryDay?: string
+  ) => {
+    const items = requests.filter(
+      (r) =>
+        (r.status === "approved" || r.status === "pending") &&
+        (listType === "large" ? r.listType === "large" : r.listType !== "large") &&
+        (framework === "all" || (r.targetFramework || "main") === framework)
+    );
+
+    if (items.length === 0) {
+      showToast("אין פריטים פתוחים לשיתוף", "warning");
+      return;
+    }
+
+    const text = buildShareText(items, { listType, framework, categories, deliveryDay });
+
+    try {
+      if (typeof navigator !== "undefined" && navigator.share) {
+        await navigator.share({ text });
+        return;
+      }
+    } catch (e) {
+      // Closing the share sheet is a choice, not a failure.
+      if (e instanceof DOMException && e.name === "AbortError") return;
+      console.error("Share failed, falling back to clipboard:", e);
+    }
+
+    try {
+      await navigator.clipboard.writeText(text);
+      showToast("הרשימה הועתקה — אפשר להדביק בוואטסאפ", "success");
+    } catch (e) {
+      console.error(e);
+      showToast("לא ניתן היה לשתף את הרשימה. נסה שוב.", "warning");
+    }
+  };
+
   return {
+    shareList,
     exportProcurementList,
     exportOngoingList,
     exportSplitOngoingLists,
