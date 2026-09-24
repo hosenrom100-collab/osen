@@ -43,7 +43,6 @@ export default function ShoppingPage() {
 
   // Overlay state
   const [overlayOpen, setOverlayOpen] = useState(false);
-  const [overlayInitialMode, setOverlayInitialMode] = useState<"favorites" | "search">("favorites");
   const [toast, setToast] = useState<{ message: string; type: "success" | "warning" } | null>(null);
 
   // Category State
@@ -340,10 +339,7 @@ export default function ShoppingPage() {
              decision with no payoff. ── */}
         <motion.button
           whileTap={{ scale: 0.95 }}
-          onClick={() => {
-            setOverlayInitialMode("favorites");
-            setOverlayOpen(true);
-          }}
+          onClick={() => setOverlayOpen(true)}
           className="fixed bottom-24 md:bottom-8 left-4 sm:left-6 z-[55] h-14 pr-4 pl-5 rounded-full bg-[var(--accent)] !text-white shadow-[var(--shadow-pop)] flex items-center gap-2 cursor-pointer border-none hover:brightness-110 transition-[filter]"
           aria-label="הוסף מוצר לרשימה"
         >
@@ -355,7 +351,6 @@ export default function ShoppingPage() {
         <AddProductOverlay
           isOpen={overlayOpen}
           onClose={() => setOverlayOpen(false)}
-          initialMode={overlayInitialMode}
           pool={pool}
           categories={categories}
           requests={requests}

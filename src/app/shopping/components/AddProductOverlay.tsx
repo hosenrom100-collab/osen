@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { CycleItemSnapshot, Product, ShoppingRequest, TargetFramework } from "../types";
-import { Plus, Search, Star, X, Flame, CheckCircle2, AlertTriangle, Minus, ArrowRight, Sparkles, MapPin, History } from "lucide-react";
+import { Plus, Search, X, Flame, CheckCircle2, AlertTriangle, Minus, ArrowRight, Sparkles, MapPin, History } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { rankSimilarProducts, findSimilarProduct } from "../lib/stringUtils";
 import { MEASUREMENT_UNITS, CAT_COLOR, CAT_SOLID, TARGET_FRAMEWORKS } from "../lib/constants";
@@ -18,7 +18,6 @@ interface AddProductOverlayProps {
   isManager?: boolean;
   isLogistics?: boolean;
   isFrozen?: boolean;
-  initialMode?: "favorites" | "search";
   targetFramework?: TargetFramework;
   onTargetFrameworkChange?: (fw: TargetFramework) => void;
   onAddProduct: (name: string, category?: string, priority?: "normal" | "urgent", quantity?: string, notes?: string, requestedByOverride?: { uid: string; name: string }, targetFramework?: TargetFramework) => Promise<boolean>;
@@ -54,11 +53,9 @@ export function AddProductOverlay({
   isFrozen,
   categories = [],
   lastCycleItems = [],
-  initialMode = "favorites",
   targetFramework = "main",
   onTargetFrameworkChange,
 }: AddProductOverlayProps) {
-  const [activeMode, setActiveMode] = useState<"favorites" | "search">(initialMode);
   const [inputVal, setInputVal] = useState("");
   const [pending, setPending] = useState<PendingAdd | null>(null);
   const [qtyValue, setQtyValue] = useState(1);
@@ -77,7 +74,6 @@ export function AddProductOverlay({
   useEffect(() => {
     if (!isOpen) return;
     submittingRef.current = false;
-    setActiveMode(initialMode);
     setInputVal("");
     setPending(null);
     setQtyValue(1);
@@ -86,7 +82,16 @@ export function AddProductOverlay({
     setSelectedFramework(targetFramework);
     setAddedCount(0);
     setFeedback(null);
-  }, [isOpen, initialMode, targetFramework]);
+  }, [isOpen, targetFramework]);
+
+  // Autofocus the search box only on desktop-class devices: on a phone the keyboard would
+  // pop up over the favorites the person most likely came here to tap.
+  useEffect(() => {
+    if (!isOpen || typeof window === "undefined") return;
+    if (window.matchMedia?.("(hover: hover) and (pointer: fine)").matches) {
+      requestAnimationFrame(() => searchInputRef.current?.focus());
+    }
+  }, [isOpen]);
 
   // Ephemeral confirmation toast — fades on its own, never blocks the next pick
   useEffect(() => {
@@ -230,7 +235,7 @@ export function AddProductOverlay({
     setQtyUnit("יחידות");
     setUrgent(false);
 
-    if (activeMode === "search") {
+    if (inputVal.trim()) {
       setInputVal("");
       requestAnimationFrame(() => searchInputRef.current?.focus());
     }
@@ -275,45 +280,53 @@ export function AddProductOverlay({
           >
             <div className="w-12 h-1 bg-[var(--border)] rounded-full mx-auto mb-2.5 md:hidden shrink-0" />
 
-            {/* Framework context bar — the color IS the "are you sure this is the right list?"
-                cue, replacing a text banner. It also holds the switcher, so this is the
-                only place framework color appears at all. */}
+            {/* Header: title, close, and the framework being ordered for. The framework is a
+                context switch, not a decision to make each time — so it's a quiet chip row
+                (colored dot on the active one), not a full-width colored banner. */}
             {(() => {
-              const fw = TARGET_FRAMEWORKS.find((f) => f.id === selectedFramework) || TARGET_FRAMEWORKS[0];
               return (
-                <div className={`${fw.activeBg} rounded-2xl p-2.5 mb-2.5 shrink-0`}>
-                  <div className="flex items-center justify-between gap-2 mb-2 px-0.5">
-                    <div className="flex items-center gap-1.5 min-w-0">
-                      <MapPin className="w-3.5 h-3.5 text-white shrink-0" />
-                      <span className="text-xs font-bold text-white truncate">מזמין עבור: {fw.name}</span>
-                    </div>
-                    {!showStep2 && addedCount > 0 && (
-                      <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-white/20 text-white shrink-0">
-                        נוספו {addedCount}
-                      </span>
-                    )}
+                <div className="shrink-0 mb-3">
+                  <div className="flex items-center justify-between gap-2 mb-3">
+                    <h2 className="text-lg font-extrabold text-[var(--foreground)] flex items-center gap-2 min-w-0">
+                      <span className="truncate">הוספה לרשימה</span>
+                      {!showStep2 && addedCount > 0 && (
+                        <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 shrink-0">
+                          נוספו {addedCount}
+                        </span>
+                      )}
+                    </h2>
                     <button
                       onClick={onClose}
-                      className="p-1 -ml-1 rounded-full hover:bg-white/15 text-white cursor-pointer border-none bg-transparent shrink-0"
+                      aria-label="סגור"
+                      className="w-10 h-10 -ml-1.5 rounded-full hover:bg-[var(--foreground)]/5 text-[var(--muted)] cursor-pointer border-none bg-transparent shrink-0 flex items-center justify-center"
                     >
-                      <X className="w-4 h-4" />
+                      <X className="w-5 h-5" />
                     </button>
                   </div>
-                  <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+                  <div className="flex items-center gap-2 overflow-x-auto no-scrollbar" role="radiogroup" aria-label="מזמין עבור">
+                    <span className="flex items-center gap-1 text-[13px] font-semibold text-[var(--muted)] shrink-0">
+                      <MapPin className="w-4 h-4" />
+                      עבור
+                    </span>
                     {TARGET_FRAMEWORKS.map((f) => {
                       const active = selectedFramework === f.id;
                       return (
                         <button
                           key={f.id}
                           type="button"
+                          role="radio"
+                          aria-checked={active}
                           onClick={() => {
                             setSelectedFramework(f.id);
                             if (onTargetFrameworkChange) onTargetFrameworkChange(f.id);
                           }}
-                          className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer border-none whitespace-nowrap shrink-0 ${
-                            active ? "bg-white/25 text-white" : "bg-white/10 text-white/70 hover:text-white hover:bg-white/15"
+                          className={`h-9 px-3.5 rounded-full text-[13px] font-semibold whitespace-nowrap shrink-0 flex items-center gap-1.5 border transition-colors cursor-pointer ${
+                            active
+                              ? `${f.activeBg} !text-white border-transparent`
+                              : "bg-[var(--surface)] text-[var(--foreground)]/80 border-[var(--border)] hover:bg-[var(--foreground)]/[0.05]"
                           }`}
                         >
+                          {!active && <span aria-hidden className={`w-2 h-2 rounded-full ${f.dot}`} />}
                           {f.shortName}
                         </button>
                       );
@@ -458,181 +471,156 @@ export function AddProductOverlay({
                 </button>
               </div>
             ) : (
-              /* ── Step 1: search / choose product (Listonic Style) ── */
+              /* ── Step 1: one search box, always visible. Empty = your favorites and last cycle's
+                 items to tap; typing = matching products (or add a new one). No tabs to choose between. ── */
               <>
-                {/* View Selector Tabs (Favorites vs Search) */}
-                <div className="flex items-center gap-1.5 p-1 bg-[var(--background)] border border-[var(--border)] rounded-2xl mb-3 shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setActiveMode("favorites");
-                      setInputVal("");
+                <div className="relative mb-3 shrink-0">
+                  <Search className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[var(--muted)] pointer-events-none" />
+                  <input
+                    ref={searchInputRef}
+                    type="text"
+                    role="combobox"
+                    aria-expanded={suggestions.length > 0}
+                    aria-controls="add-product-results"
+                    aria-autocomplete="list"
+                    aria-label="חפש מוצר או הקלד שם חדש"
+                    value={inputVal}
+                    onChange={(e) => setInputVal(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && inputVal.trim()) {
+                        const exact = pool.find((p) => p.name.trim().toLowerCase() === inputVal.trim().toLowerCase());
+                        if (exact) selectProduct(exact);
+                        else selectNewProduct(inputVal);
+                      }
+                      if (e.key === "Escape") onClose();
                     }}
-                    className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer border-none ${
-                      activeMode === "favorites"
-                        ? "bg-[var(--accent)] text-white shadow-sm"
-                        : "text-[var(--muted)] hover:text-[var(--foreground)] bg-transparent"
-                    }`}
-                  >
-                    <Star className={`w-3.5 h-3.5 ${activeMode === "favorites" ? "fill-white" : ""}`} />
-                    <span>מוצרים נפוצים</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setActiveMode("search")}
-                    className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer border-none ${
-                      activeMode === "search"
-                        ? "bg-[var(--accent)] text-white shadow-sm"
-                        : "text-[var(--muted)] hover:text-[var(--foreground)] bg-transparent"
-                    }`}
-                  >
-                    <Search className="w-3.5 h-3.5" />
-                    <span>חיפוש בהקלדה</span>
-                  </button>
+                    placeholder="חפש מוצר או הקלד שם חדש…"
+                    className="w-full h-12 rounded-2xl bg-[var(--foreground)]/[0.05] border border-transparent focus:border-[var(--accent)] focus:bg-[var(--surface)] pr-12 pl-11 text-base font-medium focus:outline-none transition-colors text-right placeholder:text-[var(--muted)] text-[var(--foreground)]"
+                  />
+                  {inputVal && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setInputVal("");
+                        searchInputRef.current?.focus();
+                      }}
+                      className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full text-[var(--muted)] hover:text-[var(--foreground)] hover:bg-[var(--foreground)]/10 transition-colors cursor-pointer border-none bg-transparent flex items-center justify-center"
+                      title="נקה חיפוש"
+                      aria-label="נקה חיפוש"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
                 </div>
 
-                {/* Search Bar Input (shown in search mode, or if user starts typing in search mode) */}
-                {activeMode === "search" && (
-                  <div className="relative group mb-3 shrink-0">
-                    <Search className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--accent-text)] pointer-events-none" />
-                    <input
-                      ref={searchInputRef}
-                      autoFocus
-                      type="text"
-                      role="combobox"
-                      aria-expanded={suggestions.length > 0}
-                      aria-autocomplete="list"
-                      aria-label="חפש או הקלד מוצר להוספה"
-                      value={inputVal}
-                      onChange={(e) => setInputVal(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          const exact = pool.find((p) => p.name.trim().toLowerCase() === inputVal.trim().toLowerCase());
-                          if (exact) selectProduct(exact);
-                          else selectNewProduct(inputVal);
-                        }
-                        if (e.key === "Escape") onClose();
-                      }}
-                      placeholder="הקלד שם מוצר להוספה..."
-                      className="w-full bg-[var(--background)] border border-[var(--border)] rounded-2xl py-3 pr-11 pl-10 text-sm font-bold focus:outline-none focus:border-[var(--accent)] transition-all text-right placeholder:text-[var(--muted)]/50 text-[var(--foreground)] shadow-xs"
-                    />
-                    {inputVal && (
-                      <button
-                        type="button"
-                        onClick={() => setInputVal("")}
-                        className="absolute left-3 top-1/2 -translate-y-1/2 p-1 rounded-full text-[var(--muted)] hover:text-[var(--foreground)] hover:bg-[var(--foreground)]/10 transition-colors cursor-pointer border-none flex items-center justify-center"
-                        title="נקה חיפוש"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                    )}
-                  </div>
-                )}
-
                 {isUserBlockedByFreeze && (
-                  <div className="mb-3 p-3 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-300 text-xs font-bold flex items-center gap-2 text-right shrink-0">
+                  <div className="mb-3 p-3 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-300 text-sm font-medium flex items-center gap-2 text-right shrink-0">
                     <span className="text-base">🔒</span>
                     <span>הרשימה מוקפאת כרגע לקראת רכש. הזנת מוצרים חדשים תתאפשר מחדש לאחר פתיחת סבב חדש.</span>
                   </div>
                 )}
 
-                {/* Search Mode Content */}
-                {activeMode === "search" ? (
-                  <div className={`flex-1 overflow-y-auto min-h-0 space-y-2 pr-1 no-scrollbar ${showQuickBar ? "pb-56" : "pb-4"}`}>
-                    {!inputVal.trim() ? (
-                      <div className="py-12 text-center bg-[var(--foreground)]/[0.02] border border-dashed border-[var(--border)] rounded-2xl p-6">
-                        <Search className="w-8 h-8 text-[var(--accent-text)] mx-auto mb-2 opacity-60" />
-                        <p className="text-xs font-bold text-[var(--foreground)] mb-1">הקלד בתיבה שלמעלה לחפש מוצר</p>
-                        <p className="text-xs text-[var(--muted)]">תוכל לחפש מוצר מהמאגר או להוסיף מוצר חדש לגמרי.</p>
-                      </div>
-                    ) : (
-                      (() => {
-                        const similarProduct = findSimilarProduct(inputVal, pool);
-                        const hasExactMatchInput = pool.some((p) => p.name.trim().toLowerCase() === inputVal.trim().toLowerCase());
+                {inputVal.trim() ? (
+                  /* Search results */
+                  <div
+                    id="add-product-results"
+                    className={`flex-1 overflow-y-auto min-h-0 space-y-2 pr-1 no-scrollbar ${showQuickBar ? "pb-56" : "pb-4"}`}
+                  >
+                    {(() => {
+                      const similarProduct = findSimilarProduct(inputVal, pool);
+                      const hasExactMatchInput = pool.some((p) => p.name.trim().toLowerCase() === inputVal.trim().toLowerCase());
 
-                        return (
-                          <>
-                            {similarProduct && !hasExactMatchInput && (
-                              <div className="mb-3 p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex flex-col gap-2 shrink-0">
-                                <div className="flex items-start gap-2 text-amber-700 dark:text-amber-300">
-                                  <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
-                                  <span className="text-xs font-bold">⚠️ אולי כבר קיים "{similarProduct.name}" ברשימה?</span>
-                                </div>
-                                <button
-                                  disabled={isUserBlockedByFreeze}
-                                  onClick={() => selectProduct(similarProduct)}
-                                  className="w-full px-3 py-2 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-700 dark:text-amber-300 font-bold text-xs border border-amber-500/20 transition-all active:scale-95 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-40"
-                                >
-                                  <Plus className="w-3.5 h-3.5" />
-                                  <span>בחר "{similarProduct.name}"</span>
-                                </button>
+                      return (
+                        <>
+                          {similarProduct && !hasExactMatchInput && (
+                            <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex flex-col gap-2 shrink-0">
+                              <div className="flex items-start gap-2 text-amber-700 dark:text-amber-300">
+                                <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                                <span className="text-sm font-semibold">אולי כבר קיים &quot;{similarProduct.name}&quot; ברשימה?</span>
                               </div>
-                            )}
-
-                            {!hasExactMatch && (
                               <button
-                                onClick={() => selectNewProduct(inputVal)}
                                 disabled={isUserBlockedByFreeze}
-                                className="w-full flex items-center justify-between px-5 py-3.5 rounded-2xl bg-[var(--accent)] hover:brightness-110 !text-white font-bold text-sm shadow-md shadow-indigo-600/15 active:scale-[0.98] transition-all cursor-pointer border-none shrink-0 disabled:opacity-40"
+                                onClick={() => selectProduct(similarProduct)}
+                                className="w-full h-10 px-3 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-700 dark:text-amber-300 font-bold text-sm border border-amber-500/20 transition-all active:scale-95 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-40"
                               >
-                                <span className="!text-white">
-                                  {canAddDirectly ? `הוסף "${inputVal}" חדש` : `לא מצאת? בקש הוספת "${inputVal}"`}
-                                </span>
-                                <Plus className="w-5 h-5 !text-white" />
+                                <Plus className="w-4 h-4" />
+                                <span>בחר &quot;{similarProduct.name}&quot;</span>
                               </button>
-                            )}
+                            </div>
+                          )}
 
-                            {suggestions.map((p) => {
-                              const inList = alreadyInList(p.name);
-                              const disabled = inList || isUserBlockedByFreeze;
-                              return (
-                                <button
-                                  key={p.id}
-                                  onClick={() => selectProduct(p)}
-                                  disabled={disabled}
-                                  className={`w-full flex items-center justify-between px-4 py-3 rounded-2xl border border-[var(--border)] transition-all active:scale-[0.98] cursor-pointer text-right shrink-0 ${
-                                    disabled
-                                      ? "opacity-40 bg-transparent cursor-not-allowed"
-                                      : "bg-[var(--foreground)]/[0.02] hover:border-indigo-500/50 hover:bg-[var(--foreground)]/[0.04]"
-                                  }`}
-                                >
-                                  <div className="flex flex-col items-start gap-0.5">
-                                    <span className="text-sm font-bold text-[var(--foreground)]">{p.name}</span>
-                                    <span className={`text-xs font-bold px-1.5 py-0.5 rounded-lg ${CAT_COLOR[p.category] || CAT_COLOR["כללי"]}`}>
-                                      {p.category}
-                                    </span>
-                                  </div>
-                                  {inList ? <CheckCircle2 className="w-5 h-5 text-emerald-500" /> : <Plus className="w-4 h-4 text-[var(--accent-text)]" />}
-                                </button>
-                              );
-                            })}
-                          </>
-                        );
-                      })()
-                    )}
+                          {!hasExactMatch && (
+                            <button
+                              onClick={() => selectNewProduct(inputVal)}
+                              disabled={isUserBlockedByFreeze}
+                              className="w-full h-14 flex items-center justify-between px-5 rounded-2xl bg-[var(--accent)] hover:brightness-110 !text-white font-bold text-[15px] shadow-[var(--shadow-card)] active:scale-[0.98] transition-all cursor-pointer border-none shrink-0 disabled:opacity-40"
+                            >
+                              <span className="!text-white truncate">
+                                {canAddDirectly ? `הוסף "${inputVal}" כמוצר חדש` : `לא מצאת? בקש הוספת "${inputVal}"`}
+                              </span>
+                              <Plus className="w-5 h-5 !text-white shrink-0" />
+                            </button>
+                          )}
+
+                          {suggestions.map((p) => {
+                            const inList = alreadyInList(p.name);
+                            const disabled = inList || isUserBlockedByFreeze;
+                            return (
+                              <button
+                                key={p.id}
+                                onClick={() => selectProduct(p)}
+                                disabled={disabled}
+                                className={`w-full min-h-[56px] flex items-center justify-between gap-3 px-4 py-2 rounded-2xl border transition-all active:scale-[0.99] text-right shrink-0 ${
+                                  disabled
+                                    ? "opacity-50 bg-transparent border-[var(--border)] cursor-not-allowed"
+                                    : "bg-[var(--surface)] border-[var(--border)] shadow-[var(--shadow-card)] hover:border-[var(--accent-line)] cursor-pointer"
+                                }`}
+                              >
+                                <div className="flex flex-col items-start gap-0.5 min-w-0">
+                                  <span className="text-[15px] font-semibold text-[var(--foreground)] truncate max-w-full">{p.name}</span>
+                                  <span className="flex items-center gap-1.5 text-[13px] text-[var(--muted)]">
+                                    <span aria-hidden className={`w-2 h-2 rounded-full ${CAT_SOLID[p.category] ?? CAT_SOLID["כללי"]}`} />
+                                    {p.category}
+                                  </span>
+                                </div>
+                                {inList ? (
+                                  <span className="flex items-center gap-1 text-[13px] font-semibold text-emerald-600 dark:text-emerald-400 shrink-0">
+                                    <CheckCircle2 className="w-5 h-5" /> ברשימה
+                                  </span>
+                                ) : (
+                                  <span className="w-9 h-9 rounded-full bg-[var(--accent-soft)] text-[var(--accent-text)] flex items-center justify-center shrink-0">
+                                    <Plus className="w-5 h-5" />
+                                  </span>
+                                )}
+                              </button>
+                            );
+                          })}
+                        </>
+                      );
+                    })()}
                   </div>
                 ) : (
-                  /* Favorites view — one row per product, tap to add. A row already in the
-                     list turns green and grows a +/− stepper right there, so adjusting a
+                  /* Browse: last cycle's items, then favorites as tap-to-add tiles. A tile already
+                     on the list turns green and grows a +/− stepper right there, so adjusting a
                      quantity never needs a separate screen. */
-                  <div className={`flex-1 overflow-y-auto min-h-0 space-y-3 pr-1 no-scrollbar ${showQuickBar ? "pb-56" : "pb-4"}`}>
+                  <div className={`flex-1 overflow-y-auto min-h-0 space-y-4 pr-1 no-scrollbar ${showQuickBar ? "pb-56" : "pb-4"}`}>
                     {lastOrdered.length > 0 && (
-                      <div className="rounded-2xl border border-[var(--accent-line)] bg-indigo-500/[0.05] p-3">
-                        <div className="flex items-center justify-between gap-2 mb-2">
-                          <span className="text-xs font-bold text-[var(--accent-text)] flex items-center gap-1.5">
-                            <History className="w-3.5 h-3.5" />
+                      <div className="rounded-2xl border border-[var(--accent-line)] bg-[var(--accent-soft)] p-3.5">
+                        <div className="flex items-center justify-between gap-2 mb-2.5">
+                          <span className="text-[13px] font-bold text-[var(--accent-text)] flex items-center gap-1.5">
+                            <History className="w-4 h-4" />
                             הוזמנו בסבב הקודם ({lastOrdered.length})
                           </span>
                           <button
                             type="button"
                             onClick={addAllFromLast}
                             disabled={isUserBlockedByFreeze || favBusy}
-                            className="px-2.5 py-1 rounded-lg bg-[var(--accent)] hover:brightness-110 !text-white text-xs font-bold border-none cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                            className="h-9 px-3.5 rounded-lg bg-[var(--accent)] hover:brightness-110 !text-white text-[13px] font-bold border-none cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
                           >
                             הוסף הכל
                           </button>
                         </div>
-                        <div className="flex flex-wrap gap-1.5">
+                        <div className="flex flex-wrap gap-2">
                           {lastOrdered.map((item) => {
                             const { value, unit } = parseQuantity(item.quantity);
                             return (
@@ -641,84 +629,83 @@ export function AddProductOverlay({
                                 type="button"
                                 onClick={() => addFromLast(item)}
                                 disabled={isUserBlockedByFreeze || favBusy}
-                                className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl border border-[var(--accent-line)] bg-[var(--surface)] text-xs font-bold text-[var(--foreground)] cursor-pointer hover:bg-indigo-500/10 disabled:opacity-40 disabled:cursor-not-allowed"
+                                className="h-10 flex items-center gap-1.5 pr-2.5 pl-3 rounded-xl border border-[var(--accent-line)] bg-[var(--surface)] text-sm font-semibold text-[var(--foreground)] cursor-pointer hover:bg-[var(--accent-soft-hover)] disabled:opacity-40 disabled:cursor-not-allowed"
                               >
-                                <Plus className="w-3 h-3 text-[var(--accent-text)] stroke-[3]" />
+                                <Plus className="w-4 h-4 text-[var(--accent-text)] stroke-[2.5]" />
                                 <span>{item.name}</span>
-                                <span className="text-xs text-[var(--muted)]">{value} {formatUnitShort(unit)}</span>
+                                <span className="text-[13px] font-medium text-[var(--muted)]">{value} {formatUnitShort(unit)}</span>
                               </button>
                             );
                           })}
                         </div>
                       </div>
                     )}
+
                     {starProducts.length === 0 ? (
-                      <div className="py-12 text-center bg-[var(--foreground)]/[0.02] border border-dashed border-[var(--border)] rounded-2xl p-6">
-                        <Sparkles className="w-8 h-8 text-amber-500 mx-auto mb-2 opacity-60" />
-                        <p className="text-xs font-bold text-[var(--foreground)] mb-1">אין עדיין מוצרים נפוצים</p>
-                        <p className="text-xs text-[var(--muted)] mb-3">ניתן להגדיר מוצרים נפוצים דרך תפריט הניהול ⭐ או לעבור לחיפוש בהקלדה.</p>
-                        <button
-                          type="button"
-                          onClick={() => setActiveMode("search")}
-                          className="px-4 py-2 bg-[var(--accent)] text-white rounded-xl text-xs font-bold hover:bg-indigo-500 transition cursor-pointer border-none"
-                        >
-                          עבור לחיפוש בהקלדה 🔍
-                        </button>
+                      <div className="py-10 px-6 text-center rounded-2xl border border-dashed border-[var(--border-strong)]">
+                        <Sparkles className="w-8 h-8 text-amber-500 mx-auto mb-2 opacity-70" />
+                        <p className="text-sm font-bold text-[var(--foreground)] mb-1">אין עדיין מוצרים נפוצים</p>
+                        <p className="text-[13px] text-[var(--muted)]">הקלד שם מוצר בתיבת החיפוש כדי להוסיף. מנהל יכול להגדיר מוצרים נפוצים מתפריט הניהול ⭐</p>
                       </div>
                     ) : (
                       Object.entries(frequentByCategory).map(([catName, items]) => (
-                        <div key={catName} className="space-y-1.5">
-                          <div className="sticky -top-px z-10 bg-[var(--surface)] py-1.5 text-xs font-bold text-[var(--muted)]">
+                        <div key={catName}>
+                          <div className="sticky top-0 z-10 bg-[var(--surface)] py-2 flex items-center gap-2 text-[13px] font-bold text-[var(--muted)]">
+                            <span aria-hidden className={`w-2 h-2 rounded-full ${CAT_SOLID[catName] ?? CAT_SOLID["כללי"]}`} />
                             {catName}
                           </div>
-                          <div className="space-y-1.5">
+                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                             {items.map((p) => {
                               const request = getActiveRequest(p.name);
-                              const inList = !!request;
-                              const qty = request ? parseQuantity(request.quantity).value : 0;
-                              return (
-                                <div
-                                  key={p.id}
-                                  className={`flex items-center justify-between gap-3 px-3.5 py-2.5 rounded-2xl border transition-colors ${
-                                    inList
-                                      ? "bg-emerald-500/[0.07] border-emerald-500/25"
-                                      : "bg-[var(--surface)] border-[var(--border)]"
-                                  }`}
-                                >
-                                  <span className="text-sm font-bold text-[var(--foreground)] truncate">{p.name}</span>
-
-                                  {inList && request ? (
-                                    <div className="flex items-center gap-2 shrink-0">
-                                      <button
-                                        type="button"
-                                        onClick={() => quickDec(request)}
-                                        disabled={isUserBlockedByFreeze}
-                                        className="w-7 h-7 rounded-lg border border-emerald-500/35 bg-[var(--surface)] text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-                                      >
-                                        <Minus className="w-3.5 h-3.5 stroke-[3]" />
-                                      </button>
-                                      <span className="min-w-[18px] text-center text-sm font-bold text-emerald-600 dark:text-emerald-400">{qty}</span>
-                                      <button
-                                        type="button"
-                                        onClick={() => quickInc(request)}
-                                        disabled={isUserBlockedByFreeze}
-                                        className="w-7 h-7 rounded-lg border-none bg-emerald-600 text-white flex items-center justify-center font-bold cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-                                      >
-                                        <Plus className="w-3.5 h-3.5 stroke-[3]" />
-                                      </button>
+                              if (request) {
+                                const qty = parseQuantity(request.quantity).value;
+                                return (
+                                  <div
+                                    key={p.id}
+                                    className="rounded-2xl border border-emerald-500/30 bg-emerald-500/[0.08] p-3 min-h-[92px] flex flex-col justify-between gap-2"
+                                  >
+                                    <span className="text-[15px] font-semibold leading-snug line-clamp-2 text-[var(--foreground)]">{p.name}</span>
+                                    <div className="flex items-center justify-between">
+                                      <span aria-hidden className="text-emerald-600 dark:text-emerald-400"><CheckCircle2 className="w-5 h-5" /></span>
+                                      <div className="flex items-center gap-1.5">
+                                        <button
+                                          type="button"
+                                          aria-label={`הפחת ${p.name}`}
+                                          onClick={() => quickDec(request)}
+                                          disabled={isUserBlockedByFreeze}
+                                          className="w-9 h-9 rounded-full border border-emerald-500/40 bg-[var(--surface)] text-emerald-600 dark:text-emerald-400 flex items-center justify-center cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                                        >
+                                          <Minus className="w-4 h-4 stroke-[3]" />
+                                        </button>
+                                        <span className="min-w-[22px] text-center text-base font-bold tabular-nums text-emerald-700 dark:text-emerald-400">{qty}</span>
+                                        <button
+                                          type="button"
+                                          aria-label={`הוסף עוד ${p.name}`}
+                                          onClick={() => quickInc(request)}
+                                          disabled={isUserBlockedByFreeze}
+                                          className="w-9 h-9 rounded-full border-none bg-emerald-600 text-white flex items-center justify-center cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                                        >
+                                          <Plus className="w-4 h-4 stroke-[3]" />
+                                        </button>
+                                      </div>
                                     </div>
-                                  ) : (
-                                    <button
-                                      type="button"
-                                      aria-label={`הוסף ${p.name}`}
-                                      onClick={() => quickAdd(p)}
-                                      disabled={isUserBlockedByFreeze || favBusy}
-                                      className="w-8 h-8 rounded-xl border-none bg-[var(--accent-soft)] text-[var(--accent-text)] hover:bg-indigo-600 hover:text-white flex items-center justify-center shrink-0 cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                                    >
-                                      <Plus className="w-4 h-4 stroke-[2.5]" />
-                                    </button>
-                                  )}
-                                </div>
+                                  </div>
+                                );
+                              }
+                              return (
+                                <button
+                                  key={p.id}
+                                  type="button"
+                                  aria-label={`הוסף ${p.name}`}
+                                  onClick={() => quickAdd(p)}
+                                  disabled={isUserBlockedByFreeze || favBusy}
+                                  className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow-card)] p-3 min-h-[92px] flex flex-col justify-between gap-2 text-right cursor-pointer transition-all active:scale-[0.97] hover:border-[var(--accent-line)] disabled:opacity-40 disabled:cursor-not-allowed"
+                                >
+                                  <span className="text-[15px] font-semibold leading-snug line-clamp-2 text-[var(--foreground)]">{p.name}</span>
+                                  <span className="self-end w-9 h-9 rounded-full bg-[var(--accent-soft)] text-[var(--accent-text)] flex items-center justify-center">
+                                    <Plus className="w-5 h-5 stroke-[2.5]" />
+                                  </span>
+                                </button>
                               );
                             })}
                           </div>
