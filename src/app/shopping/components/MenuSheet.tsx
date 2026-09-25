@@ -185,7 +185,7 @@ export function MenuSheet({
               <div className="text-xs font-bold text-amber-700 dark:text-amber-400 flex items-center justify-between">
                 <div className="flex items-center gap-1.5">
                   <Boxes className="w-3.5 h-3.5" />
-                  <span>רשימת ציוד ורכש</span>
+                  <span>רשימת רכש</span>
                 </div>
                 <button
                   onClick={wrap(() => onExportProcurementList("all"))}

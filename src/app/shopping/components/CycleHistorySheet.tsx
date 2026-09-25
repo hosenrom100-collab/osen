@@ -42,7 +42,7 @@ export function CycleHistorySheet({ isOpen, onClose, listType }: CycleHistoryShe
     <BottomSheet
       isOpen={isOpen}
       onClose={onClose}
-      title={`סבבים קודמים · ${listType === "large" ? "ציוד ורכש" : "סופר"}`}
+      title={`סבבים קודמים · ${listType === "large" ? "רכש" : "סופר"}`}
       icon={<History className="w-4 h-4 text-[var(--accent-text)]" />}
     >
       {error ? (

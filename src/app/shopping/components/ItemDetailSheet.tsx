@@ -267,7 +267,7 @@ export function ItemDetailSheet({
               className="h-11 px-2 rounded-xl flex items-center justify-center gap-1.5 text-[13px] font-semibold border bg-[var(--surface)] border-[var(--border)] text-[var(--foreground)] hover:bg-[var(--fill)] transition-colors cursor-pointer"
             >
               <ArrowRightLeft className="w-4 h-4 shrink-0 text-[var(--accent-text)]" />
-              <span className="truncate">{item.listType === "large" ? "לסופר" : "לציוד ורכש"}</span>
+              <span className="truncate">{item.listType === "large" ? "לסופר" : "לרכש"}</span>
             </button>
 
             <button

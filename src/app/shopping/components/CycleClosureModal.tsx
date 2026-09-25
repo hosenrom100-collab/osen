@@ -213,7 +213,7 @@ export function CycleClosureModal({
       footer={footer}
     >
           <p className="text-sm text-[var(--muted)] font-medium mb-4">
-            בדיקה סופית לפני ארכוב הסבב של <strong className="text-[var(--foreground)]">{listType === "large" ? "ציוד ורכש" : "קניות סופר"}</strong>. הסבב נשמר ב״סבבים קודמים״.
+            בדיקה סופית לפני ארכוב הסבב של <strong className="text-[var(--foreground)]">{listType === "large" ? "רכש" : "קניות סופר"}</strong>. הסבב נשמר ב״סבבים קודמים״.
           </p>
 
           <div className="grid grid-cols-3 gap-2 mb-4">

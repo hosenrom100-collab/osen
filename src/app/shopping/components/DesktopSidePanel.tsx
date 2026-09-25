@@ -47,7 +47,7 @@ export function DesktopSidePanel({
     <div className="space-y-3">
       <section className="rounded-2xl bg-[var(--surface)] border border-[var(--border)] shadow-[var(--shadow-card)] p-5">
         <h2 className="text-[13px] font-bold text-[var(--muted)] mb-4">
-          {listType === "large" ? "ציוד ורכש" : "קניות"} · {scopeLabel}
+          {listType === "large" ? "רכש" : "קניות"} · {scopeLabel}
         </h2>
 
         {total === 0 ? (

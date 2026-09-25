@@ -240,7 +240,7 @@ export function useShoppingActions(
   const moveToEquipment = async (id: string) => {
     try {
       await updateDoc(doc(db, "shopping_requests", id), { listType: "large", updatedAt: new Date(), updatedBy: user?.uid });
-      showToast("המוצר הועבר לרשימת ציוד ורכש", "success");
+      showToast("המוצר הועבר לרשימת רכש", "success");
     } catch (e) {
       console.error(e);
       showToast("שגיאה בהעברת המוצר. נסה שוב.", "warning");

@@ -4,12 +4,13 @@ import { useEffect, useRef, useState } from "react";
 import { User } from "firebase/auth";
 import { ShoppingRequest, Product, TargetFramework } from "../types";
 import {
-  Flame, ShoppingBag, ChevronDown, Check, RotateCcw, Undo2, Trash2, Download,
+  Flame, ShoppingBag, ChevronDown, Check, RotateCcw, Undo2, Trash2, Download, Layers,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { CAT_SOLID, TARGET_FRAMEWORKS } from "../lib/constants";
 import { ItemRow } from "./ItemRow";
 import { ItemDetailSheet } from "./ItemDetailSheet";
+import { BottomSheet } from "./BottomSheet";
 
 type ShoppingStatus = ShoppingRequest["status"] | "permanently_delete";
 type OnChangeStatus = (id: string, next: ShoppingStatus, extra?: Record<string, unknown>) => void;
@@ -135,20 +136,19 @@ export function ShoppingListView({
   // filtered to one, the chip row already said which, so repeating it per row is noise.
   const showFrameworkTag = selectedFramework === "all";
 
-  // Keep the active chip in view: the saved framework can be off-screen in the scroller.
-  const activeChipRef = useRef<HTMLButtonElement | null>(null);
-  useEffect(() => {
-    activeChipRef.current?.scrollIntoView({ inline: "center", block: "nearest" });
-  }, [selectedFramework]);
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   const frameworkChips = [
-    { id: "all" as const, label: "הכל", count: totalCategoryRequests.length },
+    { id: "all" as const, label: "כל המסגרות", name: "כל המסגרות", count: totalCategoryRequests.length },
     ...TARGET_FRAMEWORKS.map((fw) => ({
       id: fw.id,
       label: fw.shortName,
+      name: fw.name,
       count: totalCategoryRequests.filter((r) => (r.targetFramework || "main") === fw.id).length,
     })),
   ];
+
+  const selectedChip = frameworkChips.find((c) => c.id === selectedFramework) ?? frameworkChips[0];
 
   const cardClass =
     "rounded-2xl bg-[var(--surface)] border border-[var(--border)] shadow-[var(--shadow-card)] overflow-clip";
@@ -179,36 +179,28 @@ export function ShoppingListView({
             </button>
           )}
 
-          <div
-            role="tablist"
-            aria-label="סינון לפי מסגרת"
-            className="flex-1 min-w-0 flex items-center gap-1.5 overflow-x-auto no-scrollbar"
+          {/* One button that shows the current framework; tapping it opens the picker sheet. */}
+          <button
+            onClick={() => setPickerOpen(true)}
+            aria-haspopup="dialog"
+            aria-label={`מסגרת: ${selectedChip.label}. לחץ לשינוי`}
+            className={`flex-1 min-w-0 h-8 px-3.5 rounded-full text-[13px] font-semibold flex items-center gap-2 border transition-colors cursor-pointer ${
+              selectedFramework === "all"
+                ? "bg-[var(--surface)] text-[var(--foreground)] border-[var(--border)] hover:bg-[var(--fill)]"
+                : "bg-[var(--accent)] !text-white border-transparent"
+            }`}
           >
-            {frameworkChips.map((chip) => {
-              const active = selectedFramework === chip.id;
-              const fw = TARGET_FRAMEWORKS.find((f) => f.id === chip.id);
-              return (
-                <button
-                  key={chip.id}
-                  ref={active ? activeChipRef : undefined}
-                  role="tab"
-                  aria-selected={active}
-                  onClick={() => setSelectedFramework?.(chip.id)}
-                  className={`h-8 px-3 rounded-full text-[13px] font-semibold whitespace-nowrap shrink-0 flex items-center gap-1.5 border transition-colors cursor-pointer ${
-                    active
-                      ? "bg-[var(--accent)] !text-white border-transparent"
-                      : "bg-[var(--surface)] text-[var(--foreground)]/80 border-[var(--border)] hover:bg-[var(--fill)]"
-                  }`}
-                >
-                  {fw && <span aria-hidden className={`w-2 h-2 rounded-full ${active ? "bg-white/85" : fw.dot}`} />}
-                  <span>{chip.label}</span>
-                  <span className={`text-xs font-semibold tabular-nums ${active ? "opacity-80" : "text-[var(--muted)]"}`}>
-                    {chip.count}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
+            {currentFw ? (
+              <span aria-hidden className="w-2 h-2 rounded-full shrink-0 bg-white/85" />
+            ) : (
+              <Layers className="w-3.5 h-3.5 shrink-0 text-[var(--muted)]" />
+            )}
+            <span className="truncate flex-1 text-right">{selectedChip.label}</span>
+            <span className={`text-xs font-semibold tabular-nums shrink-0 ${currentFw ? "opacity-80" : "text-[var(--muted)]"}`}>
+              {selectedChip.count}
+            </span>
+            <ChevronDown className="w-3.5 h-3.5 shrink-0 opacity-70" />
+          </button>
 
           {activeCategory !== null && (
             <button
@@ -230,8 +222,8 @@ export function ShoppingListView({
               }}
               title={
                 selectedFramework === "all"
-                  ? `הורד רשימה מאוחדת (${listType === "large" ? "ציוד ורכש" : "סופר"})`
-                  : `הורד רשימת ${currentFw?.name || ""} (${listType === "large" ? "ציוד ורכש" : "סופר"})`
+                  ? `הורד רשימה מאוחדת (${listType === "large" ? "רכש" : "סופר"})`
+                  : `הורד רשימת ${currentFw?.name || ""} (${listType === "large" ? "רכש" : "סופר"})`
               }
               aria-label="הורד רשימה כקובץ Word"
               className="lg:hidden h-8 w-8 rounded-full border bg-[var(--surface)] border-[var(--border)] hover:bg-[var(--fill)] flex items-center justify-center shrink-0 cursor-pointer transition-colors"
@@ -410,6 +402,40 @@ export function ShoppingListView({
           </AnimatePresence>
         </div>
       )}
+
+      <BottomSheet isOpen={pickerOpen} onClose={() => setPickerOpen(false)} title="בחירת מסגרת" icon={<Layers className="w-5 h-5 text-[var(--accent-text)]" />}>
+        <div role="radiogroup" aria-label="מסגרת" className="space-y-1">
+          {frameworkChips.map((chip) => {
+            const active = selectedFramework === chip.id;
+            const fw = TARGET_FRAMEWORKS.find((f) => f.id === chip.id);
+            return (
+              <button
+                key={chip.id}
+                role="radio"
+                aria-checked={active}
+                onClick={() => {
+                  setSelectedFramework?.(chip.id);
+                  setPickerOpen(false);
+                }}
+                className={`w-full h-12 px-3 rounded-xl flex items-center gap-3 text-right cursor-pointer border-none transition-colors ${
+                  active ? "bg-[var(--accent-soft)]" : "bg-transparent hover:bg-[var(--fill)]"
+                }`}
+              >
+                {fw ? (
+                  <span aria-hidden className={`w-2.5 h-2.5 rounded-full shrink-0 ${fw.dot}`} />
+                ) : (
+                  <Layers className="w-4 h-4 shrink-0 text-[var(--muted)]" />
+                )}
+                <span className={`flex-1 text-[15px] ${active ? "font-bold text-[var(--accent-text)]" : "font-medium text-[var(--foreground)]"}`}>
+                  {chip.name}
+                </span>
+                <span className="text-[13px] font-semibold tabular-nums text-[var(--muted)]">{chip.count}</span>
+                <Check className={`w-4 h-4 shrink-0 stroke-[3] text-[var(--accent-text)] ${active ? "" : "invisible"}`} />
+              </button>
+            );
+          })}
+        </div>
+      </BottomSheet>
 
       <ItemDetailSheet
         item={detailItem}
