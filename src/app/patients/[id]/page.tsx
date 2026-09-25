@@ -1509,7 +1509,7 @@ export default function PatientDetailPage() {
             <div className="flex items-center gap-2 w-full md:w-auto justify-end">
               {navList.length > 0 && navIndex >= 0 && (
                 <>
-                  <div className="flex items-center bg-[var(--foreground)]/5 border border-[var(--border)] rounded-xl overflow-hidden">
+                  <div className="flex items-center border border-[var(--border)] bg-[var(--surface)] rounded-lg overflow-hidden">
                     <button
                       onClick={() => goToNavIndex(navIndex - 1)}
                       disabled={navIndex <= 0}
@@ -1604,7 +1604,7 @@ export default function PatientDetailPage() {
                  { label: "סטטוס שיקומי", value: patient.rehabPlanCompleted ? "בתהליך" : "התחלתי", icon: Shield, color: "text-blue-500", bg: "bg-blue-50" },
                ];
              })().map((stat, i) => (
-               <div key={i} className="bg-[var(--card-bg)] border border-[var(--border)] p-3 rounded-xl hover:border-[var(--foreground)]/20 transition-all group shadow-sm flex items-center gap-3">
+               <div key={i} className="border-b border-[var(--border)] py-3 transition-all group flex items-center gap-3">
                  <div className={`w-8 h-8 rounded-lg ${stat.bg} ${stat.color} flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform`}>
                     <stat.icon className="w-4 h-4" />
                  </div>
@@ -1617,7 +1617,7 @@ export default function PatientDetailPage() {
           </div>
 
           {/* ── Tabs ── */}
-          <div className="flex bg-[var(--foreground)]/5 p-1.5 rounded-2xl border border-[var(--border)] mb-6 w-full md:w-fit overflow-x-auto no-scrollbar touch-pan-x gap-1">
+          <div className="flex py-1.5 border-b border-[var(--border)] mb-6 w-full md:w-fit overflow-x-auto no-scrollbar touch-pan-x gap-1">
              {(() => {
                return [
                  { id: "overview", label: "סקירה", icon: Info },
@@ -1650,7 +1650,7 @@ export default function PatientDetailPage() {
               <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} key="overview" className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
 
                  {/* Left Column: Personal & Contact Details */}
-                 <div className="lg:col-span-8 bg-[var(--card-bg)] border border-[var(--border)] rounded-2xl p-4 md:p-6 shadow-sm">
+                 <div className="lg:col-span-8 border-b border-[var(--border)] py-4 md:py-6">
                    {!isEditingDetails ? (
                      <div className="space-y-4">
                        {/* Header of summary with Edit toggle button */}
@@ -1670,7 +1670,7 @@ export default function PatientDetailPage() {
 
                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                          {/* Personal Details Card */}
-                         <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 flex flex-col gap-3 shadow-sm hover:shadow-md/5 transition-all">
+                         <div className="border-b border-slate-100 py-4 flex flex-col gap-3 transition-all">
                            <div className="flex items-center gap-2 text-slate-800">
                              <User className="w-4 h-4 text-emerald-500" />
                              <span className="text-xs font-bold">פרטים אישיים</span>
@@ -1707,7 +1707,7 @@ export default function PatientDetailPage() {
                          </div>
 
                          {/* Programs and Groups Assignment Card */}
-                         <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 flex flex-col gap-3 shadow-sm hover:shadow-md/5 transition-all">
+                         <div className="border-b border-slate-100 py-4 flex flex-col gap-3 transition-all">
                            <div className="flex items-center gap-2 text-slate-800">
                              <Layers className="w-4 h-4 text-emerald-500" />
                              <span className="text-xs font-bold">שיבוץ לתוכניות וקבוצות</span>
@@ -1752,7 +1752,7 @@ export default function PatientDetailPage() {
                          </div>
 
                          {/* Supporting Team / Workers Card */}
-                         <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 flex flex-col gap-3 shadow-sm hover:shadow-md/5 transition-all">
+                         <div className="border-b border-slate-100 py-4 flex flex-col gap-3 transition-all">
                            <div className="flex items-center gap-2 text-slate-800">
                              <Briefcase className="w-4 h-4 text-emerald-500" />
                              <span className="text-xs font-bold">צוות מלווה</span>
@@ -1801,7 +1801,7 @@ export default function PatientDetailPage() {
                          </div>
 
                          {/* Dates & Milestones Card */}
-                         <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 flex flex-col gap-3 shadow-sm hover:shadow-md/5 transition-all">
+                         <div className="border-b border-slate-100 py-4 flex flex-col gap-3 transition-all">
                            <div className="flex items-center gap-2 text-slate-800">
                              <Calendar className="w-4 h-4 text-emerald-500" />
                              <span className="text-xs font-bold">תאריכים ואבני דרך</span>
@@ -1965,7 +1965,7 @@ export default function PatientDetailPage() {
                       if (items.length === 0) return null;
 
                       return (
-                        <div className="bg-white border border-slate-200/60 rounded-xl p-3">
+                        <div className="border-b border-slate-200/60 py-3">
                           <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-2.5">מסמכים ותוכניות</h4>
                           <div className={`grid ${items.length === 1 ? 'grid-cols-1' : items.length === 2 ? 'grid-cols-2' : items.length === 3 ? 'grid-cols-3' : 'grid-cols-2 sm:grid-cols-4'} gap-2`}>
                             {items.map((item) => (
@@ -2006,7 +2006,7 @@ export default function PatientDetailPage() {
                       if (items.length === 0) return null;
 
                       return (
-                        <div className="bg-white border border-slate-200/60 rounded-xl p-3">
+                        <div className="border-b border-slate-200/60 py-3">
                           <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-2.5">סימון דוחות</h4>
                           <div className={`grid ${items.length === 1 ? 'grid-cols-1' : items.length === 2 ? 'grid-cols-2' : 'grid-cols-3'} gap-2`}>
                             {items.map((item) => (
@@ -2035,7 +2035,7 @@ export default function PatientDetailPage() {
                     })()}
 
                     {/* ── Arrival Method ── */}
-                    <div className="bg-white border border-slate-200/60 rounded-xl p-3">
+                    <div className="border-b border-slate-200/60 py-3">
                       <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-2.5">אופן הגעה</h4>
                       <div className="grid grid-cols-2 gap-2">
                         {[
@@ -2118,7 +2118,7 @@ export default function PatientDetailPage() {
                   );
                 })()}
 
-                <div className="bg-[var(--card-bg)] border border-[var(--border)] rounded-3xl p-5 md:p-6 shadow-sm">
+                <div className="border-b border-[var(--border)] py-5 md:py-6">
                   <div className="flex items-center gap-2.5 mb-5">
                     <div className="w-1.5 h-5 bg-emerald-500 rounded-full" />
                     <h3 className="text-sm md:text-base font-bold text-slate-800">יומן נוכחות (קבוצות חודשיות)</h3>
@@ -2171,7 +2171,7 @@ export default function PatientDetailPage() {
                         return groupsList.map((g, idx) => {
                           const isExpanded = expandedAttendanceMonths[g.monthKey] ?? (idx === 0);
                           return (
-                            <div key={g.monthKey} className="border border-slate-200/60 rounded-2xl overflow-hidden shadow-sm bg-white hover:shadow-md transition-all">
+                            <div key={g.monthKey} className="border-b border-slate-200/60 overflow-hidden transition-all">
                               {/* Header Card */}
                               <button
                                 onClick={() => {
@@ -2249,7 +2249,7 @@ export default function PatientDetailPage() {
                 {/* Manual Generation Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                    {/* Stay Certificate */}
-                   <div className="bg-white border border-slate-200/60 rounded-3xl p-5 md:p-6 shadow-sm hover:border-emerald-500/30 hover:shadow-md transition-all group flex flex-col justify-between">
+                   <div className="border-b border-slate-200/60 py-5 md:py-6 transition-all group flex flex-col justify-between">
                       <div className="space-y-3">
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-500 flex items-center justify-center group-hover:scale-105 transition-transform shrink-0">
@@ -2275,7 +2275,7 @@ export default function PatientDetailPage() {
                    </div>
  
                    {/* Monthly Attendance Certificate */}
-                   <div className="bg-white border border-slate-200/60 rounded-3xl p-5 md:p-6 shadow-sm hover:border-sky-500/30 hover:shadow-md transition-all group flex flex-col justify-between">
+                   <div className="border-b border-slate-200/60 py-5 md:py-6 transition-all group flex flex-col justify-between">
                       <div className="space-y-3">
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 rounded-xl bg-sky-50 text-sky-500 flex items-center justify-center group-hover:scale-105 transition-transform shrink-0">
@@ -2292,7 +2292,7 @@ export default function PatientDetailPage() {
                       </div>
  
                       <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 mt-5 w-full">
-                         <div className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 shrink-0 flex items-center justify-center">
+                         <div className="bg-white border border-slate-200 rounded-xl p-2 shrink-0 flex items-center justify-center">
                            <select
                             value={selectedMonth}
                             onChange={e => setSelectedMonth(e.target.value)}
@@ -2335,7 +2335,7 @@ export default function PatientDetailPage() {
                 {/* Manual Generation Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                    {/* Periodic Report */}
-                   <div className="bg-white border border-slate-200/60 rounded-3xl p-5 md:p-6 shadow-sm hover:border-violet-500/30 hover:shadow-md transition-all group flex flex-col justify-between">
+                   <div className="border-b border-slate-200/60 py-5 md:py-6 transition-all group flex flex-col justify-between">
                       <div className="space-y-3">
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 rounded-xl bg-violet-50 text-violet-500 flex items-center justify-center group-hover:scale-105 transition-transform shrink-0">
@@ -2364,7 +2364,7 @@ export default function PatientDetailPage() {
                    </div>
  
                    {/* Functional Report */}
-                   <div className="bg-white border border-slate-200/60 rounded-3xl p-5 md:p-6 shadow-sm hover:border-violet-500/30 hover:shadow-md transition-all group flex flex-col justify-between">
+                   <div className="border-b border-slate-200/60 py-5 md:py-6 transition-all group flex flex-col justify-between">
                       <div className="space-y-3">
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 rounded-xl bg-violet-50 text-violet-500 flex items-center justify-center group-hover:scale-105 transition-transform shrink-0">
@@ -2393,7 +2393,7 @@ export default function PatientDetailPage() {
                    </div>
  
                    {/* Rehab Plan */}
-                   <div className="bg-white border border-slate-200/60 rounded-3xl p-5 md:p-6 shadow-sm hover:border-violet-500/30 hover:shadow-md transition-all group flex flex-col justify-between">
+                   <div className="border-b border-slate-200/60 py-5 md:py-6 transition-all group flex flex-col justify-between">
                       <div className="space-y-3">
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 rounded-xl bg-violet-50 text-violet-500 flex items-center justify-center group-hover:scale-105 transition-transform shrink-0">
@@ -2943,7 +2943,7 @@ export default function PatientDetailPage() {
 
                       <div className="space-y-1.5">
                         <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400">בחר חודשים רלוונטיים (ניתן לבחור יותר מחודש אחד):</label>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 bg-slate-50 p-3 rounded-2xl border border-slate-200">
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 py-3 border-b border-slate-200">
                           {Array.from({ length: 12 }).map((_, i) => {
                             const d = subMonths(new Date(), i);
                             const monthVal = format(d, "yyyy-MM");
@@ -3061,7 +3061,7 @@ export default function PatientDetailPage() {
                               {programs.find(p => p.id === (patient as any)?.programId)?.travelActivityDetail || reportSettings?.travelActivityDetail || "הפעילות השיקומית בחווה מקיפה מגוון תחומים ובהם: עבודה חקלאית יומיומית, מלאכות יד וגילוף, סדנאות יוגה וקבוצות שיח תמיכתיות."}
                             </p>
                             <p className="font-bold mt-4">הנ"ל מבקש החזר נסיעות עבור ההגעה לחווה בתאריכים:</p>
-                            <div className="mr-4 space-y-1 bg-white border border-slate-100 rounded-xl p-3">
+                            <div className="mr-4 space-y-1 border-b border-slate-100 py-3">
                               {travelAttendanceDatesStr.split("\n").map((line, idx) => (
                                 <div key={idx} className="font-bold underline text-slate-800">{line}</div>
                               ))}
@@ -3996,7 +3996,7 @@ export default function PatientDetailPage() {
                       <div className="lg:col-span-7 lg:h-[60vh] overflow-y-auto space-y-5 px-1 scrollbar-thin">
                         
                         {/* Section 1: Letter details */}
-                        <div className="bg-slate-50 border border-slate-200/60 rounded-2xl p-4 space-y-3">
+                        <div className="border-b border-slate-200/60 py-4 space-y-3">
                           <h4 className="text-xs font-bold text-slate-950 flex items-center gap-1.5 font-bold">
                             <Calendar className="w-3.5 h-3.5 text-violet-500" />
                             פרטי מכתב וחתימה
@@ -4053,7 +4053,7 @@ export default function PatientDetailPage() {
                         </div>
 
                         {/* Section 2: Free-text report sections (pre-filled from survey, fully editable) */}
-                        <div className="bg-slate-50 border border-slate-200/60 rounded-2xl p-4 space-y-3">
+                        <div className="border-b border-slate-200/60 py-4 space-y-3">
                           <h4 className="text-xs font-bold text-slate-950 flex items-center gap-1.5 font-bold">
                             <Info className="w-3.5 h-3.5 text-violet-500" />
                             מצב תפקודי
@@ -4065,7 +4065,7 @@ export default function PatientDetailPage() {
                           />
                         </div>
 
-                        <div className="bg-slate-50 border border-slate-200/60 rounded-2xl p-4 space-y-3">
+                        <div className="border-b border-slate-200/60 py-4 space-y-3">
                           <h4 className="text-xs font-bold text-slate-950 flex items-center gap-1.5 font-bold">
                             <AlertCircle className="w-3.5 h-3.5 text-violet-500" />
                             סימפטומים ומאפיינים
@@ -4077,7 +4077,7 @@ export default function PatientDetailPage() {
                           />
                         </div>
 
-                        <div className="bg-slate-50 border border-slate-200/60 rounded-2xl p-4 space-y-3">
+                        <div className="border-b border-slate-200/60 py-4 space-y-3">
                           <h4 className="text-xs font-bold text-slate-950 flex items-center gap-1.5 font-bold">
                             <Users className="w-3.5 h-3.5 text-violet-500" />
                             מצב משפחתי
@@ -4089,7 +4089,7 @@ export default function PatientDetailPage() {
                           />
                         </div>
 
-                        <div className="bg-slate-50 border border-slate-200/60 rounded-2xl p-4 space-y-3">
+                        <div className="border-b border-slate-200/60 py-4 space-y-3">
                           <h4 className="text-xs font-bold text-slate-950 flex items-center gap-1.5 font-bold">
                             <ClipboardCheck className="w-3.5 h-3.5 text-violet-500" />
                             התקדמות בחווה
@@ -4101,7 +4101,7 @@ export default function PatientDetailPage() {
                           />
                         </div>
 
-                        <div className="bg-slate-50 border border-slate-200/60 rounded-2xl p-4 space-y-3">
+                        <div className="border-b border-slate-200/60 py-4 space-y-3">
                           <h4 className="text-xs font-bold text-slate-950 flex items-center gap-1.5 font-bold">
                             <Sparkles className="w-3.5 h-3.5 text-violet-500" />
                             המלצות
@@ -4116,7 +4116,7 @@ export default function PatientDetailPage() {
                       </div>
 
                       {/* Left side: Live compiled preview text area (lg:col-span-5) */}
-                      <div className="lg:col-span-5 flex flex-col h-[60vh] bg-slate-50 border border-slate-200 rounded-3xl p-4 overflow-hidden">
+                      <div className="lg:col-span-5 flex flex-col h-[60vh] bg-white border border-slate-200 rounded-2xl p-4 overflow-hidden">
                         <div className="flex items-center justify-between mb-2 shrink-0">
                           <h4 className="text-xs font-bold text-slate-950 flex items-center gap-1.5 font-bold">
                             <Edit3 className="w-3.5 h-3.5 text-violet-500" />
@@ -4224,7 +4224,7 @@ export default function PatientDetailPage() {
                 ) : (
                   <>
                     <div className="flex-1 overflow-y-auto space-y-4 px-1 scrollbar-thin">
-                      <div className="bg-slate-50 border border-slate-200/60 rounded-2xl p-4 space-y-3">
+                      <div className="border-b border-slate-200/60 py-4 space-y-3">
                         <h4 className="text-xs font-bold text-slate-950 flex items-center gap-1.5 font-bold">
                           <Calendar className="w-3.5 h-3.5 text-violet-500" />
                           פרטי מכתב וחתימה
@@ -4271,7 +4271,7 @@ export default function PatientDetailPage() {
                         </div>
                       </div>
 
-                      <div className="bg-slate-50 border border-slate-200/60 rounded-2xl p-4 space-y-3">
+                      <div className="border-b border-slate-200/60 py-4 space-y-3">
                         <h4 className="text-xs font-bold text-slate-950 flex items-center gap-1.5 font-bold">
                           <Edit3 className="w-3.5 h-3.5 text-violet-500" />
                           תוכן התוכנית (א. תחומים לשיפור / ב. מטרה ספציפית / ג. דרכים להשגת המטרה / ד. מקורות סיוע)

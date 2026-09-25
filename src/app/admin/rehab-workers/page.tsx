@@ -209,7 +209,7 @@ export default function RehabWorkersManagementPage() {
 
         <div className="max-w-6xl mx-auto space-y-8">
           {/* Controls Bar */}
-          <div className="flex items-center justify-between gap-4 flex-wrap bg-[var(--card-bg)] border border-[var(--border)] rounded-3xl p-4 shadow-sm">
+          <div className="flex items-center justify-between gap-4 flex-wrap border-b border-[var(--border)] py-4">
             <div className="flex items-center gap-3">
               <h2 className="text-lg font-bold tracking-tight">
                 רשימת עו״ס במאגר ({filteredWorkers.length})

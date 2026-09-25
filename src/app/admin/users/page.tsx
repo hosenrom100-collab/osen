@@ -369,7 +369,7 @@ export default function UserManagementPage() {
               <p className="text-[11px] font-bold uppercase tracking-wider">טוען נתוני צוות...</p>
             </div>
           ) : (
-            <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl overflow-hidden shadow-sm">
+            <div className="border-b border-[var(--border)] overflow-hidden">
               <div className="overflow-x-auto min-h-[320px]">
                 <table className="w-full text-right border-collapse text-xs">
                   <thead>

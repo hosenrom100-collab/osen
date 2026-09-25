@@ -533,7 +533,7 @@ export default function BulkTravelPage() {
           {/* ── Step 1 ── */}
           {step === 1 && (
             <section className="space-y-5">
-              <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-5 space-y-5">
+              <div className="border-b border-[var(--border)] py-5 space-y-5">
                 <div>
                   <label className="text-[11px] font-bold uppercase tracking-wider text-[var(--muted)] mb-1.5 block">תוכנית</label>
                   {loadingPrograms ? (
@@ -590,7 +590,7 @@ export default function BulkTravelPage() {
               </div>
 
               {selectedProgramId && selectedMonths.length > 0 && (
-                <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl overflow-hidden">
+                <div className="border-b border-[var(--border)] overflow-hidden">
                   <div className="px-5 py-3 border-b border-[var(--border)] flex items-center gap-2">
                     <Users className="w-4 h-4 text-cyan-400" />
                     <h2 className="text-xs font-bold">משתתפים מתאימים ({participants.length})</h2>
@@ -639,7 +639,7 @@ export default function BulkTravelPage() {
           {/* ── Step 2 ── */}
           {step === 2 && selectedProgram && (
             <section className="space-y-5">
-              <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-5 space-y-4">
+              <div className="border-b border-[var(--border)] py-5 space-y-4">
                 <p className="text-xs text-[var(--muted)] leading-relaxed">
                   הורד את תבנית האקסל, מלא ידנית עבור כל משתתף את שם המשפחה המלא ומספר תעודת הזהות (מידע רגיש שאינו נשמר במערכת), ולאחר מכן חזור לכאן וייבא את הקובץ המלא בשלב הבא.
                 </p>
@@ -669,7 +669,7 @@ export default function BulkTravelPage() {
           {/* ── Step 3 ── */}
           {step === 3 && selectedProgram && (
             <section className="space-y-5">
-              <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-5 space-y-4">
+              <div className="border-b border-[var(--border)] py-5 space-y-4">
                 <label className="flex items-center gap-2 px-5 py-2.5 text-xs font-bold bg-[var(--foreground)]/5 border border-[var(--border)] rounded-xl hover:bg-[var(--foreground)]/10 transition-all cursor-pointer w-fit">
                   <Upload className="w-4 h-4 text-cyan-400" />
                   ייבוא תבנית מלאה
@@ -678,7 +678,7 @@ export default function BulkTravelPage() {
               </div>
 
               {mergedData.length > 0 && (
-                <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl overflow-hidden">
+                <div className="border-b border-[var(--border)] overflow-hidden">
                   <div className="px-5 py-3 border-b border-[var(--border)] flex items-center justify-between">
                     <h2 className="text-xs font-bold">תצוגה מקדימה ({matchedCount}/{mergedData.length} מוכנים להפקה)</h2>
                     <button

@@ -149,7 +149,7 @@ export default function StoreAuthorizationPage() {
         <div className="max-w-3xl mx-auto p-4">
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Items Section */}
-            <div className="bg-white rounded-lg shadow border border-slate-200 overflow-hidden">
+            <div className="border-b border-slate-200 overflow-hidden">
               <div className="bg-blue-50 px-6 py-4 border-b border-slate-200">
                 <h2 className="font-semibold text-slate-900">פריטים לקנייה</h2>
               </div>
@@ -205,7 +205,7 @@ export default function StoreAuthorizationPage() {
             </div>
 
             {/* Notes Section */}
-            <div className="bg-white rounded-lg shadow border border-slate-200 p-6">
+            <div className="border-b border-slate-200 py-6">
               <label className="block text-sm font-semibold text-slate-900 mb-2">
                 הערות (אופציונלי)
               </label>

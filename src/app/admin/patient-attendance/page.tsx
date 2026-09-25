@@ -468,7 +468,7 @@ function AttendancePageContent() {
             <Loader2 className="w-7 h-7 text-emerald-500 animate-spin" />
           </div>
         ) : !isSelectedActiveToday ? (
-          <div className="bg-[var(--surface)] border border-[var(--border)] rounded-3xl p-8 text-center space-y-4 shadow-sm">
+          <div className="border-b border-[var(--border)] py-8 text-center space-y-4">
             <div className="w-16 h-16 rounded-2xl bg-amber-500/10 text-amber-500 flex items-center justify-center mx-auto border border-amber-500/20">
               <CalendarIcon className="w-8 h-8" />
             </div>
@@ -494,7 +494,7 @@ function AttendancePageContent() {
         ) : (
           <>
             {/* Stats card */}
-            <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-4 space-y-3">
+            <div className="border-b border-[var(--border)] py-4 space-y-3">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="flex items-center justify-between sm:justify-start gap-3 sm:gap-5 w-full sm:w-auto">
                   <div className="text-center flex-1 sm:flex-none">
@@ -559,7 +559,7 @@ function AttendancePageContent() {
             </div>
 
             {/* Patient list */}
-            <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl overflow-hidden">
+            <div className="border-b border-[var(--border)] overflow-hidden">
               <AnimatePresence mode="wait">
                 {filteredPatients.length === 0 ? (
                   <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }}
@@ -635,7 +635,7 @@ function AttendancePageContent() {
                       const isProgChecked = tempPrefPrograms.includes(prog.id);
 
                       return (
-                        <div key={prog.id} className="bg-[var(--foreground)]/5 border border-[var(--border)] rounded-2xl p-4 space-y-3">
+                        <div key={prog.id} className="border-b border-[var(--border)] py-4 space-y-3">
                           <label className="flex items-center gap-3 cursor-pointer select-none">
                             <input
                               type="checkbox"

@@ -785,7 +785,7 @@ export default function PatientsPage() {
           <div className="flex items-center gap-2">
             {!isLogistics && (
               <>
-                <div className="flex bg-[var(--foreground)]/5 p-1 rounded-lg border border-[var(--border)] mr-4">
+                <div className="flex py-1 border-b border-[var(--border)] mr-4">
                   <button 
                     onClick={() => setViewMode("table")} 
                     title="תצוגת טבלה"
@@ -1121,7 +1121,7 @@ export default function PatientsPage() {
               <p className="text-lg font-bold italic">לא נמצאו משתתפים העונים לחיפוש</p>
             </div>
           ) : currentViewMode === "table" ? (
-            <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl overflow-hidden shadow-sm">
+            <div className="border-b border-[var(--border)] overflow-hidden">
               <div className="overflow-x-auto overflow-y-auto max-h-[calc(100vh-240px)] no-scrollbar">
                 <table className="w-full text-right border-collapse">
                   <thead>
@@ -1374,7 +1374,7 @@ export default function PatientsPage() {
               </div>
             </div>
           ) : (
-            <div className="flex flex-col bg-[var(--surface)] border border-[var(--border)] rounded-2xl overflow-hidden mb-8 shadow-sm">
+            <div className="flex flex-col border-b border-[var(--border)] overflow-hidden mb-8">
               {filtered.map((p) => {
                 const daysLeft = getDaysRemaining(p);
                 const pIds = p.programIds || (p.programId ? [p.programId] : []);
@@ -1618,41 +1618,41 @@ export default function PatientsPage() {
                     </label>
                     
                     {/* Instructions */}
-                    <div className="bg-[var(--foreground)]/[0.02] border border-[var(--border)] rounded-2xl p-5 space-y-3">
+                    <div className="border-b border-[var(--border)] py-5 space-y-3">
                       <h4 className="text-xs font-bold text-emerald-500">הנחיות ומבנה העמודות המומלץ:</h4>
                       <p className="text-xs text-[var(--muted)] leading-relaxed">
                         כדי שהמערכת תזהה את הנתונים ותבצע שיוך נכון לעו"ס מלווה וקבוצות, מומלץ להשתמש בכותרות הבאות בעברית (השיוך אינו רגיש לאותיות גדולות/קטנות או רווחים):
                       </p>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-2">
-                        <div className="bg-[var(--surface)] border border-[var(--border)] p-2.5 rounded-xl text-center">
+                        <div className="border-b border-[var(--border)] py-2.5 text-center">
                           <p className="text-xs font-bold">שם פרטי</p>
                           <p className="text-[11px] text-rose-500 font-bold mt-0.5">עמודת חובה</p>
                         </div>
-                        <div className="bg-[var(--surface)] border border-[var(--border)] p-2.5 rounded-xl text-center">
+                        <div className="border-b border-[var(--border)] py-2.5 text-center">
                           <p className="text-xs font-bold">שם משפחה</p>
                           <p className="text-[11px] text-rose-500 font-bold mt-0.5">עמודת חובה</p>
                         </div>
-                        <div className="bg-[var(--surface)] border border-[var(--border)] p-2.5 rounded-xl text-center">
+                        <div className="border-b border-[var(--border)] py-2.5 text-center">
                           <p className="text-xs font-bold">תעודת זהות</p>
                           <p className="text-[11px] text-[var(--muted)] font-bold mt-0.5">אופציונלי</p>
                         </div>
-                        <div className="bg-[var(--surface)] border border-[var(--border)] p-2.5 rounded-xl text-center">
+                        <div className="border-b border-[var(--border)] py-2.5 text-center">
                           <p className="text-xs font-bold">טלפון</p>
                           <p className="text-[11px] text-[var(--muted)] font-bold mt-0.5">אופציונלי</p>
                         </div>
-                        <div className="bg-[var(--surface)] border border-[var(--border)] p-2.5 rounded-xl text-center">
+                        <div className="border-b border-[var(--border)] py-2.5 text-center">
                           <p className="text-xs font-bold">תאריך התחלה</p>
                           <p className="text-[11px] text-[var(--muted)] font-bold mt-0.5">אופציונלי</p>
                         </div>
-                        <div className="bg-[var(--surface)] border border-[var(--border)] p-2.5 rounded-xl text-center">
+                        <div className="border-b border-[var(--border)] py-2.5 text-center">
                           <p className="text-xs font-bold">עו"ס מלווה</p>
                           <p className="text-[11px] text-[var(--muted)] font-bold mt-0.5">אופציונלי</p>
                         </div>
-                        <div className="bg-[var(--surface)] border border-[var(--border)] p-2.5 rounded-xl text-center">
+                        <div className="border-b border-[var(--border)] py-2.5 text-center">
                           <p className="text-xs font-bold">תוכנית</p>
                           <p className="text-[11px] text-[var(--muted)] font-bold mt-0.5">אופציונלי</p>
                         </div>
-                        <div className="bg-[var(--surface)] border border-[var(--border)] p-2.5 rounded-xl text-center">
+                        <div className="border-b border-[var(--border)] py-2.5 text-center">
                           <p className="text-xs font-bold">קבוצה</p>
                           <p className="text-[11px] text-[var(--muted)] font-bold mt-0.5">אופציונלי</p>
                         </div>
@@ -1676,7 +1676,7 @@ export default function PatientsPage() {
                 {importStep === "preview" && (
                   <div className="flex-1 flex flex-col overflow-hidden">
                     {/* Duplicates Toggle & Info Summary */}
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-[var(--foreground)]/[0.02] border border-[var(--border)] p-4 rounded-2xl mb-4 text-xs font-bold">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[var(--border)] py-4 mb-4 text-xs font-bold">
                       <div className="flex flex-wrap gap-4 items-center">
                         <span className="bg-emerald-500/10 text-emerald-600 px-3 py-1.5 rounded-lg">
                           {importRows.filter(r => r.status === "valid").length} רשומות חדשות

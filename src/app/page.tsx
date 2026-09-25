@@ -678,7 +678,7 @@ export default function Home() {
       {/* ── AI Insights Feed ── */}
       {dataLoaded && (roles?.includes("social_worker") || role === "social_worker" || isAdmin || isManager) && (expiring3mCount > 0 || expiring6mCount > 0) && (
         <div className="px-4 md:px-6 mt-6 max-w-6xl mx-auto">
-          <div className="p-5 bg-[var(--card-bg,var(--surface))] border border-[var(--border)] rounded-3xl relative overflow-hidden">
+          <div className="py-5 border-b border-[var(--border)] relative overflow-hidden">
             
             <div className="flex items-center gap-2 mb-4">
               <Sparkles className="w-4 h-4 text-blue-400 " />
@@ -789,7 +789,7 @@ export default function Home() {
             {isStrictAdmin ? (
               <>
                 {/* ── Absence Approvals Summary ── */}
-                <div className="border border-[var(--border)] rounded-3xl overflow-hidden bg-[var(--card-bg,var(--surface))]">
+                <div className="border-b border-[var(--border)] overflow-hidden">
                   <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border)]">
                     <div className="flex items-center gap-2">
                       <Clock className="w-4 h-4 text-amber-500" />
@@ -878,7 +878,7 @@ export default function Home() {
             ) : (
               <>
                 {/* ── Attendance by group — PRIMARY column ── */}
-                <div className="border border-[var(--border)] rounded-3xl overflow-hidden bg-[var(--card-bg,var(--surface))]">
+                <div className="border-b border-[var(--border)] overflow-hidden">
                   <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border)]">
                     <div className="flex items-center gap-2">
                       <CheckCircle className="w-4 h-4 text-emerald-500" />

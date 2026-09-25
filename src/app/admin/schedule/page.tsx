@@ -282,7 +282,7 @@ function ScheduleContent() {
       {/* Main Content */}
       <main className="max-w-3xl mx-auto px-4 py-6 space-y-6">
         {/* Date Selector & Group Filter Card */}
-        <div className="bg-[var(--card-bg)] border border-[var(--border)] rounded-2xl p-6 shadow-sm space-y-6">
+        <div className="border-b border-[var(--border)] py-6 space-y-6">
           {/* Date controls */}
           <div className="flex items-center justify-between gap-4">
             <button onClick={handlePrevDay} className="w-10 h-10 rounded-xl bg-[var(--foreground)]/5 border border-[var(--border)] flex items-center justify-center hover:bg-[var(--foreground)]/10 transition-colors">
@@ -349,7 +349,7 @@ function ScheduleContent() {
             <Loader2 className="w-8 h-8 text-rose-500 animate-spin" />
           </div>
         ) : filteredActivities.length === 0 ? (
-          <div className="bg-[var(--card-bg)] border border-[var(--border)] rounded-2xl p-12 text-center text-slate-400 space-y-3">
+          <div className="border-b border-[var(--border)] py-12 text-center text-slate-400 space-y-3">
             <Info className="w-8 h-8 mx-auto text-slate-300" />
             <p className="text-sm font-bold">אין פעילויות מתוכננות ליום זה בקבוצה שנבחרה.</p>
           </div>
@@ -373,7 +373,7 @@ function ScheduleContent() {
                   <div className="absolute right-0 top-3 -translate-x-1/2 w-4 h-4 rounded-full bg-rose-500 border-4 border-[var(--background)] z-10" />
 
                   {/* Card */}
-                  <div className="bg-[var(--card-bg)] border border-[var(--border)] rounded-2xl p-5 hover:shadow-md transition-all space-y-3 text-right">
+                  <div className="border-b border-[var(--border)] py-5 transition-all space-y-3 text-right">
                     <div className="flex items-center justify-between gap-3">
                       <div className="flex items-center gap-2">
                         <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full border ${typeCls}`}>

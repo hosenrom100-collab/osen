@@ -247,7 +247,7 @@ export default function AttendanceOverviewPage() {
                 const progPct = progData.total > 0 ? Math.round((progData.present / progData.total) * 100) : 0;
 
                 return (
-                  <div key={progData.program.id} className="bg-white/[0.03] border border-white/8 rounded-2xl overflow-hidden">
+                  <div key={progData.program.id} className="border-b border-white/8 overflow-hidden">
                     {/* Program header */}
                     <button onClick={() => toggle(progData.program.id)}
                       className="w-full flex items-center gap-3 px-4 py-4">

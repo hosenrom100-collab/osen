@@ -593,7 +593,7 @@ ${contactRole}`;
               sidesCount === 2, // Step 4 sides
             ].filter(Boolean).length;
             return (
-              <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
+              <div className="border-b border-[var(--border)] py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div className="space-y-0.5">
                   <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--muted)]">התקדמות ההזמנה</span>
                   <h3 className="text-xs font-bold">הושלמו {completedSteps} מתוך 4 שלבים</h3>
@@ -621,7 +621,7 @@ ${contactRole}`;
             <div className="order-2 lg:order-1 space-y-6">
               
               {/* Delivery Details Card */}
-              <div className="p-5 bg-[var(--surface)] border border-[var(--border)] rounded-2xl space-y-4">
+              <div className="py-5 border-b border-[var(--border)] space-y-4">
                 <div className="flex items-center gap-2 border-b border-[var(--border)] pb-3">
                   <span className="w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold text-white bg-blue-500 shrink-0">1</span>
                   <h2 className="text-xs font-bold uppercase tracking-wider">
@@ -710,7 +710,7 @@ ${contactRole}`;
               </div>
 
               {/* Portion Calculator Card */}
-              <div className="p-5 bg-[var(--surface)] border border-[var(--border)] rounded-2xl space-y-4">
+              <div className="py-5 border-b border-[var(--border)] space-y-4">
                 <div className="flex items-center justify-between border-b border-[var(--border)] pb-3">
                   <div className="flex items-center gap-2">
                     <span className="w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold text-white bg-violet-500 shrink-0">2</span>
@@ -748,7 +748,7 @@ ${contactRole}`;
                           
                           <div className="flex items-center justify-between pt-1">
                             <label className="text-[11px] font-bold text-[var(--foreground)] shrink-0">מנות להזמנה:</label>
-                            <div className="flex items-center border border-[var(--border)] bg-[var(--surface)] rounded-lg overflow-hidden w-[100px]">
+                            <div className="flex items-center border-b border-[var(--border)] overflow-hidden w-[100px]">
                               <button 
                                 type="button"
                                 onClick={() => handlePortionChange(group.id, (portions[group.id] || 0) - 1)}
@@ -783,7 +783,7 @@ ${contactRole}`;
               <div className="space-y-6">
                 
                 {/* 1. MEAT CATEGORY */}
-                <div className="p-4 bg-[var(--surface)] border border-[var(--border)] rounded-2xl space-y-4">
+                <div className="py-4 border-b border-[var(--border)] space-y-4">
                   <button
                     type="button"
                     onClick={() => setActiveMenuStep(activeMenuStep === "meats" ? null : "meats")}
@@ -890,7 +890,7 @@ ${contactRole}`;
                 </div>
 
                 {/* 2. SIDES CATEGORY */}
-                <div className="p-4 bg-[var(--surface)] border border-[var(--border)] rounded-2xl space-y-4">
+                <div className="py-4 border-b border-[var(--border)] space-y-4">
                   <button
                     type="button"
                     onClick={() => setActiveMenuStep(activeMenuStep === "sides" ? null : "sides")}
@@ -997,7 +997,7 @@ ${contactRole}`;
                 </div>
 
                 {/* Salads Notice */}
-                <div className="p-4 bg-[var(--surface)] border border-[var(--border)] rounded-2xl flex items-center gap-3 shadow-sm">
+                <div className="py-4 border-b border-[var(--border)] flex items-center gap-3">
                   <span className="w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold text-white bg-emerald-500 shrink-0">✓</span>
                   <div>
                     <h3 className="text-xs font-bold uppercase tracking-wider">סלטים ולחם</h3>
@@ -1006,7 +1006,7 @@ ${contactRole}`;
                 </div>
 
                 {/* Catering Orders Archive Card */}
-                <div className="p-5 bg-[var(--surface)] border border-[var(--border)] rounded-2xl space-y-4">
+                <div className="py-5 border-b border-[var(--border)] space-y-4">
                   <button 
                     type="button"
                     onClick={() => setShowArchive(!showArchive)}
@@ -1122,7 +1122,7 @@ ${contactRole}`;
             <div className="order-1 lg:order-2 space-y-6">
               
               {/* Order Status & Copy Card */}
-              <div className="p-4 bg-[var(--surface)] border border-[var(--border)] rounded-2xl space-y-4 lg:sticky lg:top-20">
+              <div className="py-4 border-b border-[var(--border)] space-y-4 lg:sticky lg:top-20">
                 <div className="border-b border-[var(--border)] pb-3">
                   <h3 className="text-xs font-bold uppercase tracking-wider flex items-center gap-2">
                     <span className="w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold text-white bg-emerald-500 shrink-0">6</span>

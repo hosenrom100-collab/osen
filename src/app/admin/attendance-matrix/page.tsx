@@ -278,7 +278,7 @@ export default function AttendanceMatrixPage() {
             </div>
           </div>
 
-          <div className="bg-[var(--foreground)]/5 border border-[var(--border)] rounded-2xl p-3 text-center">
+          <div className="border-b border-[var(--border)] py-3 text-center">
             <div className="text-[var(--foreground)]/60 font-bold text-lg leading-tight">
               {todayStats.unmarked}
             </div>

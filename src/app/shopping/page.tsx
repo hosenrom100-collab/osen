@@ -301,7 +301,7 @@ export default function ShoppingPage() {
                     ))}
                   </div>
                   {[4, 3].map((rows) => (
-                    <div key={rows} className="rounded-2xl bg-[var(--surface)] border border-[var(--border)] overflow-hidden">
+                    <div key={rows} className="border-b border-[var(--border)] overflow-hidden">
                       <div className="h-11 border-b border-[var(--border)]" />
                       {Array.from({ length: rows }).map((_, i) => (
                         <div key={i} className="h-16 flex items-center gap-3 px-3 border-b border-[var(--border)] last:border-b-0">

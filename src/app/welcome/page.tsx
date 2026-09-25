@@ -120,7 +120,7 @@ export default function WelcomePage() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           
           {/* Card 1 */}
-          <div className="p-8 rounded-3xl bg-slate-900/40 border border-slate-800 hover:border-violet-500/30 transition-all duration-300 flex flex-col justify-between group">
+          <div className="py-8 border-b border-slate-800 transition-all duration-300 flex flex-col justify-between group">
             <div className="space-y-4">
               <div className="w-12 h-12 rounded-2xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center text-violet-400 group-hover:scale-110 transition-transform">
                 <FileText className="w-6 h-6" />
@@ -133,7 +133,7 @@ export default function WelcomePage() {
           </div>
 
           {/* Card 2 */}
-          <div className="p-8 rounded-3xl bg-slate-900/40 border border-slate-800 hover:border-violet-500/30 transition-all duration-300 flex flex-col justify-between group">
+          <div className="py-8 border-b border-slate-800 transition-all duration-300 flex flex-col justify-between group">
             <div className="space-y-4">
               <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 group-hover:scale-110 transition-transform">
                 <Calendar className="w-6 h-6" />
@@ -146,7 +146,7 @@ export default function WelcomePage() {
           </div>
 
           {/* Card 3 */}
-          <div className="p-8 rounded-3xl bg-slate-900/40 border border-slate-800 hover:border-violet-500/30 transition-all duration-300 flex flex-col justify-between group">
+          <div className="py-8 border-b border-slate-800 transition-all duration-300 flex flex-col justify-between group">
             <div className="space-y-4">
               <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 group-hover:scale-110 transition-transform">
                 <ShieldCheck className="w-6 h-6" />
@@ -236,12 +236,12 @@ export default function WelcomePage() {
           </div>
 
           <div className="grid grid-cols-2 gap-4">
-            <div className="p-6 rounded-2xl bg-slate-900/20 border border-slate-900 text-center space-y-2">
+            <div className="py-6 border-b border-slate-900 text-center space-y-2">
               <Heart className="w-8 h-8 text-rose-500 mx-auto" />
               <h4 className="text-xs font-bold text-white">ממוקד מטופל</h4>
               <p className="text-[11px] text-slate-400">מאפשר להתרכז בתהליך ולא בניירת</p>
             </div>
-            <div className="p-6 rounded-2xl bg-slate-900/20 border border-slate-900 text-center space-y-2">
+            <div className="py-6 border-b border-slate-900 text-center space-y-2">
               <Award className="w-8 h-8 text-amber-500 mx-auto" />
               <h4 className="text-xs font-bold text-white">מקצועיות</h4>
               <p className="text-[11px] text-slate-400">הפקת מסמכים מלוטשת מול משרד הביטחון</p>

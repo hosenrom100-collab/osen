@@ -637,7 +637,7 @@ export function ScheduleEditorModal({ isOpen, onClose, onSaved, initialDate }: S
               <div className="space-y-6">
                 
                 {/* Control Panel: Date and Quick Actions */}
-                <div className="bg-[var(--surface-raised)] border border-[var(--border)] rounded-2xl p-5 space-y-4 shadow-sm">
+                <div className="border-b border-[var(--border)] py-5 space-y-4">
                   <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                     {/* Date Picker */}
                     <div className="flex items-center gap-3">
@@ -739,7 +739,7 @@ export function ScheduleEditorModal({ isOpen, onClose, onSaved, initialDate }: S
                        <span className="text-xs font-bold">טוען את נתוני הלו״ז...</span>
                      </div>
                   ) : activities.length === 0 ? (
-                     <div className="py-16 text-center border border-dashed border-[var(--border)] rounded-2xl bg-[var(--surface-raised)] space-y-3">
+                     <div className="py-16 text-center border-b border-dashed border-[var(--border)] space-y-3">
                        <Calendar className="w-10 h-10 text-[var(--muted)] mx-auto opacity-30 stroke-1" />
                        <p className="text-xs font-bold">אין פעילויות מוגדרות ליום זה</p>
                        <p className="text-[11px] text-[var(--muted)] font-bold">לחץ על כפתור טעינת שלד קבוע או הוסף פעילות חדשה למעלה</p>
@@ -902,7 +902,7 @@ export function ScheduleEditorModal({ isOpen, onClose, onSaved, initialDate }: S
               <div className="space-y-6">
                 
                 {/* Add new template to repo form */}
-                <div className="bg-[var(--surface-raised)] border border-[var(--border)] rounded-3xl p-5 space-y-4">
+                <div className="border-b border-[var(--border)] py-5 space-y-4">
                   <div className="flex items-center gap-2 text-violet-500">
                     <Sparkles className="w-4 h-4" />
                     <h3 className="text-xs font-bold">הוספת תבנית חדשה למאגר הפעילויות</h3>
@@ -965,13 +965,13 @@ export function ScheduleEditorModal({ isOpen, onClose, onSaved, initialDate }: S
                   {templates.length === 0 ? (
                     <p className="text-xs text-[var(--muted)] italic text-center py-10 bg-[var(--foreground)]/2 rounded-2xl border">אין עדיין תבניות במאגר. השתמש בטופס למעלה להוספה.</p>
                   ) : (
-                    <div className="border border-[var(--border)] rounded-2xl overflow-hidden divide-y divide-[var(--border)] bg-[var(--surface)]">
+                    <div className="border-b border-[var(--border)] overflow-hidden divide-y divide-[var(--border)]">
                       {templates.map(tmpl => {
                         const isEditing = editingTemplateId === tmpl.id;
                         return (
                           <div key={tmpl.id} className="p-4 flex flex-col gap-3 hover:bg-[var(--foreground)]/[0.01]">
                             {isEditing && editingTemplate ? (
-                              <div className="space-y-3 bg-[var(--foreground)]/[0.02] border border-[var(--border)] p-3 rounded-2xl">
+                              <div className="space-y-3 border-b border-[var(--border)] py-3">
                                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                                   <div>
                                     <label className="block text-[11px] font-bold text-[var(--muted)] mb-1">שם הפעילות</label>
@@ -1076,7 +1076,7 @@ export function ScheduleEditorModal({ isOpen, onClose, onSaved, initialDate }: S
               <div className="space-y-6">
                 
                 {/* Form to add skeleton activity */}
-                <div className="bg-[var(--surface-raised)] border border-[var(--border)] rounded-3xl p-5 space-y-4">
+                <div className="border-b border-[var(--border)] py-5 space-y-4">
                   <div className="flex items-center gap-2 text-violet-500">
                     <FolderHeart className="w-4 h-4" />
                     <h3 className="text-xs font-bold">הוספת פעילות קבועה לשלד היומי</h3>
@@ -1148,7 +1148,7 @@ export function ScheduleEditorModal({ isOpen, onClose, onSaved, initialDate }: S
                   {skeleton.length === 0 ? (
                     <p className="text-xs text-[var(--muted)] italic text-center py-10 bg-[var(--foreground)]/2 rounded-2xl border">אין עדיין פעילויות בשלד הקבוע. השתמש בטופס למעלה להוספה.</p>
                   ) : (
-                    <div className="border border-[var(--border)] rounded-2xl overflow-hidden divide-y divide-[var(--border)] bg-[var(--surface)]">
+                    <div className="border-b border-[var(--border)] overflow-hidden divide-y divide-[var(--border)]">
                       {skeleton.map(skel => (
                         <div key={skel.id} className="p-4 flex items-center justify-between gap-4 hover:bg-[var(--foreground)]/[0.01]">
                           <div className="flex items-center gap-3">
@@ -1183,7 +1183,7 @@ export function ScheduleEditorModal({ isOpen, onClose, onSaved, initialDate }: S
               <div className="space-y-6">
                 
                 {/* Form to add new location */}
-                <div className="bg-[var(--surface-raised)] border border-[var(--border)] rounded-3xl p-5 space-y-4">
+                <div className="border-b border-[var(--border)] py-5 space-y-4">
                   <div className="flex items-center gap-2 text-violet-500">
                     <MapPin className="w-4 h-4" />
                     <h3 className="text-xs font-bold">הוספת מיקום חדש למאגר</h3>
@@ -1216,7 +1216,7 @@ export function ScheduleEditorModal({ isOpen, onClose, onSaved, initialDate }: S
                   {locations.length === 0 ? (
                     <p className="text-xs text-[var(--muted)] italic text-center py-10 bg-[var(--foreground)]/2 rounded-2xl border">אין עדיין מיקומים במערכת. השתמש בטופס למעלה להוספה.</p>
                   ) : (
-                    <div className="border border-[var(--border)] rounded-2xl overflow-hidden divide-y divide-[var(--border)] bg-[var(--surface)]">
+                    <div className="border-b border-[var(--border)] overflow-hidden divide-y divide-[var(--border)]">
                       {locations.map(loc => {
                         const isEditing = editingLocationId === loc.id;
                         return (

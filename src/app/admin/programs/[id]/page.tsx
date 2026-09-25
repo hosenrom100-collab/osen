@@ -443,7 +443,7 @@ export default function ProgramDetailPage() {
         <div className="max-w-2xl mx-auto px-4 pt-6 pb-28 space-y-6">
 
           {/* ── Program name ── */}
-          <section className="bg-[var(--card-bg)] border border-[var(--border)] rounded-2xl p-6 space-y-5 shadow-sm">
+          <section className="border-b border-[var(--border)] py-6 space-y-5">
             <div className="text-right">
               <label className="text-[11px] font-bold text-[var(--foreground)]/40 uppercase block mb-1.5">שם התוכנית</label>
               <input
@@ -513,7 +513,7 @@ export default function ProgramDetailPage() {
           </section>
 
           {/* ── File Requirements Section ── */}
-          <section className="bg-[var(--card-bg)] border border-[var(--border)] rounded-2xl p-6 space-y-6 shadow-sm text-right">
+          <section className="border-b border-[var(--border)] py-6 space-y-6 text-right">
             <div>
               <h3 className="text-sm font-bold text-[var(--foreground)] mb-1">הגדרות תיק פונה</h3>
               <p className="text-[11px] text-[var(--foreground)]/40 font-bold uppercase tracking-wider">סמן X עבור פרמטרים שאינם נדרשים בתוכנית זו (תוכניות המשך ללא ניהול מורחב)</p>
@@ -521,7 +521,7 @@ export default function ProgramDetailPage() {
 
             <div className="space-y-4">
               {/* Documents & Plan Checklist */}
-              <div className="bg-[var(--foreground)]/[0.02] border border-[var(--border-subtle)] rounded-2xl p-4">
+              <div className="border-b border-[var(--border-subtle)] py-4">
                 <h4 className="text-[11px] font-bold uppercase tracking-wider text-[var(--foreground)]/40 mb-3">מסמכים ותוכניות</h4>
                 <div className="grid grid-cols-3 gap-2">
                   {[
@@ -552,7 +552,7 @@ export default function ProgramDetailPage() {
               </div>
 
               {/* Report Markings */}
-              <div className="bg-[var(--foreground)]/[0.02] border border-[var(--border-subtle)] rounded-2xl p-4">
+              <div className="border-b border-[var(--border-subtle)] py-4">
                 <h4 className="text-[11px] font-bold uppercase tracking-wider text-[var(--foreground)]/40 mb-3">סימון דוחות</h4>
                 <div className="grid grid-cols-3 gap-2">
                   {[
@@ -843,7 +843,7 @@ export default function ProgramDetailPage() {
 
           {/* ── Schedule quick access ── */}
           {groups.length > 0 && (
-            <section className="bg-[var(--card-bg)] border border-[var(--border)] rounded-2xl p-6 shadow-sm text-right">
+            <section className="border-b border-[var(--border)] py-6 text-right">
               <h3 className="text-[11px] font-bold text-[var(--foreground)]/40 uppercase mb-3 tracking-wider">גישה מהירה ללוז</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <button

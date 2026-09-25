@@ -318,7 +318,7 @@ export default function ProfilePage() {
             
             {/* Sidebar: Profile Summary */}
             <div className="space-y-4 md:space-y-6">
-              <div className="bg-[var(--card-bg)] border border-[var(--border)] rounded-3xl md:rounded-[3rem] p-6 md:p-10 text-center shadow-sm">
+              <div className="border-b border-[var(--border)] md:rounded-[3rem] py-6 md:py-10 text-center">
                 <div className="relative inline-block mb-6 md:mb-8">
                   {photoURL ? (
                     <img 
@@ -381,7 +381,7 @@ export default function ProfilePage() {
                 <h3 className="text-[11px] font-bold uppercase tracking-[0.2em] text-[var(--foreground)]/20 mr-2">ניהול עבודה ונוכחות</h3>
 
                 {/* Work Schedule Card */}
-                <div className="bg-[var(--card-bg)] border border-[var(--border)] p-6 md:p-8 rounded-3xl md:rounded-2xl shadow-sm">
+                <div className="border-b border-[var(--border)] py-6 md:py-8 md:rounded-2xl">
                   <div className="flex items-center justify-between mb-6 md:mb-8">
                     <div>
                       <p className="text-base md:text-lg font-bold tracking-tight">לו״ז עבודה שבועי</p>
@@ -615,7 +615,7 @@ export default function ProfilePage() {
                 </div>
 
                 {/* Absence Reporting Section */}
-                <div className="bg-[var(--card-bg)] border border-[var(--border)] p-6 md:p-8 rounded-3xl md:rounded-2xl shadow-sm space-y-6">
+                <div className="border-b border-[var(--border)] py-6 md:py-8 md:rounded-2xl space-y-6">
                   <div>
                     <p className="text-base md:text-lg font-bold tracking-tight">דיווח על היעדרות</p>
                     <p className="text-xs text-[var(--foreground)]/40 font-bold mt-1">דווח על מחלה, יום חופש או היעדרות מתוכננת אחרת. הבקשה תועבר לאישור המנהל/ת ותעדכן אוטומטית את יומן הנוכחות של הצוות.</p>
@@ -695,7 +695,7 @@ export default function ProfilePage() {
               {/* Digital Signature & Certificates Settings */}
               <section className="space-y-6">
                 <h3 className="text-[11px] font-bold uppercase tracking-[0.2em] text-[var(--foreground)]/20 mr-2">חתימה דיגיטלית ואישורים רשמיים</h3>
-                <div className="bg-[var(--card-bg)] border border-[var(--border)] p-6 md:p-8 rounded-3xl md:rounded-2xl shadow-sm space-y-6">
+                <div className="border-b border-[var(--border)] py-6 md:py-8 md:rounded-2xl space-y-6">
                   <div>
                     <p className="text-base md:text-lg font-bold tracking-tight">הפקדת חתימה ותואר מקצועי</p>
                     <p className="text-xs text-[var(--foreground)]/40 font-bold mt-1">הגדר את תוארך המקצועי וצייר את חתימתך הפיזית. חתימה זו תוטמע אוטומטית בכל אישורי שהייה והשתתפות שאתה מפיק עבור משתתפי החווה.</p>
@@ -719,13 +719,13 @@ export default function ProfilePage() {
                       <label className="block text-[11px] font-bold uppercase tracking-[0.2em] text-[var(--foreground)]/30 mr-1">ציור חתימה אישית</label>
                       
                       {localSignatureImage && (
-                        <div className="border border-[var(--border)] rounded-2xl p-4 bg-white flex flex-col items-center justify-center gap-2 shadow-inner">
+                        <div className="border-b border-[var(--border)] py-4 flex flex-col items-center justify-center gap-2">
                           <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">תצוגה מקדימה של החתימה הפעילה שלך:</p>
                           <img src={localSignatureImage} alt="חתימה פעילה" className="max-h-24 object-contain animate-fade-in" />
                         </div>
                       )}
 
-                      <div className="border border-[var(--border)] rounded-2xl bg-white overflow-hidden relative shadow-inner">
+                      <div className="border-b border-[var(--border)] overflow-hidden relative">
                         <canvas
                           ref={canvasRef}
                           width={500}
@@ -770,7 +770,7 @@ export default function ProfilePage() {
               {/* Interface Settings */}
               <section className="space-y-6">
                 <h3 className="text-[11px] font-bold uppercase tracking-[0.2em] text-[var(--foreground)]/20 mr-2">העדפות ממשק ונגישות</h3>
-                <div className="bg-[var(--card-bg)] border border-[var(--border)] rounded-3xl md:rounded-2xl divide-y divide-[var(--border)] overflow-hidden shadow-sm">
+                <div className="border-b border-[var(--border)] md:rounded-2xl divide-y divide-[var(--border)] overflow-hidden">
                   <div className="p-6 md:p-8 flex items-center justify-between hover:bg-[var(--foreground)]/[0.01] transition-colors">
                     <div>
                       <p className="text-base font-bold tracking-tight">ערכת נושא</p>
@@ -818,7 +818,7 @@ export default function ProfilePage() {
               {/* Homepage display settings (preferred programs & groups) */}
               <section className="space-y-6">
                 <h3 className="text-[11px] font-bold uppercase tracking-[0.2em] text-[var(--foreground)]/20 mr-2">הגדרות תצוגה בעמוד הבית</h3>
-                <div className="bg-[var(--card-bg)] border border-[var(--border)] p-6 md:p-8 rounded-3xl md:rounded-2xl shadow-sm space-y-6">
+                <div className="border-b border-[var(--border)] py-6 md:py-8 md:rounded-2xl space-y-6">
                   <div>
                     <p className="text-base font-bold tracking-tight">סינון תוכניות וקבוצות כברירת מחדל</p>
                     <p className="text-xs text-[var(--foreground)]/40 font-bold mt-1">בחר אילו תוכניות וקבוצות יוצגו כברירת מחדל בעמוד הבית. השאר ריק כדי להציג את הכל/לפי ההרשאות הרגילות.</p>
@@ -830,7 +830,7 @@ export default function ProfilePage() {
                       const progGroups = allGroups.filter(g => g.programId === prog.id);
 
                       return (
-                        <div key={prog.id} className="border border-[var(--border)] rounded-2xl p-4 md:p-5 space-y-4 bg-[var(--foreground)]/[0.01]">
+                        <div key={prog.id} className="border-b border-[var(--border)] py-4 md:py-5 space-y-4">
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-3">
                               <button

@@ -511,7 +511,7 @@ export function PatientForm({ patientId, initialData, onSuccess }: PatientFormPr
       </div>
 
       {patientId ? (
-        <div className="flex items-center gap-2 bg-slate-50 border border-slate-200/60 rounded-xl px-4 py-2.5 select-none">
+        <div className="flex items-center gap-2 border-b border-slate-200/60 py-2.5 select-none">
           <div className="flex items-center gap-2">
             {saveStatus === "saving" && (
               <>

@@ -489,7 +489,7 @@ export default function StoreRequestsPage() {
               <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
             </div>
           ) : requests.length === 0 ? (
-            <div className="bg-white rounded-lg shadow border border-slate-200 p-12 text-center">
+            <div className="border-b border-slate-200 py-12 text-center">
               <FileText className="w-16 h-16 mx-auto mb-4 text-slate-300" />
               <p className="text-slate-500 text-lg">אין בקשות</p>
             </div>
@@ -687,10 +687,10 @@ export default function StoreRequestsPage() {
 
               {/* Added Products List */}
               {newItems.length > 0 && (
-                <div className="bg-slate-50 rounded-xl p-3 border border-slate-100 space-y-1.5">
+                <div className="py-3 border-b border-slate-100 space-y-1.5">
                   <p className="text-xs font-bold text-slate-600 mb-1">מוצרים שנוספו:</p>
                   {newItems.map((item, idx) => (
-                    <div key={idx} className="flex justify-between items-center bg-white p-2 rounded-lg border border-slate-200 text-sm">
+                    <div key={idx} className="flex justify-between items-center py-2 border-b border-slate-200 text-sm">
                       <span className="font-semibold text-slate-800">
                         {item.productName} ({item.quantity} {item.unit || ""})
                       </span>
@@ -784,7 +784,7 @@ function RequestCard({
   const isPending = request.status === "pending";
 
   return (
-    <div className="bg-white rounded-lg shadow border border-slate-200 hover:shadow-md transition">
+    <div className="border-b border-slate-200 transition">
       {/* Header */}
       <div
         onClick={onToggle}
@@ -928,7 +928,7 @@ function RequestCard({
           </div>
 
           {/* Store Name Input */}
-          <div className="mb-4 p-3 bg-white rounded-lg border border-slate-200 shadow-sm">
+          <div className="mb-4 py-3 border-b border-slate-200">
             <label className="block text-sm font-semibold text-slate-700 mb-1.5">
               שם החנות לאישור (לכבוד):
             </label>

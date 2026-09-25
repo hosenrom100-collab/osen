@@ -67,7 +67,7 @@ export default function RequestDetailPage() {
   if (!request) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="bg-white rounded-lg shadow border border-slate-200 p-8 text-center">
+        <div className="border-b border-slate-200 py-8 text-center">
           <p className="text-slate-600 mb-4">בקשה לא נמצאה</p>
           <Link href="/store-authorization/requests">
             <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
@@ -103,7 +103,7 @@ export default function RequestDetailPage() {
       {/* Content */}
       <div className="max-w-3xl mx-auto p-4 space-y-6">
         {/* Info Card */}
-        <div className="bg-white rounded-lg shadow border border-slate-200 p-6">
+        <div className="border-b border-slate-200 py-6">
           <div className="grid grid-cols-2 gap-4">
             <div>
               <p className="text-sm text-slate-500">שם המבקש</p>
@@ -135,7 +135,7 @@ export default function RequestDetailPage() {
         </div>
 
         {/* Items Section */}
-        <div className="bg-white rounded-lg shadow border border-slate-200 overflow-hidden">
+        <div className="border-b border-slate-200 overflow-hidden">
           <div className="bg-blue-50 px-6 py-4 border-b border-slate-200">
             <h2 className="font-semibold text-slate-900">פריטים ({request.items.length})</h2>
           </div>
@@ -172,7 +172,7 @@ export default function RequestDetailPage() {
 
         {/* Notes Section */}
         {request.notes && (
-          <div className="bg-white rounded-lg shadow border border-slate-200 p-6">
+          <div className="border-b border-slate-200 py-6">
             <p className="text-sm font-semibold text-slate-900 mb-2">הערות:</p>
             <p className="text-slate-600">{request.notes}</p>
           </div>

@@ -149,7 +149,7 @@ export default function StaffHubPage() {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Section 1: Working Days & Complex */}
-          <section className="bg-white/5 border border-white/10 rounded-2xl p-8 h-fit">
+          <section className="border-b border-white/10 py-8 h-fit">
             <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
               <Calendar className="w-5 h-5 text-orange-400" />
               הגדרות עבודה קבועות
@@ -207,7 +207,7 @@ export default function StaffHubPage() {
 
           {/* Section 2: Absence Request */}
           <section className="space-y-8">
-            <div className="bg-white/5 border border-white/10 rounded-2xl p-8">
+            <div className="border-b border-white/10 py-8">
               <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
                 <AlertCircle className="w-5 h-5 text-rose-400" />
                 דיווח על היעדרות
@@ -246,7 +246,7 @@ export default function StaffHubPage() {
             </div>
 
             {/* Absence History */}
-            <div className="bg-white/5 border border-white/10 rounded-2xl p-8">
+            <div className="border-b border-white/10 py-8">
               <h2 className="text-lg font-bold mb-6 flex items-center gap-2">
                 <Clock className="w-5 h-5 text-slate-400" />
                 בקשות קודמות
@@ -254,7 +254,7 @@ export default function StaffHubPage() {
               
               <div className="space-y-3">
                 {absences.map((abs) => (
-                  <div key={abs.id} className="bg-white/5 border border-white/5 p-4 rounded-2xl flex items-center justify-between">
+                  <div key={abs.id} className="border-b border-white/5 py-4 flex items-center justify-between">
                     <div>
                       <div className="font-bold text-sm">{abs.date}</div>
                       <div className="text-xs text-slate-500 truncate max-w-[150px]">{abs.reason || "ללא הערה"}</div>

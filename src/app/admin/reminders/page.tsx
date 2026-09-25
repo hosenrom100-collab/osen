@@ -396,7 +396,7 @@ export default function RemindersPage() {
               <h2 className="text-[11px] font-bold uppercase tracking-[0.2em] text-[var(--muted)] mb-3">
                 כל המשתתפים המסיימים בחודש הקרוב ({upcoming.length})
               </h2>
-              <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl overflow-hidden">
+              <div className="border-b border-[var(--border)] overflow-hidden">
                 <div className="overflow-x-auto">
                   <table className="w-full text-right border-collapse text-sm">
                     <thead>

@@ -203,7 +203,7 @@ export default function HelpDrawer({ isOpen, onClose }: HelpDrawerProps) {
                   ) : (
                     <div className="space-y-3">
                       {searchResults.map((res, idx) => (
-                        <div key={idx} className="p-3.5 bg-slate-800/40 border border-slate-800 rounded-2xl space-y-1.5">
+                        <div key={idx} className="py-3.5 border-b border-slate-800 space-y-1.5">
                           <h4 className="text-[11px] font-bold text-violet-200 flex items-center gap-1.5">
                             <FileText className="w-3.5 h-3.5" />
                             {res.title}

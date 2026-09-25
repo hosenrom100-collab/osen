@@ -171,7 +171,7 @@ export default function RequestsPage() {
             <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
           </div>
         ) : requests.length === 0 ? (
-          <div className="bg-white rounded-lg shadow border border-slate-200 p-12 text-center">
+          <div className="border-b border-slate-200 py-12 text-center">
             <FileText className="w-16 h-16 mx-auto mb-4 text-slate-300" />
             <p className="text-slate-500 text-lg">אין בקשות עדיין</p>
             <Link href="/store-authorization">

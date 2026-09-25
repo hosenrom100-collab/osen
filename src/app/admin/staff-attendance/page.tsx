@@ -245,7 +245,7 @@ export default function StaffAttendancePage() {
               נוכחות צוות
             </h1>
           </div>
-          <div className="flex items-center gap-2 bg-[var(--surface)] border border-[var(--border)] rounded-2xl px-3 py-1.5 shadow-sm">
+          <div className="flex items-center gap-2 bg-[var(--surface)] border border-[var(--border)] rounded-lg px-3 py-1.5">
             <Calendar className="w-4 h-4 text-violet-500" />
             <input 
               type="date" 
@@ -348,7 +348,7 @@ export default function StaffAttendancePage() {
                 <p className="text-xs font-bold text-[var(--muted)]">טוען את נתוני הצוות...</p>
               </div>
             ) : (
-              <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl overflow-hidden divide-y divide-[var(--border)]/50 shadow-sm">
+              <div className="border-b border-[var(--border)] overflow-hidden divide-y divide-[var(--border)]/50">
                 {filteredStaff.map(member => {
                   const schedule = member.workSchedule?.[dayOfWeekStr];
                   const hasSchedule = !!schedule;

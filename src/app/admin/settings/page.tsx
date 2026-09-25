@@ -312,7 +312,7 @@ export default function AdminSettingsPage() {
           )}
 
           {/* 1. Activity Descriptions */}
-          <section className="bg-[var(--card-bg)] border border-[var(--border)] rounded-2xl p-6 space-y-6 shadow-sm">
+          <section className="border-b border-[var(--border)] py-6 space-y-6">
             <div className="flex items-center gap-2 border-b border-[var(--border-subtle)] pb-3">
               <FileText className="w-5 h-5 text-violet-500" />
               <h2 className="text-xs font-bold">פירוט פעילויות בדוחות</h2>
@@ -346,7 +346,7 @@ export default function AdminSettingsPage() {
           </section>
 
           {/* 2. Professional Manager Signature */}
-          <section className="bg-[var(--card-bg)] border border-[var(--border)] rounded-2xl p-6 space-y-6 shadow-sm">
+          <section className="border-b border-[var(--border)] py-6 space-y-6">
             <div className="flex items-center gap-2 border-b border-[var(--border-subtle)] pb-3">
               <ImageIcon className="w-5 h-5 text-violet-500" />
               <h2 className="text-xs font-bold">חתימת מנהלת מקצועית בדוחות</h2>
@@ -385,13 +385,13 @@ export default function AdminSettingsPage() {
                 </label>
                 
                 {localSignatureImage && (
-                  <div className="border border-[var(--border)] rounded-2xl p-4 bg-white flex flex-col items-center justify-center gap-2 shadow-inner">
+                  <div className="border-b border-[var(--border)] py-4 flex flex-col items-center justify-center gap-2">
                     <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">תצוגה מקדימה של החתימה הפעילה:</p>
                     <img src={localSignatureImage} alt="חתימה פעילה" className="max-h-24 object-contain bg-white" />
                   </div>
                 )}
 
-                <div className="border border-[var(--border)] rounded-2xl bg-white overflow-hidden relative shadow-inner">
+                <div className="border-b border-[var(--border)] overflow-hidden relative">
                   <canvas
                     ref={canvasRef}
                     width={500}
@@ -424,7 +424,7 @@ export default function AdminSettingsPage() {
           </section>
 
           {/* 3. Program Specific Settings */}
-          <section className="bg-[var(--card-bg)] border border-[var(--border)] rounded-2xl p-6 space-y-6 shadow-sm">
+          <section className="border-b border-[var(--border)] py-6 space-y-6">
             <div className="flex items-center gap-2 border-b border-[var(--border-subtle)] pb-3">
               <Settings className="w-5 h-5 text-violet-500" />
               <h2 className="text-xs font-bold">הגדרות לפי תוכנית (שעות ופירוט פעילות)</h2>

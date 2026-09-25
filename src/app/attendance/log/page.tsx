@@ -216,7 +216,7 @@ function AttendanceLogPageContent() {
           </AnimatePresence>
 
           {filtered.length === 0 && (
-            <div className="text-center py-20 bg-white/5 border border-dashed border-white/10 rounded-2xl">
+            <div className="text-center py-20 border-b border-dashed border-white/10">
               <Calendar className="w-12 h-12 text-slate-700 mx-auto mb-4" />
               <p className="text-slate-500 text-sm">לא נמצאו תוצאות לסינון זה</p>
               <button 

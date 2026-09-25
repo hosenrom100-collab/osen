@@ -507,7 +507,7 @@ export default function PatientTrackingPage() {
               אין משתתפים העונים לסינון
             </div>
           ) : (
-            <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl overflow-hidden">
+            <div className="border-b border-[var(--border)] overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full text-right border-collapse text-sm">
                   <thead>
