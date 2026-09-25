@@ -131,7 +131,7 @@ export function CycleClosureModal({
                   <button
                     onClick={() => { setIsExportConfirmOpen(true); setConfirmPassword(""); setConfirmError(""); }}
                     disabled={isProcessing || activeItems.length === 0}
-                    className="h-12 px-5 rounded-xl text-sm font-bold btn-primary !text-white transition-all shadow-[var(--shadow-pop)] shadow-indigo-600/20 active:scale-[0.97] cursor-pointer disabled:opacity-50 flex items-center gap-2 border-none"
+                    className="h-12 px-5 rounded-xl text-sm font-bold btn-primary !text-white transition-all shadow-[var(--shadow-pop)] active:scale-[0.97] cursor-pointer disabled:opacity-50 flex items-center gap-2 border-none"
                   >
                     <FileText className="w-4 h-4 text-white" />
                     <span>ייצא רשימה להדפסה (Word)</span>
@@ -177,7 +177,7 @@ export function CycleClosureModal({
                     placeholder="הזן סיסמת מנהל..."
                     aria-invalid={!!confirmError}
                     aria-describedby={confirmError ? "cycle-closure-password-error" : undefined}
-                    className="w-full h-12 bg-[var(--background)] border border-[var(--border)] rounded-xl pr-10 pl-3 text-[15px] font-medium focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 outline-none text-center tracking-widest text-[var(--foreground)]"
+                    className="w-full h-12 bg-[var(--background)] border border-[var(--border)] rounded-xl pr-10 pl-3 text-[15px] font-medium focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 outline-none text-center tracking-wider text-[var(--foreground)]"
                   />
                   </div>
                   {confirmError && (

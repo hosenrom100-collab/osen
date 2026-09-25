@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
+import { PageSkeleton } from "@/components/ui/Skeleton";
 interface ReportSettings {
   participationActivityDetail: string;
   travelActivityDetail: string;
@@ -265,9 +266,7 @@ export default function AdminSettingsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[var(--background)] flex items-center justify-center">
-        <Loader2 className="w-7 h-7 text-violet-400 animate-spin" />
-      </div>
+      <PageSkeleton />
     );
   }
 
@@ -282,13 +281,13 @@ export default function AdminSettingsPage() {
               <ArrowRight className="w-4 h-4" />
             </button>
             <div className="flex-1 min-w-0 text-right">
-              <h1 className="text-sm font-black leading-tight">הגדרות ראשיות</h1>
-              <p className="text-[10px] text-[var(--foreground)]/40 font-bold uppercase tracking-widest mt-0.5">Main System Settings</p>
+              <h1 className="text-sm font-bold leading-tight">הגדרות ראשיות</h1>
+              <p className="text-[11px] text-[var(--foreground)]/40 font-bold uppercase tracking-wider mt-0.5">Main System Settings</p>
             </div>
             <button
               onClick={handleSaveSettings}
               disabled={saving}
-              className="flex items-center gap-1.5 px-4 py-2 bg-violet-600 border border-violet-500 hover:bg-violet-500 text-white rounded-xl text-xs font-black transition-all disabled:opacity-50"
+              className="flex items-center gap-1.5 px-4 py-2 bg-violet-600 border border-violet-500 hover:bg-violet-500 text-white rounded-xl text-xs font-bold transition-all disabled:opacity-50"
             >
               {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
               שמור הגדרות
@@ -301,27 +300,27 @@ export default function AdminSettingsPage() {
           {success && (
             <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-4 flex items-center gap-3 text-emerald-500">
               <Check className="w-5 h-5 shrink-0" />
-              <p className="text-xs font-black">ההגדרות נשמרו בהצלחה!</p>
+              <p className="text-xs font-bold">ההגדרות נשמרו בהצלחה!</p>
             </div>
           )}
 
           {error && (
             <div className="bg-rose-500/10 border border-rose-500/20 rounded-2xl p-4 flex items-center gap-3 text-rose-500">
               <AlertCircle className="w-5 h-5 shrink-0" />
-              <p className="text-xs font-black">{error}</p>
+              <p className="text-xs font-bold">{error}</p>
             </div>
           )}
 
           {/* 1. Activity Descriptions */}
-          <section className="bg-[var(--card-bg)] border border-[var(--border)] rounded-[2rem] p-6 space-y-6 shadow-sm">
+          <section className="bg-[var(--card-bg)] border border-[var(--border)] rounded-2xl p-6 space-y-6 shadow-sm">
             <div className="flex items-center gap-2 border-b border-[var(--border-subtle)] pb-3">
               <FileText className="w-5 h-5 text-violet-500" />
-              <h2 className="text-xs font-black">פירוט פעילויות בדוחות</h2>
+              <h2 className="text-xs font-bold">פירוט פעילויות בדוחות</h2>
             </div>
 
             <div className="space-y-4 text-right">
               <div>
-                <label className="block text-[10px] font-black text-[var(--foreground)]/40 uppercase tracking-wider mb-1.5">
+                <label className="block text-[11px] font-bold text-[var(--foreground)]/40 uppercase tracking-wider mb-1.5">
                   פירוט פעילות באישור שהייה
                 </label>
                 <textarea
@@ -333,7 +332,7 @@ export default function AdminSettingsPage() {
               </div>
 
               <div>
-                <label className="block text-[10px] font-black text-[var(--foreground)]/40 uppercase tracking-wider mb-1.5">
+                <label className="block text-[11px] font-bold text-[var(--foreground)]/40 uppercase tracking-wider mb-1.5">
                   פירוט פעילות באישור נסיעות
                 </label>
                 <textarea
@@ -347,16 +346,16 @@ export default function AdminSettingsPage() {
           </section>
 
           {/* 2. Professional Manager Signature */}
-          <section className="bg-[var(--card-bg)] border border-[var(--border)] rounded-[2rem] p-6 space-y-6 shadow-sm">
+          <section className="bg-[var(--card-bg)] border border-[var(--border)] rounded-2xl p-6 space-y-6 shadow-sm">
             <div className="flex items-center gap-2 border-b border-[var(--border-subtle)] pb-3">
               <ImageIcon className="w-5 h-5 text-violet-500" />
-              <h2 className="text-xs font-black">חתימת מנהלת מקצועית בדוחות</h2>
+              <h2 className="text-xs font-bold">חתימת מנהלת מקצועית בדוחות</h2>
             </div>
 
             <div className="space-y-4 text-right">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-[10px] font-black text-[var(--foreground)]/40 uppercase tracking-wider mb-1.5">
+                  <label className="block text-[11px] font-bold text-[var(--foreground)]/40 uppercase tracking-wider mb-1.5">
                     שם המנהלת המקצועית
                   </label>
                   <input
@@ -367,7 +366,7 @@ export default function AdminSettingsPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-black text-[var(--foreground)]/40 uppercase tracking-wider mb-1.5">
+                  <label className="block text-[11px] font-bold text-[var(--foreground)]/40 uppercase tracking-wider mb-1.5">
                     תואר ותפקיד (מנהלת מקצועית)
                   </label>
                   <input
@@ -381,13 +380,13 @@ export default function AdminSettingsPage() {
 
               {/* Signature Canvas Pad */}
               <div className="space-y-3.5 pt-2">
-                <label className="block text-[10px] font-black uppercase tracking-wider text-[var(--foreground)]/40">
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-[var(--foreground)]/40">
                   חתימה דיגיטלית של המנהלת המקצועית
                 </label>
                 
                 {localSignatureImage && (
                   <div className="border border-[var(--border)] rounded-2xl p-4 bg-white flex flex-col items-center justify-center gap-2 shadow-inner">
-                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider">תצוגה מקדימה של החתימה הפעילה:</p>
+                    <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">תצוגה מקדימה של החתימה הפעילה:</p>
                     <img src={localSignatureImage} alt="חתימה פעילה" className="max-h-24 object-contain bg-white" />
                   </div>
                 )}
@@ -410,14 +409,14 @@ export default function AdminSettingsPage() {
                     <button
                       type="button"
                       onClick={handleClearSignature}
-                      className="px-3.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-100 rounded-xl text-[10px] font-black transition-colors cursor-pointer shadow-sm"
+                      className="px-3.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-100 rounded-xl text-[11px] font-bold transition-colors cursor-pointer shadow-sm"
                     >
                       נקה לוח
                     </button>
                   </div>
                 </div>
                 
-                <p className="text-[9px] text-[var(--muted)] font-medium leading-relaxed mt-1">
+                <p className="text-[11px] text-[var(--muted)] font-medium leading-relaxed mt-1">
                   * צייר את החתימה בתוך התיבה הלבנה, ולאחר מכן לחץ על "שמור הגדרות" בראש העמוד.
                 </p>
               </div>
@@ -425,23 +424,23 @@ export default function AdminSettingsPage() {
           </section>
 
           {/* 3. Program Specific Settings */}
-          <section className="bg-[var(--card-bg)] border border-[var(--border)] rounded-[2rem] p-6 space-y-6 shadow-sm">
+          <section className="bg-[var(--card-bg)] border border-[var(--border)] rounded-2xl p-6 space-y-6 shadow-sm">
             <div className="flex items-center gap-2 border-b border-[var(--border-subtle)] pb-3">
               <Settings className="w-5 h-5 text-violet-500" />
-              <h2 className="text-xs font-black">הגדרות לפי תוכנית (שעות ופירוט פעילות)</h2>
+              <h2 className="text-xs font-bold">הגדרות לפי תוכנית (שעות ופירוט פעילות)</h2>
             </div>
 
             <div className="space-y-6">
               {programs.map((prog, idx) => (
                 <div key={prog.id} className="border-b border-[var(--border-subtle)] pb-6 last:border-b-0 last:pb-0 text-right">
-                  <h3 className="text-xs font-black text-slate-800 mb-3 flex items-center gap-2">
+                  <h3 className="text-xs font-bold text-slate-800 mb-3 flex items-center gap-2">
                     <span className="w-2 h-2 rounded-full bg-violet-500" />
                     תוכנית: {prog.name}
                   </h3>
 
                   <div className="grid grid-cols-1 gap-4">
                     <div>
-                      <label className="block text-[9px] font-black text-[var(--foreground)]/40 uppercase tracking-wider mb-1">
+                      <label className="block text-[11px] font-bold text-[var(--foreground)]/40 uppercase tracking-wider mb-1">
                         שעות פעילות
                       </label>
                       <input
@@ -459,7 +458,7 @@ export default function AdminSettingsPage() {
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-[9px] font-black text-[var(--foreground)]/40 uppercase tracking-wider mb-1">
+                        <label className="block text-[11px] font-bold text-[var(--foreground)]/40 uppercase tracking-wider mb-1">
                           פירוט פעילות באישור שהייה (מותאם לתוכנית)
                         </label>
                         <textarea
@@ -476,7 +475,7 @@ export default function AdminSettingsPage() {
                       </div>
 
                       <div>
-                        <label className="block text-[9px] font-black text-[var(--foreground)]/40 uppercase tracking-wider mb-1">
+                        <label className="block text-[11px] font-bold text-[var(--foreground)]/40 uppercase tracking-wider mb-1">
                           פירוט פעילות באישור נסיעות (מותאם לתוכנית)
                         </label>
                         <textarea

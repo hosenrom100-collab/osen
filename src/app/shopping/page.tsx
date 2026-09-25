@@ -294,7 +294,7 @@ export default function ShoppingPage() {
               )}
 
               {loading ? (
-                <div className="px-2.5 sm:px-4 pt-4 space-y-4 animate-pulse" aria-busy="true" aria-label="טוען את הרשימה">
+                <div className="px-2.5 sm:px-4 pt-4 space-y-4 " aria-busy="true" aria-label="טוען את הרשימה">
                   <div className="flex gap-2">
                     {[64, 80, 96, 72].map((w) => (
                       <div key={w} className="h-9 rounded-full bg-[var(--fill-strong)]" style={{ width: w }} />

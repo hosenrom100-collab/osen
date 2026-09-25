@@ -40,7 +40,7 @@ function MiniCalendar({ value, onChange }: { value: string; onChange: (d: string
   return (
     <div className="select-none p-4">
       <div className="flex items-center justify-between mb-5">
-        <span className="text-sm font-black">{format(view, "MMMM yyyy", { locale: he })}</span>
+        <span className="text-sm font-bold">{format(view, "MMMM yyyy", { locale: he })}</span>
         <div className="flex gap-1">
           <button onClick={() => setView(subMonths(view, 1))}
             className="p-2 rounded-xl hover:bg-[var(--foreground)]/5 border border-transparent hover:border-[var(--border)]">
@@ -54,7 +54,7 @@ function MiniCalendar({ value, onChange }: { value: string; onChange: (d: string
       </div>
       <div className="grid grid-cols-7 gap-1 mb-2">
         {WD.map(d => (
-          <div key={d} className="text-[10px] font-black text-[var(--muted)]/50 text-center py-1 uppercase tracking-widest">{d}</div>
+          <div key={d} className="text-[11px] font-bold text-[var(--muted)]/50 text-center py-1 uppercase tracking-wider">{d}</div>
         ))}
       </div>
       <div className="grid grid-cols-7 gap-1">
@@ -64,7 +64,7 @@ function MiniCalendar({ value, onChange }: { value: string; onChange: (d: string
           const inMonth = isSameMonth(day, view);
           return (
             <button key={i} onClick={() => onChange(format(day, "yyyy-MM-dd"))}
-              className={`aspect-square rounded-xl text-[13px] font-black flex items-center justify-center transition-all active:scale-90 ${
+              className={`aspect-square rounded-xl text-[13px] font-bold flex items-center justify-center transition-all active:scale-90 ${
                 isSel   ? "bg-[var(--foreground)] text-[var(--background)] shadow-lg" :
                 isToday ? "bg-emerald-500/15 text-emerald-500" :
                 inMonth ? "text-[var(--foreground)] hover:bg-[var(--foreground)]/8" : "text-[var(--muted)]/20"
@@ -365,7 +365,7 @@ function AttendancePageContent() {
               className="w-9 h-9 flex items-center justify-center rounded-xl bg-[var(--foreground)]/5 text-[var(--muted)]">
               <ChevronRight className="w-4 h-4" />
             </button>
-            <span className="text-sm font-black">נוכחות</span>
+            <span className="text-sm font-bold">נוכחות</span>
             
             <button 
               onClick={openFilterModal}
@@ -379,12 +379,12 @@ function AttendancePageContent() {
           {/* Desktop: calendar toggle button */}
           <div className="hidden md:flex items-center gap-3">
             <button onClick={() => router.push("/admin/attendance-matrix")}
-              className="flex items-center gap-2 px-4 h-9 bg-violet-500/10 border border-violet-500/20 rounded-xl text-xs font-black text-violet-400 hover:bg-violet-500/20 transition-colors">
+              className="flex items-center gap-2 px-4 h-9 bg-violet-500/10 border border-violet-500/20 rounded-xl text-xs font-bold text-violet-400 hover:bg-violet-500/20 transition-colors">
               <ClipboardList className="w-3.5 h-3.5" />
               מבט טבלאי (אקסל)
             </button>
             <button onClick={() => setShowCalendar(!showCalendar)}
-              className="flex items-center gap-2 px-4 h-9 bg-[var(--foreground)]/5 border border-[var(--border)] rounded-xl text-xs font-black hover:bg-[var(--foreground)]/10 transition-colors">
+              className="flex items-center gap-2 px-4 h-9 bg-[var(--foreground)]/5 border border-[var(--border)] rounded-xl text-xs font-bold hover:bg-[var(--foreground)]/10 transition-colors">
               <CalendarIcon className="w-3.5 h-3.5 text-emerald-500" />
               {dayLabel} · {dateLabel}
             </button>
@@ -399,10 +399,10 @@ function AttendancePageContent() {
           </button>
           <button onClick={() => setShowCalendar(!showCalendar)}
             className="flex-1 h-11 rounded-xl bg-[var(--foreground)]/5 border border-[var(--border)] flex flex-col items-center justify-center active:bg-[var(--foreground)]/10 transition-colors">
-            <span className={`text-[10px] font-black uppercase tracking-widest leading-none ${isToday ? "text-emerald-500" : "text-[var(--muted)]/60"}`}>
+            <span className={`text-[11px] font-bold uppercase tracking-wider leading-none ${isToday ? "text-emerald-500" : "text-[var(--muted)]/60"}`}>
               {dayLabel}
             </span>
-            <span className="text-sm font-black leading-tight mt-0.5">{dateLabel}</span>
+            <span className="text-sm font-bold leading-tight mt-0.5">{dateLabel}</span>
           </button>
           <button onClick={() => changeDate(1)}
             className="w-11 h-11 rounded-xl bg-[var(--foreground)]/5 border border-[var(--border)] flex items-center justify-center text-[var(--muted)] active:scale-90 transition-transform shrink-0">
@@ -414,7 +414,7 @@ function AttendancePageContent() {
         <div className="flex gap-1.5 overflow-x-auto no-scrollbar px-4 pb-3">
           {selectionItems.map(item => (
             <button key={item.id} onClick={() => setSelectedId(item.id)}
-              className={`whitespace-nowrap px-4 h-8 rounded-xl text-[11px] font-black transition-all shrink-0 ${
+              className={`whitespace-nowrap px-4 h-8 rounded-xl text-[11px] font-bold transition-all shrink-0 ${
                 selectedId === item.id
                   ? "bg-[var(--foreground)] text-[var(--background)]"
                   : "bg-[var(--foreground)]/5 text-[var(--muted)] hover:bg-[var(--foreground)]/10"
@@ -453,7 +453,7 @@ function AttendancePageContent() {
               <div className="px-4 pb-8">
                 <button
                   onClick={() => { setSelectedDate(format(new Date(), "yyyy-MM-dd")); setShowCalendar(false); }}
-                  className="w-full py-3.5 bg-emerald-500 text-white rounded-2xl text-sm font-black">
+                  className="w-full py-3.5 bg-emerald-500 text-white rounded-2xl text-sm font-bold">
                   קפוץ להיום
                 </button>
               </div>
@@ -473,17 +473,17 @@ function AttendancePageContent() {
               <CalendarIcon className="w-8 h-8" />
             </div>
             <div className="space-y-2">
-              <h3 className="text-base font-black text-[var(--foreground)]">תוכנית זו אינה פעילה ביום זה</h3>
+              <h3 className="text-base font-bold text-[var(--foreground)]">תוכנית זו אינה פעילה ביום זה</h3>
               <p className="text-xs text-[var(--muted)] leading-relaxed">
                 לא ניתן לבצע בדיקת נוכחות עבור {selectedItem?.name} ביום {format(parseISO(selectedDate), "EEEE", { locale: he })}.
               </p>
             </div>
             {selectedItem?.activeDays && selectedItem.activeDays.length > 0 && (
               <div className="bg-[var(--foreground)]/3 rounded-2xl p-4 max-w-sm mx-auto">
-                <p className="text-[10px] font-black uppercase tracking-wider text-[var(--foreground)]/45 mb-1.5">ימי פעילות של התוכנית</p>
+                <p className="text-[11px] font-bold uppercase tracking-wider text-[var(--foreground)]/45 mb-1.5">ימי פעילות של התוכנית</p>
                 <div className="flex justify-center gap-1.5">
                   {selectedItem.activeDays.map(d => (
-                    <span key={d} className="px-2.5 py-1 bg-violet-500/10 border border-violet-500/20 text-violet-500 rounded-lg text-xs font-black">
+                    <span key={d} className="px-2.5 py-1 bg-violet-500/10 border border-violet-500/20 text-violet-500 rounded-lg text-xs font-bold">
                       {["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת"][d]}
                     </span>
                   ))}
@@ -498,24 +498,24 @@ function AttendancePageContent() {
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="flex items-center justify-between sm:justify-start gap-3 sm:gap-5 w-full sm:w-auto">
                   <div className="text-center flex-1 sm:flex-none">
-                    <p className="text-xl font-black text-emerald-500 leading-none">{stats.present}</p>
-                    <p className="text-[9px] font-black text-[var(--muted)] uppercase tracking-widest mt-0.5">נוכחים</p>
+                    <p className="text-xl font-bold text-emerald-500 leading-none">{stats.present}</p>
+                    <p className="text-[11px] font-bold text-[var(--muted)] uppercase tracking-wider mt-0.5">נוכחים</p>
                   </div>
                   <div className="w-px h-8 bg-[var(--border)] shrink-0" />
                   <div className="text-center flex-1 sm:flex-none">
-                    <p className="text-xl font-black text-rose-500 leading-none">{stats.absent}</p>
-                    <p className="text-[9px] font-black text-[var(--muted)] uppercase tracking-widest mt-0.5">נעדרים</p>
+                    <p className="text-xl font-bold text-rose-500 leading-none">{stats.absent}</p>
+                    <p className="text-[11px] font-bold text-[var(--muted)] uppercase tracking-wider mt-0.5">נעדרים</p>
                   </div>
                   <div className="w-px h-8 bg-[var(--border)] shrink-0" />
                   <div className="text-center flex-1 sm:flex-none">
-                    <p className="text-xl font-black text-[var(--muted)]/40 leading-none">{stats.unset}</p>
-                    <p className="text-[9px] font-black text-[var(--muted)] uppercase tracking-widest mt-0.5">ממתינים</p>
+                    <p className="text-xl font-bold text-[var(--muted)]/40 leading-none">{stats.unset}</p>
+                    <p className="text-[11px] font-bold text-[var(--muted)] uppercase tracking-wider mt-0.5">ממתינים</p>
                   </div>
                 </div>
                 <div className="flex items-center justify-between sm:justify-end gap-4 w-full sm:w-auto pt-3 sm:pt-0 border-t border-[var(--border)]/60 sm:border-0">
                   <button
                     onClick={copyAttendanceToClipboard}
-                    className={`flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-2 sm:px-3 sm:py-1.5 rounded-xl border text-[11px] font-black transition-all ${
+                    className={`flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-2 sm:px-3 sm:py-1.5 rounded-xl border text-[11px] font-bold transition-all ${
                       copied
                         ? "bg-emerald-500/20 border-emerald-500/30 text-emerald-400"
                         : "bg-[var(--foreground)]/5 border-[var(--border)] hover:bg-[var(--foreground)]/10 text-[var(--foreground)] active:scale-95 shadow-sm"
@@ -527,8 +527,8 @@ function AttendancePageContent() {
                   </button>
 
                   <div className="text-left shrink-0">
-                    <p className="text-2xl font-black leading-none">{pct}<span className="text-sm font-bold text-[var(--muted)]">%</span></p>
-                    <p className="text-[9px] font-black text-[var(--muted)] uppercase tracking-widest mt-0.5">נוכחות</p>
+                    <p className="text-2xl font-bold leading-none">{pct}<span className="text-sm font-bold text-[var(--muted)]">%</span></p>
+                    <p className="text-[11px] font-bold text-[var(--muted)] uppercase tracking-wider mt-0.5">נוכחות</p>
                   </div>
                 </div>
               </div>
@@ -608,7 +608,7 @@ function AttendancePageContent() {
                   <div className="w-8 h-8 rounded-lg bg-rose-500/10 flex items-center justify-center text-rose-500">
                     <Filter className="w-4 h-4" />
                   </div>
-                  <h3 className="text-sm font-black">הגדרת תוכניות וקבוצות לתצוגה</h3>
+                  <h3 className="text-sm font-bold">הגדרת תוכניות וקבוצות לתצוגה</h3>
                 </div>
                 <button 
                   onClick={() => setShowFilterModal(false)}
@@ -650,7 +650,7 @@ function AttendancePageContent() {
                             }`}>
                               {isProgChecked && <Check className="w-3.5 h-3.5" />}
                             </div>
-                            <span className="text-xs font-black">{prog.name}</span>
+                            <span className="text-xs font-bold">{prog.name}</span>
                           </label>
 
                           {progGroups.length > 0 && (
@@ -688,7 +688,7 @@ function AttendancePageContent() {
               <div className="pt-4 border-t border-[var(--border)] flex items-center gap-3">
                 <button
                   onClick={saveFilters}
-                  className="flex-1 py-3 bg-rose-500 hover:bg-rose-600 text-white rounded-2xl text-xs font-black shadow-lg shadow-rose-500/20 active:scale-95 transition-all"
+                  className="flex-1 py-3 bg-rose-500 hover:bg-rose-600 text-white rounded-2xl text-xs font-bold shadow-lg active:scale-95 transition-all"
                 >
                   שמור סינון
                 </button>
@@ -704,7 +704,7 @@ function AttendancePageContent() {
                       console.error("Failed to reset preferences:", err);
                     }
                   }}
-                  className="px-4 py-3 bg-[var(--foreground)]/5 hover:bg-[var(--foreground)]/10 border border-[var(--border)] rounded-2xl text-xs font-black active:scale-95 transition-all"
+                  className="px-4 py-3 bg-[var(--foreground)]/5 hover:bg-[var(--foreground)]/10 border border-[var(--border)] rounded-2xl text-xs font-bold active:scale-95 transition-all"
                 >
                   איפוס
                 </button>

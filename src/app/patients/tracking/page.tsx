@@ -42,16 +42,16 @@ type FilterType = "all" | "urgent" | "norehab" | "mine";
 
 function UrgencyChip({ days }: { days: number | null }) {
   if (days === null)
-    return <span className="text-[10px] text-[var(--muted)]">—</span>;
+    return <span className="text-[11px] text-[var(--muted)]">—</span>;
   if (days < 0)
-    return <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-500/10 text-slate-400">פגה</span>;
+    return <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-slate-500/10 text-slate-400">פגה</span>;
   if (days <= 7)
-    return <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-500/10 text-rose-400 animate-pulse">{days} ימים</span>;
+    return <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-rose-500/10 text-rose-400 ">{days} ימים</span>;
   if (days <= 14)
-    return <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-orange-500/10 text-orange-400">{days} ימים</span>;
+    return <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-orange-500/10 text-orange-400">{days} ימים</span>;
   if (days <= 30)
-    return <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/10 text-amber-400">{days} ימים</span>;
-  return <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/10 text-emerald-400">{days} ימים</span>;
+    return <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-amber-500/10 text-amber-400">{days} ימים</span>;
+  return <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-500/10 text-emerald-400">{days} ימים</span>;
 }
 
 function fmtDate(d: Date | string | null | undefined, fallback = "—"): string {
@@ -346,12 +346,12 @@ export default function PatientTrackingPage() {
               <h1 className="text-sm font-semibold">מעקב תקופות שהות והארכות</h1>
             </div>
             {stats.urgent > 0 && (
-              <span className="flex items-center gap-1.5 text-[10px] font-black text-rose-400 bg-rose-500/8 border border-rose-500/20 px-2.5 py-1 rounded-full animate-pulse">
+              <span className="flex items-center gap-1.5 text-[11px] font-bold text-rose-400 bg-rose-500/8 border border-rose-500/20 px-2.5 py-1 rounded-full ">
                 <Bell className="w-3 h-3" />
                 {stats.urgent} דחוף
               </span>
             )}
-            <span className="mr-auto text-[10px] font-medium text-teal-400 bg-teal-500/8 border border-teal-500/15 px-2.5 py-1 rounded-full">
+            <span className="mr-auto text-[11px] font-medium text-teal-400 bg-teal-500/8 border border-teal-500/15 px-2.5 py-1 rounded-full">
               {isSocialWorker ? "שלי" : "כולם"}
             </span>
           </div>
@@ -368,8 +368,8 @@ export default function PatientTrackingPage() {
                 className="mb-5 bg-rose-500/8 border border-rose-500/25 rounded-2xl overflow-hidden"
               >
                 <div className="flex items-center gap-3 px-4 py-3 border-b border-rose-500/15">
-                  <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 animate-pulse" />
-                  <p className="text-sm font-black text-rose-300">
+                  <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 " />
+                  <p className="text-sm font-bold text-rose-300">
                     נדרשת פעולה — {urgentPatients.length} משתתפים מסיימים שהות בתוך 14 יום ועדיין לא נשלחה הארכה
                   </p>
                 </div>
@@ -384,7 +384,7 @@ export default function PatientTrackingPage() {
                         >
                           {p.firstName} {p.lastName}
                         </button>
-                        <span className="text-[10px] text-rose-400/70 font-mono">
+                        <span className="text-[11px] text-rose-400/70 font-mono">
                           {workers[p.assignedWorkerId || ""] || "—"}
                         </span>
                         <UrgencyChip days={days} />
@@ -392,7 +392,7 @@ export default function PatientTrackingPage() {
                           <button
                             onClick={() => markExtensionSent(p.id)}
                             disabled={saving === p.id + "_sent"}
-                            className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black bg-orange-500/15 text-orange-300 border border-orange-500/20 rounded-lg hover:bg-orange-500/25 transition-all disabled:opacity-50"
+                            className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-bold bg-orange-500/15 text-orange-300 border border-orange-500/20 rounded-lg hover:bg-orange-500/25 transition-all disabled:opacity-50"
                           >
                             {saving === p.id + "_sent" ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}
                             סמן: הארכה נשלחה
@@ -400,7 +400,7 @@ export default function PatientTrackingPage() {
                           <button
                             onClick={() => markExtensionReceived(p)}
                             disabled={saving === p.id + "_recv"}
-                            className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black bg-emerald-500/15 text-emerald-300 border border-emerald-500/20 rounded-lg hover:bg-emerald-500/25 transition-all disabled:opacity-50"
+                            className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/20 rounded-lg hover:bg-emerald-500/25 transition-all disabled:opacity-50"
                           >
                             {saving === p.id + "_recv" ? <Loader2 className="w-3 h-3 animate-spin" /> : <Download className="w-3 h-3" />}
                             סמן: הארכה התקבלה (+3 חודשים)
@@ -423,8 +423,8 @@ export default function PatientTrackingPage() {
                 className="mb-5 bg-indigo-500/8 border border-indigo-500/25 rounded-2xl overflow-hidden"
               >
                 <div className="flex items-center gap-3 px-4 py-3 border-b border-indigo-500/15">
-                  <AlertCircle className="w-4 h-4 text-indigo-400 shrink-0 animate-pulse" />
-                  <p className="text-sm font-black text-indigo-300">
+                  <AlertCircle className="w-4 h-4 text-indigo-400 shrink-0 " />
+                  <p className="text-sm font-bold text-indigo-300">
                     שים לב: ישנם {rehabAlertPatients.length} משתתפים שטרם מולאה עבורם תוכנית שיקום לאחר שבועיים בחווה
                   </p>
                 </div>
@@ -439,16 +439,16 @@ export default function PatientTrackingPage() {
                         >
                           {p.firstName} {p.lastName}
                         </button>
-                        <span className="text-[10px] text-indigo-400/70 font-mono">
+                        <span className="text-[11px] text-indigo-400/70 font-mono">
                           {workers[p.assignedWorkerId || ""] || "—"}
                         </span>
-                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-500/10 text-indigo-400">
+                        <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-indigo-500/10 text-indigo-400">
                           בחווה {daysElapsed} ימים
                         </span>
                         <div className="mr-auto flex items-center gap-2">
                           <button
                             onClick={() => toggleCompleted(p)}
-                            className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black bg-indigo-500/15 text-indigo-300 border border-indigo-500/20 rounded-lg hover:bg-indigo-500/25 transition-all"
+                            className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-bold bg-indigo-500/15 text-indigo-300 border border-indigo-500/20 rounded-lg hover:bg-indigo-500/25 transition-all"
                           >
                             <Check className="w-3 h-3" />
                             סמן: הושלמה תוכנית שיקום
@@ -471,8 +471,8 @@ export default function PatientTrackingPage() {
               { label: "שיקום לא הושלם",        value: stats.norehab, color: "text-amber-400",  bg: "bg-amber-500/8" },
             ].map(s => (
               <div key={s.label} className={`${s.bg} border border-[var(--border)] rounded-xl px-4 py-3`}>
-                <p className={`text-2xl font-black ${s.color}`}>{s.value}</p>
-                <p className="text-[10px] text-[var(--muted)] mt-0.5">{s.label}</p>
+                <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
+                <p className="text-[11px] text-[var(--muted)] mt-0.5">{s.label}</p>
               </div>
             ))}
           </div>
@@ -491,7 +491,7 @@ export default function PatientTrackingPage() {
                   <Filter className="w-3 h-3" />
                   {f.label}
                   {f.count !== undefined && (
-                    <span className={`text-[10px] font-bold ${f.color ?? ""}`}>{f.count}</span>
+                    <span className={`text-[11px] font-bold ${f.color ?? ""}`}>{f.count}</span>
                   )}
                 </button>
               ))}
@@ -521,7 +521,7 @@ export default function PatientTrackingPage() {
                         "תוכנית שיקום",
                         'עו"ס',
                       ].map(h => (
-                        <th key={h} className="px-4 py-3 text-[10px] font-black uppercase tracking-wider text-[var(--muted)] whitespace-nowrap">
+                        <th key={h} className="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-[var(--muted)] whitespace-nowrap">
                           {h}
                         </th>
                       ))}
@@ -557,7 +557,7 @@ export default function PatientTrackingPage() {
                                 onClick={() => router.push(`/patients/${p.id}`)}
                                 className="text-right hover:text-teal-400 transition-colors">
                                 <p className="font-semibold leading-tight">{p.firstName} {p.lastName}</p>
-                                <p className="text-[10px] text-[var(--muted)] font-mono mt-0.5">{p.idNumber || "—"}</p>
+                                <p className="text-[11px] text-[var(--muted)] font-mono mt-0.5">{p.idNumber || "—"}</p>
                               </button>
                             </td>
 
@@ -575,7 +575,7 @@ export default function PatientTrackingPage() {
                                       value={editEndDateVal}
                                       onChange={e => setEditEndDateVal(e.target.value)}
                                       autoFocus
-                                      className="bg-[var(--background)] border border-teal-500/40 rounded px-2 py-1 text-[10px] focus:outline-none focus:border-teal-500 w-32"
+                                      className="bg-[var(--background)] border border-teal-500/40 rounded px-2 py-1 text-[11px] focus:outline-none focus:border-teal-500 w-32"
                                     />
                                     <button onClick={() => saveEndDate(p.id)} disabled={saving === p.id + "_date"}
                                       className="p-1 rounded bg-teal-500/15 text-teal-400 hover:bg-teal-500/25">
@@ -592,7 +592,7 @@ export default function PatientTrackingPage() {
                                     <span className={days !== null && days <= 14 && days >= 0 ? "text-orange-400 font-semibold" : "text-[var(--muted)]"}>
                                       → {fmtDate(endDate)}
                                     </span>
-                                    {isAuto && <span className="text-[9px] text-[var(--muted)] opacity-60">(אוטו׳)</span>}
+                                    {isAuto && <span className="text-[11px] text-[var(--muted)] opacity-60">(אוטו׳)</span>}
                                     <Edit3 className="w-3 h-3 text-[var(--muted)] opacity-0 group-hover/date:opacity-60 transition-opacity" />
                                   </div>
                                 )}
@@ -610,18 +610,18 @@ export default function PatientTrackingPage() {
                                 <span className="text-xs text-[var(--muted)] opacity-40">—</span>
                               ) : p.extensionSent ? (
                                 <div className="flex flex-col gap-0.5">
-                                  <span className="flex items-center gap-1 text-[10px] text-emerald-400 font-semibold">
+                                  <span className="flex items-center gap-1 text-[11px] text-emerald-400 font-semibold">
                                     <Check className="w-3 h-3" /> נשלחה
                                   </span>
                                   {p.extensionSentAt && (
-                                    <span className="text-[9px] text-[var(--muted)]">{fmtDate(p.extensionSentAt)}</span>
+                                    <span className="text-[11px] text-[var(--muted)]">{fmtDate(p.extensionSentAt)}</span>
                                   )}
                                 </div>
                               ) : (
                                 <button
                                   onClick={() => markExtensionSent(p.id)}
                                   disabled={saving === p.id + "_sent" || !!p.extensionReceived}
-                                  className="flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] font-bold bg-orange-500/10 text-orange-400 border border-orange-500/20 rounded-lg hover:bg-orange-500/20 transition-all disabled:opacity-30"
+                                  className="flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] font-bold bg-orange-500/10 text-orange-400 border border-orange-500/20 rounded-lg hover:bg-orange-500/20 transition-all disabled:opacity-30"
                                 >
                                   {saving === p.id + "_sent" ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}
                                   סמן נשלחה
@@ -635,18 +635,18 @@ export default function PatientTrackingPage() {
                                 <span className="text-xs text-[var(--muted)] opacity-40">—</span>
                               ) : p.extensionReceived ? (
                                 <div className="flex flex-col gap-0.5">
-                                  <span className="flex items-center gap-1 text-[10px] text-emerald-400 font-semibold">
+                                  <span className="flex items-center gap-1 text-[11px] text-emerald-400 font-semibold">
                                     <CheckCircle2 className="w-3 h-3" /> התקבלה
                                   </span>
                                   {p.extensionReceivedAt && (
-                                    <span className="text-[9px] text-[var(--muted)]">{fmtDate(p.extensionReceivedAt)}</span>
+                                    <span className="text-[11px] text-[var(--muted)]">{fmtDate(p.extensionReceivedAt)}</span>
                                   )}
                                 </div>
                               ) : (
                                 <button
                                   onClick={() => markExtensionReceived(p)}
                                   disabled={saving === p.id + "_recv"}
-                                  className="flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-lg hover:bg-emerald-500/20 transition-all disabled:opacity-30"
+                                  className="flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-lg hover:bg-emerald-500/20 transition-all disabled:opacity-30"
                                 >
                                   {saving === p.id + "_recv" ? <Loader2 className="w-3 h-3 animate-spin" /> : <Download className="w-3 h-3" />}
                                   סמן (+3 חודשים)

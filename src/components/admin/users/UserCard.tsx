@@ -61,7 +61,7 @@ export function UserCard({ user, index, updatingId, programs, groups, onUpdate }
           </div>
           <div>
             <div className="flex items-center gap-3">
-              <h3 className="text-xl font-black tracking-tight text-[var(--foreground)]">{user.name}</h3>
+              <h3 className="text-xl font-bold tracking-tight text-[var(--foreground)]">{user.name}</h3>
               <StatusBadge status={user.status} />
             </div>
             <p className="text-sm font-bold text-[var(--muted)]/60 mt-1">{user.email}</p>
@@ -80,7 +80,7 @@ export function UserCard({ user, index, updatingId, programs, groups, onUpdate }
           <button
             onClick={() => setIsExpanded(!isExpanded)}
             title={isExpanded ? "סגור פירוט" : "ניהול שיוכים לתוכניות וקבוצות"}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl text-[11px] font-bold uppercase tracking-wider transition-all ${
               isExpanded ? 'bg-[var(--foreground)] text-[var(--background)] shadow-lg' : 'bg-[var(--foreground)]/5 border border-[var(--border)] hover:bg-[var(--foreground)]/10'
             }`}
           >
@@ -92,7 +92,7 @@ export function UserCard({ user, index, updatingId, programs, groups, onUpdate }
             <button
               onClick={() => setShowConfirmModal({ open: true, type: "approve" })}
               disabled={isUpdating}
-              className="flex items-center gap-2 px-8 py-3 bg-emerald-600 text-white rounded-2xl text-xs font-black hover:bg-emerald-500 transition-all shadow-xl shadow-emerald-600/20 active:scale-95 disabled:opacity-50"
+              className="flex items-center gap-2 px-8 py-3 bg-emerald-600 text-white rounded-2xl text-xs font-bold hover:bg-emerald-500 transition-all shadow-xl active:scale-95 disabled:opacity-50"
             >
               <UserCheck className="w-4 h-4" />
               אשר כניסה
@@ -104,7 +104,7 @@ export function UserCard({ user, index, updatingId, programs, groups, onUpdate }
                 type: user.status === "blocked" ? "unblock" : "block" 
               })}
               disabled={isUpdating}
-              className={`flex items-center gap-2 px-6 py-3 rounded-2xl text-xs font-black transition-all active:scale-95 disabled:opacity-50 border ${
+              className={`flex items-center gap-2 px-6 py-3 rounded-2xl text-xs font-bold transition-all active:scale-95 disabled:opacity-50 border ${
                 user.status === 'blocked' 
                   ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500 hover:bg-emerald-500/20' 
                   : 'bg-rose-500/10 border-rose-500/20 text-rose-500 hover:bg-rose-500/20'
@@ -134,7 +134,7 @@ export function UserCard({ user, index, updatingId, programs, groups, onUpdate }
             <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-12">
               {/* Programs */}
               <div className="space-y-4">
-                <div className="flex items-center gap-3 text-xs font-black uppercase tracking-widest text-[var(--foreground)]/30 mr-2">
+                <div className="flex items-center gap-3 text-xs font-bold uppercase tracking-wider text-[var(--foreground)]/30 mr-2">
                   <Layers className="w-4 h-4" />
                   שיוך לתוכניות
                 </div>
@@ -146,7 +146,7 @@ export function UserCard({ user, index, updatingId, programs, groups, onUpdate }
                         key={p.id}
                         disabled={isUpdating}
                         onClick={() => toggleItem(user.assignedProgramIds || [], p.id, 'assignedProgramIds')}
-                        className={`px-4 py-2 rounded-xl text-[10px] font-bold border transition-all active:scale-95 ${
+                        className={`px-4 py-2 rounded-xl text-[11px] font-bold border transition-all active:scale-95 ${
                           isSelected ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600' : 'bg-transparent border-[var(--border)] opacity-40 hover:opacity-100'
                         }`}
                       >
@@ -159,7 +159,7 @@ export function UserCard({ user, index, updatingId, programs, groups, onUpdate }
 
               {/* Groups */}
               <div className="space-y-4">
-                <div className="flex items-center gap-3 text-xs font-black uppercase tracking-widest text-[var(--foreground)]/30 mr-2">
+                <div className="flex items-center gap-3 text-xs font-bold uppercase tracking-wider text-[var(--foreground)]/30 mr-2">
                   <UsersIcon className="w-4 h-4" />
                   שיוך לקבוצות
                 </div>
@@ -171,7 +171,7 @@ export function UserCard({ user, index, updatingId, programs, groups, onUpdate }
                         key={g.id}
                         disabled={isUpdating}
                         onClick={() => toggleItem(user.assignedGroupIds || [], g.id, 'assignedGroupIds')}
-                        className={`px-4 py-2 rounded-xl text-[10px] font-bold border transition-all active:scale-95 ${
+                        className={`px-4 py-2 rounded-xl text-[11px] font-bold border transition-all active:scale-95 ${
                           isSelected ? 'bg-rose-500/10 border-rose-500/30 text-rose-600' : 'bg-transparent border-[var(--border)] opacity-40 hover:opacity-100'
                         }`}
                       >

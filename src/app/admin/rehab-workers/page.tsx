@@ -197,11 +197,11 @@ export default function RehabWorkersManagementPage() {
             <ArrowRight className="w-5 h-5" />
           </button>
           <div>
-            <h1 className="text-3xl font-black tracking-tight flex items-center gap-3">
+            <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3">
               <Briefcase className="w-8 h-8 text-teal-500" />
               ניהול עו״ס שיקום משרד הביטחון
             </h1>
-            <p className="text-[var(--foreground)]/40 text-xs font-bold uppercase tracking-widest mt-1">
+            <p className="text-[var(--foreground)]/40 text-xs font-bold uppercase tracking-wider mt-1">
               ניהול מאגר העובדים הסוציאליים לשיקום עבור משתתפי המרכז
             </p>
           </div>
@@ -211,14 +211,14 @@ export default function RehabWorkersManagementPage() {
           {/* Controls Bar */}
           <div className="flex items-center justify-between gap-4 flex-wrap bg-[var(--card-bg)] border border-[var(--border)] rounded-3xl p-4 shadow-sm">
             <div className="flex items-center gap-3">
-              <h2 className="text-lg font-black tracking-tight">
+              <h2 className="text-lg font-bold tracking-tight">
                 רשימת עו״ס במאגר ({filteredWorkers.length})
               </h2>
               {canWrite && (
                 <button
                   onClick={handleAddNew}
                   disabled={!!editingWorkerId}
-                  className="px-4 py-2.5 bg-teal-600 hover:bg-teal-500 disabled:opacity-50 text-white rounded-2xl text-xs font-black uppercase tracking-widest transition-all flex items-center gap-1.5 shadow-lg shadow-teal-600/20"
+                  className="px-4 py-2.5 bg-teal-600 hover:bg-teal-500 disabled:opacity-50 text-white rounded-2xl text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-1.5 shadow-lg"
                 >
                   <Plus className="w-4 h-4" />
                   הוסף עו״ס חדש
@@ -242,25 +242,25 @@ export default function RehabWorkersManagementPage() {
           {loading ? (
             <div className="flex flex-col items-center justify-center py-40 gap-4 opacity-30">
               <Loader2 className="w-10 h-10 animate-spin text-teal-500" />
-              <p className="text-xs font-black uppercase tracking-widest">טוען עו״סים מלווים...</p>
+              <p className="text-xs font-bold uppercase tracking-wider">טוען עו״סים מלווים...</p>
             </div>
           ) : sortedWorkers.length === 0 ? (
             <div className="text-center py-32 bg-[var(--card-bg)] border border-dashed border-[var(--border)] rounded-[3rem] opacity-30">
               <Briefcase className="w-12 h-12 text-[var(--foreground)]/15 mx-auto mb-4" />
-              <p className="text-sm font-black italic">לא נמצאו עו״סים מלווים במאגר</p>
+              <p className="text-sm font-bold italic">לא נמצאו עו״סים מלווים במאגר</p>
             </div>
           ) : (
-            <div className="overflow-hidden border border-[var(--border)] rounded-[2.5rem] bg-[var(--card-bg)] shadow-xl shadow-black/5">
+            <div className="overflow-hidden border border-[var(--border)] rounded-2xl bg-[var(--card-bg)] shadow-xl shadow-black/5">
               <div className="overflow-x-auto">
                 <table className="w-full text-right border-collapse">
                   <thead>
                     <tr className="border-b border-[var(--border)] bg-[var(--foreground)]/[0.02] backdrop-blur">
-                      <th className="px-6 py-4.5 text-xs font-black uppercase tracking-widest text-[var(--foreground)]/50">שם מלא</th>
-                      <th className="px-6 py-4.5 text-xs font-black uppercase tracking-widest text-[var(--foreground)]/50">מחוז</th>
-                      <th className="px-6 py-4.5 text-xs font-black uppercase tracking-widest text-[var(--foreground)]/50">כתובת מייל</th>
-                      <th className="px-6 py-4.5 text-xs font-black uppercase tracking-widest text-[var(--foreground)]/50">מספר טלפון</th>
+                      <th className="px-6 py-4.5 text-xs font-bold uppercase tracking-wider text-[var(--foreground)]/50">שם מלא</th>
+                      <th className="px-6 py-4.5 text-xs font-bold uppercase tracking-wider text-[var(--foreground)]/50">מחוז</th>
+                      <th className="px-6 py-4.5 text-xs font-bold uppercase tracking-wider text-[var(--foreground)]/50">כתובת מייל</th>
+                      <th className="px-6 py-4.5 text-xs font-bold uppercase tracking-wider text-[var(--foreground)]/50">מספר טלפון</th>
                       {canWrite && (
-                        <th className="px-6 py-4.5 text-xs font-black uppercase tracking-widest text-[var(--foreground)]/50 text-left w-32">פעולות</th>
+                        <th className="px-6 py-4.5 text-xs font-bold uppercase tracking-wider text-[var(--foreground)]/50 text-left w-32">פעולות</th>
                       )}
                     </tr>
                   </thead>
@@ -302,7 +302,7 @@ export default function RehabWorkersManagementPage() {
                                 className="w-full bg-[var(--background)] border border-[var(--border)] rounded-xl px-3 py-2 text-xs font-bold outline-none focus:border-teal-500/50 transition-all"
                               />
                             ) : w.district ? (
-                              <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[10px] font-black bg-teal-500/10 text-teal-600 tracking-wider">
+                              <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[11px] font-bold bg-teal-500/10 text-teal-600 tracking-wider">
                                 <MapPin className="w-3 h-3 shrink-0" />
                                 {w.district}
                               </span>
@@ -359,7 +359,7 @@ export default function RehabWorkersManagementPage() {
                                   <button
                                     onClick={() => handleSaveInline(w.id)}
                                     disabled={adding}
-                                    className="p-2 bg-teal-600 hover:bg-teal-500 text-white rounded-xl transition-all shadow-md shadow-teal-600/10 flex items-center justify-center disabled:opacity-50"
+                                    className="p-2 bg-teal-600 hover:bg-teal-500 text-white rounded-xl transition-all shadow-md flex items-center justify-center disabled:opacity-50"
                                     title="שמור שינויים"
                                   >
                                     {adding ? (

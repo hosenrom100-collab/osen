@@ -6,6 +6,7 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 
+import { PageSkeleton } from "@/components/ui/Skeleton";
 /**
  * The attendance gate redirects directly to patient-attendance.
  * If the user has a primary group set, it pre-selects that group.
@@ -24,9 +25,7 @@ function AttendanceRedirect() {
   }, [loading, primaryGroupId, router]);
 
   return (
-    <div className="min-h-screen bg-[var(--background)] flex items-center justify-center">
-      <Loader2 className="w-7 h-7 text-emerald-400 animate-spin" />
-    </div>
+    <PageSkeleton />
   );
 }
 

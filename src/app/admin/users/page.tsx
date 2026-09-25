@@ -329,11 +329,11 @@ export default function UserManagementPage() {
                 <ArrowRight className="w-4 h-4 text-[var(--muted)]" />
               </button>
               <div>
-                <h1 className="text-xl font-black tracking-tight flex items-center gap-2">
+                <h1 className="text-xl font-bold tracking-tight flex items-center gap-2">
                   <Shield className="w-5 h-5 text-emerald-500" />
                   ניהול צוות והרשאות
                 </h1>
-                <p className="text-[var(--muted)] text-[10px] font-bold uppercase tracking-wider mt-0.5">
+                <p className="text-[var(--muted)] text-[11px] font-bold uppercase tracking-wider mt-0.5">
                   רשימת עובדי המרכז, הקצאת תפקידים ושיוך לתוכניות וקבוצות
                 </p>
               </div>
@@ -343,7 +343,7 @@ export default function UserManagementPage() {
               <button
                 type="button"
                 onClick={() => setShowPreCreateModal(true)}
-                className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2.5 rounded-xl text-xs font-black transition-all shadow-md shadow-emerald-600/10 active:scale-95 border border-emerald-600 shrink-0 cursor-pointer"
+                className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2.5 rounded-xl text-xs font-bold transition-all shadow-md active:scale-95 border border-emerald-600 shrink-0 cursor-pointer"
               >
                 <UserPlus className="w-4 h-4" />
                 רשום עובד מראש
@@ -366,20 +366,20 @@ export default function UserManagementPage() {
           {loading ? (
             <div className="flex flex-col items-center justify-center py-32 gap-3 opacity-30">
               <Loader2 className="w-8 h-8 animate-spin text-emerald-500" />
-              <p className="text-[10px] font-black uppercase tracking-widest">טוען נתוני צוות...</p>
+              <p className="text-[11px] font-bold uppercase tracking-wider">טוען נתוני צוות...</p>
             </div>
           ) : (
             <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl overflow-hidden shadow-sm">
               <div className="overflow-x-auto min-h-[320px]">
                 <table className="w-full text-right border-collapse text-xs">
                   <thead>
-                    <tr className="border-b border-[var(--border)] bg-[var(--foreground)]/[0.02] text-[var(--muted)]/70 font-black">
-                      <th className="py-3 px-4 font-black">שם</th>
-                      <th className="py-3 px-4 font-black">אימייל</th>
-                      <th className="py-3 px-4 font-black">תפקיד במערכת</th>
-                      <th className="py-3 px-4 font-black">סטטוס</th>
-                      <th className="py-3 px-4 font-black text-center">תוכניות וקבוצות</th>
-                      <th className="py-3 px-4 font-black text-left">פעולות</th>
+                    <tr className="border-b border-[var(--border)] bg-[var(--foreground)]/[0.02] text-[var(--muted)]/70 font-bold">
+                      <th className="py-3 px-4 font-bold">שם</th>
+                      <th className="py-3 px-4 font-bold">אימייל</th>
+                      <th className="py-3 px-4 font-bold">תפקיד במערכת</th>
+                      <th className="py-3 px-4 font-bold">סטטוס</th>
+                      <th className="py-3 px-4 font-bold text-center">תוכניות וקבוצות</th>
+                      <th className="py-3 px-4 font-bold text-left">פעולות</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[var(--border)]">
@@ -389,7 +389,7 @@ export default function UserManagementPage() {
                         <React.Fragment key={user.id}>
                           <tr className="hover:bg-[var(--foreground)]/[0.01] transition-colors">
                             {/* Name */}
-                            <td className="py-3.5 px-4 font-black text-[var(--foreground)]">
+                            <td className="py-3.5 px-4 font-bold text-[var(--foreground)]">
                               <div className="flex items-center gap-2 group max-w-[200px]">
                                 {editingNameId === user.id ? (
                                   <div className="flex items-center gap-1">
@@ -397,7 +397,7 @@ export default function UserManagementPage() {
                                       type="text"
                                       value={tempName}
                                       onChange={(e) => setTempName(e.target.value)}
-                                      className="bg-[var(--surface)] border border-[var(--border)] rounded-lg px-2 py-1 text-xs font-black focus:outline-none focus:border-emerald-500/40 text-[var(--foreground)] max-w-[130px]"
+                                      className="bg-[var(--surface)] border border-[var(--border)] rounded-lg px-2 py-1 text-xs font-bold focus:outline-none focus:border-emerald-500/40 text-[var(--foreground)] max-w-[130px]"
                                       autoFocus
                                       onKeyDown={async (e) => {
                                         if (e.key === "Enter") {
@@ -460,7 +460,7 @@ export default function UserManagementPage() {
                                   <div className="flex flex-wrap gap-1 max-w-[150px]">
                                     {user.roles && user.roles.length > 0 ? (
                                       user.roles.map(r => (
-                                        <span key={r} className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${ROLE_COLORS[r]}`}>
+                                        <span key={r} className={`px-2 py-0.5 rounded-md text-[11px] font-bold ${ROLE_COLORS[r]}`}>
                                           {ROLE_LABELS[r] || r}
                                         </span>
                                       ))
@@ -483,7 +483,7 @@ export default function UserManagementPage() {
                                         ? "bottom-full mb-2"
                                         : "top-full mt-2"
                                     }`}>
-                                      <div className="px-3 py-1.5 text-[9px] font-black uppercase text-[var(--muted)] tracking-wider">
+                                      <div className="px-3 py-1.5 text-[11px] font-bold uppercase text-[var(--muted)] tracking-wider">
                                         בחר תפקידים:
                                       </div>
                                       {(["social_worker", "instructor", "logistics", "manager", "admin", "employee"] as UserRole[]).map(roleVal => {
@@ -503,7 +503,7 @@ export default function UserManagementPage() {
                                               }
                                               await updateUser(user.id, { roles: nextRoles });
                                             }}
-                                            className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs font-black cursor-pointer select-none transition-all ${
+                                            className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold cursor-pointer select-none transition-all ${
                                               isSelected 
                                                 ? "bg-emerald-500/10 text-emerald-600" 
                                                 : "hover:bg-[var(--foreground)]/5 text-[var(--foreground)]"
@@ -531,7 +531,7 @@ export default function UserManagementPage() {
                             {/* Status */}
                             <td className="py-3.5 px-4">
                               {user.isPreCreated ? (
-                                <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-orange-500/10 text-orange-500 border border-orange-500/20 whitespace-nowrap">
+                                <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-orange-500/10 text-orange-500 border border-orange-500/20 whitespace-nowrap">
                                   ממתין לרישום
                                 </span>
                               ) : (
@@ -543,7 +543,7 @@ export default function UserManagementPage() {
                             <td className="py-3.5 px-4 text-center">
                               <button
                                 onClick={() => handleToggleExpand(user.id)}
-                                className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-[10px] font-black transition-all ${
+                                className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-[11px] font-bold transition-all ${
                                   expandedUserId === user.id
                                     ? "bg-[var(--foreground)] text-[var(--background)] border-transparent"
                                     : "bg-[var(--foreground)]/5 border-[var(--border)] hover:bg-[var(--foreground)]/10 text-[var(--foreground)]"
@@ -563,7 +563,7 @@ export default function UserManagementPage() {
                                   <button
                                     type="button"
                                     onClick={() => handleDeletePreCreatedUser(user.id, user.name)}
-                                    className="p-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 border border-rose-500/20 rounded-lg transition-all shrink-0 cursor-pointer flex items-center gap-1.5 text-[10px] font-black"
+                                    className="p-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 border border-rose-500/20 rounded-lg transition-all shrink-0 cursor-pointer flex items-center gap-1.5 text-[11px] font-bold"
                                     title="מחק עובד טרום-רשום"
                                   >
                                     <Trash2 className="w-3.5 h-3.5" />
@@ -573,7 +573,7 @@ export default function UserManagementPage() {
                                   <>
                                     <button
                                       onClick={() => setShowConfirmModal({ open: true, type: "approve", user })}
-                                      className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-[10px] font-black transition-colors"
+                                      className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-[11px] font-bold transition-colors"
                                     >
                                       אשר גישה
                                     </button>
@@ -581,7 +581,7 @@ export default function UserManagementPage() {
                                       <button
                                         type="button"
                                         onClick={() => handleDeleteRegisteredUser(user.id, user.name)}
-                                        className="p-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 border border-rose-500/20 rounded-lg transition-all shrink-0 cursor-pointer flex items-center gap-1 text-[10px] font-black"
+                                        className="p-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 border border-rose-500/20 rounded-lg transition-all shrink-0 cursor-pointer flex items-center gap-1 text-[11px] font-bold"
                                         title="מחק משתמש לצמיתות"
                                       >
                                         <Trash2 className="w-3.5 h-3.5" />
@@ -597,7 +597,7 @@ export default function UserManagementPage() {
                                         type: user.status === "blocked" ? "unblock" : "block", 
                                         user 
                                       })}
-                                      className={`px-3 py-1.5 rounded-lg text-[10px] font-black border transition-colors ${
+                                      className={`px-3 py-1.5 rounded-lg text-[11px] font-bold border transition-colors ${
                                         user.status === "blocked"
                                           ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-500 hover:bg-emerald-500/20"
                                           : "bg-rose-500/10 border-rose-500/20 text-rose-500 hover:bg-rose-500/20"
@@ -609,7 +609,7 @@ export default function UserManagementPage() {
                                       <button
                                         type="button"
                                         onClick={() => handleDeleteRegisteredUser(user.id, user.name)}
-                                        className="p-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 border border-rose-500/20 rounded-lg transition-all shrink-0 cursor-pointer flex items-center gap-1 text-[10px] font-black"
+                                        className="p-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 border border-rose-500/20 rounded-lg transition-all shrink-0 cursor-pointer flex items-center gap-1 text-[11px] font-bold"
                                         title="מחק משתמש לצמיתות"
                                       >
                                         <Trash2 className="w-3.5 h-3.5" />
@@ -630,7 +630,7 @@ export default function UserManagementPage() {
                                    
                                    {/* Programs */}
                                    <div className="space-y-2">
-                                     <div className="flex items-center gap-1.5 text-[10px] font-black text-[var(--muted)] mr-1">
+                                     <div className="flex items-center gap-1.5 text-[11px] font-bold text-[var(--muted)] mr-1">
                                        <Layers className="w-3.5 h-3.5 text-emerald-500" />
                                        שיוך לתוכניות
                                      </div>
@@ -642,7 +642,7 @@ export default function UserManagementPage() {
                                              key={p.id}
                                              disabled={isUpdating}
                                              onClick={() => toggleItem(user.assignedProgramIds || [], p.id, 'assignedProgramIds', user.id)}
-                                             className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-all active:scale-95 cursor-pointer ${
+                                             className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-all active:scale-95 cursor-pointer ${
                                                isSelected 
                                                  ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600 font-extrabold' 
                                                  : 'bg-transparent border-[var(--border)] opacity-50 hover:opacity-100 text-[var(--foreground)]'
@@ -657,7 +657,7 @@ export default function UserManagementPage() {
  
                                    {/* Groups */}
                                    <div className="space-y-2">
-                                     <div className="flex items-center gap-1.5 text-[10px] font-black text-[var(--muted)] mr-1">
+                                     <div className="flex items-center gap-1.5 text-[11px] font-bold text-[var(--muted)] mr-1">
                                        <Users className="w-3.5 h-3.5 text-rose-500" />
                                        שיוך לקבוצות
                                      </div>
@@ -669,7 +669,7 @@ export default function UserManagementPage() {
                                              key={g.id}
                                              disabled={isUpdating}
                                              onClick={() => toggleItem(user.assignedGroupIds || [], g.id, 'assignedGroupIds', user.id)}
-                                             className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-all active:scale-95 cursor-pointer ${
+                                             className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-all active:scale-95 cursor-pointer ${
                                                isSelected 
                                                  ? 'bg-rose-500/10 border-rose-500/30 text-rose-600 font-extrabold' 
                                                  : 'bg-transparent border-[var(--border)] opacity-50 hover:opacity-100 text-[var(--foreground)]'
@@ -689,14 +689,14 @@ export default function UserManagementPage() {
 
                                    {/* Regular work schedule settings */}
                                    <div className="space-y-4">
-                                     <div className="flex items-center gap-1.5 text-[10px] font-black text-[var(--muted)] mr-1">
+                                     <div className="flex items-center gap-1.5 text-[11px] font-bold text-[var(--muted)] mr-1">
                                        <Calendar className="w-3.5 h-3.5 text-orange-500" />
                                        הגדרות ימי עבודה
                                      </div>
 
                                      {/* Assigned Complex */}
                                      <div className="space-y-1.5">
-                                       <span className="text-[10px] text-[var(--muted)] block">מתחם עבודה עיקרי:</span>
+                                       <span className="text-[11px] text-[var(--muted)] block">מתחם עבודה עיקרי:</span>
                                        <div className="flex gap-2 bg-[var(--background)] p-1 rounded-xl border border-[var(--border)] w-fit">
                                          {[
                                            { id: "upper", label: "עליון" },
@@ -707,7 +707,7 @@ export default function UserManagementPage() {
                                              type="button"
                                              disabled={isUpdating}
                                              onClick={() => updateUserComplex(user.id, comp.id)}
-                                             className={`px-3 py-1.5 rounded-lg text-[10px] font-black transition-all cursor-pointer ${
+                                             className={`px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
                                                user.assignedComplex === comp.id
                                                  ? "bg-orange-500 text-white font-extrabold shadow-sm"
                                                  : "text-[var(--muted)] hover:text-[var(--foreground)]"
@@ -721,7 +721,7 @@ export default function UserManagementPage() {
 
                                      {/* Working Days */}
                                      <div className="space-y-1.5">
-                                       <span className="text-[10px] text-[var(--muted)] block">ימי עבודה קבועים:</span>
+                                       <span className="text-[11px] text-[var(--muted)] block">ימי עבודה קבועים:</span>
                                        <div className="grid grid-cols-3 gap-1 w-full max-w-[200px]">
                                          {[
                                            { id: "sunday", label: "א" },
@@ -738,7 +738,7 @@ export default function UserManagementPage() {
                                                type="button"
                                                disabled={isUpdating}
                                                onClick={() => toggleUserDay(user.id, user.workingDays, day.id)}
-                                               className={`py-1.5 rounded-lg border text-[10px] font-black transition-all cursor-pointer ${
+                                               className={`py-1.5 rounded-lg border text-[11px] font-bold transition-all cursor-pointer ${
                                                  isWorking
                                                    ? "bg-orange-500/20 border-orange-500/50 text-orange-400 font-extrabold"
                                                    : "bg-transparent border-[var(--border)] text-[var(--muted)] opacity-50 hover:opacity-100"
@@ -754,7 +754,7 @@ export default function UserManagementPage() {
 
                                    {/* Absence registration & log */}
                                    <div className="space-y-4">
-                                     <div className="flex items-center gap-1.5 text-[10px] font-black text-[var(--muted)] mr-1">
+                                     <div className="flex items-center gap-1.5 text-[11px] font-bold text-[var(--muted)] mr-1">
                                        <AlertCircle className="w-3.5 h-3.5 text-rose-500" />
                                        היעדרויות העובד
                                      </div>
@@ -766,7 +766,7 @@ export default function UserManagementPage() {
                                            type="date"
                                            value={absenceDates[user.id] || ""}
                                            onChange={e => setAbsenceDates(prev => ({ ...prev, [user.id]: e.target.value }))}
-                                           className="bg-[var(--surface)] border border-[var(--border)] text-[10px] font-bold text-[var(--foreground)] rounded-lg px-2 py-1 focus:outline-none focus:border-rose-500/50 w-full"
+                                           className="bg-[var(--surface)] border border-[var(--border)] text-[11px] font-bold text-[var(--foreground)] rounded-lg px-2 py-1 focus:outline-none focus:border-rose-500/50 w-full"
                                          />
                                        </div>
                                        <div className="flex gap-1.5 items-end">
@@ -775,7 +775,7 @@ export default function UserManagementPage() {
                                            placeholder="סיבת היעדרות..."
                                            value={absenceReasons[user.id] || ""}
                                            onChange={e => setAbsenceReasons(prev => ({ ...prev, [user.id]: e.target.value }))}
-                                           className="bg-[var(--surface)] border border-[var(--border)] text-[10px] font-medium text-[var(--foreground)] rounded-lg px-2 py-1 focus:outline-none focus:border-rose-500/50 flex-1 placeholder:text-[var(--foreground)]/30"
+                                           className="bg-[var(--surface)] border border-[var(--border)] text-[11px] font-medium text-[var(--foreground)] rounded-lg px-2 py-1 focus:outline-none focus:border-rose-500/50 flex-1 placeholder:text-[var(--foreground)]/30"
                                          />
                                          <button
                                            type="button"
@@ -795,13 +795,13 @@ export default function UserManagementPage() {
 
                                      {/* Recent Absences List */}
                                      <div className="space-y-1 max-h-32 overflow-y-auto no-scrollbar">
-                                       <span className="text-[9px] text-[var(--muted)] font-black uppercase tracking-wider block">היעדרויות אחרונות (מאושרות):</span>
+                                       <span className="text-[11px] text-[var(--muted)] font-bold uppercase tracking-wider block">היעדרויות אחרונות (מאושרות):</span>
                                        {userAbsences[user.id]?.length > 0 ? (
                                          userAbsences[user.id].map(abs => (
-                                            <div key={abs.id} className="flex items-center justify-between text-[10px] bg-[var(--background)]/20 p-1.5 rounded-lg border border-[var(--border)]/50">
+                                            <div key={abs.id} className="flex items-center justify-between text-[11px] bg-[var(--background)]/20 p-1.5 rounded-lg border border-[var(--border)]/50">
                                               <span className="font-bold">{abs.date}</span>
-                                              <span className="text-[9px] text-[var(--muted)] max-w-[100px] truncate">{abs.reason || "ללא סיבה"}</span>
-                                              <span className={`px-1.5 py-0.5 rounded text-[8px] font-black ${
+                                              <span className="text-[11px] text-[var(--muted)] max-w-[100px] truncate">{abs.reason || "ללא סיבה"}</span>
+                                              <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold ${
                                                 abs.status === "approved"
                                                   ? "bg-emerald-500/10 text-emerald-500"
                                                   : abs.status === "rejected"
@@ -813,7 +813,7 @@ export default function UserManagementPage() {
                                             </div>
                                          ))
                                        ) : (
-                                         <p className="text-[9px] text-[var(--muted)] italic">אין היעדרויות רשומות</p>
+                                         <p className="text-[11px] text-[var(--muted)] italic">אין היעדרויות רשומות</p>
                                        )}
                                      </div>
                                    </div>
@@ -886,7 +886,7 @@ export default function UserManagementPage() {
                     <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-500">
                       <UserPlus className="w-4 h-4" />
                     </div>
-                    <h3 className="text-sm font-black">רישום איש צוות מראש</h3>
+                    <h3 className="text-sm font-bold">רישום איש צוות מראש</h3>
                   </div>
                   <button 
                     onClick={() => setShowPreCreateModal(false)}
@@ -899,7 +899,7 @@ export default function UserManagementPage() {
                 <form onSubmit={handlePreCreateUser} className="flex-1 overflow-y-auto py-4 space-y-4 pr-1 text-right">
                   {/* Name field */}
                   <div className="space-y-1">
-                    <label className="text-[10px] font-black uppercase tracking-wider text-[var(--muted)]">שם מלא</label>
+                    <label className="text-[11px] font-bold uppercase tracking-wider text-[var(--muted)]">שם מלא</label>
                     <input 
                       type="text" 
                       required
@@ -912,7 +912,7 @@ export default function UserManagementPage() {
 
                   {/* Email field */}
                   <div className="space-y-1">
-                    <label className="text-[10px] font-black uppercase tracking-wider text-[var(--muted)]">כתובת אימייל</label>
+                    <label className="text-[11px] font-bold uppercase tracking-wider text-[var(--muted)]">כתובת אימייל</label>
                     <input 
                       type="email" 
                       required
@@ -926,7 +926,7 @@ export default function UserManagementPage() {
 
                   {/* Role picker */}
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-black uppercase tracking-wider text-[var(--muted)]">תפקידים במערכת (בחר לפחות אחד)</label>
+                    <label className="text-[11px] font-bold uppercase tracking-wider text-[var(--muted)]">תפקידים במערכת (בחר לפחות אחד)</label>
                     <div className="grid grid-cols-2 gap-2">
                       {(["social_worker", "instructor", "logistics", "manager", "admin", "employee"] as UserRole[]).map(r => {
                         const isSelected = preCreateRoles.includes(r);
@@ -962,7 +962,7 @@ export default function UserManagementPage() {
 
                   {/* Program picker */}
                   <div className="space-y-1.5 pt-2 border-t border-[var(--border)]">
-                    <label className="text-[10px] font-black uppercase tracking-wider text-[var(--muted)]">שיוך לתוכניות</label>
+                    <label className="text-[11px] font-bold uppercase tracking-wider text-[var(--muted)]">שיוך לתוכניות</label>
                     <div className="flex flex-wrap gap-1.5">
                       {programs.map(p => {
                         const isSelected = preCreateProgramIds.includes(p.id);
@@ -975,7 +975,7 @@ export default function UserManagementPage() {
                                 prev.includes(p.id) ? prev.filter(id => id !== p.id) : [...prev, p.id]
                               );
                             }}
-                            className={`px-2.5 py-1.5 rounded-lg text-[10px] font-bold border transition-all cursor-pointer ${
+                            className={`px-2.5 py-1.5 rounded-lg text-[11px] font-bold border transition-all cursor-pointer ${
                               isSelected 
                                 ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600 font-extrabold' 
                                 : 'bg-transparent border-[var(--border)] opacity-50 hover:opacity-100 text-[var(--foreground)]'
@@ -990,7 +990,7 @@ export default function UserManagementPage() {
 
                   {/* Group picker */}
                   <div className="space-y-1.5 pt-2 border-t border-[var(--border)]">
-                    <label className="text-[10px] font-black uppercase tracking-wider text-[var(--muted)]">שיוך לקבוצות</label>
+                    <label className="text-[11px] font-bold uppercase tracking-wider text-[var(--muted)]">שיוך לקבוצות</label>
                     <div className="flex flex-wrap gap-1.5">
                       {groups.map(g => {
                         const isSelected = preCreateGroupIds.includes(g.id);
@@ -1003,7 +1003,7 @@ export default function UserManagementPage() {
                                 prev.includes(g.id) ? prev.filter(id => id !== g.id) : [...prev, g.id]
                               );
                             }}
-                            className={`px-2.5 py-1.5 rounded-lg text-[10px] font-bold border transition-all cursor-pointer ${
+                            className={`px-2.5 py-1.5 rounded-lg text-[11px] font-bold border transition-all cursor-pointer ${
                               isSelected 
                                 ? 'bg-rose-500/10 border-rose-500/30 text-rose-600 font-extrabold' 
                                 : 'bg-transparent border-[var(--border)] opacity-50 hover:opacity-100 text-[var(--foreground)]'
@@ -1020,7 +1020,7 @@ export default function UserManagementPage() {
                     <button
                       type="submit"
                       disabled={preCreateLoading || preCreateRoles.length === 0}
-                      className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-2xl text-xs font-black shadow-lg shadow-emerald-500/20 active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
+                      className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-2xl text-xs font-bold shadow-lg active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
                     >
                       {preCreateLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
                       שמור ורשום עובד
@@ -1028,7 +1028,7 @@ export default function UserManagementPage() {
                     <button
                       type="button"
                       onClick={() => setShowPreCreateModal(false)}
-                      className="px-4 py-3 bg-[var(--foreground)]/5 hover:bg-[var(--foreground)]/10 border border-[var(--border)] rounded-2xl text-xs font-black active:scale-95 transition-all cursor-pointer"
+                      className="px-4 py-3 bg-[var(--foreground)]/5 hover:bg-[var(--foreground)]/10 border border-[var(--border)] rounded-2xl text-xs font-bold active:scale-95 transition-all cursor-pointer"
                     >
                       ביטול
                     </button>

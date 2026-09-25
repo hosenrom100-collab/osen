@@ -151,7 +151,7 @@ export default function GroupManagementPage() {
             <button
               type="submit"
               disabled={adding}
-              className="px-6 py-3 bg-purple-600 hover:bg-purple-500 text-white rounded-2xl font-bold transition-all flex items-center gap-2 shadow-lg shadow-purple-600/20 disabled:opacity-50"
+              className="px-6 py-3 bg-purple-600 hover:bg-purple-500 text-white rounded-2xl font-bold transition-all flex items-center gap-2 shadow-lg disabled:opacity-50"
             >
               {adding ? <Loader2 className="w-5 h-5 animate-spin" /> : <Plus className="w-5 h-5" />}
               הוסף
@@ -181,7 +181,7 @@ export default function GroupManagementPage() {
                       </div>
                       <div>
                         <span className="font-bold text-lg">{group.name}</span>
-                        <div className="text-[10px] text-slate-500 uppercase tracking-widest mt-0.5">מזהה: {group.id.slice(0, 8)}</div>
+                        <div className="text-[11px] text-slate-500 uppercase tracking-wider mt-0.5">מזהה: {group.id.slice(0, 8)}</div>
                       </div>
                     </div>
                     <button

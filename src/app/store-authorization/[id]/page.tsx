@@ -10,6 +10,7 @@ import { Loader2, ArrowLeft, CheckCircle, Clock, XCircle, Download } from "lucid
 import { StoreAuthorizationRequest } from "@/app/shopping/types";
 import { openOrDownloadPdf } from "@/lib/pdf/downloadPdfHelper";
 
+import { PageSkeleton } from "@/components/ui/Skeleton";
 const statusLabels: Record<string, { label: string; color: string }> = {
   pending: { label: "בהמתנה", color: "text-yellow-700 bg-yellow-50" },
   approved: { label: "אושר", color: "text-green-700 bg-green-50" },
@@ -59,15 +60,13 @@ export default function RequestDetailPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100">
-        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
-      </div>
+      <PageSkeleton />
     );
   }
 
   if (!request) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center">
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
         <div className="bg-white rounded-lg shadow border border-slate-200 p-8 text-center">
           <p className="text-slate-600 mb-4">בקשה לא נמצאה</p>
           <Link href="/store-authorization/requests">
@@ -83,7 +82,7 @@ export default function RequestDetailPage() {
   const status = statusLabels[request.status];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 pb-20">
+    <div className="min-h-screen bg-slate-50 pb-20">
       {/* Header */}
       <div className="sticky top-0 z-40 bg-white border-b border-slate-200 shadow-sm">
         <div className="max-w-3xl mx-auto px-4 py-4 flex items-center gap-3">
@@ -137,7 +136,7 @@ export default function RequestDetailPage() {
 
         {/* Items Section */}
         <div className="bg-white rounded-lg shadow border border-slate-200 overflow-hidden">
-          <div className="bg-gradient-to-r from-blue-50 to-blue-100 px-6 py-4 border-b border-slate-200">
+          <div className="bg-blue-50 px-6 py-4 border-b border-slate-200">
             <h2 className="font-semibold text-slate-900">פריטים ({request.items.length})</h2>
           </div>
 

@@ -261,28 +261,28 @@ export default function AttendanceMatrixPage() {
         {/* Today Stats Summary Grid */}
         <div className="grid grid-cols-3 gap-2 mb-5">
           <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-3 text-center">
-            <div className="text-emerald-500 font-black text-lg leading-tight">
+            <div className="text-emerald-500 font-bold text-lg leading-tight">
               {todayStats.present}
             </div>
-            <div className="text-[9px] font-bold text-[var(--foreground)]/60 mt-0.5">
+            <div className="text-[11px] font-bold text-[var(--foreground)]/60 mt-0.5">
               נוכחים
             </div>
           </div>
 
           <div className="bg-rose-500/10 border border-rose-500/20 rounded-2xl p-3 text-center">
-            <div className="text-rose-500 font-black text-lg leading-tight">
+            <div className="text-rose-500 font-bold text-lg leading-tight">
               {todayStats.absent}
             </div>
-            <div className="text-[9px] font-bold text-[var(--foreground)]/60 mt-0.5">
+            <div className="text-[11px] font-bold text-[var(--foreground)]/60 mt-0.5">
               נעדרים
             </div>
           </div>
 
           <div className="bg-[var(--foreground)]/5 border border-[var(--border)] rounded-2xl p-3 text-center">
-            <div className="text-[var(--foreground)]/60 font-black text-lg leading-tight">
+            <div className="text-[var(--foreground)]/60 font-bold text-lg leading-tight">
               {todayStats.unmarked}
             </div>
-            <div className="text-[9px] font-bold text-[var(--foreground)]/60 mt-0.5">
+            <div className="text-[11px] font-bold text-[var(--foreground)]/60 mt-0.5">
               טרם סומן
             </div>
           </div>
@@ -292,7 +292,7 @@ export default function AttendanceMatrixPage() {
         <div className="flex gap-1 overflow-x-auto pb-3 mb-4 no-scrollbar">
           <button
             onClick={() => setSelectedProgramId("all")}
-            className={`px-3 py-1.5 rounded-full text-[10px] font-black transition-all shrink-0 ${
+            className={`px-3 py-1.5 rounded-full text-[11px] font-bold transition-all shrink-0 ${
               selectedProgramId === "all"
                 ? "bg-[var(--primary)] text-white shadow-sm"
                 : "bg-[var(--foreground)]/5 text-[var(--foreground)]/60"
@@ -307,7 +307,7 @@ export default function AttendanceMatrixPage() {
               <button
                 key={prog.id}
                 onClick={() => setSelectedProgramId(prog.id)}
-                className={`px-3 py-1.5 rounded-full text-[10px] font-black transition-all shrink-0 ${
+                className={`px-3 py-1.5 rounded-full text-[11px] font-bold transition-all shrink-0 ${
                   selectedProgramId === prog.id
                     ? "bg-[var(--primary)] text-white shadow-sm"
                     : "bg-[var(--foreground)]/5 text-[var(--foreground)]/60"
@@ -355,10 +355,10 @@ export default function AttendanceMatrixPage() {
                   }`}
                 >
                   <div className="min-w-0 flex-1">
-                    <div className="text-xs font-black text-[var(--foreground)] truncate">
+                    <div className="text-xs font-bold text-[var(--foreground)] truncate">
                       {p.firstName} {p.lastName}
                     </div>
-                    <div className="text-[9px] font-bold text-[var(--foreground)]/40 mt-0.5 truncate">
+                    <div className="text-[11px] font-bold text-[var(--foreground)]/40 mt-0.5 truncate">
                       {groupName !== "-" ? groupName : "ללא קבוצה"}
                     </div>
                   </div>
@@ -695,7 +695,7 @@ export default function AttendanceMatrixPage() {
                 className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-[100] flex flex-col items-center justify-center gap-4 text-white"
               >
                 <Loader2 className="w-10 h-10 text-[var(--primary)] animate-spin" />
-                <h3 className="text-lg font-black text-center px-6 animate-pulse">{exportProgress}</h3>
+                <h3 className="text-lg font-bold text-center px-6 ">{exportProgress}</h3>
                 <p className="text-xs text-white/50">תהליך זה עשוי לקחת מספר שניות, נא לא לסגור את החלון...</p>
               </motion.div>
             )}
@@ -708,8 +708,8 @@ export default function AttendanceMatrixPage() {
                 <ChevronRight className="w-5 h-5" />
               </button>
               <div>
-                <h1 className="text-xl font-black tracking-tight">מטריצת נוכחות חודשית</h1>
-                <p className="text-[10px] text-[var(--foreground)]/40 font-bold uppercase tracking-widest mt-0.5">Monthly Attendance Matrix</p>
+                <h1 className="text-xl font-bold tracking-tight">מטריצת נוכחות חודשית</h1>
+                <p className="text-[11px] text-[var(--foreground)]/40 font-bold uppercase tracking-wider mt-0.5">Monthly Attendance Matrix</p>
               </div>
             </div>
 
@@ -729,7 +729,7 @@ export default function AttendanceMatrixPage() {
               <div className="relative">
                 <button 
                   onClick={() => setShowExportMenu(!showExportMenu)}
-                  className="flex items-center gap-2 bg-[var(--primary)] hover:opacity-90 text-white px-5 py-2.5 rounded-xl text-xs font-black transition-all shadow-md shadow-[var(--primary)]/10 active:scale-95 border border-[var(--primary)]"
+                  className="flex items-center gap-2 bg-[var(--primary)] hover:opacity-90 text-white px-5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-md shadow-[var(--primary)]/10 active:scale-95 border border-[var(--primary)]"
                 >
                   <Download className="w-4 h-4" />
                   ייצא לאקסל
@@ -742,7 +742,7 @@ export default function AttendanceMatrixPage() {
                       onClick={() => setShowExportMenu(false)}
                     />
                     <div className="absolute left-0 mt-2 w-72 bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-2 shadow-2xl z-50 animate-in fade-in slide-in-from-top-2 duration-200">
-                      <p className="text-[10px] font-black text-[var(--foreground)]/40 p-2 border-b border-[var(--border-subtle)] uppercase">אפשרויות ייצוא לאקסל</p>
+                      <p className="text-[11px] font-bold text-[var(--foreground)]/40 p-2 border-b border-[var(--border-subtle)] uppercase">אפשרויות ייצוא לאקסל</p>
                       <div className="flex flex-col gap-1 mt-1">
                         
                         {/* Option 1: Monthly (Tabs for Programs) */}
@@ -755,8 +755,8 @@ export default function AttendanceMatrixPage() {
                         >
                           <FileSpreadsheet className="w-4 h-4 text-emerald-500 shrink-0" />
                           <div className="flex flex-col">
-                            <span className="font-black text-[var(--foreground)]">קובץ חודשי לכל התוכניות</span>
-                            <span className="text-[9px] text-[var(--foreground)]/40 mt-0.5 leading-tight">גיליון נפרד לכל תוכנית בחודש הנבחר</span>
+                            <span className="font-bold text-[var(--foreground)]">קובץ חודשי לכל התוכניות</span>
+                            <span className="text-[11px] text-[var(--foreground)]/40 mt-0.5 leading-tight">גיליון נפרד לכל תוכנית בחודש הנבחר</span>
                           </div>
                         </button>
 
@@ -774,8 +774,8 @@ export default function AttendanceMatrixPage() {
                         >
                           <FileSpreadsheet className="w-4 h-4 text-amber-500 shrink-0" />
                           <div className="flex flex-col">
-                            <span className="font-black text-[var(--foreground)]">קובץ שנתי לתוכנית הנוכחית</span>
-                            <span className="text-[9px] text-[var(--foreground)]/40 mt-0.5 leading-tight">12 גיליונות (אחד לכל חודש) עבור התוכנית הנבחרת</span>
+                            <span className="font-bold text-[var(--foreground)]">קובץ שנתי לתוכנית הנוכחית</span>
+                            <span className="text-[11px] text-[var(--foreground)]/40 mt-0.5 leading-tight">12 גיליונות (אחד לכל חודש) עבור התוכנית הנבחרת</span>
                           </div>
                         </button>
 
@@ -789,8 +789,8 @@ export default function AttendanceMatrixPage() {
                         >
                           <FileSpreadsheet className="w-4 h-4 text-indigo-500 shrink-0" />
                           <div className="flex flex-col">
-                            <span className="font-black text-[var(--foreground)]">קובץ שנתי מלא (כל התוכניות)</span>
-                            <span className="text-[9px] text-[var(--foreground)]/40 mt-0.5 leading-tight">קובץ המאגד את כל התוכניות לכל חודשי השנה</span>
+                            <span className="font-bold text-[var(--foreground)]">קובץ שנתי מלא (כל התוכניות)</span>
+                            <span className="text-[11px] text-[var(--foreground)]/40 mt-0.5 leading-tight">קובץ המאגד את כל התוכניות לכל חודשי השנה</span>
                           </div>
                         </button>
 
@@ -809,7 +809,7 @@ export default function AttendanceMatrixPage() {
                 <button 
                   key={y}
                   onClick={() => setCurrentDate(new Date(y, getMonth(currentDate)))}
-                  className={`px-4 py-1.5 rounded-lg text-xs font-black transition-all ${getYear(currentDate) === y ? 'bg-[var(--primary)] text-white shadow-md' : 'hover:bg-[var(--foreground)]/5 text-[var(--foreground)]/50'}`}
+                  className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${getYear(currentDate) === y ? 'bg-[var(--primary)] text-white shadow-md' : 'hover:bg-[var(--foreground)]/5 text-[var(--foreground)]/50'}`}
                 >
                   {y}
                 </button>
@@ -823,7 +823,7 @@ export default function AttendanceMatrixPage() {
                 <button 
                   key={m}
                   onClick={() => setCurrentDate(new Date(getYear(currentDate), m))}
-                  className={`px-4 py-1.5 rounded-lg text-xs font-black transition-all whitespace-nowrap ${getMonth(currentDate) === m ? 'bg-[var(--primary-faint)] text-[var(--primary)] border border-[var(--primary)]/20' : 'hover:bg-[var(--foreground)]/5 text-[var(--foreground)]/40'}`}
+                  className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${getMonth(currentDate) === m ? 'bg-[var(--primary-faint)] text-[var(--primary)] border border-[var(--primary)]/20' : 'hover:bg-[var(--foreground)]/5 text-[var(--foreground)]/40'}`}
                 >
                   {format(new Date(getYear(currentDate), m, 1), "MMMM", { locale: he })}
                 </button>
@@ -833,10 +833,10 @@ export default function AttendanceMatrixPage() {
 
           {/* Program Filter Tabs with Active Days Indicators */}
           <div className="bg-[var(--surface)] border-b border-[var(--border-subtle)] px-6 py-2.5 flex items-center gap-2 overflow-x-auto no-scrollbar shrink-0">
-            <span className="text-[10px] font-black text-[var(--foreground)]/40 ml-2 whitespace-nowrap uppercase tracking-wider">סנן לפי תוכנית:</span>
+            <span className="text-[11px] font-bold text-[var(--foreground)]/40 ml-2 whitespace-nowrap uppercase tracking-wider">סנן לפי תוכנית:</span>
             <button
               onClick={() => setSelectedProgramId("all")}
-              className={`px-4 py-1.5 rounded-full text-xs font-black transition-all whitespace-nowrap ${selectedProgramId === "all" ? 'bg-[var(--primary)] text-white shadow-sm' : 'bg-[var(--foreground)]/5 text-[var(--foreground)]/60 hover:bg-[var(--foreground)]/10'}`}
+              className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap ${selectedProgramId === "all" ? 'bg-[var(--primary)] text-white shadow-sm' : 'bg-[var(--foreground)]/5 text-[var(--foreground)]/60 hover:bg-[var(--foreground)]/10'}`}
             >
               כל התוכניות ({patients.length})
             </button>
@@ -851,13 +851,13 @@ export default function AttendanceMatrixPage() {
                 <button
                   key={prog.id}
                   onClick={() => setSelectedProgramId(prog.id)}
-                  className={`px-4 py-1.5 rounded-full text-xs font-black transition-all whitespace-nowrap flex items-center gap-2 ${selectedProgramId === prog.id ? 'bg-[var(--primary)] text-white shadow-sm' : 'bg-[var(--foreground)]/5 text-[var(--foreground)]/60 hover:bg-[var(--foreground)]/10'}`}
+                  className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap flex items-center gap-2 ${selectedProgramId === prog.id ? 'bg-[var(--primary)] text-white shadow-sm' : 'bg-[var(--foreground)]/5 text-[var(--foreground)]/60 hover:bg-[var(--foreground)]/10'}`}
                 >
                   <span>{prog.name}</span>
-                  <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${selectedProgramId === prog.id ? 'bg-white/20 text-white' : 'bg-[var(--foreground)]/10 text-[var(--foreground)]/50'}`}>
+                  <span className={`text-[11px] px-1.5 py-0.5 rounded-full ${selectedProgramId === prog.id ? 'bg-white/20 text-white' : 'bg-[var(--foreground)]/10 text-[var(--foreground)]/50'}`}>
                     {count}
                   </span>
-                  <span className={`text-[9px] font-medium ${selectedProgramId === prog.id ? 'text-white/60' : 'text-[var(--foreground)]/40'}`}>
+                  <span className={`text-[11px] font-medium ${selectedProgramId === prog.id ? 'text-white/60' : 'text-[var(--foreground)]/40'}`}>
                     ({daysLabel})
                   </span>
                 </button>
@@ -873,24 +873,24 @@ export default function AttendanceMatrixPage() {
                 <p className="text-xs font-bold text-[var(--foreground)]/40">טוען נתונים...</p>
               </div>
             ) : filteredPatients.length === 0 ? (
-              <div className="h-64 border border-[var(--border)] border-dashed rounded-[2.5rem] flex flex-col items-center justify-center gap-3 bg-[var(--card-bg)] shadow-inner">
+              <div className="h-64 border border-[var(--border)] border-dashed rounded-2xl flex flex-col items-center justify-center gap-3 bg-[var(--card-bg)] shadow-inner">
                 <AlertCircle className="w-8 h-8 text-[var(--foreground)]/20 animate-bounce" />
-                <p className="text-xs font-black text-[var(--foreground)]/40">לא נמצאו משתתפים בחתך שנבחר</p>
+                <p className="text-xs font-bold text-[var(--foreground)]/40">לא נמצאו משתתפים בחתך שנבחר</p>
               </div>
             ) : (
               <div className="flex-1 overflow-auto border border-[var(--border)] bg-[var(--card-bg)] shadow-sm">
                 <table className="border-collapse text-right w-full text-[var(--foreground)] text-xs">
                   <thead className="sticky top-0 z-20 bg-[var(--card-bg)]">
                     <tr className="bg-[var(--foreground)]/[0.02] shadow-[0_1px_0_0_var(--border)]">
-                      <th className="sticky top-0 right-0 z-30 bg-[var(--card-bg)] p-3.5 border-b border-l border-[var(--border)] font-black min-w-[180px] shadow-[-1px_0_0_0_var(--border)]">משתתף</th>
-                      <th className="sticky top-0 bg-[var(--card-bg)] p-3.5 border-b border-l border-[var(--border)] font-black min-w-[100px]">ת.ז</th>
-                      <th className="sticky top-0 bg-[var(--card-bg)] p-3.5 border-b border-l border-[var(--border)] font-black min-w-[120px]">תוכנית</th>
-                      <th className="sticky top-0 bg-[var(--card-bg)] p-3.5 border-b border-l border-[var(--border)] font-black min-w-[100px]">קבוצה</th>
+                      <th className="sticky top-0 right-0 z-30 bg-[var(--card-bg)] p-3.5 border-b border-l border-[var(--border)] font-bold min-w-[180px] shadow-[-1px_0_0_0_var(--border)]">משתתף</th>
+                      <th className="sticky top-0 bg-[var(--card-bg)] p-3.5 border-b border-l border-[var(--border)] font-bold min-w-[100px]">ת.ז</th>
+                      <th className="sticky top-0 bg-[var(--card-bg)] p-3.5 border-b border-l border-[var(--border)] font-bold min-w-[120px]">תוכנית</th>
+                      <th className="sticky top-0 bg-[var(--card-bg)] p-3.5 border-b border-l border-[var(--border)] font-bold min-w-[100px]">קבוצה</th>
                       
                       {activeDates.map(day => (
                         <th key={day.toISOString()} className="sticky top-0 bg-[var(--card-bg)] p-2 border-b border-l border-[var(--border)] text-center min-w-[38px]">
-                          <p className="text-[9px] font-bold text-[var(--foreground)]/40 leading-none">{format(day, "EE", { locale: he })}</p>
-                          <p className="text-xs font-black mt-1 text-[var(--foreground)]">{format(day, "d")}</p>
+                          <p className="text-[11px] font-bold text-[var(--foreground)]/40 leading-none">{format(day, "EE", { locale: he })}</p>
+                          <p className="text-xs font-bold mt-1 text-[var(--foreground)]">{format(day, "d")}</p>
                         </th>
                       ))}
                     </tr>
@@ -912,7 +912,7 @@ export default function AttendanceMatrixPage() {
                         >
                           <td 
                             onClick={() => setSelectedRowId(isSelected ? null : p.id)}
-                            className={`sticky right-0 z-10 p-3 border-l border-[var(--border)] font-black shadow-[-1px_0_0_0_var(--border)] transition-colors cursor-pointer select-none ${
+                            className={`sticky right-0 z-10 p-3 border-l border-[var(--border)] font-bold shadow-[-1px_0_0_0_var(--border)] transition-colors cursor-pointer select-none ${
                               isSelected 
                                 ? "bg-[var(--primary-faint)] text-[var(--primary)] border-r-4 border-r-[var(--primary)]" 
                                 : "bg-[var(--card-bg)] group-hover:bg-[var(--foreground)]/[0.03] text-[var(--foreground)]"
@@ -922,7 +922,7 @@ export default function AttendanceMatrixPage() {
                             <div className="flex items-center justify-between gap-2">
                               <span>{p.firstName} {p.lastName}</span>
                               {isSelected && (
-                                <span className="w-1.5 h-1.5 rounded-full bg-[var(--primary)] animate-pulse shrink-0" />
+                                <span className="w-1.5 h-1.5 rounded-full bg-[var(--primary)] shrink-0" />
                               )}
                             </div>
                           </td>
@@ -954,11 +954,11 @@ export default function AttendanceMatrixPage() {
                                 ) : (
                                   <div className="w-full h-full flex items-center justify-center py-2.5">
                                     {status === 'present' ? (
-                                      <div className="bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 px-2 py-0.5 rounded-md font-black text-[10px]">
+                                      <div className="bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 px-2 py-0.5 rounded-md font-bold text-[11px]">
                                         +
                                       </div>
                                     ) : status === 'absent' ? (
-                                      <div className="bg-rose-500/10 text-rose-500 border border-rose-500/20 px-2 py-0.5 rounded-md font-black text-[10px]">
+                                      <div className="bg-rose-500/10 text-rose-500 border border-rose-500/20 px-2 py-0.5 rounded-md font-bold text-[11px]">
                                         -
                                       </div>
                                     ) : (
@@ -979,18 +979,18 @@ export default function AttendanceMatrixPage() {
           </div>
 
           {/* Legend / Footer */}
-          <footer className="h-12 border-t border-[var(--border-subtle)] bg-[var(--foreground)]/[0.02] flex items-center justify-between px-6 shrink-0 text-[var(--foreground)]/60 font-semibold text-[10px]">
+          <footer className="h-12 border-t border-[var(--border-subtle)] bg-[var(--foreground)]/[0.02] flex items-center justify-between px-6 shrink-0 text-[var(--foreground)]/60 font-semibold text-[11px]">
             <div className="flex items-center gap-6">
               <div className="flex items-center gap-2">
-                <div className="bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 px-1.5 py-0.5 rounded text-[8px] font-black leading-none">+</div>
+                <div className="bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 px-1.5 py-0.5 rounded text-[8px] font-bold leading-none">+</div>
                 <span>נוכח</span>
               </div>
               <div className="flex items-center gap-2">
-                <div className="bg-rose-500/10 text-rose-500 border border-rose-500/20 px-1.5 py-0.5 rounded text-[8px] font-black leading-none">-</div>
+                <div className="bg-rose-500/10 text-rose-500 border border-rose-500/20 px-1.5 py-0.5 rounded text-[8px] font-bold leading-none">-</div>
                 <span>נעדר</span>
               </div>
               <div className="flex items-center gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-[var(--foreground)]/30 animate-pulse" />
+                <div className="w-1.5 h-1.5 rounded-full bg-[var(--foreground)]/30 " />
                 <span>טרם סומן</span>
               </div>
               <div className="flex items-center gap-2">

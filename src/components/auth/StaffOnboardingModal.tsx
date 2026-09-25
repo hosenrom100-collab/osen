@@ -78,7 +78,7 @@ export function StaffOnboardingModal() {
         <motion.div 
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
-          className="w-full max-w-2xl bg-[var(--card-bg)] border border-[var(--border)] rounded-[2.5rem] shadow-2xl overflow-hidden"
+          className="w-full max-w-2xl bg-[var(--card-bg)] border border-[var(--border)] rounded-2xl shadow-2xl overflow-hidden"
         >
           <div className="p-8 md:p-10">
             <div className="flex items-center gap-4 mb-8">
@@ -86,14 +86,14 @@ export function StaffOnboardingModal() {
                 <Calendar className="w-6 h-6 text-rose-500" />
               </div>
               <div>
-                <h2 className="text-2xl font-black text-[var(--foreground)]">ברוך הבא!</h2>
+                <h2 className="text-2xl font-bold text-[var(--foreground)]">ברוך הבא!</h2>
                 <p className="text-sm text-[var(--foreground)]/50 font-medium">אנא הגדר את פרטיך האישיים ושעות העבודה שלך.</p>
               </div>
             </div>
 
             <div className="space-y-6">
               <div className="space-y-2">
-                <label className="text-xs font-black uppercase tracking-widest text-[var(--foreground)]/40 mr-1">שם מלא</label>
+                <label className="text-xs font-bold uppercase tracking-wider text-[var(--foreground)]/40 mr-1">שם מלא</label>
                 <input 
                   type="text"
                   value={name}
@@ -104,7 +104,7 @@ export function StaffOnboardingModal() {
               </div>
 
               <div className="space-y-4 max-h-[40vh] overflow-y-auto pr-2 custom-scrollbar">
-                <div className="flex items-center gap-3 text-xs font-black uppercase tracking-widest text-[var(--foreground)]/40 mr-1 mb-2">
+                <div className="flex items-center gap-3 text-xs font-bold uppercase tracking-wider text-[var(--foreground)]/40 mr-1 mb-2">
                   <Clock className="w-4 h-4" />
                   ימי עבודה קבועים
                 </div>
@@ -161,7 +161,7 @@ export function StaffOnboardingModal() {
               <button 
                 onClick={handleSave}
                 disabled={loading}
-                className="flex-1 bg-rose-600 hover:bg-rose-500 disabled:opacity-50 text-white py-4 rounded-2xl text-sm font-black transition-all flex items-center justify-center gap-2 shadow-lg shadow-rose-600/20"
+                className="flex-1 bg-rose-600 hover:bg-rose-500 disabled:opacity-50 text-white py-4 rounded-2xl text-sm font-bold transition-all flex items-center justify-center gap-2 shadow-lg"
               >
                 {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
                 שמור והמשך

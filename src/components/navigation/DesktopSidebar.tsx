@@ -82,12 +82,12 @@ export function DesktopSidebar() {
 
       {/* App Brand */}
       <div className="flex items-center gap-3 px-6 h-20 shrink-0 border-b border-[var(--border-subtle)]">
-        <div className="w-9 h-9 bg-[var(--foreground)] text-[var(--background)] rounded-xl flex items-center justify-center">
-          <span className="font-black text-base italic">H</span>
+        <div className="w-9 h-9 bg-[var(--accent)] text-white rounded-lg flex items-center justify-center">
+          <span className="font-bold text-base italic">H</span>
         </div>
         <div className="flex flex-col">
-          <span className="text-base font-black text-[var(--foreground)] tracking-tight leading-none">חוסן קונקט</span>
-          <span className="text-[9px] text-[var(--foreground)]/40 font-bold uppercase tracking-widest mt-1">Hosen Connect</span>
+          <span className="text-base font-bold text-[var(--foreground)] tracking-tight leading-none">חוסן קונקט</span>
+          <span className="text-[11px] text-[var(--foreground)]/40 font-bold uppercase tracking-wider mt-1">Hosen Connect</span>
         </div>
       </div>
 
@@ -96,7 +96,7 @@ export function DesktopSidebar() {
         
         {/* Workspace Section */}
         <div>
-          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--foreground)]/30 px-4 mb-4">מרחב עבודה</p>
+          <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-[var(--foreground)]/30 px-4 mb-4">מרחב עבודה</p>
           <div className="space-y-1">
             {NAV.filter(item => !(item.href === "/patients" && role === "instructor")).map(({ href, icon: Icon, label }) => {
               const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
@@ -124,7 +124,7 @@ export function DesktopSidebar() {
         {/* Administration Section */}
         {(isManager || isLogistics || role === "social_worker" || roles?.includes("social_worker")) && (
           <div>
-            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--foreground)]/30 px-4 mb-4">ניהול ובקרה</p>
+            <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-[var(--foreground)]/30 px-4 mb-4">ניהול ובקרה</p>
             <div className="space-y-1">
               {visibleAdminNav.map(({ href, icon: Icon, label, badge }) => {
                 const active = pathname.startsWith(href);
@@ -138,7 +138,7 @@ export function DesktopSidebar() {
                     <Icon className={`w-4 h-4 shrink-0 transition-colors ${active ? "text-[var(--primary)]" : "text-[var(--foreground)]/30 group-hover:text-[var(--primary)]/60"}`} />
                     <span>{label}</span>
                     {badge !== undefined && badge > 0 && (
-                      <span className="mr-auto px-2 py-0.5 text-[10px] font-black text-white bg-red-500 rounded-full animate-pulse shadow-sm">
+                      <span className="mr-auto px-2 py-0.5 text-[11px] font-bold text-white bg-red-500 rounded-full shadow-sm">
                         {badge}
                       </span>
                     )}
@@ -168,17 +168,17 @@ export function DesktopSidebar() {
                 className="w-10 h-10 rounded-2xl object-cover border border-[var(--border-subtle)] shadow-sm"
               />
             ) : (
-              <div className="w-10 h-10 rounded-2xl bg-[var(--foreground)]/5 border border-[var(--border-subtle)] flex items-center justify-center text-sm font-black text-[var(--foreground)]/40">
+              <div className="w-10 h-10 rounded-2xl bg-[var(--foreground)]/5 border border-[var(--border-subtle)] flex items-center justify-center text-sm font-bold text-[var(--foreground)]/40">
                 {initials}
               </div>
             )}
             <div className="absolute -bottom-0.5 -left-0.5 w-3 h-3 bg-emerald-500 border-2 border-[var(--sidebar-bg)] rounded-full" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-xs font-black text-[var(--foreground)] truncate leading-none mb-1">
+            <p className="text-xs font-bold text-[var(--foreground)] truncate leading-none mb-1">
               {user?.displayName || user?.email?.split('@')[0]}
             </p>
-            <p className="text-[9px] text-[var(--foreground)]/40 font-black uppercase tracking-[0.05em]">
+            <p className="text-[11px] text-[var(--foreground)]/40 font-bold uppercase tracking-[0.05em]">
               {ROLE_HE[displayRole] || displayRole}
             </p>
           </div>

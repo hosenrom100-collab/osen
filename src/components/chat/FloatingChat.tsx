@@ -123,17 +123,17 @@ export function FloatingChat({
             initial={{ opacity: 0, y: 20, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
-            className="mb-4 w-80 md:w-96 h-[500px] bg-[var(--surface)] border border-[var(--border)] rounded-[2.5rem] shadow-2xl flex flex-col overflow-hidden"
+            className="mb-4 w-80 md:w-96 h-[500px] bg-[var(--surface)] border border-[var(--border)] rounded-2xl shadow-2xl flex flex-col overflow-hidden"
           >
             {/* Header */}
             <div className="p-5 border-b border-[var(--border)] bg-teal-600 text-white flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center text-white text-lg font-black">
+                <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center text-white text-lg font-bold">
                   {recipientName.charAt(0)}
                 </div>
                 <div>
-                  <h3 className="text-sm font-black leading-tight">{recipientName}</h3>
-                  <p className="text-[10px] opacity-80 font-bold">עו״ס מלווה</p>
+                  <h3 className="text-sm font-bold leading-tight">{recipientName}</h3>
+                  <p className="text-[11px] opacity-80 font-bold">עו״ס מלווה</p>
                 </div>
               </div>
               <div className="flex items-center gap-2">
@@ -149,7 +149,7 @@ export function FloatingChat({
             {/* Messages Area */}
             <div 
               ref={scrollRef}
-              className="flex-1 overflow-y-auto p-5 space-y-4 no-scrollbar bg-gradient-to-b from-[var(--background)] to-[var(--surface)]"
+              className="flex-1 overflow-y-auto p-5 space-y-4 no-scrollbar bg-[var(--background)]"
             >
               {loading ? (
                 <div className="h-full flex items-center justify-center opacity-20">
@@ -172,7 +172,7 @@ export function FloatingChat({
                         : 'bg-[var(--surface)] border border-[var(--border)] text-[var(--foreground)] rounded-bl-none'
                     }`}>
                       <p className="leading-relaxed">{m.content}</p>
-                      <div className={`flex items-center gap-1 mt-1 opacity-50 text-[9px] ${m.senderId === senderId ? 'justify-end' : 'justify-start'}`}>
+                      <div className={`flex items-center gap-1 mt-1 opacity-50 text-[11px] ${m.senderId === senderId ? 'justify-end' : 'justify-start'}`}>
                         <Clock className="w-2.5 h-2.5" />
                         {m.timestamp?.toDate ? format(m.timestamp.toDate(), "HH:mm") : "עכשיו"}
                       </div>
@@ -196,7 +196,7 @@ export function FloatingChat({
                 <button
                   onClick={sendMessage}
                   disabled={!newMessage.trim()}
-                  className="w-10 h-10 bg-teal-600 text-white rounded-xl flex items-center justify-center disabled:opacity-30 disabled:scale-95 transition-all active:scale-90 shadow-lg shadow-teal-600/20"
+                  className="w-10 h-10 bg-teal-600 text-white rounded-xl flex items-center justify-center disabled:opacity-30 disabled:scale-95 transition-all active:scale-90 shadow-lg"
                 >
                   <Send className="w-4 h-4" />
                 </button>
@@ -217,7 +217,7 @@ export function FloatingChat({
       >
         {isOpen ? <X className="w-6 h-6" /> : <MessageCircle className="w-6 h-6" />}
         {!isOpen && unreadCount > 0 && (
-          <span className="absolute -top-1 -right-1 w-5 h-5 bg-rose-500 text-white text-[10px] font-black rounded-full flex items-center justify-center border-2 border-[var(--background)]">
+          <span className="absolute -top-1 -right-1 w-5 h-5 bg-rose-500 text-white text-[11px] font-bold rounded-full flex items-center justify-center border-2 border-[var(--background)]">
             {unreadCount > 9 ? "+9" : unreadCount}
           </span>
         )}

@@ -16,6 +16,7 @@ import { AutoSaveIndicator } from "@/components/ui/AutoSaveIndicator";
 import { useRouter, useParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 
+import { PageSkeleton } from "@/components/ui/Skeleton";
 interface Program {
   id: string;
   name: string;
@@ -396,9 +397,7 @@ export default function ProgramDetailPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[var(--background)] flex items-center justify-center">
-        <Loader2 className="w-7 h-7 text-violet-400 animate-spin" />
-      </div>
+      <PageSkeleton />
     );
   }
 
@@ -414,8 +413,8 @@ export default function ProgramDetailPage() {
               <ArrowRight className="w-4 h-4" />
             </button>
             <div className="flex-1 min-w-0 text-right">
-              <h1 className="text-sm font-black leading-tight truncate">{program?.name}</h1>
-              <p className="text-[10px] text-[var(--foreground)]/40 font-bold uppercase tracking-widest mt-0.5">Program Details</p>
+              <h1 className="text-sm font-bold leading-tight truncate">{program?.name}</h1>
+              <p className="text-[11px] text-[var(--foreground)]/40 font-bold uppercase tracking-wider mt-0.5">Program Details</p>
             </div>
             <div className="flex items-center gap-2">
               <AutoSaveIndicator
@@ -426,7 +425,7 @@ export default function ProgramDetailPage() {
               <button
                 onClick={autoSave.saveNow}
                 disabled={autoSave.status === "saving" || !isDirty}
-                className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-black transition-all border ${
+                className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all border ${
                   autoSave.status === "saved" || saved
                     ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-500"
                     : isDirty
@@ -444,9 +443,9 @@ export default function ProgramDetailPage() {
         <div className="max-w-2xl mx-auto px-4 pt-6 pb-28 space-y-6">
 
           {/* ── Program name ── */}
-          <section className="bg-[var(--card-bg)] border border-[var(--border)] rounded-[2rem] p-6 space-y-5 shadow-sm">
+          <section className="bg-[var(--card-bg)] border border-[var(--border)] rounded-2xl p-6 space-y-5 shadow-sm">
             <div className="text-right">
-              <label className="text-[10px] font-black text-[var(--foreground)]/40 uppercase block mb-1.5">שם התוכנית</label>
+              <label className="text-[11px] font-bold text-[var(--foreground)]/40 uppercase block mb-1.5">שם התוכנית</label>
               <input
                 value={editName}
                 onChange={e => { setEditName(e.target.value); autoSave.trigger(); }}
@@ -456,13 +455,13 @@ export default function ProgramDetailPage() {
 
             {/* Active days */}
             <div className="text-right">
-              <label className="text-[10px] font-black text-[var(--foreground)]/40 uppercase block mb-2">ימי פעילות</label>
+              <label className="text-[11px] font-bold text-[var(--foreground)]/40 uppercase block mb-2">ימי פעילות</label>
               <div className="flex gap-2 flex-wrap">
                 {[0,1,2,3,4,5,6].map(d => (
                   <button key={d} type="button" onClick={() => toggleDay(d)}
-                    className={`relative w-10 h-10 rounded-xl text-[12px] font-black transition-all border ${
+                    className={`relative w-10 h-10 rounded-xl text-[12px] font-bold transition-all border ${
                       editDays.includes(d)
-                        ? "bg-violet-600 border-violet-500 text-white shadow-lg shadow-violet-600/20"
+                        ? "bg-violet-600 border-violet-500 text-white shadow-lg"
                         : "bg-[var(--foreground)]/5 border-[var(--border)] text-[var(--foreground)]/40 hover:border-[var(--foreground)]/20"
                     }`}>
                     {DAY_SHORT[d]}
@@ -470,7 +469,7 @@ export default function ProgramDetailPage() {
                 ))}
               </div>
               {editDays.length > 0 && (
-                <p className="text-[10px] text-[var(--foreground)]/40 font-bold mt-2">
+                <p className="text-[11px] text-[var(--foreground)]/40 font-bold mt-2">
                   פעיל בימי {editDays.map(d => DAY_FULL[d]).join(", ")}
                 </p>
               )}
@@ -478,7 +477,7 @@ export default function ProgramDetailPage() {
 
             {/* Activity Hours */}
             <div className="text-right border-t border-[var(--border-subtle)] pt-4 mt-2">
-              <label className="text-[10px] font-black text-[var(--foreground)]/40 uppercase block mb-1.5">שעות פעילות</label>
+              <label className="text-[11px] font-bold text-[var(--foreground)]/40 uppercase block mb-1.5">שעות פעילות</label>
               <input
                 value={editHours}
                 onChange={e => { setEditHours(e.target.value); autoSave.trigger(); }}
@@ -490,7 +489,7 @@ export default function ProgramDetailPage() {
             {/* Activity Details for Reports */}
             <div className="text-right border-t border-[var(--border-subtle)] pt-4 mt-2 space-y-4">
               <div>
-                <label className="text-[10px] font-black text-[var(--foreground)]/40 uppercase block mb-1.5">פירוט פעילות באישור שהייה (מותאם לתוכנית)</label>
+                <label className="text-[11px] font-bold text-[var(--foreground)]/40 uppercase block mb-1.5">פירוט פעילות באישור שהייה (מותאם לתוכנית)</label>
                 <textarea
                   value={editParticipationDetail}
                   onChange={e => { setEditParticipationDetail(e.target.value); autoSave.trigger(); }}
@@ -501,7 +500,7 @@ export default function ProgramDetailPage() {
               </div>
 
               <div>
-                <label className="text-[10px] font-black text-[var(--foreground)]/40 uppercase block mb-1.5">פירוט פעילות באישור נסיעות (מותאם לתוכנית)</label>
+                <label className="text-[11px] font-bold text-[var(--foreground)]/40 uppercase block mb-1.5">פירוט פעילות באישור נסיעות (מותאם לתוכנית)</label>
                 <textarea
                   value={editTravelDetail}
                   onChange={e => { setEditTravelDetail(e.target.value); autoSave.trigger(); }}
@@ -514,16 +513,16 @@ export default function ProgramDetailPage() {
           </section>
 
           {/* ── File Requirements Section ── */}
-          <section className="bg-[var(--card-bg)] border border-[var(--border)] rounded-[2rem] p-6 space-y-6 shadow-sm text-right">
+          <section className="bg-[var(--card-bg)] border border-[var(--border)] rounded-2xl p-6 space-y-6 shadow-sm text-right">
             <div>
-              <h3 className="text-sm font-black text-[var(--foreground)] mb-1">הגדרות תיק פונה</h3>
-              <p className="text-[10px] text-[var(--foreground)]/40 font-bold uppercase tracking-wider">סמן X עבור פרמטרים שאינם נדרשים בתוכנית זו (תוכניות המשך ללא ניהול מורחב)</p>
+              <h3 className="text-sm font-bold text-[var(--foreground)] mb-1">הגדרות תיק פונה</h3>
+              <p className="text-[11px] text-[var(--foreground)]/40 font-bold uppercase tracking-wider">סמן X עבור פרמטרים שאינם נדרשים בתוכנית זו (תוכניות המשך ללא ניהול מורחב)</p>
             </div>
 
             <div className="space-y-4">
               {/* Documents & Plan Checklist */}
               <div className="bg-[var(--foreground)]/[0.02] border border-[var(--border-subtle)] rounded-2xl p-4">
-                <h4 className="text-[10px] font-black uppercase tracking-widest text-[var(--foreground)]/40 mb-3">מסמכים ותוכניות</h4>
+                <h4 className="text-[11px] font-bold uppercase tracking-wider text-[var(--foreground)]/40 mb-3">מסמכים ותוכניות</h4>
                 <div className="grid grid-cols-3 gap-2">
                   {[
                     { label: "תוכנית שיקום", checked: excludeRehabPlan, onToggle: () => { setExcludeRehabPlan(v => !v); autoSave.trigger(); } },
@@ -546,7 +545,7 @@ export default function ProgramDetailPage() {
                       }`}>
                         {item.checked && <X className="w-3.5 h-3.5 stroke-[3]" />}
                       </div>
-                      <p className="text-[10px] font-black leading-tight">{item.label}</p>
+                      <p className="text-[11px] font-bold leading-tight">{item.label}</p>
                     </div>
                   ))}
                 </div>
@@ -554,7 +553,7 @@ export default function ProgramDetailPage() {
 
               {/* Report Markings */}
               <div className="bg-[var(--foreground)]/[0.02] border border-[var(--border-subtle)] rounded-2xl p-4">
-                <h4 className="text-[10px] font-black uppercase tracking-widest text-[var(--foreground)]/40 mb-3">סימון דוחות</h4>
+                <h4 className="text-[11px] font-bold uppercase tracking-wider text-[var(--foreground)]/40 mb-3">סימון דוחות</h4>
                 <div className="grid grid-cols-3 gap-2">
                   {[
                     { label: "דוח אמצע והארכה", checked: excludeExtensionSent, onToggle: () => { setExcludeExtensionSent(v => !v); autoSave.trigger(); } },
@@ -577,7 +576,7 @@ export default function ProgramDetailPage() {
                       }`}>
                         {item.checked && <X className="w-3.5 h-3.5 stroke-[3]" />}
                       </div>
-                      <p className="text-[10px] font-black leading-tight">{item.label}</p>
+                      <p className="text-[11px] font-bold leading-tight">{item.label}</p>
                     </div>
                   ))}
                 </div>
@@ -588,12 +587,12 @@ export default function ProgramDetailPage() {
           {/* ── Groups section ── */}
           <section className="text-right">
             <div className="flex items-center justify-between mb-3">
-              <h2 className="text-[12px] font-black text-[var(--foreground)]/40 flex items-center gap-2 uppercase tracking-wider">
+              <h2 className="text-[12px] font-bold text-[var(--foreground)]/40 flex items-center gap-2 uppercase tracking-wider">
                 <Users className="w-4 h-4 text-violet-500" />
                 קבוצות ({groups.length})
               </h2>
               <button onClick={() => setShowNewGroup(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-600/15 border border-violet-500/30 rounded-xl text-[10px] font-black text-violet-500 hover:bg-violet-600/25 transition-all active:scale-95">
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-600/15 border border-violet-500/30 rounded-xl text-[11px] font-bold text-violet-500 hover:bg-violet-600/25 transition-all active:scale-95">
                 <Plus className="w-3.5 h-3.5" /> הוסף קבוצה
               </button>
             </div>
@@ -608,7 +607,7 @@ export default function ProgramDetailPage() {
                   className="overflow-hidden mb-3"
                 >
                   <div className="bg-violet-500/8 border border-violet-500/20 rounded-2xl p-4">
-                    <label className="text-[10px] font-black text-[var(--foreground)]/40 uppercase block mb-2">שם הקבוצה החדשה</label>
+                    <label className="text-[11px] font-bold text-[var(--foreground)]/40 uppercase block mb-2">שם הקבוצה החדשה</label>
                     <div className="flex gap-2">
                       <input
                         autoFocus
@@ -635,7 +634,7 @@ export default function ProgramDetailPage() {
             {/* Groups list */}
             {groups.length === 0 && !showNewGroup ? (
               <button onClick={() => setShowNewGroup(true)}
-                className="w-full py-8 border border-dashed border-[var(--border)] rounded-[2rem] text-[var(--foreground)]/30 text-xs font-bold flex flex-col items-center gap-2 hover:border-violet-500/30 hover:text-violet-500 transition-all bg-[var(--card-bg)]">
+                className="w-full py-8 border border-dashed border-[var(--border)] rounded-2xl text-[var(--foreground)]/30 text-xs font-bold flex flex-col items-center gap-2 hover:border-violet-500/30 hover:text-violet-500 transition-all bg-[var(--card-bg)]">
                 <Users className="w-6 h-6" />
                 לחץ להוספת קבוצה ראשונה
               </button>
@@ -650,7 +649,7 @@ export default function ProgramDetailPage() {
                   >
                     <div className="flex items-center gap-3 px-4 py-3 border-b border-[var(--border)]/30">
                       {/* Avatar */}
-                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-white font-black text-xs flex-shrink-0 ${AVATAR_COLORS[idx % AVATAR_COLORS.length]}`}>
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-xs flex-shrink-0 ${AVATAR_COLORS[idx % AVATAR_COLORS.length]}`}>
                         {group.name[0]}
                       </div>
 
@@ -669,7 +668,7 @@ export default function ProgramDetailPage() {
                             <button onClick={() => setEditGroupId(null)} className="p-1.5 rounded-lg bg-[var(--foreground)]/5 border border-[var(--border)] text-[var(--foreground)]/40"><X className="w-3.5 h-3.5" /></button>
                           </div>
                         ) : (
-                          <p className="font-black text-xs leading-tight">{group.name}</p>
+                          <p className="font-bold text-xs leading-tight">{group.name}</p>
                         )}
                       </div>
 
@@ -678,7 +677,7 @@ export default function ProgramDetailPage() {
                         <div className="flex items-center gap-1 flex-shrink-0">
                           <button
                             onClick={() => router.push(`/admin/schedule?group=${group.id}`)}
-                            className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-rose-500/10 text-rose-500 text-[10px] font-black hover:bg-rose-500/20 transition-colors"
+                            className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-rose-500/10 text-rose-500 text-[11px] font-bold hover:bg-rose-500/20 transition-colors"
                           >
                             <Calendar className="w-3.5 h-3.5" />
                             <span className="hidden sm:inline">לוז</span>
@@ -699,14 +698,14 @@ export default function ProgramDetailPage() {
                     {/* Group Staff Section */}
                     <div className="px-4 py-3 bg-[var(--foreground)]/[0.01] space-y-2 text-right border-b border-[var(--border)]/10">
                       <div className="flex items-center justify-between">
-                        <span className="text-[9px] font-black uppercase tracking-wider text-[var(--foreground)]/40">צוות הקבוצה</span>
+                        <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--foreground)]/40">צוות הקבוצה</span>
                         <div className="flex items-center gap-1.5">
                           <select
                             onChange={e => {
                               handleAddGroupStaff(group.id, e.target.value);
                               e.target.value = ""; // Reset
                             }}
-                            className="bg-[var(--foreground)]/5 border border-[var(--border)] rounded-lg text-[9px] font-bold px-2 py-1 focus:outline-none focus:border-violet-500 text-right"
+                            className="bg-[var(--foreground)]/5 border border-[var(--border)] rounded-lg text-[11px] font-bold px-2 py-1 focus:outline-none focus:border-violet-500 text-right"
                           >
                             <option value="">+ שייך עובד לקבוצה</option>
                             {allStaff
@@ -722,13 +721,13 @@ export default function ProgramDetailPage() {
 
                       {/* Assigned staff list in group */}
                       {allStaff.filter(s => s.assignedGroupIds?.includes(group.id)).length === 0 ? (
-                        <p className="text-[10px] text-[var(--muted)] italic">אין אנשי צוות משויכים לקבוצה זו</p>
+                        <p className="text-[11px] text-[var(--muted)] italic">אין אנשי צוות משויכים לקבוצה זו</p>
                       ) : (
                         <div className="flex flex-wrap gap-1.5">
                           {allStaff
                             .filter(s => s.assignedGroupIds?.includes(group.id))
                             .map(s => (
-                              <div key={s.id} className="flex items-center gap-1 bg-violet-500/5 border border-violet-500/10 rounded-lg px-2 py-1 text-[10px] font-bold text-violet-600">
+                              <div key={s.id} className="flex items-center gap-1 bg-violet-500/5 border border-violet-500/10 rounded-lg px-2 py-1 text-[11px] font-bold text-violet-600">
                                 <span>{s.name}</span>
                                 <button
                                   onClick={() => handleRemoveGroupStaff(group.id, s.id)}
@@ -752,12 +751,12 @@ export default function ProgramDetailPage() {
           {/* ── Staff Section ── */}
           <section className="text-right">
             <div className="flex items-center justify-between mb-3">
-              <h2 className="text-[12px] font-black text-[var(--foreground)]/40 flex items-center gap-2 uppercase tracking-wider">
+              <h2 className="text-[12px] font-bold text-[var(--foreground)]/40 flex items-center gap-2 uppercase tracking-wider">
                 <Users className="w-4 h-4 text-violet-500" />
                 צוות התוכנית ({allStaff.filter(s => s.assignedProgramIds?.includes(progId)).length})
               </h2>
               <button onClick={() => setShowAddStaff(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-600/15 border border-violet-500/30 rounded-xl text-[10px] font-black text-violet-500 hover:bg-violet-600/25 transition-all active:scale-95">
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-600/15 border border-violet-500/30 rounded-xl text-[11px] font-bold text-violet-500 hover:bg-violet-600/25 transition-all active:scale-95">
                 <Plus className="w-3.5 h-3.5" /> הוסף איש צוות
               </button>
             </div>
@@ -772,7 +771,7 @@ export default function ProgramDetailPage() {
                   className="overflow-hidden mb-3"
                 >
                   <div className="bg-violet-500/8 border border-violet-500/20 rounded-2xl p-4">
-                    <label className="text-[10px] font-black text-[var(--foreground)]/40 uppercase block mb-2">בחר איש צוות להוספה</label>
+                    <label className="text-[11px] font-bold text-[var(--foreground)]/40 uppercase block mb-2">בחר איש צוות להוספה</label>
                     <div className="flex gap-2">
                       <select
                         value={selectedStaffId}
@@ -804,7 +803,7 @@ export default function ProgramDetailPage() {
             {/* Staff list */}
             {allStaff.filter(s => s.assignedProgramIds?.includes(progId)).length === 0 && !showAddStaff ? (
               <button onClick={() => setShowAddStaff(true)}
-                className="w-full py-8 border border-dashed border-[var(--border)] rounded-[2rem] text-[var(--foreground)]/30 text-xs font-bold flex flex-col items-center gap-2 hover:border-violet-500/30 hover:text-violet-500 transition-all bg-[var(--card-bg)]">
+                className="w-full py-8 border border-dashed border-[var(--border)] rounded-2xl text-[var(--foreground)]/30 text-xs font-bold flex flex-col items-center gap-2 hover:border-violet-500/30 hover:text-violet-500 transition-all bg-[var(--card-bg)]">
                 <User className="w-6 h-6" />
                 לחץ להוספת איש צוות ראשון לתוכנית
               </button>
@@ -824,8 +823,8 @@ export default function ProgramDetailPage() {
                           <User className="w-5 h-5" />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="font-black text-xs leading-tight">{member.name}</p>
-                          <span className="text-[9px] font-black text-violet-500 bg-violet-500/5 px-2 py-0.5 rounded-md mt-1 inline-block">
+                          <p className="font-bold text-xs leading-tight">{member.name}</p>
+                          <span className="text-[11px] font-bold text-violet-500 bg-violet-500/5 px-2 py-0.5 rounded-md mt-1 inline-block">
                             {member.role || "עובד"}
                           </span>
                         </div>
@@ -844,8 +843,8 @@ export default function ProgramDetailPage() {
 
           {/* ── Schedule quick access ── */}
           {groups.length > 0 && (
-            <section className="bg-[var(--card-bg)] border border-[var(--border)] rounded-[2rem] p-6 shadow-sm text-right">
-              <h3 className="text-[10px] font-black text-[var(--foreground)]/40 uppercase mb-3 tracking-wider">גישה מהירה ללוז</h3>
+            <section className="bg-[var(--card-bg)] border border-[var(--border)] rounded-2xl p-6 shadow-sm text-right">
+              <h3 className="text-[11px] font-bold text-[var(--foreground)]/40 uppercase mb-3 tracking-wider">גישה מהירה ללוז</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <button
                   onClick={() => router.push("/admin/schedule")}
@@ -853,8 +852,8 @@ export default function ProgramDetailPage() {
                 >
                   <Calendar className="w-4 h-4 text-rose-500 flex-shrink-0" />
                   <div>
-                    <p className="font-black text-xs text-rose-500">לוז משולב</p>
-                    <p className="text-[9px] text-[var(--foreground)]/40 font-bold">כל הקבוצות ביחד</p>
+                    <p className="font-bold text-xs text-rose-500">לוז משולב</p>
+                    <p className="text-[11px] text-[var(--foreground)]/40 font-bold">כל הקבוצות ביחד</p>
                   </div>
                   <ChevronLeft className="w-3.5 h-3.5 text-[var(--foreground)]/30 mr-auto" />
                 </button>
@@ -866,8 +865,8 @@ export default function ProgramDetailPage() {
                   >
                     <Layers className="w-4 h-4 text-violet-500 flex-shrink-0" />
                     <div className="flex-1 min-w-0">
-                      <p className="font-black text-xs truncate">{g.name}</p>
-                      <p className="text-[9px] text-[var(--foreground)]/40 font-bold">לוז קבוצה</p>
+                      <p className="font-bold text-xs truncate">{g.name}</p>
+                      <p className="text-[11px] text-[var(--foreground)]/40 font-bold">לוז קבוצה</p>
                     </div>
                     <ChevronLeft className="w-3.5 h-3.5 text-[var(--foreground)]/30" />
                   </button>

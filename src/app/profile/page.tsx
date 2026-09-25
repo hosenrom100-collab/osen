@@ -305,9 +305,9 @@ export default function ProfilePage() {
             <button onClick={() => router.push("/")} className="p-2 hover:bg-[var(--foreground)]/5 rounded-xl transition-all">
               <ChevronRight className="w-5 h-5" />
             </button>
-            <h1 className="text-lg font-black tracking-tight">פרופיל אישי</h1>
+            <h1 className="text-lg font-bold tracking-tight">פרופיל אישי</h1>
           </div>
-          <button onClick={() => logout()} className="text-rose-500 hover:bg-rose-500/10 px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2">
+          <button onClick={() => logout()} className="text-rose-500 hover:bg-rose-500/10 px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2">
             <LogOut className="w-4 h-4" />
             התנתק
           </button>
@@ -324,10 +324,10 @@ export default function ProfilePage() {
                     <img 
                       src={photoURL} 
                       alt={displayName} 
-                      className="w-24 h-24 md:w-32 md:h-32 rounded-2xl md:rounded-[2.5rem] object-cover shadow-2xl shadow-rose-500/30 border-4 border-[var(--card-bg)]"
+                      className="w-24 h-24 md:w-32 md:h-32 rounded-2xl md:rounded-2xl object-cover shadow-2xl border-4 border-[var(--card-bg)]"
                     />
                   ) : (
-                    <div className="w-24 h-24 md:w-32 md:h-32 rounded-2xl md:rounded-[2.5rem] bg-gradient-to-br from-rose-500 to-rose-600 flex items-center justify-center text-3xl md:text-4xl font-black text-white shadow-2xl shadow-rose-500/30">
+                    <div className="w-24 h-24 md:w-32 md:h-32 rounded-2xl md:rounded-2xl bg-rose-500 flex items-center justify-center text-3xl md:text-4xl font-bold text-white shadow-2xl">
                       {initials}
                     </div>
                   )}
@@ -341,23 +341,23 @@ export default function ProfilePage() {
                     <input 
                       value={displayName}
                       onChange={(e) => setDisplayName(e.target.value)}
-                      className="w-full bg-[var(--background)] border border-[var(--border)] rounded-2xl px-4 py-3 text-center font-black text-lg outline-none focus:border-rose-500"
+                      className="w-full bg-[var(--background)] border border-[var(--border)] rounded-2xl px-4 py-3 text-center font-bold text-lg outline-none focus:border-rose-500"
                     />
                     <div className="flex gap-2">
-                      <button onClick={handleSaveName} className="flex-1 bg-rose-600 text-white py-3 rounded-xl text-xs font-black">שמור</button>
-                      <button onClick={() => setIsEditing(false)} className="flex-1 bg-[var(--foreground)]/5 py-3 rounded-xl text-xs font-black">ביטול</button>
+                      <button onClick={handleSaveName} className="flex-1 bg-rose-600 text-white py-3 rounded-xl text-xs font-bold">שמור</button>
+                      <button onClick={() => setIsEditing(false)} className="flex-1 bg-[var(--foreground)]/5 py-3 rounded-xl text-xs font-bold">ביטול</button>
                     </div>
                   </div>
                 ) : (
                   <div>
-                    <h2 className="text-2xl font-black flex items-center justify-center gap-3">
+                    <h2 className="text-2xl font-bold flex items-center justify-center gap-3">
                       {displayName || "משתמש"}
                       <button onClick={() => setIsEditing(true)} className="text-[var(--foreground)]/10 hover:text-rose-500 transition-colors">
                         <Edit2 className="w-5 h-5" />
                       </button>
                     </h2>
                     <p className="text-sm font-bold text-[var(--foreground)]/30 mt-2">{user?.email}</p>
-                    <div className="mt-6 inline-block px-4 py-2 rounded-2xl bg-rose-500/10 text-rose-500 text-[11px] font-black uppercase tracking-widest border border-rose-500/5">
+                    <div className="mt-6 inline-block px-4 py-2 rounded-2xl bg-rose-500/10 text-rose-500 text-[11px] font-bold uppercase tracking-wider border border-rose-500/5">
                       {ROLE_HE[userRole] || userRole}
                     </div>
                   </div>
@@ -366,7 +366,7 @@ export default function ProfilePage() {
 
               {message && (
                 <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} 
-                  className={`p-5 rounded-[2rem] border text-sm font-black flex items-center gap-4 ${message.type === 'success' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500' : 'bg-rose-500/10 border-rose-500/20 text-rose-500'}`}>
+                  className={`p-5 rounded-2xl border text-sm font-bold flex items-center gap-4 ${message.type === 'success' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500' : 'bg-rose-500/10 border-rose-500/20 text-rose-500'}`}>
                   {message.type === 'success' ? <CheckCircle2 className="w-5 h-5" /> : <AlertCircle className="w-5 h-5" />}
                   {message.text}
                 </motion.div>
@@ -378,14 +378,14 @@ export default function ProfilePage() {
               
               {/* Work & Attendance */}
               <section className="space-y-6">
-                <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-[var(--foreground)]/20 mr-2">ניהול עבודה ונוכחות</h3>
+                <h3 className="text-[11px] font-bold uppercase tracking-[0.2em] text-[var(--foreground)]/20 mr-2">ניהול עבודה ונוכחות</h3>
 
                 {/* Work Schedule Card */}
-                <div className="bg-[var(--card-bg)] border border-[var(--border)] p-6 md:p-8 rounded-3xl md:rounded-[2.5rem] shadow-sm">
+                <div className="bg-[var(--card-bg)] border border-[var(--border)] p-6 md:p-8 rounded-3xl md:rounded-2xl shadow-sm">
                   <div className="flex items-center justify-between mb-6 md:mb-8">
                     <div>
-                      <p className="text-base md:text-lg font-black tracking-tight">לו״ז עבודה שבועי</p>
-                      <p className="text-[10px] md:text-xs text-[var(--foreground)]/40 font-bold mt-1">
+                      <p className="text-base md:text-lg font-bold tracking-tight">לו״ז עבודה שבועי</p>
+                      <p className="text-[11px] md:text-xs text-[var(--foreground)]/40 font-bold mt-1">
                         {isEditingSchedule ? "בחר ימי עבודה והגדר שעות פעילות" : "ימי עבודה קבועים"}
                       </p>
                     </div>
@@ -395,7 +395,7 @@ export default function ProfilePage() {
                           setEditingSchedule(workSchedule || {});
                           setIsEditingSchedule(true);
                         }}
-                        className="px-4 py-2 rounded-xl bg-[var(--foreground)]/5 text-xs font-black hover:bg-[var(--foreground)]/10 transition-all text-right"
+                        className="px-4 py-2 rounded-xl bg-[var(--foreground)]/5 text-xs font-bold hover:bg-[var(--foreground)]/10 transition-all text-right"
                       >
                         ערוך לו״ז
                       </button>
@@ -417,13 +417,13 @@ export default function ProfilePage() {
                             }
                           }}
                           disabled={isSaving}
-                          className="px-4 py-2 rounded-xl bg-rose-600 text-white text-xs font-black shadow-lg shadow-rose-600/10 active:scale-95 transition-all"
+                          className="px-4 py-2 rounded-xl bg-rose-600 text-white text-xs font-bold shadow-lg active:scale-95 transition-all"
                         >
                           שמור
                         </button>
                         <button 
                           onClick={() => setIsEditingSchedule(false)}
-                          className="px-4 py-2 rounded-xl bg-[var(--foreground)]/5 text-xs font-black hover:bg-[var(--foreground)]/10 transition-all"
+                          className="px-4 py-2 rounded-xl bg-[var(--foreground)]/5 text-xs font-bold hover:bg-[var(--foreground)]/10 transition-all"
                         >
                           ביטול
                         </button>
@@ -459,7 +459,7 @@ export default function ProfilePage() {
                               
                               {dayActive && (
                                 <div className="flex items-center gap-2">
-                                  <span className="text-[10px] text-[var(--foreground)]/40 font-bold">משעה</span>
+                                  <span className="text-[11px] text-[var(--foreground)]/40 font-bold">משעה</span>
                                   <input 
                                     type="time"
                                     value={scheduleForDay.start}
@@ -471,7 +471,7 @@ export default function ProfilePage() {
                                     }}
                                     className="bg-[var(--background)] border border-[var(--border)] rounded-lg px-2 py-1 text-xs font-bold focus:border-rose-500 outline-none"
                                   />
-                                  <span className="text-[10px] text-[var(--foreground)]/40 font-bold">עד שעה</span>
+                                  <span className="text-[11px] text-[var(--foreground)]/40 font-bold">עד שעה</span>
                                   <input 
                                     type="time"
                                     value={scheduleForDay.end}
@@ -490,7 +490,7 @@ export default function ProfilePage() {
                             {/* Program specific schedule */}
                             {dayActive && assignedProgramIds && assignedProgramIds.length > 0 && (
                               <div className="mt-2 border-t border-[var(--border)]/30 pt-3 space-y-2 pr-4 border-r-2 border-violet-500/20 mr-4">
-                                <p className="text-[10px] font-black text-violet-500 uppercase tracking-wider mb-1">שעות ספציפיות לפי מסגרת (אופציונלי):</p>
+                                <p className="text-[11px] font-bold text-violet-500 uppercase tracking-wider mb-1">שעות ספציפיות לפי מסגרת (אופציונלי):</p>
                                 {assignedProgramIds.map(progId => {
                                   const progName = programs.find(p => p.id === progId)?.name || progId;
                                   const progSched = scheduleForDay.programs?.[progId];
@@ -523,7 +523,7 @@ export default function ProfilePage() {
                                       </label>
                                       {isProgActive && (
                                         <div className="flex items-center gap-1.5">
-                                          <span className="text-[9px] text-[var(--foreground)]/40">מ-</span>
+                                          <span className="text-[11px] text-[var(--foreground)]/40">מ-</span>
                                           <input 
                                             type="time"
                                             value={progStart}
@@ -536,9 +536,9 @@ export default function ProfilePage() {
                                                 return { ...prev, [d.id]: dayCopy };
                                               });
                                             }}
-                                            className="bg-[var(--background)] border border-[var(--border)] rounded-md px-1.5 py-0.5 text-[10px] font-bold focus:border-violet-500 outline-none"
+                                            className="bg-[var(--background)] border border-[var(--border)] rounded-md px-1.5 py-0.5 text-[11px] font-bold focus:border-violet-500 outline-none"
                                           />
-                                          <span className="text-[9px] text-[var(--foreground)]/40">עד-</span>
+                                          <span className="text-[11px] text-[var(--foreground)]/40">עד-</span>
                                           <input 
                                             type="time"
                                             value={progEnd}
@@ -551,7 +551,7 @@ export default function ProfilePage() {
                                                 return { ...prev, [d.id]: dayCopy };
                                               });
                                             }}
-                                            className="bg-[var(--background)] border border-[var(--border)] rounded-md px-1.5 py-0.5 text-[10px] font-bold focus:border-violet-500 outline-none"
+                                            className="bg-[var(--background)] border border-[var(--border)] rounded-md px-1.5 py-0.5 text-[11px] font-bold focus:border-violet-500 outline-none"
                                           />
                                         </div>
                                       )}
@@ -569,10 +569,10 @@ export default function ProfilePage() {
                       <div className="grid grid-cols-7 gap-1 md:gap-2">
                         {DAYS.map(d => (
                           <div key={d.id} className="flex flex-col items-center gap-2 md:gap-3">
-                            <p className="text-[10px] md:text-sm font-black text-[var(--foreground)]/40">{d.abbr}</p>
+                            <p className="text-[11px] md:text-sm font-bold text-[var(--foreground)]/40">{d.abbr}</p>
                             <div className={`w-full aspect-square rounded-lg md:rounded-2xl border flex items-center justify-center transition-all ${
                               workSchedule?.[d.id]
-                                ? 'bg-rose-500 border-rose-500 shadow-lg shadow-rose-500/20 text-white'
+                                ? 'bg-rose-500 border-rose-500 shadow-lg text-white'
                                 : 'bg-[var(--foreground)]/[0.03] border-[var(--border)] opacity-20'
                             }`}>
                               {workSchedule?.[d.id] && <Check className="w-3 md:w-4 h-3 md:h-4" />}
@@ -581,7 +581,7 @@ export default function ProfilePage() {
                         ))}
                       </div>
                       <div className="mt-6 pt-6 border-t border-[var(--border)]/40 space-y-2">
-                        <p className="text-xs font-black text-[var(--foreground)]/30 uppercase tracking-widest">שעות עבודה מוגדרות:</p>
+                        <p className="text-xs font-bold text-[var(--foreground)]/30 uppercase tracking-wider">שעות עבודה מוגדרות:</p>
                         {DAYS.filter(d => workSchedule?.[d.id]).map(d => {
                           const sched = workSchedule?.[d.id];
                           return (
@@ -591,7 +591,7 @@ export default function ProfilePage() {
                                 <span className="text-[var(--muted)]">{sched?.start} - {sched?.end}</span>
                               </div>
                               {sched?.programs && Object.keys(sched.programs).length > 0 && (
-                                <div className="space-y-1.5 mt-2 pr-3 border-r-2 border-violet-500/10 mr-3 text-[10px] text-slate-500 font-bold">
+                                <div className="space-y-1.5 mt-2 pr-3 border-r-2 border-violet-500/10 mr-3 text-[11px] text-slate-500 font-bold">
                                   {Object.entries(sched.programs).map(([progId, pSched]) => {
                                     const progName = programs.find(p => p.id === progId)?.name || progId;
                                     return (
@@ -615,16 +615,16 @@ export default function ProfilePage() {
                 </div>
 
                 {/* Absence Reporting Section */}
-                <div className="bg-[var(--card-bg)] border border-[var(--border)] p-6 md:p-8 rounded-3xl md:rounded-[2.5rem] shadow-sm space-y-6">
+                <div className="bg-[var(--card-bg)] border border-[var(--border)] p-6 md:p-8 rounded-3xl md:rounded-2xl shadow-sm space-y-6">
                   <div>
-                    <p className="text-base md:text-lg font-black tracking-tight">דיווח על היעדרות</p>
+                    <p className="text-base md:text-lg font-bold tracking-tight">דיווח על היעדרות</p>
                     <p className="text-xs text-[var(--foreground)]/40 font-bold mt-1">דווח על מחלה, יום חופש או היעדרות מתוכננת אחרת. הבקשה תועבר לאישור המנהל/ת ותעדכן אוטומטית את יומן הנוכחות של הצוות.</p>
                   </div>
 
                   <form onSubmit={handleReportAbsence} className="space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-1.5 text-right">
-                        <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-[var(--foreground)]/30 mr-1">תאריך היעדרות</label>
+                        <label className="block text-[11px] font-bold uppercase tracking-[0.2em] text-[var(--foreground)]/30 mr-1">תאריך היעדרות</label>
                         <input 
                           type="date"
                           required
@@ -634,7 +634,7 @@ export default function ProfilePage() {
                         />
                       </div>
                       <div className="space-y-1.5 text-right">
-                        <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-[var(--foreground)]/30 mr-1">סיבת היעדרות</label>
+                        <label className="block text-[11px] font-bold uppercase tracking-[0.2em] text-[var(--foreground)]/30 mr-1">סיבת היעדרות</label>
                         <input 
                           type="text"
                           required
@@ -648,7 +648,7 @@ export default function ProfilePage() {
                     <button 
                       type="submit" 
                       disabled={submittingAbsence}
-                      className="w-full py-4 bg-rose-600 hover:bg-rose-500 text-white font-black text-xs rounded-2xl shadow-lg shadow-rose-600/10 active:scale-95 transition-all flex items-center justify-center gap-2"
+                      className="w-full py-4 bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs rounded-2xl shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2"
                     >
                       {submittingAbsence ? <Loader2 className="w-4 h-4 animate-spin text-white" /> : "שלח דיווח היעדרות"}
                     </button>
@@ -656,7 +656,7 @@ export default function ProfilePage() {
 
                   {/* History of Absence Requests */}
                   <div className="pt-6 border-t border-[var(--border)]/40 text-right">
-                    <p className="text-xs font-black text-[var(--foreground)]/30 uppercase tracking-widest mb-4">היסטוריית דיווחי היעדרות</p>
+                    <p className="text-xs font-bold text-[var(--foreground)]/30 uppercase tracking-wider mb-4">היסטוריית דיווחי היעדרות</p>
                     {loadingAbsences ? (
                       <div className="flex justify-center py-6">
                         <Loader2 className="w-5 h-5 animate-spin text-rose-500" />
@@ -675,12 +675,12 @@ export default function ProfilePage() {
                           return (
                             <div key={req.id} className="flex items-center justify-between p-3.5 rounded-2xl bg-[var(--foreground)]/[0.01] border border-[var(--border)]/50 text-xs">
                               <div className="text-right">
-                                <p className="font-black text-[var(--foreground)]">{req.reason}</p>
-                                <p className="text-[10px] text-[var(--foreground)]/30 mt-1 font-bold">
+                                <p className="font-bold text-[var(--foreground)]">{req.reason}</p>
+                                <p className="text-[11px] text-[var(--foreground)]/30 mt-1 font-bold">
                                   {req.date.split("-").reverse().join(".")}
                                 </p>
                               </div>
-                              <span className={`px-2.5 py-1 rounded-full border text-[10px] font-black ${statusCls}`}>{statusLabel}</span>
+                              <span className={`px-2.5 py-1 rounded-full border text-[11px] font-bold ${statusCls}`}>{statusLabel}</span>
                             </div>
                           );
                         })}
@@ -694,17 +694,17 @@ export default function ProfilePage() {
 
               {/* Digital Signature & Certificates Settings */}
               <section className="space-y-6">
-                <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-[var(--foreground)]/20 mr-2">חתימה דיגיטלית ואישורים רשמיים</h3>
-                <div className="bg-[var(--card-bg)] border border-[var(--border)] p-6 md:p-8 rounded-3xl md:rounded-[2.5rem] shadow-sm space-y-6">
+                <h3 className="text-[11px] font-bold uppercase tracking-[0.2em] text-[var(--foreground)]/20 mr-2">חתימה דיגיטלית ואישורים רשמיים</h3>
+                <div className="bg-[var(--card-bg)] border border-[var(--border)] p-6 md:p-8 rounded-3xl md:rounded-2xl shadow-sm space-y-6">
                   <div>
-                    <p className="text-base md:text-lg font-black tracking-tight">הפקדת חתימה ותואר מקצועי</p>
+                    <p className="text-base md:text-lg font-bold tracking-tight">הפקדת חתימה ותואר מקצועי</p>
                     <p className="text-xs text-[var(--foreground)]/40 font-bold mt-1">הגדר את תוארך המקצועי וצייר את חתימתך הפיזית. חתימה זו תוטמע אוטומטית בכל אישורי שהייה והשתתפות שאתה מפיק עבור משתתפי החווה.</p>
                   </div>
 
                   <div className="space-y-6">
                     {/* Custom Title Input */}
                     <div className="space-y-1.5">
-                      <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-[var(--foreground)]/30 mr-1">תואר מקצועי מלווה (למשל: עו״ס MSW)</label>
+                      <label className="block text-[11px] font-bold uppercase tracking-[0.2em] text-[var(--foreground)]/30 mr-1">תואר מקצועי מלווה (למשל: עו״ס MSW)</label>
                       <input 
                         type="text" 
                         value={signatureTitle}
@@ -716,11 +716,11 @@ export default function ProfilePage() {
 
                     {/* Canvas Drawing Pad Container */}
                     <div className="space-y-3.5">
-                      <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-[var(--foreground)]/30 mr-1">ציור חתימה אישית</label>
+                      <label className="block text-[11px] font-bold uppercase tracking-[0.2em] text-[var(--foreground)]/30 mr-1">ציור חתימה אישית</label>
                       
                       {localSignatureImage && (
                         <div className="border border-[var(--border)] rounded-2xl p-4 bg-white flex flex-col items-center justify-center gap-2 shadow-inner">
-                          <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider">תצוגה מקדימה של החתימה הפעילה שלך:</p>
+                          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">תצוגה מקדימה של החתימה הפעילה שלך:</p>
                           <img src={localSignatureImage} alt="חתימה פעילה" className="max-h-24 object-contain animate-fade-in" />
                         </div>
                       )}
@@ -743,14 +743,14 @@ export default function ProfilePage() {
                           <button
                             type="button"
                             onClick={handleClearSignature}
-                            className="px-3.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-xl text-[10px] font-black uppercase tracking-wider transition-colors cursor-pointer border border-rose-100 shadow-sm"
+                            className="px-3.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-xl text-[11px] font-bold uppercase tracking-wider transition-colors cursor-pointer border border-rose-100 shadow-sm"
                           >
                             נקה לוח
                           </button>
                         </div>
                       </div>
                       
-                      <p className="text-[10px] text-[var(--muted)] font-medium leading-relaxed leading-none mt-1 mr-1">
+                      <p className="text-[11px] text-[var(--muted)] font-medium leading-relaxed leading-none mt-1 mr-1">
                         * צייר את החתימה שלך עם העכבר או האצבע בתוך התיבה הלבנה, ולאחר מכן לחץ על "שמור חתימה ותואר".
                       </p>
                     </div>
@@ -758,7 +758,7 @@ export default function ProfilePage() {
                     <button
                       onClick={handleSaveSignature}
                       disabled={isSaving}
-                      className="w-full bg-rose-600 hover:bg-rose-500 disabled:opacity-50 text-white py-4.5 rounded-2xl text-[11px] font-black uppercase tracking-[0.2em] transition-all shadow-lg shadow-rose-600/10 active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
+                      className="w-full bg-rose-600 hover:bg-rose-500 disabled:opacity-50 text-white py-4.5 rounded-2xl text-[11px] font-bold uppercase tracking-[0.2em] transition-all shadow-lg active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
                     >
                       {isSaving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
                       שמור חתימה ותואר
@@ -769,15 +769,15 @@ export default function ProfilePage() {
 
               {/* Interface Settings */}
               <section className="space-y-6">
-                <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-[var(--foreground)]/20 mr-2">העדפות ממשק ונגישות</h3>
-                <div className="bg-[var(--card-bg)] border border-[var(--border)] rounded-3xl md:rounded-[2.5rem] divide-y divide-[var(--border)] overflow-hidden shadow-sm">
+                <h3 className="text-[11px] font-bold uppercase tracking-[0.2em] text-[var(--foreground)]/20 mr-2">העדפות ממשק ונגישות</h3>
+                <div className="bg-[var(--card-bg)] border border-[var(--border)] rounded-3xl md:rounded-2xl divide-y divide-[var(--border)] overflow-hidden shadow-sm">
                   <div className="p-6 md:p-8 flex items-center justify-between hover:bg-[var(--foreground)]/[0.01] transition-colors">
                     <div>
-                      <p className="text-base font-black tracking-tight">ערכת נושא</p>
+                      <p className="text-base font-bold tracking-tight">ערכת נושא</p>
                       <p className="text-xs text-[var(--foreground)]/40 font-bold mt-1">צבעי הממשק</p>
                     </div>
                     <div className="flex items-center gap-3 md:gap-4">
-                      <span className="text-[10px] font-black uppercase tracking-widest opacity-40 hidden sm:inline">{theme === 'dark' ? 'Dark' : 'Light'}</span>
+                      <span className="text-[11px] font-bold uppercase tracking-wider opacity-40 hidden sm:inline">{theme === 'dark' ? 'Dark' : 'Light'}</span>
                       <button 
                         onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} 
                         className="w-12 h-7 md:w-14 md:h-8 bg-[var(--foreground)]/5 border border-[var(--border)] rounded-full p-1 md:p-1.5 relative transition-colors"
@@ -793,7 +793,7 @@ export default function ProfilePage() {
                   
                   <div className="p-6 md:p-8 space-y-4 md:space-y-6">
                     <div>
-                      <p className="text-base font-black tracking-tight">גודל גופן</p>
+                      <p className="text-base font-bold tracking-tight">גודל גופן</p>
                       <p className="text-xs text-[var(--foreground)]/40 font-bold mt-1">שינוי גודל הטקסט</p>
                     </div>
                     <div className="flex gap-2 md:gap-3">
@@ -801,7 +801,7 @@ export default function ProfilePage() {
                         <button 
                           key={size} 
                           onClick={() => setFontSize(size as any)}
-                          className={`flex-1 py-2.5 md:py-3.5 rounded-xl md:rounded-2xl text-[9px] md:text-[11px] font-black uppercase tracking-widest border transition-all ${
+                          className={`flex-1 py-2.5 md:py-3.5 rounded-xl md:rounded-2xl text-[11px] md:text-[11px] font-bold uppercase tracking-wider border transition-all ${
                             fontSize === size 
                               ? 'bg-[var(--foreground)] text-[var(--background)] border-transparent shadow-lg' 
                               : 'bg-[var(--foreground)]/5 border-transparent text-[var(--foreground)]/40 hover:bg-[var(--foreground)]/10'
@@ -817,10 +817,10 @@ export default function ProfilePage() {
 
               {/* Homepage display settings (preferred programs & groups) */}
               <section className="space-y-6">
-                <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-[var(--foreground)]/20 mr-2">הגדרות תצוגה בעמוד הבית</h3>
-                <div className="bg-[var(--card-bg)] border border-[var(--border)] p-6 md:p-8 rounded-3xl md:rounded-[2.5rem] shadow-sm space-y-6">
+                <h3 className="text-[11px] font-bold uppercase tracking-[0.2em] text-[var(--foreground)]/20 mr-2">הגדרות תצוגה בעמוד הבית</h3>
+                <div className="bg-[var(--card-bg)] border border-[var(--border)] p-6 md:p-8 rounded-3xl md:rounded-2xl shadow-sm space-y-6">
                   <div>
-                    <p className="text-base font-black tracking-tight">סינון תוכניות וקבוצות כברירת מחדל</p>
+                    <p className="text-base font-bold tracking-tight">סינון תוכניות וקבוצות כברירת מחדל</p>
                     <p className="text-xs text-[var(--foreground)]/40 font-bold mt-1">בחר אילו תוכניות וקבוצות יוצגו כברירת מחדל בעמוד הבית. השאר ריק כדי להציג את הכל/לפי ההרשאות הרגילות.</p>
                   </div>
 
@@ -843,9 +843,9 @@ export default function ProfilePage() {
                               >
                                 {isProgSelected && <Check className="w-4 h-4" />}
                               </button>
-                              <span className="text-sm font-black text-[var(--foreground)]">תוכנית: {prog.name}</span>
+                              <span className="text-sm font-bold text-[var(--foreground)]">תוכנית: {prog.name}</span>
                             </div>
-                            <span className="text-[10px] text-[var(--foreground)]/30 font-bold">
+                            <span className="text-[11px] text-[var(--foreground)]/30 font-bold">
                               {progGroups.length} קבוצות
                             </span>
                           </div>

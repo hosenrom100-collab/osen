@@ -13,7 +13,7 @@
   --color-background:   #020617;
   --color-surface:      #0f172a;
   --color-surface-hi:   #1e293b;
-  --color-card:         rgba(15, 23, 42, 0.4);
+  --color-card:         #0f172a;
   --color-border:       rgba(255, 255, 255, 0.08);
   --color-border-hi:    rgba(255, 255, 255, 0.15);
   --color-sidebar:      #020617;
@@ -27,139 +27,202 @@
   --color-subtle:       #475569;
 
   /* Brand tokens */
-  --color-primary:      #3b82f6;
-  --color-primary-faint:rgba(59, 130, 246, 0.1);
+  --color-primary:      #8a9f52;
+  --color-primary-faint:rgba(138, 159, 82, 0.12);
+
+  /* ── ONE brand palette: olive ──────────────────────────────────────
+     Every decorative hue used to be a different colour (violet, indigo, blue, teal,
+     cyan...). They all resolve to the single olive scale now. Semantic colours
+     (emerald = success, rose = alert, amber = pending) are left alone on purpose. */
+  --color-olive-50:  #f6f8ee;
+  --color-olive-100: #eaefd8;
+  --color-olive-200: #d6e0b3;
+  --color-olive-300: #b9c985;
+  --color-olive-400: #9bb15c;
+  --color-olive-500: #7a9040;
+  --color-olive-600: #5f7332;
+  --color-olive-700: #4a5a28;
+  --color-olive-800: #3b4922;
+  --color-olive-900: #2f3a1d;
+  --color-olive-950: #171e0d;
+
+  --color-violet-50: var(--color-olive-50);   --color-violet-100: var(--color-olive-100);
+  --color-violet-200: var(--color-olive-200); --color-violet-300: var(--color-olive-300);
+  --color-violet-400: var(--color-olive-400); --color-violet-500: var(--color-olive-500);
+  --color-violet-600: var(--color-olive-600); --color-violet-700: var(--color-olive-700);
+  --color-violet-800: var(--color-olive-800); --color-violet-900: var(--color-olive-900);
+  --color-violet-950: var(--color-olive-950);
+
+  --color-purple-50: var(--color-olive-50);   --color-purple-100: var(--color-olive-100);
+  --color-purple-200: var(--color-olive-200); --color-purple-300: var(--color-olive-300);
+  --color-purple-400: var(--color-olive-400); --color-purple-500: var(--color-olive-500);
+  --color-purple-600: var(--color-olive-600); --color-purple-700: var(--color-olive-700);
+  --color-purple-800: var(--color-olive-800); --color-purple-900: var(--color-olive-900);
+  --color-purple-950: var(--color-olive-950);
+
+  --color-indigo-50: var(--color-olive-50);   --color-indigo-100: var(--color-olive-100);
+  --color-indigo-200: var(--color-olive-200); --color-indigo-300: var(--color-olive-300);
+  --color-indigo-400: var(--color-olive-400); --color-indigo-500: var(--color-olive-500);
+  --color-indigo-600: var(--color-olive-600); --color-indigo-700: var(--color-olive-700);
+  --color-indigo-800: var(--color-olive-800); --color-indigo-900: var(--color-olive-900);
+  --color-indigo-950: var(--color-olive-950);
+
+  --color-blue-50: var(--color-olive-50);   --color-blue-100: var(--color-olive-100);
+  --color-blue-200: var(--color-olive-200); --color-blue-300: var(--color-olive-300);
+  --color-blue-400: var(--color-olive-400); --color-blue-500: var(--color-olive-500);
+  --color-blue-600: var(--color-olive-600); --color-blue-700: var(--color-olive-700);
+  --color-blue-800: var(--color-olive-800); --color-blue-900: var(--color-olive-900);
+  --color-blue-950: var(--color-olive-950);
+
+  --color-sky-50: var(--color-olive-50);   --color-sky-100: var(--color-olive-100);
+  --color-sky-200: var(--color-olive-200); --color-sky-300: var(--color-olive-300);
+  --color-sky-400: var(--color-olive-400); --color-sky-500: var(--color-olive-500);
+  --color-sky-600: var(--color-olive-600); --color-sky-700: var(--color-olive-700);
+  --color-sky-800: var(--color-olive-800); --color-sky-900: var(--color-olive-900);
+  --color-sky-950: var(--color-olive-950);
+
+  --color-cyan-50: var(--color-olive-50);   --color-cyan-100: var(--color-olive-100);
+  --color-cyan-200: var(--color-olive-200); --color-cyan-300: var(--color-olive-300);
+  --color-cyan-400: var(--color-olive-400); --color-cyan-500: var(--color-olive-500);
+  --color-cyan-600: var(--color-olive-600); --color-cyan-700: var(--color-olive-700);
+  --color-cyan-800: var(--color-olive-800); --color-cyan-900: var(--color-olive-900);
+  --color-cyan-950: var(--color-olive-950);
+
+  --color-teal-50: var(--color-olive-50);   --color-teal-100: var(--color-olive-100);
+  --color-teal-200: var(--color-olive-200); --color-teal-300: var(--color-olive-300);
+  --color-teal-400: var(--color-olive-400); --color-teal-500: var(--color-olive-500);
+  --color-teal-600: var(--color-olive-600); --color-teal-700: var(--color-olive-700);
+  --color-teal-800: var(--color-olive-800); --color-teal-900: var(--color-olive-900);
+  --color-teal-950: var(--color-olive-950);
+
+  --color-fuchsia-50: var(--color-olive-50);   --color-fuchsia-100: var(--color-olive-100);
+  --color-fuchsia-200: var(--color-olive-200); --color-fuchsia-300: var(--color-olive-300);
+  --color-fuchsia-400: var(--color-olive-400); --color-fuchsia-500: var(--color-olive-500);
+  --color-fuchsia-600: var(--color-olive-600); --color-fuchsia-700: var(--color-olive-700);
+  --color-fuchsia-800: var(--color-olive-800); --color-fuchsia-900: var(--color-olive-900);
+  --color-fuchsia-950: var(--color-olive-950);
+
+  --color-pink-50: var(--color-olive-50);   --color-pink-100: var(--color-olive-100);
+  --color-pink-200: var(--color-olive-200); --color-pink-300: var(--color-olive-300);
+  --color-pink-400: var(--color-olive-400); --color-pink-500: var(--color-olive-500);
+  --color-pink-600: var(--color-olive-600); --color-pink-700: var(--color-olive-700);
+  --color-pink-800: var(--color-olive-800); --color-pink-900: var(--color-olive-900);
+  --color-pink-950: var(--color-olive-950);
+
+  /* Flatter, tighter shape language: 2xl/3xl were 16/24px "bubble" corners */
+  --radius-xl:  0.625rem;
+  --radius-2xl: 0.75rem;
+  --radius-3xl: 0.875rem;
+
+  /* Quieter elevation: hairline borders do the separating, shadows only for floating layers */
+  --shadow-sm:  0 1px 1px rgba(15, 23, 42, 0.04);
+  --shadow-md:  0 1px 3px rgba(15, 23, 42, 0.07);
+  --shadow-lg:  0 4px 12px rgba(15, 23, 42, 0.08);
+  --shadow-xl:  0 8px 24px rgba(15, 23, 42, 0.10);
+  --shadow-2xl: 0 16px 40px rgba(15, 23, 42, 0.16);
 }
 
 /* ════════════════════════════════════════════════════════════════════
-   DARK THEME  (:root)  — Professional CRM dark
+   DARK THEME  (:root)  — optional; light is the default (SettingsContext)
    ════════════════════════════════════════════════════════════════════ */
 :root {
   color-scheme: dark;
 
-  --background:      #020617;
-  --surface:         #0f172a;
+  --background:      #0b1120;
+  --surface:         #111827;
   --surface-raised:  #1e293b;
-  --card-bg:         rgba(15, 23, 42, 0.4);
-  /* Striped pattern for cards */
-  --card-pattern:    repeating-linear-gradient(45deg, transparent, transparent 20px, rgba(255,255,255,0.01) 20px, rgba(255,255,255,0.01) 40px);
-  
-  --sidebar-bg:      #020617;
+  --card-bg:         #111827;
+  --card-pattern:    none;
+
+  --sidebar-bg:      #0b1120;
 
   --border:          rgba(255, 255, 255, 0.08);
   --border-strong:   rgba(255, 255, 255, 0.15);
   --border-subtle:   rgba(255, 255, 255, 0.04);
 
-  --foreground:      #f8fafc;
+  --foreground:      #f1f5f9;
   --text-secondary:  #94a3b8;
-  --text-muted:      #475569;
+  --text-muted:      #64748b;
 
-  --primary:         #3b82f6;
-  --primary-rgb:     59, 130, 246;
-  --primary-faint:   rgba(59, 130, 246, 0.1);
+  --primary:         #8a9f52;
+  --primary-rgb:     138, 159, 82;
+  --primary-faint:   rgba(138, 159, 82, 0.12);
 
-  --scrollbar-track: #020617;
+  --scrollbar-track: #0b1120;
   --scrollbar-thumb: #1e293b;
 
-  /* ── Semantic tokens shared by the shopping screens ──
-     --muted was referenced ~80 times but never defined, so all "secondary" text
-     silently rendered in the primary color. */
   --muted:           #94a3b8;
-  --accent:          #4f46e5;
-  --accent-text:     #a5b4fc;
-  --accent-soft:     rgba(99, 102, 241, 0.14);
-  --accent-soft-hover: rgba(99, 102, 241, 0.24);
-  --accent-line:     rgba(129, 140, 248, 0.28);
-  --shadow-card:     0 0 0 1px rgba(255,255,255,0.04);
+  --accent:          #6f8340;
+  --accent-text:     #b9c985;
+  --accent-soft:     rgba(138, 159, 82, 0.14);
+  --accent-soft-hover: rgba(138, 159, 82, 0.24);
+  --accent-line:     rgba(155, 177, 92, 0.30);
+  --shadow-card:     none;
   --shadow-pop:      0 12px 40px rgba(0,0,0,0.5);
 }
 
 /* ════════════════════════════════════════════════════════════════════
-   LIGHT THEME  (.light)  — Clean, airy professional
+   LIGHT THEME  (.light)  — default. Warm paper background, slate text, olive accent.
    ════════════════════════════════════════════════════════════════════ */
 .light {
   color-scheme: light;
 
-  /* Curated Professional Light Palette matching the screenshot */
-  --color-background:  #F4F6F9;
+  --color-background:  #F7F7F3;
   --color-surface:     #ffffff;
-  --color-surface-hi:  #F4F6F9;
+  --color-surface-hi:  #F1F2EC;
   --color-card:        #ffffff;
-  --color-border:      rgba(0, 85, 212, 0.06);
-  --color-border-hi:   rgba(0, 85, 212, 0.12);
+  --color-border:      #E5E7E0;
+  --color-border-hi:   #D3D6CB;
   --color-sidebar:     #ffffff;
-  --color-foreground:  #002244;
-  --color-muted:       #53687E;
-  --color-subtle:      #8FA0B3;
-  --color-primary:     #0055D4;
-  --color-primary-faint: #EBF3FF;
+  --color-foreground:  #1e293b;
+  --color-muted:       #475569;
+  --color-subtle:      #94a3b8;
+  --color-primary:     #5f7332;
+  --color-primary-faint: #f1f5e4;
 
-  /* CSS Variable Fallbacks */
-  --background:      #F4F6F9;
+  --background:      #F7F7F3;
   --surface:         #ffffff;
-  --surface-raised:  #F4F6F9;
+  --surface-raised:  #F1F2EC;
   --card-bg:         #ffffff;
   --card-pattern:    none;
   --sidebar-bg:      #ffffff;
 
-  --border:          rgba(0, 85, 212, 0.06);
-  --border-strong:   rgba(0, 85, 212, 0.12);
-  --border-subtle:   rgba(0, 85, 212, 0.03);
+  --border:          #E5E7E0;
+  --border-strong:   #D3D6CB;
+  --border-subtle:   #EEF0E9;
 
-  --foreground:      #002244;
-  --text-secondary:  #53687E;
-  --text-muted:      #8FA0B3;
+  --foreground:      #1e293b;
+  --text-secondary:  #475569;
+  --text-muted:      #64748b;
 
-  --primary:         #0055D4;
-  --primary-rgb:     0, 85, 212;
-  --primary-faint:   #EBF3FF;
+  --primary:         #5f7332;
+  --primary-rgb:     95, 115, 50;
+  --primary-faint:   #f1f5e4;
 
-  --scrollbar-track: #F4F6F9;
+  --scrollbar-track: #F7F7F3;
   --scrollbar-thumb: #cbd5e1;
 
-  --muted:           #53687E;
-  --accent:          #4f46e5;
-  --accent-text:     #4338ca;
-  --accent-soft:     rgba(79, 70, 229, 0.09);
-  --accent-soft-hover: rgba(79, 70, 229, 0.16);
-  --accent-line:     rgba(79, 70, 229, 0.22);
-  --shadow-card:     0 1px 2px rgba(16,24,40,0.05), 0 4px 14px rgba(16,24,40,0.05);
-  --shadow-pop:      0 12px 40px rgba(16,24,40,0.18);
+  --muted:           #475569;
+  --accent:          #5f7332;
+  --accent-text:     #4a5a28;
+  --accent-soft:     rgba(95, 115, 50, 0.09);
+  --accent-soft-hover: rgba(95, 115, 50, 0.16);
+  --accent-line:     rgba(95, 115, 50, 0.24);
+  --shadow-card:     none;
+  --shadow-pop:      0 12px 40px rgba(15,23,42,0.16);
 }
 
 /* ════════════════════════════════════════════════════════════════════
-   SHOPPING THEME — soft ink instead of near-black
-   Scoped to the shopping page (class on its root) so the rest of the app keeps its
-   tokens. Dark values are the default; .light overrides, mirroring the global setup.
+   SHOPPING THEME — same palette as the rest of the app now; only the extra
+   "fill" tints stay scoped here.
    ════════════════════════════════════════════════════════════════════ */
 .shopping-theme {
-  --background:      #12172B;
-  --surface:         #1A2138;
-  --surface-raised:  #232B47;
-  --border:          rgba(255, 255, 255, 0.08);
-  --border-strong:   rgba(255, 255, 255, 0.15);
-  --border-subtle:   rgba(255, 255, 255, 0.04);
-  --foreground:      #E9ECF7;
-  --text-secondary:  #9AA4C0;
-  --text-muted:      #7A84A3;
-  --muted:           #9AA4C0;
-  /* Tinted neutral fills (replace "foreground at 5%": a gray-black wash that read as muddy) */
-  --fill:            rgba(165, 180, 252, 0.07);
-  --fill-strong:     rgba(165, 180, 252, 0.13);
+  --fill:            rgba(155, 177, 92, 0.08);
+  --fill-strong:     rgba(155, 177, 92, 0.15);
 }
 .light .shopping-theme {
-  --background:      #F7F8FC;
-  --surface:         #FFFFFF;
-  --surface-raised:  #F1F3FA;
-  --border:          #E7E9F2;
-  --border-strong:   #D5D9E8;
-  --border-subtle:   #EEF0F7;
-  --foreground:      #2B3245;
-  --text-secondary:  #66708A;
-  --text-muted:      #8C94AB;
-  --muted:           #66708A;
-  --fill:            rgba(79, 70, 229, 0.06);
-  --fill-strong:     rgba(79, 70, 229, 0.11);
+  --fill:            rgba(95, 115, 50, 0.06);
+  --fill-strong:     rgba(95, 115, 50, 0.11);
 }
 
 /* ── Shopping: shared interaction language ─────────────────────────── */
@@ -167,30 +230,25 @@
 /* Primary action: soft vertical gradient, hairline highlight on top, tinted glow. Unlayered on
    purpose so it wins over utility classes like bg-[var(--accent)]. */
 .btn-primary {
-  background-image: linear-gradient(180deg, #635bff 0%, #4338ca 100%);
   background-color: var(--accent);
   color: #fff;
   border: none;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22), 0 4px 14px rgba(79, 70, 229, 0.32);
-  transition: filter 150ms ease-out, transform 120ms ease-out, box-shadow 150ms ease-out;
+  transition: background-color 150ms ease-out, transform 120ms ease-out;
 }
-.btn-primary:hover:not(:disabled) { filter: brightness(1.07); }
-.btn-primary:active:not(:disabled) {
-  box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.25), 0 1px 4px rgba(79, 70, 229, 0.25);
-}
-.btn-primary:disabled { box-shadow: none; }
+.btn-primary:hover:not(:disabled) { background-color: #4a5a28; }
+.btn-primary:active:not(:disabled) { transform: scale(0.98); }
+.btn-primary:disabled { opacity: 0.5; }
 
 /* Destructive twin of .btn-primary */
 .btn-danger {
-  background-image: linear-gradient(180deg, #f43f5e 0%, #be123c 100%);
-  background-color: #e11d48;
+  background-color: #dc2626;
   color: #fff;
   border: none;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22), 0 4px 14px rgba(225, 29, 72, 0.3);
-  transition: filter 150ms ease-out, transform 120ms ease-out;
+  transition: background-color 150ms ease-out, transform 120ms ease-out;
 }
-.btn-danger:hover:not(:disabled) { filter: brightness(1.07); }
-.btn-danger:disabled { box-shadow: none; }
+.btn-danger:hover:not(:disabled) { background-color: #b91c1c; }
+.btn-danger:active:not(:disabled) { transform: scale(0.98); }
+.btn-danger:disabled { opacity: 0.5; }
 
 /* Keyboard focus: one visible ring for every control on the page. Text fields keep their own
    border-color focus style, so they're excluded. */
@@ -224,13 +282,6 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* ── Card Styling with Pattern ────────────────────────────────────── */
-[class*="bg-[var(--card-bg)]"], 
-.bg-card {
-  background-image: var(--card-pattern) !important;
-  background-blend-mode: overlay;
-}
-
 /* ── Tailwind v4: fix default border color ────────────────────────── */
 /* Explicitly set border-color globally to prevent currentColor inheritance */
 @layer base {
@@ -249,7 +300,7 @@ body {
   /* Backgrounds */
   & .bg-slate-950  { background-color: var(--background) !important; }
   & .bg-slate-900  { background-color: var(--surface) !important; }
-  & .bg-slate-800  { background-color: #f1f5f9 !important; }
+  & .bg-slate-800  { background-color: var(--surface-raised) !important; }
   & .min-h-screen.bg-slate-950 { background-color: var(--background); }
 
   /* Text */
@@ -313,11 +364,11 @@ body {
    SELECTION & FOCUS
    ════════════════════════════════════════════════════════════════════ */
 ::selection {
-  background-color: rgba(79,115,255,0.15);
+  background-color: rgba(122,144,64,0.18);
   color: var(--foreground);
 }
 .light ::selection {
-  background-color: rgba(51,84,232,0.12);
+  background-color: rgba(95,115,50,0.14);
 }
 
 :focus-visible {
@@ -355,3 +406,12 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 .animate-scroll {
   animation: scroll 30s linear infinite;
 }
+
+/* Skeleton placeholders: mirror the geometry of the data they stand in for */
+.skeleton {
+  background-color: var(--border);
+  border-radius: 6px;
+  animation: skeleton-pulse 1.4s ease-in-out infinite;
+}
+@keyframes skeleton-pulse { 0%,100% { opacity: 1 } 50% { opacity: 0.45 } }
+@media (prefers-reduced-motion: reduce) { .skeleton { animation: none; } }

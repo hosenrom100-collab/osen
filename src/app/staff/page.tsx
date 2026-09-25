@@ -9,6 +9,7 @@ import { Shield, Calendar, Clock, CheckCircle, XCircle, AlertCircle, Save, Loade
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 
+import { PageSkeleton } from "@/components/ui/Skeleton";
 const DAYS = [
   { id: "sunday", label: "ראשון" },
   { id: "monday", label: "שני" },
@@ -123,9 +124,7 @@ export default function StaffHubPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-slate-950">
-        <Loader2 className="w-8 h-8 text-orange-500 animate-spin" />
-      </div>
+      <PageSkeleton />
     );
   }
 
@@ -150,7 +149,7 @@ export default function StaffHubPage() {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Section 1: Working Days & Complex */}
-          <section className="bg-white/5 border border-white/10 rounded-[2rem] p-8 h-fit">
+          <section className="bg-white/5 border border-white/10 rounded-2xl p-8 h-fit">
             <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
               <Calendar className="w-5 h-5 text-orange-400" />
               הגדרות עבודה קבועות
@@ -198,7 +197,7 @@ export default function StaffHubPage() {
               <button
                 onClick={saveSettings}
                 disabled={saving}
-                className="w-full bg-blue-600 hover:bg-blue-500 text-white py-4 rounded-2xl font-bold transition-all flex items-center justify-center gap-2 shadow-lg shadow-blue-600/20"
+                className="w-full bg-blue-600 hover:bg-blue-500 text-white py-4 rounded-2xl font-bold transition-all flex items-center justify-center gap-2 shadow-lg"
               >
                 {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
                 שמור הגדרות
@@ -208,7 +207,7 @@ export default function StaffHubPage() {
 
           {/* Section 2: Absence Request */}
           <section className="space-y-8">
-            <div className="bg-white/5 border border-white/10 rounded-[2rem] p-8">
+            <div className="bg-white/5 border border-white/10 rounded-2xl p-8">
               <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
                 <AlertCircle className="w-5 h-5 text-rose-400" />
                 דיווח על היעדרות
@@ -238,7 +237,7 @@ export default function StaffHubPage() {
                 <button
                   type="submit"
                   disabled={submittingAbsence}
-                  className="w-full bg-rose-600 hover:bg-rose-500 text-white py-4 rounded-2xl font-bold transition-all flex items-center justify-center gap-2 shadow-lg shadow-rose-600/20"
+                  className="w-full bg-rose-600 hover:bg-rose-500 text-white py-4 rounded-2xl font-bold transition-all flex items-center justify-center gap-2 shadow-lg"
                 >
                   {submittingAbsence ? <Loader2 className="w-5 h-5 animate-spin" /> : <MessageSquare className="w-5 h-5" />}
                   שלח בקשת היעדרות
@@ -247,7 +246,7 @@ export default function StaffHubPage() {
             </div>
 
             {/* Absence History */}
-            <div className="bg-white/5 border border-white/10 rounded-[2rem] p-8">
+            <div className="bg-white/5 border border-white/10 rounded-2xl p-8">
               <h2 className="text-lg font-bold mb-6 flex items-center gap-2">
                 <Clock className="w-5 h-5 text-slate-400" />
                 בקשות קודמות
@@ -260,7 +259,7 @@ export default function StaffHubPage() {
                       <div className="font-bold text-sm">{abs.date}</div>
                       <div className="text-xs text-slate-500 truncate max-w-[150px]">{abs.reason || "ללא הערה"}</div>
                     </div>
-                    <div className={`px-3 py-1 rounded-full text-[10px] font-bold flex items-center gap-1 ${
+                    <div className={`px-3 py-1 rounded-full text-[11px] font-bold flex items-center gap-1 ${
                       abs.status === "approved" 
                         ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" 
                         : abs.status === "rejected"

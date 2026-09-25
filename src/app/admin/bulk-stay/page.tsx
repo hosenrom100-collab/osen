@@ -435,7 +435,7 @@ export default function BulkStayPage() {
             ].map((s) => (
               <div key={s.n} className="flex items-center gap-2 flex-1">
                 <div className={`flex items-center gap-2 flex-1 rounded-xl px-3 py-2 border ${step === s.n ? "border-emerald-500/40 bg-emerald-500/10" : step > s.n ? "border-emerald-500/20 bg-emerald-500/5" : "border-[var(--border)] bg-[var(--surface)]"}`}>
-                  <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black shrink-0 ${step === s.n ? "bg-emerald-500 text-white" : step > s.n ? "bg-emerald-500 text-white" : "bg-[var(--foreground)]/10 text-[var(--muted)]"}`}>
+                  <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0 ${step === s.n ? "bg-emerald-500 text-white" : step > s.n ? "bg-emerald-500 text-white" : "bg-[var(--foreground)]/10 text-[var(--muted)]"}`}>
                     {step > s.n ? <CheckCircle2 className="w-3 h-3" /> : s.n}
                   </span>
                   <span className="text-[11px] font-bold hidden sm:inline">{s.label}</span>
@@ -449,7 +449,7 @@ export default function BulkStayPage() {
             <section className="space-y-5">
               <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-5 space-y-5">
                 <div>
-                  <label className="text-[10px] font-black uppercase tracking-wider text-[var(--muted)] mb-1.5 block">תוכנית</label>
+                  <label className="text-[11px] font-bold uppercase tracking-wider text-[var(--muted)] mb-1.5 block">תוכנית</label>
                   {loadingPrograms ? (
                     <div className="flex items-center gap-2 text-xs text-[var(--muted)]"><Loader2 className="w-3.5 h-3.5 animate-spin" /> טוען תוכניות...</div>
                   ) : visiblePrograms.length === 0 ? (
@@ -468,7 +468,7 @@ export default function BulkStayPage() {
 
                 {selectedProgramId && programGroups.length > 0 && (
                   <div>
-                    <label className="text-[10px] font-black uppercase tracking-wider text-[var(--muted)] mb-1.5 block">קבוצה (סינון אופציונלי)</label>
+                    <label className="text-[11px] font-bold uppercase tracking-wider text-[var(--muted)] mb-1.5 block">קבוצה (סינון אופציונלי)</label>
                     <select
                       value={selectedGroupId}
                       onChange={e => setSelectedGroupId(e.target.value)}
@@ -485,7 +485,7 @@ export default function BulkStayPage() {
                 <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl overflow-hidden">
                   <div className="px-5 py-3 border-b border-[var(--border)] flex items-center gap-2">
                     <Users className="w-4 h-4 text-emerald-500" />
-                    <h2 className="text-xs font-black">משתתפים פעילים בתוכנית ({participants.length})</h2>
+                    <h2 className="text-xs font-bold">משתתפים פעילים בתוכנית ({participants.length})</h2>
                   </div>
                   {loadingParticipants ? (
                     <div className="flex justify-center py-10"><Loader2 className="w-5 h-5 animate-spin text-emerald-500" /></div>
@@ -496,9 +496,9 @@ export default function BulkStayPage() {
                       <table className="w-full text-right text-sm">
                         <thead>
                           <tr className="border-b border-[var(--border)] bg-[var(--foreground)]/[0.02]">
-                            <th className="px-4 py-2 text-[10px] font-black uppercase text-[var(--muted)]">שם פרטי</th>
-                            <th className="px-4 py-2 text-[10px] font-black uppercase text-[var(--muted)]">שם משפחה</th>
-                            <th className="px-4 py-2 text-[10px] font-black uppercase text-[var(--muted)]">תאריך תחילת השתתפות</th>
+                            <th className="px-4 py-2 text-[11px] font-bold uppercase text-[var(--muted)]">שם פרטי</th>
+                            <th className="px-4 py-2 text-[11px] font-bold uppercase text-[var(--muted)]">שם משפחה</th>
+                            <th className="px-4 py-2 text-[11px] font-bold uppercase text-[var(--muted)]">תאריך תחילת השתתפות</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-[var(--border)]">
@@ -520,7 +520,7 @@ export default function BulkStayPage() {
                 <button
                   disabled={!selectedProgramId || participants.length === 0}
                   onClick={() => setStep(2)}
-                  className="flex items-center gap-2 px-5 py-2.5 text-xs font-black bg-emerald-600 text-white rounded-xl hover:bg-emerald-500 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="flex items-center gap-2 px-5 py-2.5 text-xs font-bold bg-emerald-600 text-white rounded-xl hover:bg-emerald-500 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   המשך לשלב הבא
                 </button>
@@ -537,7 +537,7 @@ export default function BulkStayPage() {
                 </p>
                 <button
                   onClick={downloadTemplate}
-                  className="flex items-center gap-2 px-5 py-2.5 text-xs font-black bg-[var(--foreground)]/5 border border-[var(--border)] rounded-xl hover:bg-[var(--foreground)]/10 transition-all"
+                  className="flex items-center gap-2 px-5 py-2.5 text-xs font-bold bg-[var(--foreground)]/5 border border-[var(--border)] rounded-xl hover:bg-[var(--foreground)]/10 transition-all"
                 >
                   <FileSpreadsheet className="w-4 h-4 text-emerald-500" />
                   הורדת תבנית Excel ({participants.length} משתתפים)
@@ -545,12 +545,12 @@ export default function BulkStayPage() {
               </div>
 
               <div className="flex justify-between">
-                <button onClick={() => setStep(1)} className="px-5 py-2.5 text-xs font-black bg-[var(--foreground)]/5 border border-[var(--border)] rounded-xl hover:bg-[var(--foreground)]/10 transition-all">
+                <button onClick={() => setStep(1)} className="px-5 py-2.5 text-xs font-bold bg-[var(--foreground)]/5 border border-[var(--border)] rounded-xl hover:bg-[var(--foreground)]/10 transition-all">
                   חזרה
                 </button>
                 <button
                   onClick={() => setStep(3)}
-                  className="flex items-center gap-2 px-5 py-2.5 text-xs font-black bg-emerald-600 text-white rounded-xl hover:bg-emerald-500 transition-all"
+                  className="flex items-center gap-2 px-5 py-2.5 text-xs font-bold bg-emerald-600 text-white rounded-xl hover:bg-emerald-500 transition-all"
                 >
                   המשך לייבוא
                 </button>
@@ -562,7 +562,7 @@ export default function BulkStayPage() {
           {step === 3 && selectedProgram && (
             <section className="space-y-5">
               <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-5 space-y-4">
-                <label className="flex items-center gap-2 px-5 py-2.5 text-xs font-black bg-[var(--foreground)]/5 border border-[var(--border)] rounded-xl hover:bg-[var(--foreground)]/10 transition-all cursor-pointer w-fit">
+                <label className="flex items-center gap-2 px-5 py-2.5 text-xs font-bold bg-[var(--foreground)]/5 border border-[var(--border)] rounded-xl hover:bg-[var(--foreground)]/10 transition-all cursor-pointer w-fit">
                   <Upload className="w-4 h-4 text-emerald-500" />
                   ייבוא תבנית מלאה
                   <input type="file" accept=".xlsx, .xls" onChange={handleImportFile} className="hidden" />
@@ -572,10 +572,10 @@ export default function BulkStayPage() {
               {mergedData.length > 0 && (
                 <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl overflow-hidden">
                   <div className="px-5 py-3 border-b border-[var(--border)] flex items-center justify-between">
-                    <h2 className="text-xs font-black">תצוגה מקדימה ({matchedCount}/{mergedData.length} מוכנים להפקה)</h2>
+                    <h2 className="text-xs font-bold">תצוגה מקדימה ({matchedCount}/{mergedData.length} מוכנים להפקה)</h2>
                     <button
                       onClick={downloadUpdatedTemplate}
-                      className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-black bg-[var(--foreground)]/5 border border-[var(--border)] rounded-lg hover:bg-[var(--foreground)]/10 transition-all"
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-bold bg-[var(--foreground)]/5 border border-[var(--border)] rounded-lg hover:bg-[var(--foreground)]/10 transition-all"
                     >
                       <Download className="w-3.5 h-3.5 text-emerald-500" />
                       הורדת תבנית מעודכנת
@@ -585,11 +585,11 @@ export default function BulkStayPage() {
                     <table className="w-full text-right text-sm">
                       <thead>
                         <tr className="border-b border-[var(--border)] bg-[var(--foreground)]/[0.02]">
-                          <th className="px-4 py-2 text-[10px] font-black uppercase text-[var(--muted)]">שם פרטי</th>
-                          <th className="px-4 py-2 text-[10px] font-black uppercase text-[var(--muted)]">שם משפחה מלא</th>
-                          <th className="px-4 py-2 text-[10px] font-black uppercase text-[var(--muted)]">ת.ז.</th>
-                          <th className="px-4 py-2 text-[10px] font-black uppercase text-[var(--muted)]">תאריך תחילה</th>
-                          <th className="px-4 py-2 text-[10px] font-black uppercase text-[var(--muted)]">סטטוס</th>
+                          <th className="px-4 py-2 text-[11px] font-bold uppercase text-[var(--muted)]">שם פרטי</th>
+                          <th className="px-4 py-2 text-[11px] font-bold uppercase text-[var(--muted)]">שם משפחה מלא</th>
+                          <th className="px-4 py-2 text-[11px] font-bold uppercase text-[var(--muted)]">ת.ז.</th>
+                          <th className="px-4 py-2 text-[11px] font-bold uppercase text-[var(--muted)]">תאריך תחילה</th>
+                          <th className="px-4 py-2 text-[11px] font-bold uppercase text-[var(--muted)]">סטטוס</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-[var(--border)]">
@@ -623,7 +623,7 @@ export default function BulkStayPage() {
 
               {generationErrors.length > 0 && (
                 <div className="bg-rose-500/5 border border-rose-500/20 rounded-2xl p-4 space-y-1">
-                  <p className="text-xs font-black text-rose-400">שגיאות בהפקה:</p>
+                  <p className="text-xs font-bold text-rose-400">שגיאות בהפקה:</p>
                   {generationErrors.map((e, i) => (
                     <p key={i} className="text-[11px] text-[var(--muted)]">{e.name}: {e.error}</p>
                   ))}
@@ -631,13 +631,13 @@ export default function BulkStayPage() {
               )}
 
               <div className="flex justify-between">
-                <button onClick={() => setStep(2)} disabled={generating} className="px-5 py-2.5 text-xs font-black bg-[var(--foreground)]/5 border border-[var(--border)] rounded-xl hover:bg-[var(--foreground)]/10 transition-all disabled:opacity-40">
+                <button onClick={() => setStep(2)} disabled={generating} className="px-5 py-2.5 text-xs font-bold bg-[var(--foreground)]/5 border border-[var(--border)] rounded-xl hover:bg-[var(--foreground)]/10 transition-all disabled:opacity-40">
                   חזרה
                 </button>
                 <button
                   onClick={generateAll}
                   disabled={generating || mergedData.length === 0}
-                  className="flex items-center gap-2 px-5 py-2.5 text-xs font-black bg-emerald-600 text-white rounded-xl hover:bg-emerald-500 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="flex items-center gap-2 px-5 py-2.5 text-xs font-bold bg-emerald-600 text-white rounded-xl hover:bg-emerald-500 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   {generating ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileArchive className="w-4 h-4" />}
                   הפקת אישורי שהייה (ZIP)

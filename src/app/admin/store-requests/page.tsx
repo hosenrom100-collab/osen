@@ -432,7 +432,7 @@ export default function StoreRequestsPage() {
   return (
     <RoleGuard allowedRoles={["admin", "manager", "logistics"]}>
       <ConnectionStatusBanner />
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 pb-20">
+      <div className="min-h-screen bg-slate-50 pb-20">
         {/* Header */}
         <div className="sticky top-0 z-40 bg-white border-b border-slate-200 shadow-sm">
           <div className="max-w-5xl mx-auto px-4 py-4 flex items-center gap-3">
@@ -453,7 +453,7 @@ export default function StoreRequestsPage() {
               )}
               <button
                 onClick={() => setShowCreateModal(true)}
-                className="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 !text-white rounded-xl transition text-sm font-bold flex items-center gap-1.5 shadow-md active:scale-95 border-none cursor-pointer"
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 !text-white rounded-xl transition text-sm font-bold flex items-center gap-1.5 shadow-md active:scale-95 border-none cursor-pointer"
               >
                 <Plus className="w-4 h-4 text-white" />
                 <span>הנפקת אישור רכישה</span>
@@ -562,7 +562,7 @@ export default function StoreRequestsPage() {
             {/* Modal Header */}
             <div className="p-5 border-b border-slate-100 flex items-center justify-between">
               <div>
-                <h2 className="text-lg font-black text-slate-950">הנפקת אישור רכישה</h2>
+                <h2 className="text-lg font-bold text-slate-950">הנפקת אישור רכישה</h2>
                 <p className="text-xs text-slate-500 mt-0.5">יצירה ואישור מיידי של אישור רכישה לעובד</p>
               </div>
               <button
@@ -712,7 +712,7 @@ export default function StoreRequestsPage() {
               <button
                 disabled={creatingRequest}
                 onClick={handleCreateRequest}
-                className="flex-1 py-3 bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 disabled:opacity-50 text-white rounded-xl font-bold text-sm flex items-center justify-center gap-2 shadow-md transition active:scale-95 border-none cursor-pointer"
+                className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-xl font-bold text-sm flex items-center justify-center gap-2 shadow-md transition active:scale-95 border-none cursor-pointer"
               >
                 {creatingRequest ? (
                   <Loader2 className="w-4 h-4 animate-spin text-white" />
@@ -1015,7 +1015,7 @@ function RequestCard({
                 <button
                   type="button"
                   onClick={() => openOrDownloadPdf(request.pdfUrl!, `אישור_קנייה_${request.requestNumber}.pdf`)}
-                  className="flex-1 px-4 py-2.5 bg-gradient-to-r from-emerald-600 to-green-600 !text-white rounded-xl hover:from-emerald-700 hover:to-green-700 transition font-bold text-xs flex items-center justify-center gap-2 shadow-sm border-none cursor-pointer"
+                  className="flex-1 px-4 py-2.5 bg-emerald-600 !text-white rounded-xl hover:bg-emerald-700 transition font-bold text-xs flex items-center justify-center gap-2 shadow-sm border-none cursor-pointer"
                 >
                   <Download className="w-4 h-4 text-white" />
                   <span>הורד אישור PDF חתום (מירב סארמילי)</span>
@@ -1024,7 +1024,7 @@ function RequestCard({
                 <button
                   disabled={loadingPdfId !== null}
                   onClick={onGeneratePdf}
-                  className="flex-1 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 disabled:opacity-50 !text-white rounded-xl hover:from-blue-700 hover:to-indigo-700 transition font-bold text-xs flex items-center justify-center gap-2 shadow-sm cursor-pointer border-none"
+                  className="flex-1 px-4 py-2.5 bg-blue-600 disabled:opacity-50 !text-white rounded-xl hover:bg-blue-700 transition font-bold text-xs flex items-center justify-center gap-2 shadow-sm cursor-pointer border-none"
                 >
                   {loadingPdfId === request.id ? (
                     <Loader2 className="w-4 h-4 animate-spin text-white" />

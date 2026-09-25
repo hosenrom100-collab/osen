@@ -33,7 +33,7 @@ export function RoleSelector({ value, onChange, disabled }: RoleSelectorProps) {
             key={role.value}
             disabled={disabled}
             onClick={() => toggleRole(role.value)}
-            className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all flex items-center gap-2 ${
+            className={`px-3 py-1.5 rounded-xl text-[11px] font-bold uppercase tracking-wider border transition-all flex items-center gap-2 ${
               isSelected 
                 ? 'bg-[var(--foreground)] text-[var(--background)] border-transparent' 
                 : 'bg-[var(--foreground)]/5 border-[var(--border)] text-[var(--foreground)]/40 hover:bg-[var(--foreground)]/10'

@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { LogIn, AlertCircle } from "lucide-react";
 
+import { PageSkeleton } from "@/components/ui/Skeleton";
 export default function LoginPage() {
   const { user, login, status, loading } = useAuth();
   const router = useRouter();
@@ -36,9 +37,7 @@ export default function LoginPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-[var(--background)]" role="status" aria-label="טוען">
-        <div className="w-8 h-8 border-2 border-[var(--border)] border-t-[var(--primary)] rounded-full animate-spin" />
-      </div>
+      <PageSkeleton />
     );
   }
 
@@ -62,20 +61,20 @@ export default function LoginPage() {
         {/* Brand */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-rose-600/10 border border-rose-600/20 mb-4">
-            <span className="text-xl font-black text-rose-600">H</span>
+            <span className="text-xl font-bold text-rose-600">H</span>
           </div>
-          <h1 className="text-2xl font-black tracking-tight">חוסן קונקט</h1>
-          <p className="text-[10px] text-rose-500 font-black uppercase tracking-widest mt-1">Hosen Connect</p>
+          <h1 className="text-2xl font-bold tracking-tight">חוסן קונקט</h1>
+          <p className="text-[11px] text-rose-500 font-bold uppercase tracking-wider mt-1">Hosen Connect</p>
         </div>
 
         {/* Card */}
-        <div className="bg-[var(--card-bg)] border border-[var(--border)] rounded-[2.5rem] p-8 shadow-2xl shadow-black/10">
+        <div className="bg-[var(--card-bg)] border border-[var(--border)] rounded-2xl p-8 shadow-2xl shadow-black/10">
 
           <button
             onClick={handleLogin}
             disabled={signingIn}
             aria-label="התחבר באמצעות Google"
-            className="w-full flex items-center justify-center gap-4 bg-[var(--foreground)] text-[var(--background)] font-black py-4 px-6 rounded-2xl hover:opacity-90 active:scale-[0.98] transition-all shadow-xl shadow-[var(--foreground)]/10 disabled:opacity-60 disabled:cursor-not-allowed text-sm uppercase tracking-widest"
+            className="w-full flex items-center justify-center gap-4 bg-[var(--foreground)] text-[var(--background)] font-bold py-4 px-6 rounded-2xl hover:opacity-90 active:scale-[0.98] transition-all shadow-xl shadow-[var(--foreground)]/10 disabled:opacity-60 disabled:cursor-not-allowed text-sm uppercase tracking-wider"
           >
             {signingIn ? (
               <div className="w-5 h-5 border-2 border-[var(--background)]/30 border-t-[var(--background)] rounded-full animate-spin" aria-hidden />
@@ -107,13 +106,13 @@ export default function LoginPage() {
             )}
           </AnimatePresence>
 
-          <p className="text-center text-[10px] text-[var(--foreground)]/30 font-black uppercase tracking-widest mt-6 leading-relaxed">
+          <p className="text-center text-[11px] text-[var(--foreground)]/30 font-bold uppercase tracking-wider mt-6 leading-relaxed">
             הכניסה מורשית לאנשי צוות בלבד
           </p>
         </div>
       </motion.div>
 
-      <p className="absolute bottom-8 text-[10px] text-[var(--foreground)]/20 font-black tracking-[0.4em] uppercase">
+      <p className="absolute bottom-8 text-[11px] text-[var(--foreground)]/20 font-bold tracking-[0.4em] uppercase">
         Hosen Connect
       </p>
     </div>

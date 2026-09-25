@@ -52,18 +52,18 @@ export function AttendanceItem({ patient, status, onToggle }: AttendanceItemProp
       <div className="flex-1 min-w-0">
         {!isInstructor ? (
           <Link href={`/patients/${patient.id}`} className="hover:text-emerald-500 hover:underline transition-colors cursor-pointer block">
-            <p className="font-black text-lg text-slate-800 leading-none mb-1">
+            <p className="font-bold text-lg text-slate-800 leading-none mb-1">
               {patient.firstName} {patient.lastName}
             </p>
           </Link>
         ) : (
           <div className="block mb-1">
-            <p className="font-black text-lg text-slate-800 leading-none mb-1">
+            <p className="font-bold text-lg text-slate-800 leading-none mb-1">
               {patient.firstName} {patient.lastName}
             </p>
           </div>
         )}
-        <p className={`text-[10px] font-bold transition-colors uppercase tracking-widest ${
+        <p className={`text-[11px] font-bold transition-colors uppercase tracking-wider ${
           isPresent ? "text-emerald-500" :
           isAbsent  ? "text-rose-400" :
           "text-slate-300"
@@ -98,7 +98,7 @@ export function AttendanceItem({ patient, status, onToggle }: AttendanceItemProp
           title="סמן נעדר"
           className={`h-11 w-14 rounded-xl flex items-center justify-center transition-all duration-150 active:scale-[0.92] ${
             isAbsent
-              ? "bg-rose-500 text-white shadow-md shadow-rose-500/30"
+              ? "bg-rose-500 text-white shadow-md"
               : "bg-[var(--foreground)]/5 text-[var(--muted)]/40 hover:text-rose-500 hover:bg-rose-500/8"
           }`}
         >
@@ -110,7 +110,7 @@ export function AttendanceItem({ patient, status, onToggle }: AttendanceItemProp
           title="סמן נוכח"
           className={`h-11 w-14 rounded-xl flex items-center justify-center transition-all duration-150 active:scale-[0.92] ${
             isPresent
-              ? "bg-emerald-500 text-white shadow-md shadow-emerald-500/30"
+              ? "bg-emerald-500 text-white shadow-md"
               : "bg-[var(--foreground)]/5 text-[var(--muted)]/40 hover:text-emerald-500 hover:bg-emerald-500/8"
           }`}
         >

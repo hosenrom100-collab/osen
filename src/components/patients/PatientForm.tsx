@@ -16,7 +16,7 @@ interface Program { id: string; name: string }
 interface Group   { id: string; name: string; programId?: string }
 
 const FIELD = "w-full bg-slate-50/80 border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-bold outline-none focus:border-emerald-500/50 focus:bg-white transition-all text-slate-800 placeholder:text-slate-400";
-const LABEL = "text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1 flex items-center gap-1.5";
+const LABEL = "text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1 flex items-center gap-1.5";
 
 function autoEndDate(startDate: string): string {
   if (!startDate) return "";
@@ -247,7 +247,7 @@ export function PatientForm({ patientId, initialData, onSuccess }: PatientFormPr
   };
 
   const SECTION = "space-y-3 pt-4 border-t border-slate-100 first:border-t-0 first:pt-0";
-  const SECTION_TITLE = "text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2 flex items-center gap-1.5";
+  const SECTION_TITLE = "text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-2 flex items-center gap-1.5";
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5 pb-6">
@@ -329,7 +329,7 @@ export function PatientForm({ patientId, initialData, onSuccess }: PatientFormPr
                   
                   {isSelected && pGroups.length > 0 && (
                     <div className="mt-2 mr-5 space-y-1.5 border-r-2 border-slate-100 pr-2.5">
-                      <p className="text-[9px] font-black text-[var(--muted)]/60 mb-0.5">בחר קבוצות משויכות:</p>
+                      <p className="text-[11px] font-bold text-[var(--muted)]/60 mb-0.5">בחר קבוצות משויכות:</p>
                       {pGroups.map(g => {
                         const isGroupSelected = selectedGroupIds.includes(g.id);
                         return (
@@ -504,7 +504,7 @@ export function PatientForm({ patientId, initialData, onSuccess }: PatientFormPr
                 className="rounded border-purple-300 text-purple-600 focus:ring-purple-500 w-4 h-4 ml-1"
               />
               <span>חוזה קבוצתי</span>
-              <span className="text-[10px] font-normal text-purple-500 mr-1">(משויך לחוזה קבוצתי)</span>
+              <span className="text-[11px] font-normal text-purple-500 mr-1">(משויך לחוזה קבוצתי)</span>
             </label>
           </div>
         </div>
@@ -515,26 +515,26 @@ export function PatientForm({ patientId, initialData, onSuccess }: PatientFormPr
           <div className="flex items-center gap-2">
             {saveStatus === "saving" && (
               <>
-                <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse shrink-0" />
-                <span className="text-[10px] font-black text-slate-500">שומר שינויים...</span>
+                <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
+                <span className="text-[11px] font-bold text-slate-500">שומר שינויים...</span>
               </>
             )}
             {saveStatus === "saved" && (
               <>
                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                <span className="text-[10px] font-black text-emerald-600">השינויים נשמרו בתיק</span>
+                <span className="text-[11px] font-bold text-emerald-600">השינויים נשמרו בתיק</span>
               </>
             )}
             {saveStatus === "error" && (
               <>
                 <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping shrink-0" />
-                <span className="text-[10px] font-black text-rose-500">שגיאה בשמירה</span>
+                <span className="text-[11px] font-bold text-rose-500">שגיאה בשמירה</span>
               </>
             )}
             {saveStatus === "idle" && (
               <>
                 <span className="w-2 h-2 rounded-full bg-slate-300 shrink-0" />
-                <span className="text-[10px] font-black text-slate-400">שמירה אוטומטית פעילה</span>
+                <span className="text-[11px] font-bold text-slate-400">שמירה אוטומטית פעילה</span>
               </>
             )}
           </div>
@@ -543,7 +543,7 @@ export function PatientForm({ patientId, initialData, onSuccess }: PatientFormPr
         <button 
           type="submit" 
           disabled={loading}
-          className="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-md shadow-emerald-600/15 flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50"
+          className="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-3 rounded-xl text-xs font-bold uppercase tracking-wider transition-all shadow-md flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50"
         >
           {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
           פתיחת תיק משתתף

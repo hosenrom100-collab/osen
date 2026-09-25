@@ -35,9 +35,9 @@ export function ConfirmModal({
   const containerRef = useFocusTrap<HTMLDivElement>(isOpen);
 
   const colors = {
-    danger: "bg-rose-500 text-white hover:bg-rose-600 shadow-rose-500/20",
+    danger: "bg-rose-500 text-white hover:bg-rose-600",
     info: "bg-[var(--foreground)] text-[var(--background)] hover:opacity-90 shadow-black/10",
-    success: "bg-emerald-500 text-white hover:bg-emerald-600 shadow-emerald-500/20"
+    success: "bg-emerald-500 text-white hover:bg-emerald-600"
   };
 
   const iconColors = {
@@ -71,7 +71,7 @@ export function ConfirmModal({
             onKeyDown={(e) => {
               if (e.key === "Escape") onClose();
             }}
-            className="relative w-full max-w-sm bg-[var(--surface)] border border-[var(--border)] rounded-[2.5rem] p-8 shadow-2xl overflow-hidden"
+            className="relative w-full max-w-sm bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-8 shadow-2xl overflow-hidden"
           >
             <button
               onClick={onClose}
@@ -82,11 +82,11 @@ export function ConfirmModal({
             </button>
 
             <div className="flex flex-col items-center text-center">
-              <div className={`w-16 h-16 rounded-[2rem] flex items-center justify-center mb-6 ${iconColors[type]}`}>
+              <div className={`w-16 h-16 rounded-2xl flex items-center justify-center mb-6 ${iconColors[type]}`}>
                 <AlertCircle className="w-8 h-8" aria-hidden="true" />
               </div>
 
-              <h3 id={titleId} className="text-xl font-black mb-3">{title}</h3>
+              <h3 id={titleId} className="text-xl font-bold mb-3">{title}</h3>
               <p id={messageId} className="text-sm text-[var(--muted)] font-bold leading-relaxed mb-8">
                 {message}
               </p>
@@ -95,7 +95,7 @@ export function ConfirmModal({
                 <button
                   onClick={onConfirm}
                   disabled={isLoading}
-                  className={`w-full py-4 rounded-2xl font-black text-sm uppercase tracking-widest shadow-xl transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2 ${colors[type]}`}
+                  className={`w-full py-4 rounded-2xl font-bold text-sm uppercase tracking-wider shadow-xl transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2 ${colors[type]}`}
                 >
                   {isLoading && <Loader2 className="w-4 h-4 animate-spin" />}
                   {confirmLabel}
@@ -104,7 +104,7 @@ export function ConfirmModal({
                   <button
                     onClick={onClose}
                     disabled={isLoading}
-                    className="w-full py-4 rounded-2xl font-black text-sm uppercase tracking-widest text-[var(--muted)] hover:bg-[var(--foreground)]/5 transition-all"
+                    className="w-full py-4 rounded-2xl font-bold text-sm uppercase tracking-wider text-[var(--muted)] hover:bg-[var(--foreground)]/5 transition-all"
                   >
                     {cancelLabel}
                   </button>

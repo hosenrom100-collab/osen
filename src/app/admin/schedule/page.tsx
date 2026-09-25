@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { format, addDays, subDays, parseISO } from "date-fns";
 
+import { PageSkeleton } from "@/components/ui/Skeleton";
 interface ActivityItem {
   id: string;
   title: string;
@@ -238,15 +239,15 @@ function ScheduleContent() {
               <ArrowRight className="w-4 h-4" />
             </button>
             <div className="text-right">
-              <h1 className="text-sm font-black leading-tight">לוח זמנים שבועי ויומי</h1>
-              <p className="text-[10px] text-[var(--foreground)]/40 font-bold uppercase tracking-widest mt-0.5">Schedule Management</p>
+              <h1 className="text-sm font-bold leading-tight">לוח זמנים שבועי ויומי</h1>
+              <p className="text-[11px] text-[var(--foreground)]/40 font-bold uppercase tracking-wider mt-0.5">Schedule Management</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
             {filteredActivities.length > 0 && (
               <button
                 onClick={handleCopyForWhatsApp}
-                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                   copied
                     ? "bg-emerald-600 border border-emerald-500 hover:bg-emerald-500 text-white shadow-md"
                     : "bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 hover:bg-emerald-500/20"
@@ -268,7 +269,7 @@ function ScheduleContent() {
             {canEdit && (
               <button
                 onClick={() => setIsEditorOpen(true)}
-                className="flex items-center gap-1.5 px-4 py-2 bg-rose-600 border border-rose-500 hover:bg-rose-500 text-white rounded-xl text-xs font-black transition-all"
+                className="flex items-center gap-1.5 px-4 py-2 bg-rose-600 border border-rose-500 hover:bg-rose-500 text-white rounded-xl text-xs font-bold transition-all"
               >
                 <Edit3 className="w-3.5 h-3.5" />
                 ערוך לו״ז
@@ -281,7 +282,7 @@ function ScheduleContent() {
       {/* Main Content */}
       <main className="max-w-3xl mx-auto px-4 py-6 space-y-6">
         {/* Date Selector & Group Filter Card */}
-        <div className="bg-[var(--card-bg)] border border-[var(--border)] rounded-[2rem] p-6 shadow-sm space-y-6">
+        <div className="bg-[var(--card-bg)] border border-[var(--border)] rounded-2xl p-6 shadow-sm space-y-6">
           {/* Date controls */}
           <div className="flex items-center justify-between gap-4">
             <button onClick={handlePrevDay} className="w-10 h-10 rounded-xl bg-[var(--foreground)]/5 border border-[var(--border)] flex items-center justify-center hover:bg-[var(--foreground)]/10 transition-colors">
@@ -293,7 +294,7 @@ function ScheduleContent() {
                 type="date" 
                 value={selectedDate}
                 onChange={e => setSelectedDate(e.target.value)}
-                className="bg-transparent border-0 text-sm font-black focus:ring-0 outline-none text-center cursor-pointer"
+                className="bg-transparent border-0 text-sm font-bold focus:ring-0 outline-none text-center cursor-pointer"
               />
             </div>
             <button onClick={handleNextDay} className="w-10 h-10 rounded-xl bg-[var(--foreground)]/5 border border-[var(--border)] flex items-center justify-center hover:bg-[var(--foreground)]/10 transition-colors">
@@ -303,7 +304,7 @@ function ScheduleContent() {
 
           {/* Group Filter */}
           <div className="space-y-2 text-right">
-            <label className="text-[10px] font-black text-[var(--foreground)]/40 uppercase tracking-wider block mr-1">סינון לפי קבוצה</label>
+            <label className="text-[11px] font-bold text-[var(--foreground)]/40 uppercase tracking-wider block mr-1">סינון לפי קבוצה</label>
             <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-1">
               <button
                 onClick={() => handleGroupChange("all")}
@@ -337,7 +338,7 @@ function ScheduleContent() {
           <div className="bg-amber-500/10 border border-amber-500/20 rounded-2xl p-4 flex items-center gap-3 text-amber-700 dark:text-amber-500 text-right">
             <User className="w-5 h-5 shrink-0" />
             <div>
-              <p className="text-xs font-black">מדריך/ה תורן/נית להיום: {dutyInstructorName}</p>
+              <p className="text-xs font-bold">מדריך/ה תורן/נית להיום: {dutyInstructorName}</p>
             </div>
           </div>
         )}
@@ -348,9 +349,9 @@ function ScheduleContent() {
             <Loader2 className="w-8 h-8 text-rose-500 animate-spin" />
           </div>
         ) : filteredActivities.length === 0 ? (
-          <div className="bg-[var(--card-bg)] border border-[var(--border)] rounded-[2rem] p-12 text-center text-slate-400 space-y-3">
+          <div className="bg-[var(--card-bg)] border border-[var(--border)] rounded-2xl p-12 text-center text-slate-400 space-y-3">
             <Info className="w-8 h-8 mx-auto text-slate-300" />
-            <p className="text-sm font-black">אין פעילויות מתוכננות ליום זה בקבוצה שנבחרה.</p>
+            <p className="text-sm font-bold">אין פעילויות מתוכננות ליום זה בקבוצה שנבחרה.</p>
           </div>
         ) : (
           <div className="relative border-r-2 border-rose-500/25 mr-4 space-y-6 pl-2">
@@ -375,18 +376,18 @@ function ScheduleContent() {
                   <div className="bg-[var(--card-bg)] border border-[var(--border)] rounded-2xl p-5 hover:shadow-md transition-all space-y-3 text-right">
                     <div className="flex items-center justify-between gap-3">
                       <div className="flex items-center gap-2">
-                        <span className={`text-[9px] font-black px-2 py-0.5 rounded-full border ${typeCls}`}>
+                        <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full border ${typeCls}`}>
                           {typeLabel}
                         </span>
-                        <h4 className="text-sm font-black text-[var(--foreground)]">{act.title}</h4>
+                        <h4 className="text-sm font-bold text-[var(--foreground)]">{act.title}</h4>
                       </div>
-                      <div className="flex items-center gap-1 text-[10px] font-black text-rose-500">
+                      <div className="flex items-center gap-1 text-[11px] font-bold text-rose-500">
                         <Clock className="w-3.5 h-3.5" />
                         <span>{act.startTime} - {act.endTime}</span>
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-[10px] font-bold text-[var(--muted)] pt-2 border-t border-[var(--border-subtle)]">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-[11px] font-bold text-[var(--muted)] pt-2 border-t border-[var(--border-subtle)]">
                       <div className="flex items-center gap-1.5">
                         <MapPin className="w-3.5 h-3.5 text-slate-400" />
                         <span>מיקום: {loc}</span>
@@ -424,9 +425,7 @@ function ScheduleContent() {
 export default function SchedulePage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen bg-[var(--background)] flex items-center justify-center">
-        <Loader2 className="w-7 h-7 text-rose-400 animate-spin" />
-      </div>
+      <PageSkeleton />
     }>
       <ScheduleContent />
     </Suspense>

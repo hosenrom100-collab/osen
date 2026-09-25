@@ -130,7 +130,7 @@ export function ShoppingModals({
                         setNewCatName("");
                       }
                     }}
-                    className="px-5 py-3 btn-primary !text-white rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1 shrink-0 shadow-[var(--shadow-pop)] shadow-indigo-600/10 active:scale-[0.97] border-none"
+                    className="px-5 py-3 btn-primary !text-white rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1 shrink-0 shadow-[var(--shadow-pop)] active:scale-[0.97] border-none"
                   >
                     <Plus className="w-4 h-4 text-white" />
                     <span>הוסף</span>

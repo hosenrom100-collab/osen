@@ -240,7 +240,7 @@ export default function StaffAttendancePage() {
             <button onClick={() => router.push("/admin")} className="p-2 hover:bg-[var(--foreground)]/5 rounded-xl transition-all">
               <ArrowRight className="w-5 h-5" />
             </button>
-            <h1 className="text-lg font-black tracking-tight flex items-center gap-2">
+            <h1 className="text-lg font-bold tracking-tight flex items-center gap-2">
               <ClipboardList className="w-5 h-5 text-violet-500" />
               נוכחות צוות
             </h1>
@@ -260,7 +260,7 @@ export default function StaffAttendancePage() {
           {/* 1. Pending Absences Section */}
           {absences.length > 0 && (
             <section className="space-y-4">
-              <h2 className="text-sm font-black text-rose-500 uppercase tracking-widest flex items-center gap-2">
+              <h2 className="text-sm font-bold text-rose-500 uppercase tracking-wider flex items-center gap-2">
                 <Clock className="w-4.5 h-4.5" />
                 בקשות היעדרות לתאריך זה ({absences.length})
               </h2>
@@ -285,7 +285,7 @@ export default function StaffAttendancePage() {
                         className="bg-[var(--surface)] border border-[var(--border)] p-4 rounded-3xl flex items-center justify-between shadow-sm gap-4"
                       >
                         <div className="text-right">
-                          <p className="font-black text-sm">{req.userName}</p>
+                          <p className="font-bold text-sm">{req.userName}</p>
                           <p className="text-xs text-[var(--muted)] mt-1 font-bold">סיבה: {req.reason}</p>
                         </div>
                         <div className="flex items-center gap-2">
@@ -294,7 +294,7 @@ export default function StaffAttendancePage() {
                               <button 
                                 onClick={() => handleApproveAbsence(req)}
                                 disabled={actionLoading !== null}
-                                className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black transition-all flex items-center gap-1 active:scale-95 shadow-sm"
+                                className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-all flex items-center gap-1 active:scale-95 shadow-sm"
                               >
                                 {actionLoading === req.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5 stroke-[3]" />}
                                 אשר היעדרות
@@ -302,13 +302,13 @@ export default function StaffAttendancePage() {
                               <button 
                                 onClick={() => handleRejectAbsence(req)}
                                 disabled={actionLoading !== null}
-                                className="px-3.5 py-1.5 rounded-xl bg-[var(--foreground)]/5 hover:bg-[var(--foreground)]/10 text-rose-500 text-xs font-black transition-all flex items-center gap-1 active:scale-95"
+                                className="px-3.5 py-1.5 rounded-xl bg-[var(--foreground)]/5 hover:bg-[var(--foreground)]/10 text-rose-500 text-xs font-bold transition-all flex items-center gap-1 active:scale-95"
                               >
                                 דחה
                               </button>
                             </>
                           ) : (
-                            <span className={`px-3 py-1 rounded-full text-xs font-black border ${statusBadgeCls}`}>
+                            <span className={`px-3 py-1 rounded-full text-xs font-bold border ${statusBadgeCls}`}>
                               {statusText}
                             </span>
                           )}
@@ -325,7 +325,7 @@ export default function StaffAttendancePage() {
           <section className="space-y-4">
             <div className="flex items-center justify-between flex-wrap gap-4">
               <div>
-                <h2 className="text-lg font-black tracking-tight">ניהול נוכחות יומי</h2>
+                <h2 className="text-lg font-bold tracking-tight">ניהול נוכחות יומי</h2>
                 <p className="text-xs text-[var(--muted)] font-bold mt-1">יום {DAYS_HE[dayOfWeekIndex]} • {selectedDate.split("-").reverse().join(".")}</p>
               </div>
 
@@ -348,7 +348,7 @@ export default function StaffAttendancePage() {
                 <p className="text-xs font-bold text-[var(--muted)]">טוען את נתוני הצוות...</p>
               </div>
             ) : (
-              <div className="bg-[var(--surface)] border border-[var(--border)] rounded-[2rem] overflow-hidden divide-y divide-[var(--border)]/50 shadow-sm">
+              <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl overflow-hidden divide-y divide-[var(--border)]/50 shadow-sm">
                 {filteredStaff.map(member => {
                   const schedule = member.workSchedule?.[dayOfWeekStr];
                   const hasSchedule = !!schedule;
@@ -368,17 +368,17 @@ export default function StaffAttendancePage() {
                           <User className="w-5 h-5" />
                         </div>
                         <div>
-                          <p className="font-black text-sm">{member.displayName || member.name || "עובד"}</p>
+                          <p className="font-bold text-sm">{member.displayName || member.name || "עובד"}</p>
                           <div className="flex items-center gap-2 flex-wrap mt-1">
-                            <span className="text-[10px] font-black text-violet-500 bg-violet-500/5 px-2 py-0.5 rounded-md">
+                            <span className="text-[11px] font-bold text-violet-500 bg-violet-500/5 px-2 py-0.5 rounded-md">
                               {ROLE_HE[member.role || ""] || member.role || "עובד"}
                             </span>
                             <div className="flex flex-col gap-0.5">
-                              <span className="text-[10px] font-bold text-[var(--muted)]">
+                              <span className="text-[11px] font-bold text-[var(--muted)]">
                                 {hasSchedule ? `לו״ז כללי: ${schedule.start} - ${schedule.end}` : "לא מתוכנן לעבוד היום"}
                               </span>
                               {hasSchedule && (schedule as any).programs && Object.keys((schedule as any).programs).length > 0 && (
-                                <div className="flex items-center gap-1.5 flex-wrap text-[9px] text-violet-500 font-bold mt-0.5">
+                                <div className="flex items-center gap-1.5 flex-wrap text-[11px] text-violet-500 font-bold mt-0.5">
                                   <span>פירוט מסגרות:</span>
                                   {Object.entries((schedule as any).programs)
                                     .filter(([progId]: any) => {
@@ -403,19 +403,19 @@ export default function StaffAttendancePage() {
                       {/* Presence toggle buttons */}
                       <div className="flex items-center gap-2 justify-end">
                         {isLeave ? (
-                          <div className="flex items-center gap-2 bg-amber-500/10 text-amber-500 border border-amber-500/20 rounded-2xl px-4 py-2 text-xs font-black">
+                          <div className="flex items-center gap-2 bg-amber-500/10 text-amber-500 border border-amber-500/20 rounded-2xl px-4 py-2 text-xs font-bold">
                             <ShieldAlert className="w-4 h-4 text-amber-500 shrink-0" />
                             <span>בחופשה / היעדרות מאושרת</span>
-                            {att.reason && <span className="text-[10px] opacity-75 font-bold">({att.reason})</span>}
+                            {att.reason && <span className="text-[11px] opacity-75 font-bold">({att.reason})</span>}
                           </div>
                         ) : (
                           <>
                             <button
                               onClick={() => handleToggleAttendance(member, "present")}
                               disabled={actionLoading !== null}
-                              className={`px-4 py-2 rounded-2xl text-xs font-black border transition-all active:scale-95 flex items-center gap-1.5 ${
+                              className={`px-4 py-2 rounded-2xl text-xs font-bold border transition-all active:scale-95 flex items-center gap-1.5 ${
                                 isPresent 
-                                  ? "bg-emerald-600 border-emerald-500 text-white shadow-md shadow-emerald-600/15 font-black"
+                                  ? "bg-emerald-600 border-emerald-500 text-white shadow-md font-bold"
                                   : "bg-transparent border-[var(--border)] text-[var(--muted)] hover:text-emerald-500"
                               }`}
                             >
@@ -425,9 +425,9 @@ export default function StaffAttendancePage() {
                             <button
                               onClick={() => handleToggleAttendance(member, "absent")}
                               disabled={actionLoading !== null}
-                              className={`px-4 py-2 rounded-2xl text-xs font-black border transition-all active:scale-95 flex items-center gap-1.5 ${
+                              className={`px-4 py-2 rounded-2xl text-xs font-bold border transition-all active:scale-95 flex items-center gap-1.5 ${
                                 isAbsent 
-                                  ? "bg-rose-600 border-rose-500 text-white shadow-md shadow-rose-600/15 font-black"
+                                  ? "bg-rose-600 border-rose-500 text-white shadow-md font-bold"
                                   : "bg-transparent border-[var(--border)] text-[var(--muted)] hover:text-rose-400"
                               }`}
                             >
@@ -444,7 +444,7 @@ export default function StaffAttendancePage() {
                 {filteredStaff.length === 0 && (
                   <div className="py-20 text-center opacity-30 flex flex-col items-center gap-4">
                     <User className="w-10 h-10 text-[var(--muted)]" />
-                    <p className="text-xs font-black">לא נמצאו עובדים רשומים</p>
+                    <p className="text-xs font-bold">לא נמצאו עובדים רשומים</p>
                   </div>
                 )}
               </div>

@@ -29,11 +29,11 @@ export default function NewPatientPage() {
               <ChevronLeft className="w-6 h-6 rotate-180" />
             </button>
             <div>
-              <h1 className="text-3xl font-black tracking-tight flex items-center gap-4">
+              <h1 className="text-3xl font-bold tracking-tight flex items-center gap-4">
                 <Users className="w-8 h-8 text-emerald-500" />
                 יצירת משתתף חדש
               </h1>
-              <p className="text-sm font-bold text-[var(--foreground)]/40 uppercase tracking-widest mt-1">פתיחת תיק משתתף במערכת חוסן</p>
+              <p className="text-sm font-bold text-[var(--foreground)]/40 uppercase tracking-wider mt-1">פתיחת תיק משתתף במערכת חוסן</p>
             </div>
           </header>
 

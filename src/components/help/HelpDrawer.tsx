@@ -95,11 +95,11 @@ export default function HelpDrawer({ isOpen, onClose }: HelpDrawerProps) {
             <div className="p-5 border-b border-slate-800 flex items-center justify-between shrink-0 bg-slate-950/40">
               <div className="flex items-center gap-2.5">
                 <div className="w-9 h-9 rounded-xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center text-violet-400">
-                  <HelpCircle className="w-5 h-5 animate-pulse" />
+                  <HelpCircle className="w-5 h-5 " />
                 </div>
                 <div>
-                  <h2 className="text-sm font-black tracking-wide text-white">מדריך המערכת</h2>
-                  <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">עזרה מובנית והסברים מהירים</p>
+                  <h2 className="text-sm font-bold tracking-wide text-white">מדריך המערכת</h2>
+                  <p className="text-[11px] text-slate-400 font-bold uppercase tracking-wider">עזרה מובנית והסברים מהירים</p>
                 </div>
               </div>
               <button
@@ -113,8 +113,8 @@ export default function HelpDrawer({ isOpen, onClose }: HelpDrawerProps) {
             {/* Privacy Badge */}
             <div className="mx-4 mt-4 p-3 rounded-2xl bg-indigo-500/5 border border-indigo-500/15 flex items-start gap-2.5">
               <ShieldAlert className="w-4.5 h-4.5 text-indigo-400 shrink-0 mt-0.5" />
-              <div className="text-[10px] leading-relaxed text-slate-300">
-                <span className="font-black text-white">אבטחת מידע קפדנית:</span> תכני הדוחות והאישורים מיוצרים על מחשבך בלבד. המערכת שומרת בענן רק פרטי זיהוי ונוכחות בסיסיים.
+              <div className="text-[11px] leading-relaxed text-slate-300">
+                <span className="font-bold text-white">אבטחת מידע קפדנית:</span> תכני הדוחות והאישורים מיוצרים על מחשבך בלבד. המערכת שומרת בענן רק פרטי זיהוי ונוכחות בסיסיים.
               </div>
             </div>
 
@@ -131,7 +131,7 @@ export default function HelpDrawer({ isOpen, onClose }: HelpDrawerProps) {
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id as any)}
-                    className={`flex-1 pb-3 flex flex-col items-center gap-1.5 text-[10px] min-[360px]:text-[11px] font-black tracking-wider transition-all relative border-none bg-transparent cursor-pointer ${
+                    className={`flex-1 pb-3 flex flex-col items-center gap-1.5 text-[11px] min-[360px]:text-[11px] font-bold tracking-wider transition-all relative border-none bg-transparent cursor-pointer ${
                       isActive ? "text-slate-100" : "text-slate-400 hover:text-slate-200"
                     }`}
                   >
@@ -153,21 +153,21 @@ export default function HelpDrawer({ isOpen, onClose }: HelpDrawerProps) {
               {activeTab === "page" && (
                 <div className="space-y-4">
                   <div className="pb-1">
-                    <h3 className="text-xs font-black text-white">{pageHelp.title}</h3>
-                    <p className="text-[10px] text-slate-400 font-medium mt-0.5">{pageHelp.subtitle}</p>
+                    <h3 className="text-xs font-bold text-white">{pageHelp.title}</h3>
+                    <p className="text-[11px] text-slate-400 font-medium mt-0.5">{pageHelp.subtitle}</p>
                   </div>
                   {pageHelp.sections.map((section, sIdx) => (
                     <div
                       key={sIdx}
                       className="p-3.5 bg-slate-800/40 border border-slate-800 rounded-2xl space-y-2 hover:border-slate-700/60 transition-all"
                     >
-                      <h4 className="text-[11px] font-black text-violet-200 flex items-center gap-1.5">
+                      <h4 className="text-[11px] font-bold text-violet-200 flex items-center gap-1.5">
                         <CheckCircle className="w-3.5 h-3.5 shrink-0" />
                         {section.title}
                       </h4>
                       <ul className="space-y-1.5">
                         {section.content.map((item, idx) => (
-                          <li key={idx} className="text-[10px] text-slate-300 leading-relaxed list-disc list-inside">
+                          <li key={idx} className="text-[11px] text-slate-300 leading-relaxed list-disc list-inside">
                             {item}
                           </li>
                         ))}
@@ -194,7 +194,7 @@ export default function HelpDrawer({ isOpen, onClose }: HelpDrawerProps) {
                   {searchQuery.trim() === "" ? (
                     <div className="text-center py-8 text-slate-500 space-y-2">
                       <Search className="w-8 h-8 mx-auto stroke-1" />
-                      <p className="text-[10px] font-medium">הקלידו מילת מפתח (לדוגמה: נוכחות, אקסל, לוגו, דוח)</p>
+                      <p className="text-[11px] font-medium">הקלידו מילת מפתח (לדוגמה: נוכחות, אקסל, לוגו, דוח)</p>
                     </div>
                   ) : searchResults.length === 0 ? (
                     <div className="text-center py-8 text-slate-500">
@@ -204,11 +204,11 @@ export default function HelpDrawer({ isOpen, onClose }: HelpDrawerProps) {
                     <div className="space-y-3">
                       {searchResults.map((res, idx) => (
                         <div key={idx} className="p-3.5 bg-slate-800/40 border border-slate-800 rounded-2xl space-y-1.5">
-                          <h4 className="text-[11px] font-black text-violet-200 flex items-center gap-1.5">
+                          <h4 className="text-[11px] font-bold text-violet-200 flex items-center gap-1.5">
                             <FileText className="w-3.5 h-3.5" />
                             {res.title}
                           </h4>
-                          <p className="text-[10px] text-slate-300 leading-relaxed">{res.content}</p>
+                          <p className="text-[11px] text-slate-300 leading-relaxed">{res.content}</p>
                         </div>
                       ))}
                     </div>
@@ -223,10 +223,10 @@ export default function HelpDrawer({ isOpen, onClose }: HelpDrawerProps) {
                       key={idx}
                       className="p-3.5 bg-slate-800/40 border border-slate-800 rounded-2xl space-y-2 hover:border-slate-700/60 transition-all"
                     >
-                      <h4 className="text-[11px] font-black text-white leading-snug">
+                      <h4 className="text-[11px] font-bold text-white leading-snug">
                         {faq.q}
                       </h4>
-                      <p className="text-[10px] text-slate-400 leading-relaxed border-t border-slate-800/50 pt-2">
+                      <p className="text-[11px] text-slate-400 leading-relaxed border-t border-slate-800/50 pt-2">
                         {faq.a}
                       </p>
                     </div>
@@ -239,7 +239,7 @@ export default function HelpDrawer({ isOpen, onClose }: HelpDrawerProps) {
             <div className="p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] border-t border-slate-800 shrink-0 bg-slate-950/40">
               <a
                 href="/welcome"
-                className="w-full py-3 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all text-center flex items-center justify-center gap-2 cursor-pointer no-underline border-none"
+                className="w-full py-3 bg-violet-600 hover:bg-violet-500 text-white rounded-2xl text-[11px] font-bold uppercase tracking-wider transition-all text-center flex items-center justify-center gap-2 cursor-pointer no-underline border-none"
               >
                 <span>עמוד הצגת המערכת המלא (Welcome)</span>
               </a>

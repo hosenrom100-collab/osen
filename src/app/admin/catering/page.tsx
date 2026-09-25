@@ -567,7 +567,7 @@ ${contactRole}`;
                 <ArrowRight className="w-4 h-4 text-[var(--muted)]" />
               </button>
               <div>
-                <h1 className="text-xl font-black tracking-tight flex items-center gap-2">
+                <h1 className="text-xl font-bold tracking-tight flex items-center gap-2">
                   <Utensils className="w-5 h-5 text-amber-500" />
                   הזמנת קייטרינג
                 </h1>
@@ -595,8 +595,8 @@ ${contactRole}`;
             return (
               <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
                 <div className="space-y-0.5">
-                  <span className="text-[10px] font-black uppercase tracking-wider text-[var(--muted)]">התקדמות ההזמנה</span>
-                  <h3 className="text-xs font-black">הושלמו {completedSteps} מתוך 4 שלבים</h3>
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--muted)]">התקדמות ההזמנה</span>
+                  <h3 className="text-xs font-bold">הושלמו {completedSteps} מתוך 4 שלבים</h3>
                 </div>
                 <div className="flex-1 max-w-md w-full bg-[var(--background)] h-2 rounded-full overflow-hidden border border-[var(--border)] relative">
                   <div 
@@ -623,14 +623,14 @@ ${contactRole}`;
               {/* Delivery Details Card */}
               <div className="p-5 bg-[var(--surface)] border border-[var(--border)] rounded-2xl space-y-4">
                 <div className="flex items-center gap-2 border-b border-[var(--border)] pb-3">
-                  <span className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black text-white bg-blue-500 shrink-0">1</span>
-                  <h2 className="text-xs font-black uppercase tracking-wider">
+                  <span className="w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold text-white bg-blue-500 shrink-0">1</span>
+                  <h2 className="text-xs font-bold uppercase tracking-wider">
                     פרטי אספקה ומשלוח
                   </h2>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-[var(--muted)] flex items-center gap-1">
+                    <label className="text-[11px] font-bold text-[var(--muted)] flex items-center gap-1">
                       תאריך אספקה
                     </label>
                     <input 
@@ -639,12 +639,12 @@ ${contactRole}`;
                       onChange={(e) => setDeliveryDate(e.target.value)}
                       className="w-full bg-[var(--background)] border border-[var(--border)] text-xs rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-amber-500 font-medium"
                     />
-                    <div className="text-[10px] text-amber-500 font-bold mt-1">
+                    <div className="text-[11px] text-amber-500 font-bold mt-1">
                       {getHebrewDayOfWeek(deliveryDate)}
                     </div>
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-[var(--muted)] flex items-center gap-1">
+                    <label className="text-[11px] font-bold text-[var(--muted)] flex items-center gap-1">
                       שעת הגעה מבוקשת
                     </label>
                     <input 
@@ -658,7 +658,7 @@ ${contactRole}`;
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 border-t border-[var(--border)]/30 pt-4">
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-[var(--muted)] flex items-center gap-1">
+                    <label className="text-[11px] font-bold text-[var(--muted)] flex items-center gap-1">
                       שם איש קשר לקייטרינג
                     </label>
                     <input 
@@ -670,7 +670,7 @@ ${contactRole}`;
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-[var(--muted)] flex items-center gap-1">
+                    <label className="text-[11px] font-bold text-[var(--muted)] flex items-center gap-1">
                       מספר טלפון
                     </label>
                     <input 
@@ -682,7 +682,7 @@ ${contactRole}`;
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-[var(--muted)] flex items-center gap-1">
+                    <label className="text-[11px] font-bold text-[var(--muted)] flex items-center gap-1">
                       תפקיד / תיאור איש קשר
                     </label>
                     <input 
@@ -713,12 +713,12 @@ ${contactRole}`;
               <div className="p-5 bg-[var(--surface)] border border-[var(--border)] rounded-2xl space-y-4">
                 <div className="flex items-center justify-between border-b border-[var(--border)] pb-3">
                   <div className="flex items-center gap-2">
-                    <span className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black text-white bg-violet-500 shrink-0">2</span>
-                    <h2 className="text-xs font-black uppercase tracking-wider flex items-center gap-2">
+                    <span className="w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold text-white bg-violet-500 shrink-0">2</span>
+                    <h2 className="text-xs font-bold uppercase tracking-wider flex items-center gap-2">
                       כמות מנות לקבוצות
                     </h2>
                   </div>
-                  <span className="text-[9px] font-bold bg-amber-500/10 text-amber-500 px-2 py-0.5 rounded">
+                  <span className="text-[11px] font-bold bg-amber-500/10 text-amber-500 px-2 py-0.5 rounded">
                     המלצה לפי ממוצע נוכחות
                   </span>
                 </div>
@@ -735,19 +735,19 @@ ${contactRole}`;
                       return (
                         <div key={group.id} className="p-3.5 bg-[var(--background)] border border-[var(--border)] rounded-xl space-y-2.5">
                           <div className="flex justify-between items-center">
-                            <span className="text-xs font-black text-[var(--foreground)]">{group.name}</span>
-                            <span className="text-[9px] text-[var(--muted)] font-bold">
+                            <span className="text-xs font-bold text-[var(--foreground)]">{group.name}</span>
+                            <span className="text-[11px] text-[var(--muted)] font-bold">
                               רשומים: {groupStat.activeCount}
                             </span>
                           </div>
                           
-                          <div className="text-[9px] text-[var(--muted)] font-semibold bg-[var(--surface)] px-2.5 py-1.5 rounded-lg border border-[var(--border)]/40 flex justify-between">
+                          <div className="text-[11px] text-[var(--muted)] font-semibold bg-[var(--surface)] px-2.5 py-1.5 rounded-lg border border-[var(--border)]/40 flex justify-between">
                             <span>ממוצע: <strong className="text-[var(--foreground)]">{groupStat.avg}</strong></span>
                             <span>מקס: <strong className="text-[var(--foreground)]">{groupStat.max}</strong></span>
                           </div>
                           
                           <div className="flex items-center justify-between pt-1">
-                            <label className="text-[10px] font-black text-[var(--foreground)] shrink-0">מנות להזמנה:</label>
+                            <label className="text-[11px] font-bold text-[var(--foreground)] shrink-0">מנות להזמנה:</label>
                             <div className="flex items-center border border-[var(--border)] bg-[var(--surface)] rounded-lg overflow-hidden w-[100px]">
                               <button 
                                 type="button"
@@ -760,7 +760,7 @@ ${contactRole}`;
                                 type="number" 
                                 value={portions[group.id] ?? 0}
                                 onChange={(e) => handlePortionChange(group.id, parseInt(e.target.value) || 0)}
-                                className="w-full text-center bg-transparent border-none text-xs font-black focus:outline-none p-0.5"
+                                className="w-full text-center bg-transparent border-none text-xs font-bold focus:outline-none p-0.5"
                                 min="0"
                               />
                               <button 
@@ -790,16 +790,16 @@ ${contactRole}`;
                     className="w-full flex justify-between items-center text-right focus:outline-none"
                   >
                     <div className="flex items-center gap-2">
-                      <span className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black text-white bg-amber-500 shrink-0">3</span>
-                      <h3 className="text-xs font-black uppercase tracking-wider">בשרים ומנות עיקריות (בחר 2)</h3>
+                      <span className="w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold text-white bg-amber-500 shrink-0">3</span>
+                      <h3 className="text-xs font-bold uppercase tracking-wider">בשרים ומנות עיקריות (בחר 2)</h3>
                     </div>
                     <div className="flex items-center gap-2">
                       {meatsCount === 2 ? (
-                        <span className="bg-emerald-500/10 text-emerald-500 text-[10px] px-2.5 py-0.5 rounded-full font-black">✓ הושלם</span>
+                        <span className="bg-emerald-500/10 text-emerald-500 text-[11px] px-2.5 py-0.5 rounded-full font-bold">✓ הושלם</span>
                       ) : (
-                        <span className="bg-amber-500/10 text-amber-500 text-[10px] px-2.5 py-0.5 rounded-full font-bold">נבחרו: {meatsCount}/2</span>
+                        <span className="bg-amber-500/10 text-amber-500 text-[11px] px-2.5 py-0.5 rounded-full font-bold">נבחרו: {meatsCount}/2</span>
                       )}
-                      <span className="text-[10px] text-[var(--muted)] font-bold">
+                      <span className="text-[11px] text-[var(--muted)] font-bold">
                         {activeMenuStep === "meats" ? "▲" : "▼"}
                       </span>
                     </div>
@@ -807,7 +807,7 @@ ${contactRole}`;
 
                   {activeMenuStep !== "meats" && selectedMeats.length > 0 && (
                     <div className="text-[11px] text-[var(--muted)] font-semibold bg-[var(--background)] px-3 py-2 rounded-xl border border-[var(--border)]/50 flex flex-wrap gap-2">
-                      <span className="text-[var(--foreground)] font-black">הנבחרים:</span>
+                      <span className="text-[var(--foreground)] font-bold">הנבחרים:</span>
                       {selectedMeats.join(", ")}
                     </div>
                   )}
@@ -897,16 +897,16 @@ ${contactRole}`;
                     className="w-full flex justify-between items-center text-right focus:outline-none"
                   >
                     <div className="flex items-center gap-2">
-                      <span className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black text-white bg-amber-500 shrink-0">4</span>
-                      <h3 className="text-xs font-black uppercase tracking-wider">תוספות חמות (בחר 2)</h3>
+                      <span className="w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold text-white bg-amber-500 shrink-0">4</span>
+                      <h3 className="text-xs font-bold uppercase tracking-wider">תוספות חמות (בחר 2)</h3>
                     </div>
                     <div className="flex items-center gap-2">
                       {sidesCount === 2 ? (
-                        <span className="bg-emerald-500/10 text-emerald-500 text-[10px] px-2.5 py-0.5 rounded-full font-black">✓ הושלם</span>
+                        <span className="bg-emerald-500/10 text-emerald-500 text-[11px] px-2.5 py-0.5 rounded-full font-bold">✓ הושלם</span>
                       ) : (
-                        <span className="bg-amber-500/10 text-amber-500 text-[10px] px-2.5 py-0.5 rounded-full font-bold">נבחרו: {sidesCount}/2</span>
+                        <span className="bg-amber-500/10 text-amber-500 text-[11px] px-2.5 py-0.5 rounded-full font-bold">נבחרו: {sidesCount}/2</span>
                       )}
-                      <span className="text-[10px] text-[var(--muted)] font-bold">
+                      <span className="text-[11px] text-[var(--muted)] font-bold">
                         {activeMenuStep === "sides" ? "▲" : "▼"}
                       </span>
                     </div>
@@ -914,7 +914,7 @@ ${contactRole}`;
 
                   {activeMenuStep !== "sides" && selectedSides.length > 0 && (
                     <div className="text-[11px] text-[var(--muted)] font-semibold bg-[var(--background)] px-3 py-2 rounded-xl border border-[var(--border)]/50 flex flex-wrap gap-2">
-                      <span className="text-[var(--foreground)] font-black">הנבחרים:</span>
+                      <span className="text-[var(--foreground)] font-bold">הנבחרים:</span>
                       {selectedSides.join(", ")}
                     </div>
                   )}
@@ -998,9 +998,9 @@ ${contactRole}`;
 
                 {/* Salads Notice */}
                 <div className="p-4 bg-[var(--surface)] border border-[var(--border)] rounded-2xl flex items-center gap-3 shadow-sm">
-                  <span className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black text-white bg-emerald-500 shrink-0">✓</span>
+                  <span className="w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold text-white bg-emerald-500 shrink-0">✓</span>
                   <div>
-                    <h3 className="text-xs font-black uppercase tracking-wider">סלטים ולחם</h3>
+                    <h3 className="text-xs font-bold uppercase tracking-wider">סלטים ולחם</h3>
                     <p className="text-[11px] text-[var(--muted)] mt-0.5">סלטים יישלחו ללא בחירה (מה שיש במטבח במנה היומית).</p>
                   </div>
                 </div>
@@ -1014,11 +1014,11 @@ ${contactRole}`;
                   >
                     <div className="flex items-center gap-2">
                       <Archive className="w-4 h-4 text-violet-500" />
-                      <h2 className="text-xs font-black uppercase tracking-wider">
+                      <h2 className="text-xs font-bold uppercase tracking-wider">
                         🗄️ ארכיון הזמנות קודמות (לחץ לצפייה)
                       </h2>
                     </div>
-                    <span className="text-xs text-[var(--muted)] font-black">
+                    <span className="text-xs text-[var(--muted)] font-bold">
                       {showArchive ? "▲ סגור" : "▼ פתח"}
                     </span>
                   </button>
@@ -1045,27 +1045,27 @@ ${contactRole}`;
                               >
                                 <div className="flex justify-between items-start">
                                   <div>
-                                    <p className="font-black text-[var(--foreground)]">
+                                    <p className="font-bold text-[var(--foreground)]">
                                       📅 {formatDeliveryDate(order.deliveryDate)} {dayName && `(${dayName})`}
                                     </p>
-                                    <p className="text-[10px] text-[var(--muted)] font-bold mt-0.5">
+                                    <p className="text-[11px] text-[var(--muted)] font-bold mt-0.5">
                                       ⏰ שעת הגעה: {order.arrivalTime} | 👤 הוזמן ע"י: {order.createdBy}
                                     </p>
                                   </div>
-                                  <span className="text-[10px] font-black bg-amber-500/10 text-amber-500 px-2 py-0.5 rounded">
+                                  <span className="text-[11px] font-bold bg-amber-500/10 text-amber-500 px-2 py-0.5 rounded">
                                     {order.totalPortions} מנות
                                   </span>
                                 </div>
 
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[10px] text-[var(--muted)] font-bold border-t border-[var(--border)]/50 pt-2">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] text-[var(--muted)] font-bold border-t border-[var(--border)]/50 pt-2">
                                   <div>
-                                    <span className="text-[var(--foreground)] font-black">🥩 מנות:</span> {order.meats.join(", ")}
+                                    <span className="text-[var(--foreground)] font-bold">🥩 מנות:</span> {order.meats.join(", ")}
                                   </div>
                                   <div>
-                                    <span className="text-[var(--foreground)] font-black">🍚 תוספות:</span> {order.sides.join(", ")}
+                                    <span className="text-[var(--foreground)] font-bold">🍚 תוספות:</span> {order.sides.join(", ")}
                                   </div>
                                   <div className="sm:col-span-2">
-                                    <span className="text-[var(--foreground)] font-black">🥗 סלטים:</span> {order.salads.join(", ")}
+                                    <span className="text-[var(--foreground)] font-bold">🥗 סלטים:</span> {order.salads.join(", ")}
                                     {order.includeBread && " | 🍞 כולל לחם"}
                                   </div>
                                 </div>
@@ -1085,7 +1085,7 @@ ${contactRole}`;
                                       setContactRole(order.contactRole || "מנהלת תפעול מרכז חוסן חוות רום");
                                       setContactPhone(order.contactPhone || "052-609-1158");
                                     }}
-                                    className="px-2.5 py-1 bg-amber-500/10 hover:bg-amber-500/20 text-amber-500 text-[10px] font-black rounded-lg transition-colors"
+                                    className="px-2.5 py-1 bg-amber-500/10 hover:bg-amber-500/20 text-amber-500 text-[11px] font-bold rounded-lg transition-colors"
                                   >
                                     טען מחדש לטופס
                                   </button>
@@ -1101,7 +1101,7 @@ ${contactRole}`;
                                         }
                                       }
                                     }}
-                                    className="px-2.5 py-1 bg-red-500/10 hover:bg-red-500/20 text-red-500 text-[10px] font-black rounded-lg transition-colors"
+                                    className="px-2.5 py-1 bg-red-500/10 hover:bg-red-500/20 text-red-500 text-[11px] font-bold rounded-lg transition-colors"
                                   >
                                     מחק
                                   </button>
@@ -1124,8 +1124,8 @@ ${contactRole}`;
               {/* Order Status & Copy Card */}
               <div className="p-4 bg-[var(--surface)] border border-[var(--border)] rounded-2xl space-y-4 lg:sticky lg:top-20">
                 <div className="border-b border-[var(--border)] pb-3">
-                  <h3 className="text-xs font-black uppercase tracking-wider flex items-center gap-2">
-                    <span className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black text-white bg-emerald-500 shrink-0">6</span>
+                  <h3 className="text-xs font-bold uppercase tracking-wider flex items-center gap-2">
+                    <span className="w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold text-white bg-emerald-500 shrink-0">6</span>
                     סיכום ושליחה
                   </h3>
                 </div>
@@ -1161,7 +1161,7 @@ ${contactRole}`;
                   type="button"
                   onClick={sendToWhatsApp}
                   disabled={!isSelectionValid}
-                  className="hidden lg:flex w-full py-3 px-4 rounded-xl items-center justify-center gap-2 text-xs font-black transition-all bg-emerald-600 hover:bg-emerald-700 text-white active:scale-[0.98] disabled:opacity-50"
+                  className="hidden lg:flex w-full py-3 px-4 rounded-xl items-center justify-center gap-2 text-xs font-bold transition-all bg-emerald-600 hover:bg-emerald-700 text-white active:scale-[0.98] disabled:opacity-50"
                 >
                   <Share2 className="w-4 h-4 text-white" />
                   שלח ישירות בוואטסאפ
@@ -1172,7 +1172,7 @@ ${contactRole}`;
                   type="button"
                   onClick={saveOrder}
                   disabled={saving || !isSelectionValid}
-                  className={`w-full py-3 px-4 rounded-xl flex items-center justify-center gap-2 text-xs font-black transition-all ${
+                  className={`w-full py-3 px-4 rounded-xl flex items-center justify-center gap-2 text-xs font-bold transition-all ${
                     saveSuccess 
                       ? "bg-emerald-500 text-white" 
                       : "bg-violet-600 hover:bg-violet-700 text-white active:scale-[0.98] disabled:opacity-50"
@@ -1202,7 +1202,7 @@ ${contactRole}`;
                   <button
                     type="button"
                     onClick={copyToClipboard}
-                    className={`py-2.5 px-3 rounded-xl flex items-center justify-center gap-1.5 text-[10px] font-black transition-all ${
+                    className={`py-2.5 px-3 rounded-xl flex items-center justify-center gap-1.5 text-[11px] font-bold transition-all ${
                       copied 
                         ? "bg-emerald-500 text-white" 
                         : "bg-amber-500 hover:bg-amber-600 text-white active:scale-[0.98]"
@@ -1226,7 +1226,7 @@ ${contactRole}`;
                     type="button"
                     onClick={downloadPDF}
                     disabled={generatingPdf || !isSelectionValid}
-                    className="py-2.5 px-3 rounded-xl flex items-center justify-center gap-1.5 text-[10px] font-black transition-all bg-[var(--surface)] border border-[var(--border)] hover:bg-[var(--foreground)]/5 text-[var(--foreground)] active:scale-[0.98] disabled:opacity-50"
+                    className="py-2.5 px-3 rounded-xl flex items-center justify-center gap-1.5 text-[11px] font-bold transition-all bg-[var(--surface)] border border-[var(--border)] hover:bg-[var(--foreground)]/5 text-[var(--foreground)] active:scale-[0.98] disabled:opacity-50"
                   >
                     {generatingPdf ? (
                       <>
@@ -1417,7 +1417,7 @@ ${contactRole}`;
             type="button"
             onClick={sendToWhatsApp}
             disabled={!isSelectionValid}
-            className="w-full py-3.5 px-4 rounded-xl flex items-center justify-center gap-2 text-xs font-black bg-emerald-600 active:bg-emerald-700 text-white disabled:opacity-50 transition-all active:scale-[0.98] border border-emerald-500/20 shadow-lg"
+            className="w-full py-3.5 px-4 rounded-xl flex items-center justify-center gap-2 text-xs font-bold bg-emerald-600 active:bg-emerald-700 text-white disabled:opacity-50 transition-all active:scale-[0.98] border border-emerald-500/20 shadow-lg"
           >
             <Share2 className="w-4 h-4 text-white" />
             שלח ישירות בוואטסאפ

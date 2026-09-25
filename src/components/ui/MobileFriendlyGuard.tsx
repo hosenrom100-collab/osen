@@ -37,7 +37,7 @@ export function MobileFriendlyGuard({
           initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, ease: "easeOut" }}
-          className="w-full max-w-md bg-[var(--surface)] border border-[var(--border)] rounded-[2rem] p-6 shadow-[0_8px_32px_rgba(0,0,0,0.06)] relative overflow-hidden"
+          className="w-full max-w-md bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-6 shadow-[0_8px_32px_rgba(0,0,0,0.06)] relative overflow-hidden"
         >
           {/* Glassmorphic decorative circles */}
           <div className="absolute -top-10 -left-10 w-24 h-24 rounded-full bg-teal-500/10 blur-xl pointer-events-none" />
@@ -49,7 +49,7 @@ export function MobileFriendlyGuard({
               <Laptop className="w-8 h-8" />
             </div>
 
-            <h3 className="text-lg font-black text-[var(--foreground)] mb-2 tracking-tight">
+            <h3 className="text-lg font-bold text-[var(--foreground)] mb-2 tracking-tight">
               {title}
             </h3>
             
@@ -60,7 +60,7 @@ export function MobileFriendlyGuard({
             {/* If an alternative simplified mobile view is supplied, render it here */}
             {alternativeView ? (
               <div className="w-full border-t border-[var(--border)] pt-5 mt-1 mb-5">
-                <div className="text-[10px] font-black text-teal-500 uppercase tracking-wider mb-3 text-right">
+                <div className="text-[11px] font-bold text-teal-500 uppercase tracking-wider mb-3 text-right">
                   תקציר מהיר לנייד:
                 </div>
                 {alternativeView}
@@ -70,7 +70,7 @@ export function MobileFriendlyGuard({
             {/* Back action button */}
             <button
               onClick={() => router.push(fallbackUrl)}
-              className="w-full flex items-center justify-center gap-2 h-11 bg-teal-500 hover:bg-teal-600 text-white rounded-xl text-xs font-black shadow-md shadow-teal-500/10 active:scale-98 transition-all"
+              className="w-full flex items-center justify-center gap-2 h-11 bg-teal-500 hover:bg-teal-600 text-white rounded-xl text-xs font-bold shadow-md active:scale-98 transition-all"
             >
               <span>{fallbackLabel}</span>
               <ArrowRight className="w-4 h-4" />

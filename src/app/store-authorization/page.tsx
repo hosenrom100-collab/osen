@@ -101,7 +101,7 @@ export default function StoreAuthorizationPage() {
   return (
     <RoleGuard allowedRoles={["admin", "manager", "logistics", "instructor", "social_worker", "employee"]}>
       <ConnectionStatusBanner />
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 pb-20">
+      <div className="min-h-screen bg-slate-50 pb-20">
         {/* Header */}
         <div className="sticky top-0 z-40 bg-white border-b border-slate-200 shadow-sm">
           <div className="max-w-3xl mx-auto px-4 py-4 flex items-center justify-between gap-3">
@@ -130,7 +130,7 @@ export default function StoreAuthorizationPage() {
         {/* Toast */}
         {toast && (
           <div
-            className={`max-w-3xl mx-auto mt-4 px-4 py-3 rounded-lg flex items-center gap-2 animate-pulse ${
+            className={`max-w-3xl mx-auto mt-4 px-4 py-3 rounded-lg flex items-center gap-2 ${
               toast.type === "success"
                 ? "bg-green-50 text-green-800 border border-green-200"
                 : "bg-red-50 text-red-800 border border-red-200"
@@ -150,7 +150,7 @@ export default function StoreAuthorizationPage() {
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Items Section */}
             <div className="bg-white rounded-lg shadow border border-slate-200 overflow-hidden">
-              <div className="bg-gradient-to-r from-blue-50 to-blue-100 px-6 py-4 border-b border-slate-200">
+              <div className="bg-blue-50 px-6 py-4 border-b border-slate-200">
                 <h2 className="font-semibold text-slate-900">פריטים לקנייה</h2>
               </div>
 
@@ -222,7 +222,7 @@ export default function StoreAuthorizationPage() {
             <button
               type="submit"
               disabled={isSubmitting || items.length === 0}
-              className="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white py-3 rounded-lg font-semibold hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center justify-center gap-2"
+              className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center justify-center gap-2"
             >
               {isSubmitting ? (
                 <>

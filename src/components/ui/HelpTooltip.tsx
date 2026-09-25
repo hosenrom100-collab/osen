@@ -60,7 +60,7 @@ export default function HelpTooltip({ content, position = "top" }: HelpTooltipPr
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
             transition={{ duration: 0.12 }}
-            className={`absolute z-50 w-48 p-2.5 bg-slate-850 border border-slate-700/80 rounded-xl text-[10px] leading-relaxed text-slate-200 shadow-xl pointer-events-none text-right font-medium ${getPositionClasses()}`}
+            className={`absolute z-50 w-48 p-2.5 bg-slate-850 border border-slate-700/80 rounded-xl text-[11px] leading-relaxed text-slate-200 shadow-xl pointer-events-none text-right font-medium ${getPositionClasses()}`}
           >
             {content}
             <div className={`absolute w-0 h-0 ${getArrowClasses()}`} />

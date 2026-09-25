@@ -214,7 +214,7 @@ export default function AttendanceOverviewPage() {
                     <CheckCircle className="w-4 h-4 text-emerald-400" />
                     <span className="font-bold text-sm text-emerald-300">סה״כ נוכחות היום</span>
                   </div>
-                  <span className="text-emerald-400 font-black text-lg">{grandPresent}/{grandTotal}</span>
+                  <span className="text-emerald-400 font-bold text-lg">{grandPresent}/{grandTotal}</span>
                 </div>
                 <div className="h-2 bg-white/5 rounded-full overflow-hidden">
                   <motion.div className="h-full bg-emerald-500 rounded-full"
@@ -228,7 +228,7 @@ export default function AttendanceOverviewPage() {
                   >
                     {copiedId === "all" ? (
                       <>
-                        <Check className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
+                        <Check className="w-3.5 h-3.5 text-emerald-400 " />
                         <span>הועתק!</span>
                       </>
                     ) : (
@@ -260,7 +260,7 @@ export default function AttendanceOverviewPage() {
                           <span className="text-[11px] text-emerald-400 font-bold">
                             {progData.present}/{progData.total}
                           </span>
-                          <span className="text-[10px] text-slate-600">({progPct}%)</span>
+                          <span className="text-[11px] text-slate-600">({progPct}%)</span>
                         </div>
                         <div className="h-1 bg-white/5 rounded-full overflow-hidden mt-1.5">
                           <motion.div className="h-full bg-violet-500 rounded-full"
@@ -286,10 +286,10 @@ export default function AttendanceOverviewPage() {
                                         <span className="font-bold text-[13px] text-white truncate max-w-[90px] sm:max-w-none">{gd.group.name}</span>
                                         <span className="text-[11px] text-emerald-400 font-bold flex-shrink-0">{gd.present}/{gd.total}</span>
                                         {gd.absent > 0 && (
-                                          <span className="text-[10px] text-rose-400 font-bold flex-shrink-0">· {gd.absent} נעדרים</span>
+                                          <span className="text-[11px] text-rose-400 font-bold flex-shrink-0">· {gd.absent} נעדרים</span>
                                         )}
                                         {gd.missing > 0 && (
-                                          <span className="text-[10px] text-blue-400 font-bold flex-shrink-0">· {gd.missing} לא סומנו</span>
+                                          <span className="text-[11px] text-blue-400 font-bold flex-shrink-0">· {gd.missing} לא סומנו</span>
                                         )}
                                       </div>
                                     </div>
@@ -297,7 +297,7 @@ export default function AttendanceOverviewPage() {
                                   <div className="flex items-center gap-1.5 flex-shrink-0">
                                     <button
                                       onClick={() => router.push(`/admin/patient-attendance?group=${gd.group.id}`)}
-                                      className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded-lg hover:bg-emerald-500/20 transition-colors flex-shrink-0">
+                                      className="text-[11px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded-lg hover:bg-emerald-500/20 transition-colors flex-shrink-0">
                                       סמן
                                     </button>
                                     <button
@@ -317,7 +317,7 @@ export default function AttendanceOverviewPage() {
                                 {/* Present names */}
                                 {gd.presentNames.length > 0 && (
                                   <div className="px-5 pb-3 pt-2">
-                                    <p className="text-[10px] text-emerald-500 font-bold uppercase mb-1.5">נוכחים</p>
+                                    <p className="text-[11px] text-emerald-500 font-bold uppercase mb-1.5">נוכחים</p>
                                     <div className="flex flex-wrap gap-1.5">
                                       {gd.presentNames.map((name, i) => (
                                         <span key={i} className="text-[11px] bg-emerald-500/8 text-emerald-300 px-2 py-0.5 rounded-full border border-emerald-500/15">
@@ -331,7 +331,7 @@ export default function AttendanceOverviewPage() {
                                 {/* Absent names */}
                                 {gd.absentNames.length > 0 && (
                                   <div className="px-5 pb-3">
-                                    <p className="text-[10px] text-rose-500 font-bold uppercase mb-1.5">נעדרים</p>
+                                    <p className="text-[11px] text-rose-500 font-bold uppercase mb-1.5">נעדרים</p>
                                     <div className="flex flex-wrap gap-1.5">
                                       {gd.absentNames.map((name, i) => (
                                         <span key={i} className="text-[11px] bg-rose-500/8 text-rose-300 px-2 py-0.5 rounded-full border border-rose-500/15">

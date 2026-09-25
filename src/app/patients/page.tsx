@@ -775,8 +775,8 @@ export default function PatientsPage() {
         {/* Page Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="space-y-1">
-            <h1 className="text-2xl font-black tracking-tight">ניהול משתתפים</h1>
-            <p className="text-[10px] text-[var(--foreground)]/40 font-bold uppercase tracking-[0.2em] flex items-center gap-2">
+            <h1 className="text-2xl font-bold tracking-tight">ניהול משתתפים</h1>
+            <p className="text-[11px] text-[var(--foreground)]/40 font-bold uppercase tracking-[0.2em] flex items-center gap-2">
               <Users className="w-3 h-3 text-emerald-500" />
               <span>{filtered.length} רשומות פעילות</span>
             </p>
@@ -808,7 +808,7 @@ export default function PatientsPage() {
                     setImportModalOpen(true);
                   }}
                   title="ייבוא משתתפים מרוכז מקובץ אקסל"
-                  className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 px-5 py-2.5 rounded-xl text-xs font-black transition-all hover:bg-emerald-500/20 active:scale-95 ml-2"
+                  className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 px-5 py-2.5 rounded-xl text-xs font-bold transition-all hover:bg-emerald-500/20 active:scale-95 ml-2"
                 >
                   <Upload className="w-4 h-4" />
                   ייבוא מאקסל
@@ -817,7 +817,7 @@ export default function PatientsPage() {
                 <button 
                   onClick={() => router.push("/patients/new")}
                   title="הוספת משתתף חדש למערכת"
-                  className="flex items-center gap-2 bg-[var(--foreground)] text-[var(--background)] px-5 py-2.5 rounded-xl text-xs font-black transition-all hover:opacity-90"
+                  className="flex items-center gap-2 bg-[var(--foreground)] text-[var(--background)] px-5 py-2.5 rounded-xl text-xs font-bold transition-all hover:opacity-90"
                 >
                   <Plus className="w-4 h-4" />
                   משתתף חדש
@@ -845,7 +845,7 @@ export default function PatientsPage() {
                 setFilterDropdownOpen(!filterDropdownOpen);
                 setSortDropdownOpen(false);
               }}
-              className="w-full bg-[var(--foreground)]/5 border border-[var(--border)] rounded-xl px-4 py-2.5 text-xs font-black flex items-center justify-between transition-all hover:bg-[var(--foreground)]/[0.08] active:scale-[0.99]"
+              className="w-full bg-[var(--foreground)]/5 border border-[var(--border)] rounded-xl px-4 py-2.5 text-xs font-bold flex items-center justify-between transition-all hover:bg-[var(--foreground)]/[0.08] active:scale-[0.99]"
             >
               <div className="flex items-center gap-2">
                 <Filter className="w-3.5 h-3.5 text-emerald-500" />
@@ -876,11 +876,11 @@ export default function PatientsPage() {
                   dir="rtl"
                 >
                   <div className="flex items-center justify-between border-b border-[var(--border)] pb-2 mb-3">
-                    <span className="text-xs font-black text-[var(--foreground)]">סינונים</span>
+                    <span className="text-xs font-bold text-[var(--foreground)]">סינונים</span>
                     {(activeFiltersCount > 0 || (selectedFilters.statuses && selectedFilters.statuses.length !== 1) || (selectedFilters.statuses && selectedFilters.statuses[0] !== "active")) && (
                       <button 
                         onClick={handleClearFilters}
-                        className="text-[10px] font-black text-rose-500 hover:text-rose-600 transition-colors flex items-center gap-1"
+                        className="text-[11px] font-bold text-rose-500 hover:text-rose-600 transition-colors flex items-center gap-1"
                       >
                         <X className="w-3.5 h-3.5" />
                         נקה הכל
@@ -891,7 +891,7 @@ export default function PatientsPage() {
                   <div className="overflow-y-auto max-h-[320px] pr-1 space-y-4 no-scrollbar">
                     {/* Status Section */}
                     <div className="space-y-1.5">
-                      <h4 className="text-[10px] font-black uppercase text-[var(--muted)] tracking-wider mb-2 pr-1 border-r-2 border-blue-500">סטטוס פעילות</h4>
+                      <h4 className="text-[11px] font-bold uppercase text-[var(--muted)] tracking-wider mb-2 pr-1 border-r-2 border-blue-500">סטטוס פעילות</h4>
                       <div className="grid grid-cols-1 gap-1">
                         {[
                           { id: "active", name: "פעילים" },
@@ -919,7 +919,7 @@ export default function PatientsPage() {
                     {/* Programs Section */}
                     {programs.length > 0 && (
                       <div className="space-y-1.5">
-                        <h4 className="text-[10px] font-black uppercase text-[var(--muted)] tracking-wider mb-2 pr-1 border-r-2 border-emerald-500">תוכניות</h4>
+                        <h4 className="text-[11px] font-bold uppercase text-[var(--muted)] tracking-wider mb-2 pr-1 border-r-2 border-emerald-500">תוכניות</h4>
                         <div className="grid grid-cols-1 gap-1">
                           {programs.map(p => {
                             const isSelected = selectedFilters.programs.includes(p.id);
@@ -945,7 +945,7 @@ export default function PatientsPage() {
                     {/* Groups Section */}
                     {groups.length > 0 && (
                       <div className="space-y-1.5">
-                        <h4 className="text-[10px] font-black uppercase text-[var(--muted)] tracking-wider mb-2 pr-1 border-r-2 border-indigo-500">קבוצות</h4>
+                        <h4 className="text-[11px] font-bold uppercase text-[var(--muted)] tracking-wider mb-2 pr-1 border-r-2 border-indigo-500">קבוצות</h4>
                         <div className="grid grid-cols-1 gap-1">
                           {groups.map(g => {
                             const prog = programs.find(p => p.id === g.programId);
@@ -973,7 +973,7 @@ export default function PatientsPage() {
                     {/* Caregivers Section */}
                     {Object.keys(staff).length > 0 && (
                       <div className="space-y-1.5">
-                        <h4 className="text-[10px] font-black uppercase text-[var(--muted)] tracking-wider mb-2 pr-1 border-r-2 border-amber-500">עו"ס מלווה / מטפל</h4>
+                        <h4 className="text-[11px] font-bold uppercase text-[var(--muted)] tracking-wider mb-2 pr-1 border-r-2 border-amber-500">עו"ס מלווה / מטפל</h4>
                         <div className="grid grid-cols-1 gap-1">
                           {Object.entries(staff).map(([id, name]) => {
                             const isSelected = selectedFilters.workers?.includes(id);
@@ -1007,7 +1007,7 @@ export default function PatientsPage() {
                 setSortDropdownOpen(!sortDropdownOpen);
                 setFilterDropdownOpen(false);
               }}
-              className="w-full bg-[var(--foreground)]/5 border border-[var(--border)] rounded-xl px-4 py-2.5 text-xs font-black flex items-center justify-between transition-all hover:bg-[var(--foreground)]/[0.08] active:scale-[0.99]"
+              className="w-full bg-[var(--foreground)]/5 border border-[var(--border)] rounded-xl px-4 py-2.5 text-xs font-bold flex items-center justify-between transition-all hover:bg-[var(--foreground)]/[0.08] active:scale-[0.99]"
             >
               <div className="flex items-center gap-2">
                 <Users className="w-3.5 h-3.5 text-emerald-500" />
@@ -1082,11 +1082,11 @@ export default function PatientsPage() {
                 initial={{ opacity: 0, y: -8 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -8 }}
-                className="mb-6 bg-indigo-500/5 border border-indigo-500/20 rounded-[2rem] overflow-hidden"
+                className="mb-6 bg-indigo-500/5 border border-indigo-500/20 rounded-2xl overflow-hidden"
               >
                 <div className="flex items-center gap-3 px-6 py-4 border-b border-indigo-500/10">
-                  <AlertCircle className="w-5 h-5 text-indigo-500 shrink-0 animate-pulse" />
-                  <p className="text-xs font-black text-indigo-600 dark:text-indigo-400">
+                  <AlertCircle className="w-5 h-5 text-indigo-500 shrink-0 " />
+                  <p className="text-xs font-bold text-indigo-600 dark:text-indigo-400">
                     שים לב: ישנם {rehabAlertPatients.length} משתתפים באחריותך שטרם מולאה עבורם תוכנית שיקום לאחר שבועיים בחווה
                   </p>
                 </div>
@@ -1095,11 +1095,11 @@ export default function PatientsPage() {
                     <div key={p.id} className="flex items-center justify-between px-6 py-3.5 hover:bg-indigo-500/[0.01] transition-colors">
                       <div className="flex items-center gap-3">
                         <span className="text-xs font-bold text-[var(--foreground)]">{p.firstName} {p.lastName}</span>
-                        <span className="text-[10px] text-[var(--muted)]">התחיל ב-{formatDate(p.startDate)}</span>
+                        <span className="text-[11px] text-[var(--muted)]">התחיל ב-{formatDate(p.startDate)}</span>
                       </div>
                       <button 
                         onClick={() => goToPatient(p.id)}
-                        className="text-[10px] font-black text-indigo-500 hover:underline flex items-center gap-1"
+                        className="text-[11px] font-bold text-indigo-500 hover:underline flex items-center gap-1"
                       >
                         מעבר לתיק המטופל
                         <ChevronLeft className="w-3.5 h-3.5 rotate-180" />
@@ -1114,7 +1114,7 @@ export default function PatientsPage() {
           {loading ? (
             <div className="flex flex-col items-center justify-center py-40 gap-4 opacity-20">
               <Loader2 className="w-10 h-10 animate-spin" />
-              <p className="text-xs font-black uppercase tracking-widest">טוען נתונים...</p>
+              <p className="text-xs font-bold uppercase tracking-wider">טוען נתונים...</p>
             </div>
           ) : filtered.length === 0 ? (
             <div className="text-center py-40 bg-[var(--foreground)]/5 border border-dashed border-[var(--border)] rounded-[3rem] opacity-20">
@@ -1126,19 +1126,19 @@ export default function PatientsPage() {
                 <table className="w-full text-right border-collapse">
                   <thead>
                     <tr className="border-b border-[var(--border)]">
-                      <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-3 py-3 text-[9px] font-black uppercase tracking-widest text-[var(--muted)] z-10 shadow-[inset_0_-1px_0_var(--border)]">משתתף</th>
-                      <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-3 py-3 text-[9px] font-black uppercase tracking-widest text-[var(--muted)] z-10 shadow-[inset_0_-1px_0_var(--border)]">עו"ס מלווה</th>
-                      {!isLogistics && <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-3 py-3 text-[9px] font-black uppercase tracking-widest text-[var(--muted)] z-10 shadow-[inset_0_-1px_0_var(--border)]">עו"ס שיקום (משרד הביטחון)</th>}
-                      <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-3 py-3 text-[9px] font-black uppercase tracking-widest text-[var(--muted)] z-10 shadow-[inset_0_-1px_0_var(--border)]">תוכנית</th>
-                      <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-2 py-3 text-[9px] font-black uppercase tracking-widest text-[var(--muted)] text-center z-10 shadow-[inset_0_-1px_0_var(--border)]">רכב</th>
-                      {!isLogistics && <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-3 py-3 text-[9px] font-black uppercase tracking-widest text-[var(--muted)] z-10 shadow-[inset_0_-1px_0_var(--border)]">תאריך התחלה</th>}
-                      {!isLogistics && <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-3 py-3 text-[9px] font-black uppercase tracking-widest text-[var(--muted)] z-10 shadow-[inset_0_-1px_0_var(--border)]">תאריך סיום</th>}
-                      {!isLogistics && <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-2 py-3 text-[9px] font-black uppercase tracking-widest text-[var(--muted)] text-center z-10 shadow-[inset_0_-1px_0_var(--border)]">תוכנית שיקום</th>}
-                      {!isLogistics && <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-2 py-3 text-[9px] font-black uppercase tracking-widest text-[var(--muted)] text-center z-10 shadow-[inset_0_-1px_0_var(--border)]">דוח אמצע והארכה</th>}
-                      {!isLogistics && <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-2 py-3 text-[9px] font-black uppercase tracking-widest text-[var(--muted)] text-center z-10 shadow-[inset_0_-1px_0_var(--border)]">התקבלה הארכה</th>}
-                      {!isLogistics && <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-2 py-3 text-[9px] font-black uppercase tracking-widest text-[var(--muted)] text-center z-10 shadow-[inset_0_-1px_0_var(--border)]">דוח סיכום</th>}
-                      <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-3 py-3 text-[9px] font-black uppercase tracking-widest text-[var(--muted)] z-10 shadow-[inset_0_-1px_0_var(--border)]">סטטוס</th>
-                      {!isLogistics && <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-3 py-3 text-[9px] font-black uppercase tracking-widest text-[var(--muted)] w-12 z-10 shadow-[inset_0_-1px_0_var(--border)]"></th>}
+                      <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-3 py-3 text-[11px] font-bold uppercase tracking-wider text-[var(--muted)] z-10 shadow-[inset_0_-1px_0_var(--border)]">משתתף</th>
+                      <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-3 py-3 text-[11px] font-bold uppercase tracking-wider text-[var(--muted)] z-10 shadow-[inset_0_-1px_0_var(--border)]">עו"ס מלווה</th>
+                      {!isLogistics && <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-3 py-3 text-[11px] font-bold uppercase tracking-wider text-[var(--muted)] z-10 shadow-[inset_0_-1px_0_var(--border)]">עו"ס שיקום (משרד הביטחון)</th>}
+                      <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-3 py-3 text-[11px] font-bold uppercase tracking-wider text-[var(--muted)] z-10 shadow-[inset_0_-1px_0_var(--border)]">תוכנית</th>
+                      <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-2 py-3 text-[11px] font-bold uppercase tracking-wider text-[var(--muted)] text-center z-10 shadow-[inset_0_-1px_0_var(--border)]">רכב</th>
+                      {!isLogistics && <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-3 py-3 text-[11px] font-bold uppercase tracking-wider text-[var(--muted)] z-10 shadow-[inset_0_-1px_0_var(--border)]">תאריך התחלה</th>}
+                      {!isLogistics && <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-3 py-3 text-[11px] font-bold uppercase tracking-wider text-[var(--muted)] z-10 shadow-[inset_0_-1px_0_var(--border)]">תאריך סיום</th>}
+                      {!isLogistics && <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-2 py-3 text-[11px] font-bold uppercase tracking-wider text-[var(--muted)] text-center z-10 shadow-[inset_0_-1px_0_var(--border)]">תוכנית שיקום</th>}
+                      {!isLogistics && <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-2 py-3 text-[11px] font-bold uppercase tracking-wider text-[var(--muted)] text-center z-10 shadow-[inset_0_-1px_0_var(--border)]">דוח אמצע והארכה</th>}
+                      {!isLogistics && <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-2 py-3 text-[11px] font-bold uppercase tracking-wider text-[var(--muted)] text-center z-10 shadow-[inset_0_-1px_0_var(--border)]">התקבלה הארכה</th>}
+                      {!isLogistics && <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-2 py-3 text-[11px] font-bold uppercase tracking-wider text-[var(--muted)] text-center z-10 shadow-[inset_0_-1px_0_var(--border)]">דוח סיכום</th>}
+                      <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-3 py-3 text-[11px] font-bold uppercase tracking-wider text-[var(--muted)] z-10 shadow-[inset_0_-1px_0_var(--border)]">סטטוס</th>
+                      {!isLogistics && <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-3 py-3 text-[11px] font-bold uppercase tracking-wider text-[var(--muted)] w-12 z-10 shadow-[inset_0_-1px_0_var(--border)]"></th>}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[var(--border)]">
@@ -1165,25 +1165,25 @@ export default function PatientsPage() {
                         >
                           <td className="px-3 py-3">
                             <div className="flex items-center gap-3">
-                              <div className={`w-8 h-8 rounded-xl flex items-center justify-center font-black text-[10px] shrink-0 ${
+                              <div className={`w-8 h-8 rounded-xl flex items-center justify-center font-bold text-[11px] shrink-0 ${
                                 isExpiring6m ? 'bg-rose-500/20 text-rose-600' : isExpiring3m ? 'bg-amber-500/20 text-amber-600' : 'bg-emerald-500/10 text-emerald-600'
                               }`}>
                                 {p.firstName?.[0]}{p.lastName?.[0]}
                               </div>
                               <div className="flex flex-col gap-0.5">
-                                <span className={`font-black text-xs transition-colors ${
+                                <span className={`font-bold text-xs transition-colors ${
                                   isExpiring6m ? 'text-rose-700 group-hover:text-rose-800' : isExpiring3m ? 'text-amber-700 group-hover:text-amber-800' : 'group-hover:text-emerald-500'
                                 }`}>
                                   {p.firstName} {p.lastName}
                                 </span>
                                 {isExpiring3m && (
-                                  <span className="flex items-center gap-1 text-[8px] font-black text-amber-600 bg-amber-500/10 px-1 py-0.5 rounded whitespace-nowrap w-fit">
+                                  <span className="flex items-center gap-1 text-[8px] font-bold text-amber-600 bg-amber-500/10 px-1 py-0.5 rounded whitespace-nowrap w-fit">
                                     <AlertCircle className="w-2 h-2" />
                                     {daysLeft < 0 ? 'עבר 3 חודשים!' : `מסיים 3 מ' (נותרו ${daysLeft} י')`}
                                   </span>
                                 )}
                                 {isExpiring6m && (
-                                  <span className="flex items-center gap-1 text-[8px] font-black text-rose-600 bg-rose-500/10 px-1 py-0.5 rounded whitespace-nowrap w-fit">
+                                  <span className="flex items-center gap-1 text-[8px] font-bold text-rose-600 bg-rose-500/10 px-1 py-0.5 rounded whitespace-nowrap w-fit">
                                     <AlertCircle className="w-2 h-2" />
                                     {daysLeft < 0 ? 'עבר חצי שנה!' : `מסיים חצי שנה (נותרו ${daysLeft} י')`}
                                   </span>
@@ -1225,7 +1225,7 @@ export default function PatientsPage() {
                             </td>
                           )}
                           <td className="px-3 py-3">
-                            <span className="px-2 py-0.5 rounded-full bg-[var(--foreground)]/5 border border-[var(--border)] text-[9px] font-black">
+                            <span className="px-2 py-0.5 rounded-full bg-[var(--foreground)]/5 border border-[var(--border)] text-[11px] font-bold">
                               {(() => {
                                 const patientProgs = p.programIds || (p.programId ? [p.programId] : []);
                                 const patientGrps = p.groupIds || (p.hosenType ? [p.hosenType] : []);
@@ -1394,7 +1394,7 @@ export default function PatientsPage() {
                     }`}
                   >
                     <div className="flex items-center gap-3">
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center font-black text-sm shrink-0 ${
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm shrink-0 ${
                         isExpiring6m ? 'bg-rose-500/20 text-rose-600' : isExpiring3m ? 'bg-amber-500/20 text-amber-600' : 'bg-[var(--foreground)]/5 text-[var(--muted)]/50'
                       }`}>
                         {p.firstName?.[0]}{p.lastName?.[0]}
@@ -1402,7 +1402,7 @@ export default function PatientsPage() {
                       
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-                          <h3 className={`text-sm font-black transition-colors whitespace-normal leading-tight ${
+                          <h3 className={`text-sm font-bold transition-colors whitespace-normal leading-tight ${
                             isExpiring6m ? 'text-rose-700' : isExpiring3m ? 'text-amber-700' : 'text-[var(--foreground)] group-hover:text-emerald-600'
                           }`}>
                             {p.firstName} {p.lastName}
@@ -1410,14 +1410,14 @@ export default function PatientsPage() {
                           <div className={`w-1.5 h-1.5 rounded-full ${p.status === 'active' ? 'bg-emerald-500' : 'bg-[var(--muted)]/30'}`} />
                           
                           {isExpiring3m && (
-                            <span className="text-[9px] font-black text-amber-600 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20 flex items-center gap-1">
+                            <span className="text-[11px] font-bold text-amber-600 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20 flex items-center gap-1">
                               <AlertCircle className="w-3 h-3" /> 3 חודשים
                             </span>
                           )}
 
                           {isExpiring6m && (
-                            <span className="text-[9px] font-black text-rose-600 bg-rose-500/10 px-1.5 py-0.5 rounded border border-rose-500/20 flex items-center gap-1">
-                              <AlertCircle className="w-3 h-3 animate-pulse" /> פרידה
+                            <span className="text-[11px] font-bold text-rose-600 bg-rose-500/10 px-1.5 py-0.5 rounded border border-rose-500/20 flex items-center gap-1">
+                              <AlertCircle className="w-3 h-3 " /> פרידה
                             </span>
                           )}
                         </div>
@@ -1479,7 +1479,7 @@ export default function PatientsPage() {
                     <div className="flex flex-wrap items-center gap-2 mt-1">
                       <button
                         onClick={(e) => handleToggleArrivalMethod(p.id, p.arrivalMethod, e)}
-                        className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-black transition-all border ${
+                        className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition-all border ${
                           p.arrivalMethod === "private_car"
                             ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600 shadow-sm'
                             : 'bg-[var(--foreground)]/5 border-[var(--border)] text-[var(--muted)] hover:border-emerald-500/30'
@@ -1492,7 +1492,7 @@ export default function PatientsPage() {
                       {!patientPrograms.some(prog => prog.excludeRehabPlan) && (
                         <button
                           onClick={(e) => handleToggleRehabPlanCompleted(p.id, !!p.rehabPlanCompleted, e)}
-                          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-black transition-all border ${
+                          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition-all border ${
                             p.rehabPlanCompleted
                               ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600 shadow-sm'
                               : 'bg-[var(--foreground)]/5 border-[var(--border)] text-[var(--muted)] hover:border-emerald-500/30'
@@ -1506,7 +1506,7 @@ export default function PatientsPage() {
                       {!patientPrograms.some(prog => prog.excludeExtensionSent) && (
                         <button
                           onClick={(e) => handleToggleExtensionSent(p.id, !!p.extensionSent, e)}
-                          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-black transition-all border ${
+                          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition-all border ${
                             p.extensionSent
                               ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600 shadow-sm'
                               : 'bg-[var(--foreground)]/5 border-[var(--border)] text-[var(--muted)] hover:border-emerald-500/30'
@@ -1520,7 +1520,7 @@ export default function PatientsPage() {
                       {!patientPrograms.some(prog => prog.excludeExtensionReceived) && (
                         <button
                           onClick={(e) => handleToggleExtensionReceived(p.id, !!p.extensionReceived, e)}
-                          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-black transition-all border ${
+                          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition-all border ${
                             p.extensionReceived 
                               ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600 shadow-sm' 
                               : 'bg-[var(--foreground)]/5 border-[var(--border)] text-[var(--muted)] hover:border-emerald-500/30'
@@ -1534,7 +1534,7 @@ export default function PatientsPage() {
                       {!patientPrograms.some(prog => prog.excludeSummaryReport) && (
                         <button
                           onClick={(e) => handleToggleSummaryReportCompleted(p.id, !!p.summaryReportCompleted, e)}
-                          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-black transition-all border ${
+                          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition-all border ${
                             p.summaryReportCompleted
                               ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600 shadow-sm'
                               : 'bg-[var(--foreground)]/5 border-[var(--border)] text-[var(--muted)] hover:border-emerald-500/30'
@@ -1570,7 +1570,7 @@ export default function PatientsPage() {
                 initial={{ opacity: 0, scale: 0.95, y: 15 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95, y: 15 }}
-                className="relative w-full max-w-4xl bg-[var(--surface)] border border-[var(--border)] rounded-[2.5rem] shadow-2xl p-6 md:p-8 flex flex-col max-h-[85vh] overflow-hidden text-right animate-in fade-in zoom-in duration-200"
+                className="relative w-full max-w-4xl bg-[var(--surface)] border border-[var(--border)] rounded-2xl shadow-2xl p-6 md:p-8 flex flex-col max-h-[85vh] overflow-hidden text-right animate-in fade-in zoom-in duration-200"
                 dir="rtl"
               >
                 {/* Close Button */}
@@ -1585,7 +1585,7 @@ export default function PatientsPage() {
                 
                 {/* Header */}
                 <div className="mb-6">
-                  <h2 className="text-xl font-black flex items-center gap-2">
+                  <h2 className="text-xl font-bold flex items-center gap-2">
                     <FileSpreadsheet className="w-6 h-6 text-emerald-500" />
                     ייבוא משתתפים מקובץ אקסל
                   </h2>
@@ -1612,58 +1612,58 @@ export default function PatientsPage() {
                         <Upload className="w-6 h-6" />
                       </div>
                       <div className="text-center space-y-1">
-                        <p className="text-sm font-black">לחץ להעלאת קובץ אקסל או גרור לכאן</p>
-                        <p className="text-[10px] text-[var(--muted)] font-bold">XLSX, XLS, CSV עד נפח 5MB</p>
+                        <p className="text-sm font-bold">לחץ להעלאת קובץ אקסל או גרור לכאן</p>
+                        <p className="text-[11px] text-[var(--muted)] font-bold">XLSX, XLS, CSV עד נפח 5MB</p>
                       </div>
                     </label>
                     
                     {/* Instructions */}
                     <div className="bg-[var(--foreground)]/[0.02] border border-[var(--border)] rounded-2xl p-5 space-y-3">
-                      <h4 className="text-xs font-black text-emerald-500">הנחיות ומבנה העמודות המומלץ:</h4>
+                      <h4 className="text-xs font-bold text-emerald-500">הנחיות ומבנה העמודות המומלץ:</h4>
                       <p className="text-xs text-[var(--muted)] leading-relaxed">
                         כדי שהמערכת תזהה את הנתונים ותבצע שיוך נכון לעו"ס מלווה וקבוצות, מומלץ להשתמש בכותרות הבאות בעברית (השיוך אינו רגיש לאותיות גדולות/קטנות או רווחים):
                       </p>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-2">
                         <div className="bg-[var(--surface)] border border-[var(--border)] p-2.5 rounded-xl text-center">
-                          <p className="text-xs font-black">שם פרטי</p>
-                          <p className="text-[9px] text-rose-500 font-bold mt-0.5">עמודת חובה</p>
+                          <p className="text-xs font-bold">שם פרטי</p>
+                          <p className="text-[11px] text-rose-500 font-bold mt-0.5">עמודת חובה</p>
                         </div>
                         <div className="bg-[var(--surface)] border border-[var(--border)] p-2.5 rounded-xl text-center">
-                          <p className="text-xs font-black">שם משפחה</p>
-                          <p className="text-[9px] text-rose-500 font-bold mt-0.5">עמודת חובה</p>
+                          <p className="text-xs font-bold">שם משפחה</p>
+                          <p className="text-[11px] text-rose-500 font-bold mt-0.5">עמודת חובה</p>
                         </div>
                         <div className="bg-[var(--surface)] border border-[var(--border)] p-2.5 rounded-xl text-center">
-                          <p className="text-xs font-black">תעודת זהות</p>
-                          <p className="text-[9px] text-[var(--muted)] font-bold mt-0.5">אופציונלי</p>
+                          <p className="text-xs font-bold">תעודת זהות</p>
+                          <p className="text-[11px] text-[var(--muted)] font-bold mt-0.5">אופציונלי</p>
                         </div>
                         <div className="bg-[var(--surface)] border border-[var(--border)] p-2.5 rounded-xl text-center">
-                          <p className="text-xs font-black">טלפון</p>
-                          <p className="text-[9px] text-[var(--muted)] font-bold mt-0.5">אופציונלי</p>
+                          <p className="text-xs font-bold">טלפון</p>
+                          <p className="text-[11px] text-[var(--muted)] font-bold mt-0.5">אופציונלי</p>
                         </div>
                         <div className="bg-[var(--surface)] border border-[var(--border)] p-2.5 rounded-xl text-center">
-                          <p className="text-xs font-black">תאריך התחלה</p>
-                          <p className="text-[9px] text-[var(--muted)] font-bold mt-0.5">אופציונלי</p>
+                          <p className="text-xs font-bold">תאריך התחלה</p>
+                          <p className="text-[11px] text-[var(--muted)] font-bold mt-0.5">אופציונלי</p>
                         </div>
                         <div className="bg-[var(--surface)] border border-[var(--border)] p-2.5 rounded-xl text-center">
-                          <p className="text-xs font-black">עו"ס מלווה</p>
-                          <p className="text-[9px] text-[var(--muted)] font-bold mt-0.5">אופציונלי</p>
+                          <p className="text-xs font-bold">עו"ס מלווה</p>
+                          <p className="text-[11px] text-[var(--muted)] font-bold mt-0.5">אופציונלי</p>
                         </div>
                         <div className="bg-[var(--surface)] border border-[var(--border)] p-2.5 rounded-xl text-center">
-                          <p className="text-xs font-black">תוכנית</p>
-                          <p className="text-[9px] text-[var(--muted)] font-bold mt-0.5">אופציונלי</p>
+                          <p className="text-xs font-bold">תוכנית</p>
+                          <p className="text-[11px] text-[var(--muted)] font-bold mt-0.5">אופציונלי</p>
                         </div>
                         <div className="bg-[var(--surface)] border border-[var(--border)] p-2.5 rounded-xl text-center">
-                          <p className="text-xs font-black">קבוצה</p>
-                          <p className="text-[9px] text-[var(--muted)] font-bold mt-0.5">אופציונלי</p>
+                          <p className="text-xs font-bold">קבוצה</p>
+                          <p className="text-[11px] text-[var(--muted)] font-bold mt-0.5">אופציונלי</p>
                         </div>
                       </div>
                       
                       <div className="flex flex-col sm:flex-row justify-between items-center border-t border-[var(--border)] pt-4 mt-2 gap-4">
-                        <p className="text-[10px] text-[var(--muted)] font-bold text-center sm:text-right">הורד תבנית אקסל מוכנה ומעוצבת לצורך מילוי מהיר:</p>
+                        <p className="text-[11px] text-[var(--muted)] font-bold text-center sm:text-right">הורד תבנית אקסל מוכנה ומעוצבת לצורך מילוי מהיר:</p>
                         <button
                           onClick={downloadImportTemplate}
                           type="button"
-                          className="flex items-center gap-2 bg-[var(--foreground)] text-[var(--background)] hover:opacity-90 px-4 py-2 rounded-xl text-xs font-black transition-all shadow-md active:scale-95"
+                          className="flex items-center gap-2 bg-[var(--foreground)] text-[var(--background)] hover:opacity-90 px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-md active:scale-95"
                         >
                           <Download className="w-3.5 h-3.5" />
                           הורד תבנית לדוגמה
@@ -1710,14 +1710,14 @@ export default function PatientsPage() {
                       <table className="w-full text-right border-collapse">
                         <thead>
                           <tr className="bg-[var(--foreground)]/[0.02] border-b border-[var(--border)] sticky top-0 z-10">
-                            <th className="px-4 py-3 text-[10px] font-black uppercase text-[var(--muted)]">שם פרטי</th>
-                            <th className="px-4 py-3 text-[10px] font-black uppercase text-[var(--muted)]">שם משפחה</th>
-                            <th className="px-4 py-3 text-[10px] font-black uppercase text-[var(--muted)]">תעודת זהות</th>
-                            <th className="px-4 py-3 text-[10px] font-black uppercase text-[var(--muted)]">טלפון</th>
-                            <th className="px-4 py-3 text-[10px] font-black uppercase text-[var(--muted)]">עו"ס מלווה</th>
-                            <th className="px-4 py-3 text-[10px] font-black uppercase text-[var(--muted)]">תוכנית</th>
-                            <th className="px-4 py-3 text-[10px] font-black uppercase text-[var(--muted)]">קבוצה</th>
-                            <th className="px-4 py-3 text-[10px] font-black uppercase text-[var(--muted)]">סטטוס</th>
+                            <th className="px-4 py-3 text-[11px] font-bold uppercase text-[var(--muted)]">שם פרטי</th>
+                            <th className="px-4 py-3 text-[11px] font-bold uppercase text-[var(--muted)]">שם משפחה</th>
+                            <th className="px-4 py-3 text-[11px] font-bold uppercase text-[var(--muted)]">תעודת זהות</th>
+                            <th className="px-4 py-3 text-[11px] font-bold uppercase text-[var(--muted)]">טלפון</th>
+                            <th className="px-4 py-3 text-[11px] font-bold uppercase text-[var(--muted)]">עו"ס מלווה</th>
+                            <th className="px-4 py-3 text-[11px] font-bold uppercase text-[var(--muted)]">תוכנית</th>
+                            <th className="px-4 py-3 text-[11px] font-bold uppercase text-[var(--muted)]">קבוצה</th>
+                            <th className="px-4 py-3 text-[11px] font-bold uppercase text-[var(--muted)]">סטטוס</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-[var(--border)]">
@@ -1756,13 +1756,13 @@ export default function PatientsPage() {
                               </td>
                               <td className="px-4 py-3.5">
                                 {row.status === "valid" && (
-                                  <span className="inline-flex items-center gap-1 px-2 py-1 rounded bg-emerald-500/10 text-emerald-600 text-[10px]">
+                                  <span className="inline-flex items-center gap-1 px-2 py-1 rounded bg-emerald-500/10 text-emerald-600 text-[11px]">
                                     <Check className="w-3 h-3 stroke-[3]" />
                                     חדש
                                   </span>
                                 )}
                                 {row.status === "duplicate" && (
-                                  <span className={`inline-flex items-center gap-1 px-2 py-1 rounded text-[10px] ${
+                                  <span className={`inline-flex items-center gap-1 px-2 py-1 rounded text-[11px] ${
                                     overwriteDuplicates 
                                       ? 'bg-indigo-500/10 text-indigo-600' 
                                       : 'bg-slate-500/10 text-slate-500 line-through'
@@ -1772,7 +1772,7 @@ export default function PatientsPage() {
                                   </span>
                                 )}
                                 {row.status === "warning" && (
-                                  <span className="inline-flex items-center gap-1 px-2 py-1 rounded bg-rose-500/10 text-rose-600 text-[10px]" title={row.message}>
+                                  <span className="inline-flex items-center gap-1 px-2 py-1 rounded bg-rose-500/10 text-rose-600 text-[11px]" title={row.message}>
                                     <AlertTriangle className="w-3 h-3" />
                                     שגיאה
                                   </span>
@@ -1788,14 +1788,14 @@ export default function PatientsPage() {
                     <div className="flex items-center justify-between mt-auto">
                       <button
                         onClick={() => setImportStep("upload")}
-                        className="bg-[var(--foreground)]/5 border border-[var(--border)] hover:bg-[var(--foreground)]/10 text-[var(--foreground)] px-6 py-3 rounded-2xl text-xs font-black transition-all"
+                        className="bg-[var(--foreground)]/5 border border-[var(--border)] hover:bg-[var(--foreground)]/10 text-[var(--foreground)] px-6 py-3 rounded-2xl text-xs font-bold transition-all"
                       >
                         חזור להעלאה
                       </button>
                       
                       <button
                         onClick={handleCommitImport}
-                        className="bg-emerald-600 hover:bg-emerald-500 text-white px-8 py-3 rounded-2xl text-xs font-black transition-all flex items-center gap-2 active:scale-95 shadow-xl shadow-emerald-600/10"
+                        className="bg-emerald-600 hover:bg-emerald-500 text-white px-8 py-3 rounded-2xl text-xs font-bold transition-all flex items-center gap-2 active:scale-95 shadow-xl"
                       >
                         <CheckCircle2 className="w-4 h-4" />
                         אשר ובצע ייבוא ({importRows.filter(r => r.status === "valid" || (r.status === "duplicate" && overwriteDuplicates)).length} רשומות)
@@ -1815,11 +1815,11 @@ export default function PatientsPage() {
                           className="transition-all duration-300"
                         />
                       </svg>
-                      <span className="absolute text-sm font-black font-mono">{importProgress}%</span>
+                      <span className="absolute text-sm font-bold font-mono">{importProgress}%</span>
                     </div>
                     <div className="text-center space-y-1">
-                      <h3 className="text-sm font-black">מייבא משתתפים למסד הנתונים...</h3>
-                      <p className="text-[10px] text-[var(--muted)] font-bold">אנא המתן, לא לסגור את החלון</p>
+                      <h3 className="text-sm font-bold">מייבא משתתפים למסד הנתונים...</h3>
+                      <p className="text-[11px] text-[var(--muted)] font-bold">אנא המתן, לא לסגור את החלון</p>
                     </div>
                   </div>
                 )}
@@ -1830,14 +1830,14 @@ export default function PatientsPage() {
                       <CheckCircle2 className="w-8 h-8 stroke-[3]" />
                     </div>
                     <div className="text-center space-y-1">
-                      <h3 className="text-lg font-black">הייבוא הושלם בהצלחה!</h3>
+                      <h3 className="text-lg font-bold">הייבוא הושלם בהצלחה!</h3>
                       <p className="text-xs text-[var(--muted)] font-bold">
                         כל הרשומות התקינות נוספו או עודכנו בהצלחה במערכת.
                       </p>
                     </div>
                     <button
                       onClick={() => setImportModalOpen(false)}
-                      className="bg-[var(--foreground)] text-[var(--background)] hover:opacity-90 px-8 py-3 rounded-2xl text-xs font-black transition-all active:scale-95 mt-4 animate-pulse"
+                      className="bg-[var(--foreground)] text-[var(--background)] hover:opacity-90 px-8 py-3 rounded-2xl text-xs font-bold transition-all active:scale-95 mt-4 "
                     >
                       סגור חלון
                     </button>

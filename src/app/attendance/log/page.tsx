@@ -31,6 +31,7 @@ interface Program {
 
 import { Suspense } from "react";
 
+import { PageSkeleton } from "@/components/ui/Skeleton";
 function AttendanceLogPageContent() {
   const searchParams = useSearchParams();
   const [records, setRecords] = useState<AttendanceRecord[]>([]);
@@ -126,7 +127,7 @@ function AttendanceLogPageContent() {
           </button>
           <div>
             <h1 className="text-xl font-bold">היסטוריית נוכחות</h1>
-            <p className="text-[10px] text-slate-500 font-medium">מעקב אחר הגעת משתתפים למרכז</p>
+            <p className="text-[11px] text-slate-500 font-medium">מעקב אחר הגעת משתתפים למרכז</p>
           </div>
         </div>
 
@@ -149,7 +150,7 @@ function AttendanceLogPageContent() {
                 type="date"
                 value={filterDate}
                 onChange={(e) => setFilterDate(e.target.value)}
-                className="w-full bg-white/5 border border-white/10 rounded-xl py-2 pr-9 pl-3 text-[10px] font-bold focus:outline-none focus:border-blue-500"
+                className="w-full bg-white/5 border border-white/10 rounded-xl py-2 pr-9 pl-3 text-[11px] font-bold focus:outline-none focus:border-blue-500"
               />
             </div>
             <div className="flex-1 relative">
@@ -157,7 +158,7 @@ function AttendanceLogPageContent() {
               <select 
                 value={filterHosen}
                 onChange={(e) => setFilterHosen(e.target.value)}
-                className="w-full bg-white/5 border border-white/10 rounded-xl py-2 pr-9 pl-3 text-[10px] font-bold focus:outline-none focus:border-blue-500 appearance-none"
+                className="w-full bg-white/5 border border-white/10 rounded-xl py-2 pr-9 pl-3 text-[11px] font-bold focus:outline-none focus:border-blue-500 appearance-none"
               >
                 <option value="all">כל המסגרות</option>
                 {groups.map(g => {
@@ -174,7 +175,7 @@ function AttendanceLogPageContent() {
       {loading ? (
         <div className="flex flex-col items-center justify-center py-20 gap-4">
           <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
-          <p className="text-slate-500 text-xs animate-pulse">טוען יומן נוכחות...</p>
+          <p className="text-slate-500 text-xs ">טוען יומן נוכחות...</p>
         </div>
       ) : (
         <div className="grid gap-3">
@@ -186,7 +187,7 @@ function AttendanceLogPageContent() {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95 }}
-                className="bg-[var(--card-bg)] border border-[var(--border)] rounded-[1.5rem] p-4 flex items-center justify-between group active:bg-[var(--foreground)]/10 transition-colors"
+                className="bg-[var(--card-bg)] border border-[var(--border)] rounded-2xl p-4 flex items-center justify-between group active:bg-[var(--foreground)]/10 transition-colors"
               >
                 <div className="flex items-center gap-4 overflow-hidden">
                   <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${
@@ -197,15 +198,15 @@ function AttendanceLogPageContent() {
                   <div className="overflow-hidden">
                     <h3 className="font-bold text-sm truncate">{record.patientName}</h3>
                     <div className="flex items-center gap-2 mt-1">
-                      <span className="text-[10px] text-slate-500 font-mono">{record.date}</span>
+                      <span className="text-[11px] text-slate-500 font-mono">{record.date}</span>
                       <div className="w-1 h-1 rounded-full bg-slate-700" />
-                      <span className="text-[10px] text-blue-400 font-bold">
+                      <span className="text-[11px] text-blue-400 font-bold">
                         {record.hosenType}
                       </span>
                     </div>
                   </div>
                 </div>
-                <div className={`px-3 py-1 rounded-full text-[10px] font-bold ${
+                <div className={`px-3 py-1 rounded-full text-[11px] font-bold ${
                   record.status === "present" ? "text-emerald-400 bg-emerald-500/5" : "text-rose-400 bg-rose-500/5"
                 }`}>
                   {record.status === "present" ? "נוכח" : "נעדר"}
@@ -215,7 +216,7 @@ function AttendanceLogPageContent() {
           </AnimatePresence>
 
           {filtered.length === 0 && (
-            <div className="text-center py-20 bg-white/5 border border-dashed border-white/10 rounded-[2.5rem]">
+            <div className="text-center py-20 bg-white/5 border border-dashed border-white/10 rounded-2xl">
               <Calendar className="w-12 h-12 text-slate-700 mx-auto mb-4" />
               <p className="text-slate-500 text-sm">לא נמצאו תוצאות לסינון זה</p>
               <button 
@@ -236,9 +237,7 @@ export default function AttendanceLogPage() {
   return (
     <RoleGuard allowedRoles={["admin", "manager", "instructor", "social_worker", "employee"]} redirectTo="/">
       <Suspense fallback={
-        <div className="min-h-screen bg-[var(--background)] flex items-center justify-center">
-          <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
-        </div>
+        <PageSkeleton />
       }>
         <AttendanceLogPageContent />
       </Suspense>

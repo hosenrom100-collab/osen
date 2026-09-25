@@ -122,7 +122,7 @@ export default function AdminDashboard() {
             </div>
 
             <div className="mr-auto">
-              <span className="text-[10px] font-black text-[var(--foreground)] bg-[var(--foreground)]/5 border border-[var(--border)] px-3 py-1 rounded-lg uppercase tracking-widest">
+              <span className="text-[11px] font-bold text-[var(--foreground)] bg-[var(--foreground)]/5 border border-[var(--border)] px-3 py-1 rounded-lg uppercase tracking-wider">
                 {roleLabel}
               </span>
             </div>
@@ -134,7 +134,7 @@ export default function AdminDashboard() {
           <div className="max-w-5xl mx-auto space-y-8">
             {visibleCategories.map(cat => (
               <section key={cat.title}>
-                <h2 className={`text-[10px] font-black uppercase tracking-[0.2em] ${cat.color} mb-3 flex items-center gap-2`}>
+                <h2 className={`text-[11px] font-bold uppercase tracking-[0.2em] ${cat.color} mb-3 flex items-center gap-2`}>
                   <div className="w-1.5 h-1.5 rounded-full bg-current" />
                   {cat.title}
                 </h2>
@@ -150,7 +150,7 @@ export default function AdminDashboard() {
                         className="group flex flex-col items-start gap-4 p-5 bg-[var(--surface)] border border-[var(--border)] rounded-2xl hover:border-[var(--muted)]/30 transition-colors text-right relative"
                       >
                         {showBadge && (
-                          <div className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] font-black rounded-full w-6 h-6 flex items-center justify-center">
+                          <div className="absolute -top-2 -right-2 bg-red-500 text-white text-[11px] font-bold rounded-full w-6 h-6 flex items-center justify-center">
                             {pendingRequestsCount}
                           </div>
                         )}
@@ -158,8 +158,8 @@ export default function AdminDashboard() {
                           <mod.icon className="w-5 h-5" />
                         </div>
                         <div className="min-w-0">
-                          <p className="text-xs font-black leading-tight text-[var(--foreground)]">{mod.title}</p>
-                          <p className="text-[9px] text-[var(--muted)] mt-1.5 font-bold uppercase tracking-widest leading-relaxed line-clamp-2">{mod.desc}</p>
+                          <p className="text-xs font-bold leading-tight text-[var(--foreground)]">{mod.title}</p>
+                          <p className="text-[11px] text-[var(--muted)] mt-1.5 font-bold uppercase tracking-wider leading-relaxed line-clamp-2">{mod.desc}</p>
                         </div>
                       </button>
                     );

@@ -45,11 +45,11 @@ function fmtDate(s: string | undefined | null, fallback = "—") {
 }
 
 function UrgencyBadge({ days }: { days: number | null }) {
-  if (days === null) return <span className="text-[10px] text-[var(--muted)]">—</span>;
-  if (days < 0) return <span className="px-2.5 py-1 rounded-full text-[10px] font-black bg-slate-500/10 text-slate-400">פגה</span>;
-  if (days <= 7) return <span className="px-2.5 py-1 rounded-full text-[10px] font-black bg-rose-500/15 text-rose-400 animate-pulse">{days} ימים</span>;
-  if (days <= 14) return <span className="px-2.5 py-1 rounded-full text-[10px] font-black bg-orange-500/15 text-orange-400">{days} ימים</span>;
-  return <span className="px-2.5 py-1 rounded-full text-[10px] font-black bg-amber-500/15 text-amber-400">{days} ימים</span>;
+  if (days === null) return <span className="text-[11px] text-[var(--muted)]">—</span>;
+  if (days < 0) return <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-slate-500/10 text-slate-400">פגה</span>;
+  if (days <= 7) return <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-rose-500/15 text-rose-400 ">{days} ימים</span>;
+  if (days <= 14) return <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-orange-500/15 text-orange-400">{days} ימים</span>;
+  return <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-500/15 text-amber-400">{days} ימים</span>;
 }
 
 export default function RemindersPage() {
@@ -252,7 +252,7 @@ export default function RemindersPage() {
               <h1 className="text-sm font-semibold">תזכורות — הארכות שהות</h1>
             </div>
             {urgent.length > 0 && (
-              <span className="flex items-center gap-1.5 text-[10px] font-black text-rose-400 bg-rose-500/10 border border-rose-500/20 px-2.5 py-1 rounded-full animate-pulse">
+              <span className="flex items-center gap-1.5 text-[11px] font-bold text-rose-400 bg-rose-500/10 border border-rose-500/20 px-2.5 py-1 rounded-full ">
                 {urgent.length} פעולות דחופות
               </span>
             )}
@@ -269,8 +269,8 @@ export default function RemindersPage() {
               { label: "דחוף — ללא הארכה", value: urgent.length,                            color: "text-rose-400",    bg: "bg-rose-500/8" },
             ].map(s => (
               <div key={s.label} className={`${s.bg} border border-[var(--border)] rounded-xl px-4 py-3`}>
-                <p className={`text-2xl font-black ${s.color}`}>{s.value}</p>
-                <p className="text-[10px] text-[var(--muted)] mt-0.5">{s.label}</p>
+                <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
+                <p className="text-[11px] text-[var(--muted)] mt-0.5">{s.label}</p>
               </div>
             ))}
           </div>
@@ -279,8 +279,8 @@ export default function RemindersPage() {
           <AnimatePresence>
             {urgent.length > 0 && (
               <motion.section initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} className="mb-6">
-                <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-rose-400 flex items-center gap-2 mb-3">
-                  <div className="w-2 h-2 rounded-full bg-rose-400 animate-pulse" />
+                <h2 className="text-[11px] font-bold uppercase tracking-[0.2em] text-rose-400 flex items-center gap-2 mb-3">
+                  <div className="w-2 h-2 rounded-full bg-rose-400 " />
                   נדרשת פעולה עכשיו ({urgent.length})
                 </h2>
                 <div className="space-y-2">
@@ -291,15 +291,15 @@ export default function RemindersPage() {
                         layout
                         className="bg-rose-500/5 border border-rose-500/20 rounded-2xl p-4 flex flex-col md:flex-row md:items-center gap-3">
                         <div className="flex items-center gap-3 flex-1 min-w-0">
-                          <div className="w-10 h-10 rounded-xl bg-rose-500/10 flex items-center justify-center text-rose-400 font-black text-sm shrink-0">
+                          <div className="w-10 h-10 rounded-xl bg-rose-500/10 flex items-center justify-center text-rose-400 font-bold text-sm shrink-0">
                             {p.firstName?.[0]}{p.lastName?.[0]}
                           </div>
                           <div className="min-w-0">
                             <button onClick={() => router.push(`/patients/${p.id}`)}
-                              className="font-black text-sm hover:text-rose-400 transition-colors text-right block">
+                              className="font-bold text-sm hover:text-rose-400 transition-colors text-right block">
                               {p.firstName} {p.lastName}
                             </button>
-                            <p className="text-[10px] text-[var(--muted)] mt-0.5">
+                            <p className="text-[11px] text-[var(--muted)] mt-0.5">
                               {workers[p.assignedWorkerId || ""] || "לא שובץ"} • סיום: {fmtDate(effectiveEndDate(p)?.toISOString())}
                             </p>
                           </div>
@@ -307,12 +307,12 @@ export default function RemindersPage() {
                         <div className="flex items-center gap-2 shrink-0">
                           <UrgencyBadge days={days} />
                           <button onClick={() => markExtensionSent(p.id)} disabled={saving === p.id + "_s"}
-                            className="flex items-center gap-1.5 px-3 py-2 text-[10px] font-black bg-orange-500/10 text-orange-400 border border-orange-500/20 rounded-xl hover:bg-orange-500/20 transition-all disabled:opacity-50">
+                            className="flex items-center gap-1.5 px-3 py-2 text-[11px] font-bold bg-orange-500/10 text-orange-400 border border-orange-500/20 rounded-xl hover:bg-orange-500/20 transition-all disabled:opacity-50">
                             {saving === p.id + "_s" ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}
                             הארכה נשלחה
                           </button>
                           <button onClick={() => markExtensionReceived(p)} disabled={saving === p.id + "_r"}
-                            className="flex items-center gap-1.5 px-3 py-2 text-[10px] font-black bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-xl hover:bg-emerald-500/20 transition-all disabled:opacity-50">
+                            className="flex items-center gap-1.5 px-3 py-2 text-[11px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-xl hover:bg-emerald-500/20 transition-all disabled:opacity-50">
                             {saving === p.id + "_r" ? <Loader2 className="w-3 h-3 animate-spin" /> : <Download className="w-3 h-3" />}
                             הארכה התקבלה (+3 חודשים)
                           </button>
@@ -329,8 +329,8 @@ export default function RemindersPage() {
           <AnimatePresence>
             {REPORTS_ENABLED && disabilityReminders.length > 0 && (
               <motion.section initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
-                <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-violet-400 flex items-center gap-2 mb-3">
-                  <div className="w-2 h-2 rounded-full bg-violet-400 animate-pulse" />
+                <h2 className="text-[11px] font-bold uppercase tracking-[0.2em] text-violet-400 flex items-center gap-2 mb-3">
+                  <div className="w-2 h-2 rounded-full bg-violet-400 " />
                   ועדות נכות מתקרבות — נדרש דו״ח תפקודי ({disabilityReminders.length})
                 </h2>
                 <div className="space-y-2">
@@ -343,34 +343,34 @@ export default function RemindersPage() {
                         layout
                         className={`${bgClass} border rounded-2xl p-4 flex flex-col md:flex-row md:items-center gap-3`}>
                         <div className="flex items-center gap-3 flex-1 min-w-0">
-                          <div className="w-10 h-10 rounded-xl bg-violet-500/10 flex items-center justify-center text-violet-400 font-black text-sm shrink-0">
+                          <div className="w-10 h-10 rounded-xl bg-violet-500/10 flex items-center justify-center text-violet-400 font-bold text-sm shrink-0">
                             {p.firstName?.[0]}{p.lastName?.[0]}
                           </div>
                           <div className="min-w-0">
                             <button onClick={() => router.push(`/patients/${p.id}?tab=reports`)}
-                              className="font-black text-sm hover:text-violet-400 transition-colors text-right block">
+                              className="font-bold text-sm hover:text-violet-400 transition-colors text-right block">
                               {p.firstName} {p.lastName}
                             </button>
-                            <p className="text-[10px] text-[var(--muted)] mt-0.5">
+                            <p className="text-[11px] text-[var(--muted)] mt-0.5">
                               {workers[p.assignedWorkerId || ""] || "לא שובץ"} • תאריך ועדה: {fmtDate(p.disabilityCommitteeDate)}
                             </p>
                           </div>
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
                           {days < 0 ? (
-                            <span className="px-2.5 py-1 rounded-full text-[10px] font-black bg-rose-500/10 text-rose-400">עברה ({Math.abs(days)} ימים)</span>
+                            <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-rose-500/10 text-rose-400">עברה ({Math.abs(days)} ימים)</span>
                           ) : days === 0 ? (
-                            <span className="px-2.5 py-1 rounded-full text-[10px] font-black bg-rose-500/15 text-rose-400 animate-pulse">היום!</span>
+                            <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-rose-500/15 text-rose-400 ">היום!</span>
                           ) : (
-                            <span className="px-2.5 py-1 rounded-full text-[10px] font-black bg-violet-500/15 text-violet-400">בעוד {days} ימים</span>
+                            <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-violet-500/15 text-violet-400">בעוד {days} ימים</span>
                           )}
                           <button onClick={() => router.push(`/patients/${p.id}?tab=reports&action=functional`)}
-                            className="flex items-center gap-1.5 px-3 py-2 text-[10px] font-black bg-violet-500/10 text-violet-400 border border-violet-500/20 rounded-xl hover:bg-violet-500/20 transition-all">
+                            className="flex items-center gap-1.5 px-3 py-2 text-[11px] font-bold bg-violet-500/10 text-violet-400 border border-violet-500/20 rounded-xl hover:bg-violet-500/20 transition-all">
                             <Send className="w-3 h-3" />
                             הפק דוח תפקודי
                           </button>
                           <button onClick={() => markDisabilityPassed(p.id)} disabled={saving === p.id + "_d"}
-                            className="flex items-center gap-1.5 px-3 py-2 text-[10px] font-black bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-xl hover:bg-emerald-500/20 transition-all disabled:opacity-50">
+                            className="flex items-center gap-1.5 px-3 py-2 text-[11px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-xl hover:bg-emerald-500/20 transition-all disabled:opacity-50">
                             {saving === p.id + "_d" ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
                             ועדה עברה (X)
                           </button>
@@ -393,7 +393,7 @@ export default function RemindersPage() {
             </div>
           ) : (
             <section>
-              <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--muted)] mb-3">
+              <h2 className="text-[11px] font-bold uppercase tracking-[0.2em] text-[var(--muted)] mb-3">
                 כל המשתתפים המסיימים בחודש הקרוב ({upcoming.length})
               </h2>
               <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl overflow-hidden">
@@ -402,7 +402,7 @@ export default function RemindersPage() {
                     <thead>
                       <tr className="border-b border-[var(--border)] bg-[var(--foreground)]/[0.02]">
                         {["משתתף", "סיום", "ימים נותרים", 'עו"ס', "הארכה נשלחה", "הארכה התקבלה", "פעולה"].map(h => (
-                          <th key={h} className="px-4 py-3 text-[10px] font-black uppercase tracking-wider text-[var(--muted)] whitespace-nowrap">{h}</th>
+                          <th key={h} className="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-[var(--muted)] whitespace-nowrap">{h}</th>
                         ))}
                       </tr>
                     </thead>
@@ -441,7 +441,7 @@ export default function RemindersPage() {
                                   <Check className="w-3 h-3" /> {fmtDate(p.extensionSentAt)}
                                 </span>
                               ) : (
-                                <span className="text-[10px] text-[var(--muted)]/50">—</span>
+                                <span className="text-[11px] text-[var(--muted)]/50">—</span>
                               )}
                             </td>
                             <td className="px-4 py-3">
@@ -450,7 +450,7 @@ export default function RemindersPage() {
                                   <CheckCircle2 className="w-3 h-3" /> {fmtDate(p.extensionReceivedAt)}
                                 </span>
                               ) : (
-                                <span className="text-[10px] text-[var(--muted)]/50">—</span>
+                                <span className="text-[11px] text-[var(--muted)]/50">—</span>
                               )}
                             </td>
                             <td className="px-4 py-3">
@@ -458,20 +458,20 @@ export default function RemindersPage() {
                                 <div className="flex items-center gap-1.5">
                                   {!p.extensionSent && (
                                     <button onClick={() => markExtensionSent(p.id)} disabled={saving === p.id + "_s"}
-                                      className="flex items-center gap-1 px-2.5 py-1.5 text-[10px] font-bold bg-orange-500/10 text-orange-400 border border-orange-500/20 rounded-lg hover:bg-orange-500/20 transition-all disabled:opacity-50">
+                                      className="flex items-center gap-1 px-2.5 py-1.5 text-[11px] font-bold bg-orange-500/10 text-orange-400 border border-orange-500/20 rounded-lg hover:bg-orange-500/20 transition-all disabled:opacity-50">
                                       {saving === p.id + "_s" ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}
                                       נשלחה
                                     </button>
                                   )}
                                   <button onClick={() => markExtensionReceived(p)} disabled={saving === p.id + "_r"}
-                                    className="flex items-center gap-1 px-2.5 py-1.5 text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-lg hover:bg-emerald-500/20 transition-all disabled:opacity-50">
+                                    className="flex items-center gap-1 px-2.5 py-1.5 text-[11px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-lg hover:bg-emerald-500/20 transition-all disabled:opacity-50">
                                     {saving === p.id + "_r" ? <Loader2 className="w-3 h-3 animate-spin" /> : <Download className="w-3 h-3" />}
                                     +3 חודשים
                                   </button>
                                 </div>
                               )}
                               {p.extensionReceived && (
-                                <span className="text-[10px] text-emerald-400 font-bold">הושלם ✓</span>
+                                <span className="text-[11px] text-emerald-400 font-bold">הושלם ✓</span>
                               )}
                             </td>
                           </motion.tr>

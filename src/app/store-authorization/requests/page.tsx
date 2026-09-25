@@ -128,7 +128,7 @@ export default function RequestsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 pb-20">
+    <div className="min-h-screen bg-slate-50 pb-20">
       {/* Header */}
       <div className="sticky top-0 z-40 bg-white border-b border-slate-200 shadow-sm">
         <div className="max-w-4xl mx-auto px-4 py-4 flex items-center gap-3">
@@ -225,7 +225,7 @@ export default function RequestsPage() {
                                 e.stopPropagation();
                                 openOrDownloadPdf(request.pdfUrl!, `אישור_קנייה_${request.requestNumber}.pdf`);
                               }}
-                              className="px-3.5 py-2.5 bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 !text-white rounded-xl transition text-xs font-black flex items-center gap-1.5 shadow-sm active:scale-95 border-none cursor-pointer"
+                              className="px-3.5 py-2.5 bg-emerald-600 hover:bg-emerald-700 !text-white rounded-xl transition text-xs font-bold flex items-center gap-1.5 shadow-sm active:scale-95 border-none cursor-pointer"
                             >
                               <Download className="w-4 h-4 text-white" />
                               <span>הורד אישור PDF</span>
@@ -238,7 +238,7 @@ export default function RequestsPage() {
                                 e.stopPropagation();
                                 handleGeneratePdf(request.id, request.requestNumber);
                               }}
-                              className="px-3.5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 !text-white rounded-xl transition text-xs font-black flex items-center gap-1.5 shadow-sm active:scale-95 border-none cursor-pointer"
+                              className="px-3.5 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 !text-white rounded-xl transition text-xs font-bold flex items-center gap-1.5 shadow-sm active:scale-95 border-none cursor-pointer"
                             >
                               {isPdfLoading ? (
                                 <Loader2 className="w-4 h-4 animate-spin text-white" />

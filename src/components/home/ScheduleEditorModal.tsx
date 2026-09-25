@@ -582,17 +582,17 @@ export function ScheduleEditorModal({ isOpen, onClose, onSaved, initialDate }: S
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 20 }}
-          className="relative bg-[var(--surface)] border border-[var(--border)] w-full max-w-4xl h-[90vh] rounded-[2.5rem] shadow-2xl flex flex-col overflow-hidden text-right"
+          className="relative bg-[var(--surface)] border border-[var(--border)] w-full max-w-4xl h-[90vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden text-right"
         >
           {/* Header */}
-          <div className="p-6 border-b border-[var(--border)] flex items-center justify-between bg-gradient-to-l from-violet-600/10 to-transparent">
+          <div className="p-6 border-b border-[var(--border)] flex items-center justify-between bg-violet-600/10">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-2xl bg-violet-500/10 flex items-center justify-center text-violet-500">
                 <Calendar className="w-5 h-5" />
               </div>
               <div>
-                <h2 className="text-base font-black">ניהול סדר יום ולו״ז יומי</h2>
-                <p className="text-[10px] text-[var(--muted)] font-bold uppercase tracking-widest mt-0.5">Schedule & Activity Manager</p>
+                <h2 className="text-base font-bold">ניהול סדר יום ולו״ז יומי</h2>
+                <p className="text-[11px] text-[var(--muted)] font-bold uppercase tracking-wider mt-0.5">Schedule & Activity Manager</p>
               </div>
             </div>
             <button 
@@ -616,9 +616,9 @@ export function ScheduleEditorModal({ isOpen, onClose, onSaved, initialDate }: S
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id as any)}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black transition-all ${
+                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
                     activeTab === tab.id
-                      ? "bg-violet-600 text-white shadow-md shadow-violet-600/15"
+                      ? "bg-violet-600 text-white shadow-md"
                       : "text-[var(--muted)] hover:bg-[var(--foreground)]/5"
                   }`}
                 >
@@ -637,16 +637,16 @@ export function ScheduleEditorModal({ isOpen, onClose, onSaved, initialDate }: S
               <div className="space-y-6">
                 
                 {/* Control Panel: Date and Quick Actions */}
-                <div className="bg-[var(--surface-raised)] border border-[var(--border)] rounded-[2rem] p-5 space-y-4 shadow-sm">
+                <div className="bg-[var(--surface-raised)] border border-[var(--border)] rounded-2xl p-5 space-y-4 shadow-sm">
                   <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                     {/* Date Picker */}
                     <div className="flex items-center gap-3">
-                      <span className="text-xs font-black text-[var(--muted)]">תאריך:</span>
+                      <span className="text-xs font-bold text-[var(--muted)]">תאריך:</span>
                       <input 
                         type="date" 
                         value={selectedDate} 
                         onChange={(e) => setSelectedDate(e.target.value)}
-                        className="bg-[var(--surface)] border border-[var(--border)] text-xs font-black rounded-xl px-3 py-2.5 focus:outline-none cursor-pointer text-[var(--foreground)]"
+                        className="bg-[var(--surface)] border border-[var(--border)] text-xs font-bold rounded-xl px-3 py-2.5 focus:outline-none cursor-pointer text-[var(--foreground)]"
                       />
                       <span className="text-xs font-bold text-violet-500 bg-violet-500/10 px-3 py-1.5 rounded-xl">
                         יום {getDayName(selectedDate)}
@@ -657,14 +657,14 @@ export function ScheduleEditorModal({ isOpen, onClose, onSaved, initialDate }: S
                     <div className="flex items-center gap-2 flex-wrap">
                       <button 
                         onClick={handleAddFreeText}
-                        className="px-4 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white text-xs font-black transition-all flex items-center gap-1.5 shadow-md shadow-violet-600/10 active:scale-95 border-none cursor-pointer"
+                        className="px-4 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white text-xs font-bold transition-all flex items-center gap-1.5 shadow-md active:scale-95 border-none cursor-pointer"
                       >
                         <Plus className="w-4 h-4 text-white" />
                         פעילות חדשה
                       </button>
                       <button 
                         onClick={() => setShowRepoSelector(!showRepoSelector)}
-                        className="px-4 py-2.5 rounded-xl border border-emerald-500/20 bg-emerald-500/5 text-emerald-500 hover:bg-emerald-500/10 text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer"
+                        className="px-4 py-2.5 rounded-xl border border-emerald-500/20 bg-emerald-500/5 text-emerald-500 hover:bg-emerald-500/10 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
                       >
                         <Plus className="w-4 h-4" />
                         הוסף ממאגר פעילויות
@@ -674,28 +674,28 @@ export function ScheduleEditorModal({ isOpen, onClose, onSaved, initialDate }: S
 
                   {/* Quick Load & Templates Toolbar */}
                   <div className="border-t border-[var(--border)]/40 pt-4 flex flex-wrap items-center gap-2">
-                    <span className="text-[10px] font-black text-[var(--muted)] uppercase tracking-wider ml-2">טעינה ושכפול:</span>
+                    <span className="text-[11px] font-bold text-[var(--muted)] uppercase tracking-wider ml-2">טעינה ושכפול:</span>
                     <button 
                       onClick={handleLoadSkeleton}
-                      className="px-3 py-2 rounded-xl bg-[var(--foreground)]/5 border border-[var(--border)] text-[var(--muted)] hover:bg-[var(--foreground)]/10 text-[10px] font-bold transition-all cursor-pointer"
+                      className="px-3 py-2 rounded-xl bg-[var(--foreground)]/5 border border-[var(--border)] text-[var(--muted)] hover:bg-[var(--foreground)]/10 text-[11px] font-bold transition-all cursor-pointer"
                     >
                       שלד קבוע (כללי)
                     </button>
                     <button 
                       onClick={handleLoadFromWeeklySkeleton}
-                      className="px-3 py-2 rounded-xl bg-[var(--foreground)]/5 border border-[var(--border)] text-[var(--muted)] hover:bg-[var(--foreground)]/10 text-[10px] font-bold transition-all cursor-pointer"
+                      className="px-3 py-2 rounded-xl bg-[var(--foreground)]/5 border border-[var(--border)] text-[var(--muted)] hover:bg-[var(--foreground)]/10 text-[11px] font-bold transition-all cursor-pointer"
                     >
                       שלד של יום {getDayName(selectedDate)}
                     </button>
                     <button 
                       onClick={handleLoadFromPreviousSameDayOfWeek}
-                      className="px-3 py-2 rounded-xl bg-[var(--foreground)]/5 border border-[var(--border)] text-[var(--muted)] hover:bg-[var(--foreground)]/10 text-[10px] font-bold transition-all cursor-pointer"
+                      className="px-3 py-2 rounded-xl bg-[var(--foreground)]/5 border border-[var(--border)] text-[var(--muted)] hover:bg-[var(--foreground)]/10 text-[11px] font-bold transition-all cursor-pointer"
                     >
                       שבוע שעבר (יום {getDayName(selectedDate)})
                     </button>
                     <button 
                       onClick={handleSaveToWeeklySkeleton}
-                      className="px-3 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 hover:bg-emerald-500/15 text-[10px] font-black transition-all cursor-pointer mr-auto"
+                      className="px-3 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 hover:bg-emerald-500/15 text-[11px] font-bold transition-all cursor-pointer mr-auto"
                     >
                       שמור כשלד קבוע ליום {getDayName(selectedDate)}
                     </button>
@@ -709,7 +709,7 @@ export function ScheduleEditorModal({ isOpen, onClose, onSaved, initialDate }: S
                     animate={{ opacity: 1, y: 0 }} 
                     className="border border-[var(--border)] rounded-3xl p-4 bg-[var(--surface-raised)] space-y-3"
                   >
-                    <h3 className="text-xs font-black text-slate-700">בחר פעילות להוספה מתוך המאגר:</h3>
+                    <h3 className="text-xs font-bold text-slate-700">בחר פעילות להוספה מתוך המאגר:</h3>
                     {templates.length === 0 ? (
                       <p className="text-xs text-[var(--muted)] italic">המאגר ריק. תוכל להוסיף פעילויות למאגר בלשונית "מאגר פעילויות".</p>
                     ) : (
@@ -720,8 +720,8 @@ export function ScheduleEditorModal({ isOpen, onClose, onSaved, initialDate }: S
                             onClick={() => handleAddFromTemplate(tmpl)}
                             className="p-3 text-right bg-[var(--surface)] hover:bg-[var(--foreground)]/5 border border-[var(--border)] rounded-2xl transition-all hover:scale-[1.01] active:scale-95 flex flex-col justify-between h-20"
                           >
-                            <span className="text-xs font-black text-[var(--foreground)] line-clamp-1">{tmpl.title}</span>
-                            <span className="text-[9px] text-[var(--muted)] font-medium">
+                            <span className="text-xs font-bold text-[var(--foreground)] line-clamp-1">{tmpl.title}</span>
+                            <span className="text-[11px] text-[var(--muted)] font-medium">
                               {ACT_TYPES.find(t => t.id === tmpl.type)?.name || "פעילות"} · {locations.find(l => l.id === tmpl.locationId)?.name || "ללא מיקום"}
                             </span>
                           </button>
@@ -739,17 +739,17 @@ export function ScheduleEditorModal({ isOpen, onClose, onSaved, initialDate }: S
                        <span className="text-xs font-bold">טוען את נתוני הלו״ז...</span>
                      </div>
                   ) : activities.length === 0 ? (
-                     <div className="py-16 text-center border border-dashed border-[var(--border)] rounded-[2.5rem] bg-[var(--surface-raised)] space-y-3">
+                     <div className="py-16 text-center border border-dashed border-[var(--border)] rounded-2xl bg-[var(--surface-raised)] space-y-3">
                        <Calendar className="w-10 h-10 text-[var(--muted)] mx-auto opacity-30 stroke-1" />
-                       <p className="text-xs font-black">אין פעילויות מוגדרות ליום זה</p>
-                       <p className="text-[10px] text-[var(--muted)] font-bold">לחץ על כפתור טעינת שלד קבוע או הוסף פעילות חדשה למעלה</p>
+                       <p className="text-xs font-bold">אין פעילויות מוגדרות ליום זה</p>
+                       <p className="text-[11px] text-[var(--muted)] font-bold">לחץ על כפתור טעינת שלד קבוע או הוסף פעילות חדשה למעלה</p>
                      </div>
                   ) : (
                      <div className="space-y-4">
                        {activities.map((act) => (
                          <div 
                            key={act.id}
-                           className="bg-[var(--surface-raised)] border border-[var(--border)] rounded-[2rem] p-5 relative hover:shadow-md hover:border-violet-500/25 transition-all space-y-4 text-right"
+                           className="bg-[var(--surface-raised)] border border-[var(--border)] rounded-2xl p-5 relative hover:shadow-md hover:border-violet-500/25 transition-all space-y-4 text-right"
                          >
                            {/* Card Header: Times, Type, and Delete */}
                            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border)]/40 pb-3">
@@ -762,15 +762,15 @@ export function ScheduleEditorModal({ isOpen, onClose, onSaved, initialDate }: S
                                    placeholder="09:00"
                                    value={act.startTime}
                                    onChange={(e) => handleUpdateActivity(act.id, { startTime: e.target.value })}
-                                   className="w-12 text-center bg-transparent border-none text-xs font-black outline-none focus:text-violet-500 p-0 text-[var(--foreground)]"
+                                   className="w-12 text-center bg-transparent border-none text-xs font-bold outline-none focus:text-violet-500 p-0 text-[var(--foreground)]"
                                  />
-                                 <span className="text-[10px] text-[var(--muted)] font-black">-</span>
+                                 <span className="text-[11px] text-[var(--muted)] font-bold">-</span>
                                  <input 
                                    type="text"
                                    placeholder="10:00"
                                    value={act.endTime}
                                    onChange={(e) => handleUpdateActivity(act.id, { endTime: e.target.value })}
-                                   className="w-12 text-center bg-transparent border-none text-xs font-black outline-none focus:text-violet-500 p-0 text-[var(--foreground)]"
+                                   className="w-12 text-center bg-transparent border-none text-xs font-bold outline-none focus:text-violet-500 p-0 text-[var(--foreground)]"
                                  />
                                </div>
 
@@ -779,7 +779,7 @@ export function ScheduleEditorModal({ isOpen, onClose, onSaved, initialDate }: S
                                  <select
                                    value={act.type}
                                    onChange={(e) => handleUpdateActivity(act.id, { type: e.target.value as any })}
-                                   className={`appearance-none text-xs font-black rounded-xl px-3 py-1.5 pr-8 border outline-none cursor-pointer ${
+                                   className={`appearance-none text-xs font-bold rounded-xl px-3 py-1.5 pr-8 border outline-none cursor-pointer ${
                                      ACT_TYPES.find(t => t.id === act.type)?.color || "bg-[var(--background)] border-[var(--border)] text-[var(--foreground)]"
                                    }`}
                                  >
@@ -849,14 +849,14 @@ export function ScheduleEditorModal({ isOpen, onClose, onSaved, initialDate }: S
 
                            {/* Card Footer: Assigned Staff */}
                            <div className="border-t border-[var(--border)]/40 pt-3 flex flex-col sm:flex-row sm:items-center gap-3">
-                             <span className="text-[10px] font-black text-[var(--muted)] flex items-center gap-1 shrink-0">
+                             <span className="text-[11px] font-bold text-[var(--muted)] flex items-center gap-1 shrink-0">
                                <User className="w-3.5 h-3.5 text-violet-500" />
                                אנשי צוות משויכים:
                              </span>
 
                              <div className="flex items-center gap-1.5 flex-wrap">
                                {staff.length === 0 ? (
-                                 <span className="text-[10px] text-[var(--muted)] italic">אין אנשי צוות זמינים</span>
+                                 <span className="text-[11px] text-[var(--muted)] italic">אין אנשי צוות זמינים</span>
                                ) : (
                                  staff.map(member => {
                                    const isAssigned = act.staffIds?.includes(member.id);
@@ -864,9 +864,9 @@ export function ScheduleEditorModal({ isOpen, onClose, onSaved, initialDate }: S
                                      <button
                                        key={member.id}
                                        onClick={() => toggleStaffInActivity(act.id, member.id)}
-                                       className={`px-3 py-1.5 rounded-xl text-[10px] font-bold border transition-all active:scale-95 cursor-pointer ${
+                                       className={`px-3 py-1.5 rounded-xl text-[11px] font-bold border transition-all active:scale-95 cursor-pointer ${
                                          isAssigned
-                                           ? "bg-violet-600 text-white border-violet-500 shadow-md shadow-violet-600/10 font-black"
+                                           ? "bg-violet-600 text-white border-violet-500 shadow-md font-bold"
                                            : "bg-[var(--surface)] text-[var(--muted)] border-[var(--border)] hover:bg-[var(--foreground)]/5"
                                        }`}
                                      >
@@ -888,7 +888,7 @@ export function ScheduleEditorModal({ isOpen, onClose, onSaved, initialDate }: S
                   <button
                     onClick={handleSaveSchedule}
                     disabled={saving || loading}
-                    className="flex items-center gap-2 px-6 py-3.5 bg-violet-600 border border-violet-500 hover:bg-violet-500 text-white rounded-2xl text-xs font-black shadow-lg shadow-violet-600/20 transition-all disabled:opacity-50"
+                    className="flex items-center gap-2 px-6 py-3.5 bg-violet-600 border border-violet-500 hover:bg-violet-500 text-white rounded-2xl text-xs font-bold shadow-lg transition-all disabled:opacity-50"
                   >
                     {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                     שמור לו״ז יומי
@@ -905,12 +905,12 @@ export function ScheduleEditorModal({ isOpen, onClose, onSaved, initialDate }: S
                 <div className="bg-[var(--surface-raised)] border border-[var(--border)] rounded-3xl p-5 space-y-4">
                   <div className="flex items-center gap-2 text-violet-500">
                     <Sparkles className="w-4 h-4" />
-                    <h3 className="text-xs font-black">הוספת תבנית חדשה למאגר הפעילויות</h3>
+                    <h3 className="text-xs font-bold">הוספת תבנית חדשה למאגר הפעילויות</h3>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                     <div>
-                      <label className="block text-[10px] font-bold text-[var(--muted)] mb-1">שם הפעילות</label>
+                      <label className="block text-[11px] font-bold text-[var(--muted)] mb-1">שם הפעילות</label>
                       <input 
                         type="text"
                         placeholder="למשל: סדנת יוגה"
@@ -921,7 +921,7 @@ export function ScheduleEditorModal({ isOpen, onClose, onSaved, initialDate }: S
                     </div>
 
                     <div>
-                      <label className="block text-[10px] font-bold text-[var(--muted)] mb-1">סוג פעילות</label>
+                      <label className="block text-[11px] font-bold text-[var(--muted)] mb-1">סוג פעילות</label>
                       <select
                         value={newTemplate.type}
                         onChange={(e) => setNewTemplate(prev => ({ ...prev, type: e.target.value as any }))}
@@ -934,7 +934,7 @@ export function ScheduleEditorModal({ isOpen, onClose, onSaved, initialDate }: S
                     </div>
 
                     <div>
-                      <label className="block text-[10px] font-bold text-[var(--muted)] mb-1">מיקום ברירת מחדל</label>
+                      <label className="block text-[11px] font-bold text-[var(--muted)] mb-1">מיקום ברירת מחדל</label>
                       <select
                         value={newTemplate.locationId}
                         onChange={(e) => setNewTemplate(prev => ({ ...prev, locationId: e.target.value }))}
@@ -951,7 +951,7 @@ export function ScheduleEditorModal({ isOpen, onClose, onSaved, initialDate }: S
                   <div className="flex justify-end pt-2">
                     <button
                       onClick={handleAddTemplateToRepo}
-                      className="flex items-center gap-1.5 px-5 py-2.5 bg-emerald-600 border border-emerald-500 hover:bg-emerald-500 text-white rounded-xl text-xs font-black shadow-md shadow-emerald-600/10 transition-all"
+                      className="flex items-center gap-1.5 px-5 py-2.5 bg-emerald-600 border border-emerald-500 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold shadow-md transition-all"
                     >
                       <Plus className="w-4 h-4" />
                       הוסף למאגר
@@ -961,11 +961,11 @@ export function ScheduleEditorModal({ isOpen, onClose, onSaved, initialDate }: S
 
                 {/* Templates List */}
                 <div className="space-y-3">
-                  <h3 className="text-xs font-black text-slate-700">תבניות פעילות במאגר:</h3>
+                  <h3 className="text-xs font-bold text-slate-700">תבניות פעילות במאגר:</h3>
                   {templates.length === 0 ? (
                     <p className="text-xs text-[var(--muted)] italic text-center py-10 bg-[var(--foreground)]/2 rounded-2xl border">אין עדיין תבניות במאגר. השתמש בטופס למעלה להוספה.</p>
                   ) : (
-                    <div className="border border-[var(--border)] rounded-[2rem] overflow-hidden divide-y divide-[var(--border)] bg-[var(--surface)]">
+                    <div className="border border-[var(--border)] rounded-2xl overflow-hidden divide-y divide-[var(--border)] bg-[var(--surface)]">
                       {templates.map(tmpl => {
                         const isEditing = editingTemplateId === tmpl.id;
                         return (
@@ -974,7 +974,7 @@ export function ScheduleEditorModal({ isOpen, onClose, onSaved, initialDate }: S
                               <div className="space-y-3 bg-[var(--foreground)]/[0.02] border border-[var(--border)] p-3 rounded-2xl">
                                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                                   <div>
-                                    <label className="block text-[9px] font-bold text-[var(--muted)] mb-1">שם הפעילות</label>
+                                    <label className="block text-[11px] font-bold text-[var(--muted)] mb-1">שם הפעילות</label>
                                     <input
                                       type="text"
                                       value={editingTemplate.title}
@@ -983,7 +983,7 @@ export function ScheduleEditorModal({ isOpen, onClose, onSaved, initialDate }: S
                                     />
                                   </div>
                                   <div>
-                                    <label className="block text-[9px] font-bold text-[var(--muted)] mb-1">סוג פעילות</label>
+                                    <label className="block text-[11px] font-bold text-[var(--muted)] mb-1">סוג פעילות</label>
                                     <select
                                       value={editingTemplate.type}
                                       onChange={(e) => setEditingTemplate(prev => prev ? { ...prev, type: e.target.value as any } : null)}
@@ -995,7 +995,7 @@ export function ScheduleEditorModal({ isOpen, onClose, onSaved, initialDate }: S
                                     </select>
                                   </div>
                                   <div>
-                                    <label className="block text-[9px] font-bold text-[var(--muted)] mb-1">מיקום ברירת מחדל</label>
+                                    <label className="block text-[11px] font-bold text-[var(--muted)] mb-1">מיקום ברירת מחדל</label>
                                     <select
                                       value={editingTemplate.locationId}
                                       onChange={(e) => setEditingTemplate(prev => prev ? { ...prev, locationId: e.target.value } : null)}
@@ -1014,13 +1014,13 @@ export function ScheduleEditorModal({ isOpen, onClose, onSaved, initialDate }: S
                                       setEditingTemplateId(null);
                                       setEditingTemplate(null);
                                     }}
-                                    className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-[10px] font-black transition-all border border-slate-200"
+                                    className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-[11px] font-bold transition-all border border-slate-200"
                                   >
                                     ביטול
                                   </button>
                                   <button
                                     onClick={handleUpdateTemplateInRepo}
-                                    className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-[10px] font-black transition-all border border-emerald-500 shadow-sm"
+                                    className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-[11px] font-bold transition-all border border-emerald-500 shadow-sm"
                                   >
                                     עדכן תבנית
                                   </button>
@@ -1033,8 +1033,8 @@ export function ScheduleEditorModal({ isOpen, onClose, onSaved, initialDate }: S
                                     {ACT_TYPES.find(t => t.id === tmpl.type)?.name.charAt(0) || "פ"}
                                   </div>
                                   <div>
-                                    <p className="text-xs font-black text-[var(--foreground)]">{tmpl.title}</p>
-                                    <p className="text-[9px] text-[var(--muted)] font-bold mt-0.5">
+                                    <p className="text-xs font-bold text-[var(--foreground)]">{tmpl.title}</p>
+                                    <p className="text-[11px] text-[var(--muted)] font-bold mt-0.5">
                                       סוג: {ACT_TYPES.find(t => t.id === tmpl.type)?.name} | מיקום: {locations.find(l => l.id === tmpl.locationId)?.name || "לא הוגדר"}
                                     </p>
                                   </div>
@@ -1079,12 +1079,12 @@ export function ScheduleEditorModal({ isOpen, onClose, onSaved, initialDate }: S
                 <div className="bg-[var(--surface-raised)] border border-[var(--border)] rounded-3xl p-5 space-y-4">
                   <div className="flex items-center gap-2 text-violet-500">
                     <FolderHeart className="w-4 h-4" />
-                    <h3 className="text-xs font-black">הוספת פעילות קבועה לשלד היומי</h3>
+                    <h3 className="text-xs font-bold">הוספת פעילות קבועה לשלד היומי</h3>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
                     <div>
-                      <label className="block text-[10px] font-bold text-[var(--muted)] mb-1">שם הפעילות (קבועה)</label>
+                      <label className="block text-[11px] font-bold text-[var(--muted)] mb-1">שם הפעילות (קבועה)</label>
                       <input 
                         type="text"
                         placeholder="למשל: מפגש בוקר קבוע"
@@ -1095,7 +1095,7 @@ export function ScheduleEditorModal({ isOpen, onClose, onSaved, initialDate }: S
                     </div>
 
                     <div>
-                      <label className="block text-[10px] font-bold text-[var(--muted)] mb-1">שעת התחלה</label>
+                      <label className="block text-[11px] font-bold text-[var(--muted)] mb-1">שעת התחלה</label>
                       <input 
                         type="text"
                         placeholder="08:30"
@@ -1106,7 +1106,7 @@ export function ScheduleEditorModal({ isOpen, onClose, onSaved, initialDate }: S
                     </div>
 
                     <div>
-                      <label className="block text-[10px] font-bold text-[var(--muted)] mb-1">שעת סיום</label>
+                      <label className="block text-[11px] font-bold text-[var(--muted)] mb-1">שעת סיום</label>
                       <input 
                         type="text"
                         placeholder="09:00"
@@ -1117,7 +1117,7 @@ export function ScheduleEditorModal({ isOpen, onClose, onSaved, initialDate }: S
                     </div>
 
                     <div>
-                      <label className="block text-[10px] font-bold text-[var(--muted)] mb-1">מיקום ברירת מחדל</label>
+                      <label className="block text-[11px] font-bold text-[var(--muted)] mb-1">מיקום ברירת מחדל</label>
                       <select
                         value={newTemplate.locationId}
                         onChange={(e) => setNewTemplate(prev => ({ ...prev, locationId: e.target.value }))}
@@ -1134,7 +1134,7 @@ export function ScheduleEditorModal({ isOpen, onClose, onSaved, initialDate }: S
                   <div className="flex justify-end pt-2">
                     <button
                       onClick={handleAddActivityToSkeleton}
-                      className="flex items-center gap-1.5 px-5 py-2.5 bg-violet-600 border border-violet-500 hover:bg-violet-500 text-white rounded-xl text-xs font-black shadow-md shadow-violet-600/10 transition-all"
+                      className="flex items-center gap-1.5 px-5 py-2.5 bg-violet-600 border border-violet-500 hover:bg-violet-500 text-white rounded-xl text-xs font-bold shadow-md transition-all"
                     >
                       <Plus className="w-4 h-4" />
                       הוסף לשלד הקבוע
@@ -1144,20 +1144,20 @@ export function ScheduleEditorModal({ isOpen, onClose, onSaved, initialDate }: S
 
                 {/* Skeleton List */}
                 <div className="space-y-3">
-                  <h3 className="text-xs font-black text-slate-700">פעילויות בשלד הקבוע:</h3>
+                  <h3 className="text-xs font-bold text-slate-700">פעילויות בשלד הקבוע:</h3>
                   {skeleton.length === 0 ? (
                     <p className="text-xs text-[var(--muted)] italic text-center py-10 bg-[var(--foreground)]/2 rounded-2xl border">אין עדיין פעילויות בשלד הקבוע. השתמש בטופס למעלה להוספה.</p>
                   ) : (
-                    <div className="border border-[var(--border)] rounded-[2rem] overflow-hidden divide-y divide-[var(--border)] bg-[var(--surface)]">
+                    <div className="border border-[var(--border)] rounded-2xl overflow-hidden divide-y divide-[var(--border)] bg-[var(--surface)]">
                       {skeleton.map(skel => (
                         <div key={skel.id} className="p-4 flex items-center justify-between gap-4 hover:bg-[var(--foreground)]/[0.01]">
                           <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-violet-500/10 text-violet-500 flex items-center justify-center border border-violet-500/20 shrink-0 text-xs font-black">
+                            <div className="w-10 h-10 rounded-xl bg-violet-500/10 text-violet-500 flex items-center justify-center border border-violet-500/20 shrink-0 text-xs font-bold">
                               {skel.startTime}
                             </div>
                             <div>
-                              <p className="text-xs font-black text-[var(--foreground)]">{skel.title}</p>
-                              <p className="text-[9px] text-[var(--muted)] font-bold mt-0.5">
+                              <p className="text-xs font-bold text-[var(--foreground)]">{skel.title}</p>
+                              <p className="text-[11px] text-[var(--muted)] font-bold mt-0.5">
                                 שעות: {skel.startTime} - {skel.endTime || "ללא סיום"} | מיקום: {locations.find(l => l.id === skel.locationId)?.name || "לא הוגדר"}
                               </p>
                             </div>
@@ -1186,12 +1186,12 @@ export function ScheduleEditorModal({ isOpen, onClose, onSaved, initialDate }: S
                 <div className="bg-[var(--surface-raised)] border border-[var(--border)] rounded-3xl p-5 space-y-4">
                   <div className="flex items-center gap-2 text-violet-500">
                     <MapPin className="w-4 h-4" />
-                    <h3 className="text-xs font-black">הוספת מיקום חדש למאגר</h3>
+                    <h3 className="text-xs font-bold">הוספת מיקום חדש למאגר</h3>
                   </div>
 
                   <div className="flex flex-col sm:flex-row items-end gap-4">
                     <div className="flex-1">
-                      <label className="block text-[10px] font-bold text-[var(--muted)] mb-1">שם המיקום</label>
+                      <label className="block text-[11px] font-bold text-[var(--muted)] mb-1">שם המיקום</label>
                       <input 
                         type="text"
                         placeholder="למשל: חדר אוכל, חממה, מרכז למידה"
@@ -1202,7 +1202,7 @@ export function ScheduleEditorModal({ isOpen, onClose, onSaved, initialDate }: S
                     </div>
                     <button
                       onClick={handleAddLocation}
-                      className="flex items-center gap-1.5 px-5 py-2.5 bg-emerald-600 border border-emerald-500 hover:bg-emerald-500 text-white rounded-xl text-xs font-black shadow-md shadow-emerald-600/10 transition-all shrink-0 cursor-pointer"
+                      className="flex items-center gap-1.5 px-5 py-2.5 bg-emerald-600 border border-emerald-500 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold shadow-md transition-all shrink-0 cursor-pointer"
                     >
                       <Plus className="w-4 h-4" />
                       הוסף מיקום
@@ -1212,11 +1212,11 @@ export function ScheduleEditorModal({ isOpen, onClose, onSaved, initialDate }: S
 
                 {/* Locations List */}
                 <div className="space-y-3">
-                  <h3 className="text-xs font-black text-slate-700">מיקומים מוגדרים במערכת:</h3>
+                  <h3 className="text-xs font-bold text-slate-700">מיקומים מוגדרים במערכת:</h3>
                   {locations.length === 0 ? (
                     <p className="text-xs text-[var(--muted)] italic text-center py-10 bg-[var(--foreground)]/2 rounded-2xl border">אין עדיין מיקומים במערכת. השתמש בטופס למעלה להוספה.</p>
                   ) : (
-                    <div className="border border-[var(--border)] rounded-[2rem] overflow-hidden divide-y divide-[var(--border)] bg-[var(--surface)]">
+                    <div className="border border-[var(--border)] rounded-2xl overflow-hidden divide-y divide-[var(--border)] bg-[var(--surface)]">
                       {locations.map(loc => {
                         const isEditing = editingLocationId === loc.id;
                         return (
@@ -1234,13 +1234,13 @@ export function ScheduleEditorModal({ isOpen, onClose, onSaved, initialDate }: S
                                     setEditingLocationId(null);
                                     setEditingLocationName("");
                                   }}
-                                  className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-[10px] font-black transition-all border border-slate-200"
+                                  className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-[11px] font-bold transition-all border border-slate-200"
                                 >
                                   ביטול
                                 </button>
                                 <button
                                   onClick={() => handleUpdateLocation(loc.id, editingLocationName)}
-                                  className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-[10px] font-black transition-all border border-emerald-500 shadow-sm"
+                                  className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-[11px] font-bold transition-all border border-emerald-500 shadow-sm"
                                 >
                                   שמור
                                 </button>
@@ -1251,7 +1251,7 @@ export function ScheduleEditorModal({ isOpen, onClose, onSaved, initialDate }: S
                                   <div className="w-8 h-8 rounded-lg bg-violet-500/10 text-violet-500 flex items-center justify-center shrink-0">
                                     <MapPin className="w-4 h-4" />
                                   </div>
-                                  <span className="text-xs font-black text-[var(--foreground)]">{loc.name}</span>
+                                  <span className="text-xs font-bold text-[var(--foreground)]">{loc.name}</span>
                                 </div>
                                 <div className="flex items-center gap-1.5">
                                   <button

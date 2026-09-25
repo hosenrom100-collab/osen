@@ -507,7 +507,7 @@ export default function ShoppingPoolPage() {
               </button>
               <label
                 htmlFor="import-excel-pool-file"
-                className="flex items-center gap-1.5 px-3 py-2 bg-indigo-600 text-white rounded-xl text-xs font-medium hover:bg-indigo-700 transition-all cursor-pointer shadow-sm shadow-indigo-600/15"
+                className="flex items-center gap-1.5 px-3 py-2 bg-indigo-600 text-white rounded-xl text-xs font-medium hover:bg-indigo-700 transition-all cursor-pointer shadow-sm"
               >
                 <Upload className="w-3.5 h-3.5 text-white" />
                 <span>ייבוא</span>
@@ -539,7 +539,7 @@ export default function ShoppingPoolPage() {
               </div>
               <button 
                 onClick={() => setIsAdding(true)}
-                className="bg-blue-600 text-white p-3 rounded-2xl shadow-lg shadow-blue-600/20 active:scale-95 transition-all flex items-center justify-center cursor-pointer"
+                className="bg-blue-600 text-white p-3 rounded-2xl shadow-lg active:scale-95 transition-all flex items-center justify-center cursor-pointer"
               >
                 <Plus className="w-5 h-5" />
               </button>
@@ -595,7 +595,7 @@ export default function ShoppingPoolPage() {
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.9 }}
                     onSubmit={handleAddProduct}
-                    className="bg-[var(--surface)] border border-blue-500/30 p-4 rounded-[1.5rem] flex flex-col gap-4 shadow-2xl shadow-blue-500/10"
+                    className="bg-[var(--surface)] border border-blue-500/30 p-4 rounded-2xl flex flex-col gap-4 shadow-2xl"
                   >
                     <div className="flex flex-col sm:flex-row gap-3">
                       <input 
@@ -632,7 +632,7 @@ export default function ShoppingPoolPage() {
                       />
                     </div>
                     <div className="flex gap-2">
-                      <button type="submit" className="flex-1 bg-blue-600 py-2.5 rounded-xl text-xs font-bold text-white shadow-lg shadow-blue-600/20 cursor-pointer">
+                      <button type="submit" className="flex-1 bg-blue-600 py-2.5 rounded-xl text-xs font-bold text-white shadow-lg cursor-pointer">
                         הוסף לפול
                       </button>
                       <button 
@@ -723,21 +723,21 @@ export default function ShoppingPoolPage() {
                                 <h3 className={`font-bold text-sm ${isInactive ? "line-through text-slate-400" : ""}`}>
                                   {prod.name}
                                 </h3>
-                                <span className="text-[9px] font-black px-2 py-0.5 rounded-md bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
+                                <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
                                   {prod.defaultUnit || "יחידות"}
                                 </span>
                                 {prod.defaultNotes && (
-                                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20">
+                                  <span className="text-[11px] font-bold px-1.5 py-0.5 rounded-md bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20">
                                     הערה: {prod.defaultNotes}
                                   </span>
                                 )}
                                 {isInactive && (
-                                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-rose-500/10 text-rose-500 border border-rose-500/20">
+                                  <span className="text-[11px] font-bold px-1.5 py-0.5 rounded-md bg-rose-500/10 text-rose-500 border border-rose-500/20">
                                     לא פעיל
                                   </span>
                                 )}
                               </div>
-                              <p className="text-[10px] text-slate-500 flex items-center gap-1 mt-1 justify-start">
+                              <p className="text-[11px] text-slate-500 flex items-center gap-1 mt-1 justify-start">
                                 <Tag className="w-3 h-3" />
                                 {prod.category}
                               </p>
@@ -805,7 +805,7 @@ export default function ShoppingPoolPage() {
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.95 }}
-                className="relative w-full max-w-md bg-[var(--surface)] border border-[var(--border)] rounded-[2rem] shadow-2xl p-6 overflow-hidden flex flex-col gap-6"
+                className="relative w-full max-w-md bg-[var(--surface)] border border-[var(--border)] rounded-2xl shadow-2xl p-6 overflow-hidden flex flex-col gap-6"
               >
                 <div className="flex items-center justify-between border-b border-[var(--border)] pb-4">
                   <div className="flex items-center gap-2">
@@ -924,7 +924,7 @@ export default function ShoppingPoolPage() {
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.95 }}
-                className="relative w-full max-w-lg bg-[var(--surface)] border border-[var(--border)] rounded-[2rem] shadow-2xl p-6 overflow-hidden flex flex-col gap-4 max-h-[85vh]"
+                className="relative w-full max-w-lg bg-[var(--surface)] border border-[var(--border)] rounded-2xl shadow-2xl p-6 overflow-hidden flex flex-col gap-4 max-h-[85vh]"
               >
                 <div className="flex items-center justify-between border-b border-[var(--border)] pb-3">
                   <div className="flex items-center gap-2">
@@ -952,9 +952,9 @@ export default function ShoppingPoolPage() {
                     duplicatePairs.map(({ p1, p2 }, idx) => (
                       <div key={idx} className="bg-[var(--background)] border border-[var(--border)] p-3 rounded-xl flex flex-col gap-2">
                         <div className="flex items-center justify-between text-xs font-bold">
-                          <span className="text-blue-500">{p1.name} <span className="text-[10px] text-slate-500">({p1.category})</span></span>
+                          <span className="text-blue-500">{p1.name} <span className="text-[11px] text-slate-500">({p1.category})</span></span>
                           <span className="text-slate-400">מול</span>
-                          <span className="text-purple-500">{p2.name} <span className="text-[10px] text-slate-500">({p2.category})</span></span>
+                          <span className="text-purple-500">{p2.name} <span className="text-[11px] text-slate-500">({p2.category})</span></span>
                         </div>
 
                         <div className="flex items-center justify-end gap-2 border-t border-[var(--border)]/60 pt-2">
