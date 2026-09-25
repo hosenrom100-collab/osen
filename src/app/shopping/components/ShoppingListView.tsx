@@ -184,7 +184,7 @@ export function ShoppingListView({
             onClick={() => setPickerOpen(true)}
             aria-haspopup="dialog"
             aria-label={`מסגרת: ${selectedChip.label}. לחץ לשינוי`}
-            className={`flex-1 min-w-0 h-8 px-3.5 rounded-full text-[13px] font-semibold flex items-center gap-2 border transition-colors cursor-pointer ${
+            className={`min-w-0 h-8 px-3.5 rounded-full text-[13px] font-semibold flex items-center gap-2 border transition-colors cursor-pointer ${
               selectedFramework === "all"
                 ? "bg-[var(--surface)] text-[var(--foreground)] border-[var(--border)] hover:bg-[var(--fill)]"
                 : "bg-[var(--accent)] !text-white border-transparent"
@@ -195,7 +195,7 @@ export function ShoppingListView({
             ) : (
               <Layers className="w-3.5 h-3.5 shrink-0 text-[var(--muted)]" />
             )}
-            <span className="truncate flex-1 text-right">{selectedChip.label}</span>
+            <span className="truncate">{selectedChip.label}</span>
             <span className={`text-xs font-semibold tabular-nums shrink-0 ${currentFw ? "opacity-80" : "text-[var(--muted)]"}`}>
               {selectedChip.count}
             </span>
@@ -226,7 +226,7 @@ export function ShoppingListView({
                   : `הורד רשימת ${currentFw?.name || ""} (${listType === "large" ? "רכש" : "סופר"})`
               }
               aria-label="הורד רשימה כקובץ Word"
-              className="lg:hidden h-8 w-8 rounded-full border bg-[var(--surface)] border-[var(--border)] hover:bg-[var(--fill)] flex items-center justify-center shrink-0 cursor-pointer transition-colors"
+              className="lg:hidden mr-auto h-8 w-8 rounded-full border bg-[var(--surface)] border-[var(--border)] hover:bg-[var(--fill)] flex items-center justify-center shrink-0 cursor-pointer transition-colors"
             >
               <Download className="w-4 h-4 text-[var(--accent-text)]" />
             </button>

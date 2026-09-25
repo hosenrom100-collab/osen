@@ -227,7 +227,7 @@ export default function ShoppingPage() {
         {/* ── Frozen list: the only cutoff state that needs a banner. The countdown lives in the page title. ── */}
         {cutoffStatus.isEnabled && isListFrozen && (
           <div className="px-2.5 sm:px-4 md:px-6 pt-2 shrink-0">
-            <div className="max-w-[700px] mx-auto p-3 rounded-2xl bg-amber-500/10 border border-amber-500/25 flex items-center justify-between flex-wrap gap-3 text-right" dir="rtl">
+            <div className="max-w-[700px] lg:max-w-[1060px] mx-auto p-3 rounded-2xl bg-amber-500/10 border border-amber-500/25 flex items-center justify-between flex-wrap gap-3 text-right" dir="rtl">
               <div className="flex items-center gap-2.5 min-w-0">
                 <span className="text-lg shrink-0">🔒</span>
                 <div className="min-w-0">

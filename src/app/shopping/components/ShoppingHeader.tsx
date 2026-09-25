@@ -46,7 +46,7 @@ export function ShoppingHeader({
 
   return (
     <header className="relative shrink-0 bg-[var(--background)]/90 backdrop-blur-md border-b border-[var(--border)] z-40">
-      <div className="flex items-center justify-between px-2.5 sm:px-4 md:px-6 h-13 sm:h-14 gap-2">
+      <div className="flex items-center justify-between px-2.5 sm:px-4 md:px-6 h-13 sm:h-14 gap-2 w-full mx-auto max-w-[700px] lg:max-w-[1060px]">
         {/* Right side: Back button & compact title */}
         <div className="flex items-center gap-1.5 shrink-0 min-w-0">
           <button
