@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { RoleGuard } from "@/components/auth/RoleGuard";
 import { ConnectionStatusBanner } from "@/components/ui/ConnectionStatusBanner";
 import { db } from "@/lib/firebase/config";
@@ -192,6 +192,19 @@ export default function ShoppingPage() {
     return { done, total: done + open };
   }, [requests, listType, selectedFramework]);
 
+  // The add button shrinks to just "+" while scrolling down (more list, less chrome) and
+  // expands again on the way back up. A small dead zone keeps touch jitter from flickering it.
+  const [fabCompact, setFabCompact] = useState(false);
+  const lastScrollTop = useRef(0);
+  const handleListScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const top = e.currentTarget.scrollTop;
+    const delta = top - lastScrollTop.current;
+    if (top < 48) setFabCompact(false);
+    else if (delta > 8) setFabCompact(true);
+    else if (delta < -8) setFabCompact(false);
+    if (Math.abs(delta) > 8 || top < 48) lastScrollTop.current = top;
+  };
+
   const menuHasBadge =
     (canPurchase && pendingStoreAuthCount > 0) || (isAdmin && pendingRequestsCount > 0);
 
@@ -244,7 +257,7 @@ export default function ShoppingPage() {
 
         {/* Main Content Body */}
         <main className="flex-1 overflow-hidden flex flex-col relative bg-[var(--background)]">
-          <div className="flex-1 overflow-y-auto no-scrollbar" {...pullToRefreshHandlers}>
+          <div className="flex-1 overflow-y-auto no-scrollbar" onScroll={handleListScroll} {...pullToRefreshHandlers}>
             {(pullDistance > 0 || isRefreshing) && (
               <div
                 className="flex items-center justify-center overflow-hidden transition-[height]"
@@ -354,11 +367,24 @@ export default function ShoppingPage() {
         <motion.button
           whileTap={{ scale: 0.95 }}
           onClick={() => setOverlayOpen(true)}
-          className="lg:hidden fixed bottom-24 md:bottom-8 left-4 sm:left-6 z-[55] h-14 pr-4 pl-5 rounded-full bg-[var(--accent)] !text-white shadow-[var(--shadow-pop)] flex items-center gap-2 cursor-pointer border-none hover:brightness-110 transition-[filter]"
+          className="lg:hidden fixed bottom-24 md:bottom-8 left-4 sm:left-6 z-[55] h-14 min-w-14 px-4 rounded-full bg-[var(--accent)] !text-white shadow-[var(--shadow-pop)] flex items-center justify-center cursor-pointer border-none hover:brightness-110 transition-[filter]"
           aria-label="הוסף מוצר לרשימה"
         >
-          <Plus className="w-6 h-6 stroke-[2.5]" />
-          <span className="text-[15px] font-bold">הוסף מוצר</span>
+          <Plus className="w-6 h-6 stroke-[2.5] shrink-0" />
+          <AnimatePresence initial={false}>
+            {!fabCompact && (
+              <motion.span
+                key="label"
+                initial={{ width: 0, opacity: 0 }}
+                animate={{ width: "auto", opacity: 1 }}
+                exit={{ width: 0, opacity: 0 }}
+                transition={{ duration: 0.2, ease: "easeOut" }}
+                className="overflow-hidden whitespace-nowrap"
+              >
+                <span className="block pr-2 pl-1 text-[15px] font-bold">הוסף מוצר</span>
+              </motion.span>
+            )}
+          </AnimatePresence>
         </motion.button>
 
         {/* Add Product Overlay */}
