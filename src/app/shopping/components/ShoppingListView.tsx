@@ -10,7 +10,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { CAT_SOLID, TARGET_FRAMEWORKS } from "../lib/constants";
 import { ItemRow } from "./ItemRow";
 import { ItemDetailSheet } from "./ItemDetailSheet";
-import { BottomSheet } from "./BottomSheet";
+import { FrameworkPickerSheet } from "./FrameworkPickerSheet";
 
 type ShoppingStatus = ShoppingRequest["status"] | "permanently_delete";
 type OnChangeStatus = (id: string, next: ShoppingStatus, extra?: Record<string, unknown>) => void;
@@ -185,9 +185,9 @@ export function ShoppingListView({
             aria-haspopup="dialog"
             aria-label={`מסגרת: ${selectedChip.label}. לחץ לשינוי`}
             className={`min-w-0 h-8 px-3.5 rounded-full text-[13px] font-semibold flex items-center gap-2 border transition-colors cursor-pointer ${
-              selectedFramework === "all"
-                ? "bg-[var(--surface)] text-[var(--foreground)] border-[var(--border)] hover:bg-[var(--fill)]"
-                : "bg-[var(--accent)] !text-white border-transparent"
+              currentFw
+                ? `${currentFw.activeBg} !text-white border-transparent`
+                : "bg-[var(--surface)] text-[var(--foreground)] border-[var(--border)] hover:bg-[var(--fill)]"
             }`}
           >
             {currentFw ? (
@@ -403,46 +403,14 @@ export function ShoppingListView({
         </div>
       )}
 
-      <BottomSheet isOpen={pickerOpen} onClose={() => setPickerOpen(false)} title="בחירת מסגרת" icon={<Layers className="w-5 h-5 text-[var(--accent-text)]" />}>
-        <div role="radiogroup" aria-label="מסגרת" className="space-y-1">
-          {frameworkChips.map((chip) => {
-            const active = selectedFramework === chip.id;
-            const fw = TARGET_FRAMEWORKS.find((f) => f.id === chip.id);
-            return (
-              <button
-                key={chip.id}
-                role="radio"
-                aria-checked={active}
-                onClick={() => {
-                  setSelectedFramework?.(chip.id);
-                  setPickerOpen(false);
-                }}
-                className={`relative w-full h-12 px-3 rounded-xl flex items-center gap-3 text-right cursor-pointer border-none transition-colors ${
-                  active ? "bg-[var(--accent-soft)]" : "bg-transparent hover:bg-[var(--fill)]"
-                }`}
-              >
-                {active && <span aria-hidden className="absolute right-0 top-2.5 bottom-2.5 w-[3px] rounded-full bg-[var(--accent)]" />}
-                {fw ? (
-                  <span aria-hidden className={`w-2.5 h-2.5 rounded-full shrink-0 ${fw.dot}`} />
-                ) : (
-                  <Layers className="w-4 h-4 shrink-0 text-[var(--muted)]" />
-                )}
-                <span className={`flex-1 text-[15px] ${active ? "font-bold text-[var(--accent-text)]" : "font-medium text-[var(--foreground)]"}`}>
-                  {chip.name}
-                </span>
-                <span className="text-[13px] font-semibold tabular-nums text-[var(--muted)]">{chip.count}</span>
-                <span className="w-4 h-4 shrink-0">
-                  {active && (
-                    <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", stiffness: 500, damping: 22 }} className="block">
-                      <Check className="w-4 h-4 stroke-[3] text-[var(--accent-text)]" />
-                    </motion.span>
-                  )}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      </BottomSheet>
+      <FrameworkPickerSheet
+        isOpen={pickerOpen}
+        onClose={() => setPickerOpen(false)}
+        selected={selectedFramework}
+        onSelect={(id) => setSelectedFramework?.(id)}
+        includeAll
+        counts={Object.fromEntries(frameworkChips.map((c) => [c.id, c.count]))}
+      />
 
       <ItemDetailSheet
         item={detailItem}

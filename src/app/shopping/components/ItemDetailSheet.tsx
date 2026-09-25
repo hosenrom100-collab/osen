@@ -5,6 +5,7 @@ import { motion, useAnimationControls } from "framer-motion";
 import { ShoppingRequest, TargetFramework } from "../types";
 import { Flame, Trash2, Minus, Plus, ArrowRightLeft, User, ChevronDown, MessageSquare } from "lucide-react";
 import { BottomSheet } from "./BottomSheet";
+import { FrameworkPickerSheet } from "./FrameworkPickerSheet";
 import { TARGET_FRAMEWORKS, CAT_SOLID } from "../lib/constants";
 import { MEASUREMENT_UNITS } from "../lib/constants";
 import { parseQuantity, buildQuantityString, getQuantityStep, getMinQuantity, steppedQuantity, getQuickQtyChips } from "../lib/quantityUtils";
@@ -39,6 +40,7 @@ export function ItemDetailSheet({
   const [notes, setNotes] = useState("");
   const [isUrgent, setIsUrgent] = useState(false);
   const [selectedFramework, setSelectedFramework] = useState<TargetFramework>("main");
+  const [fwPickerOpen, setFwPickerOpen] = useState(false);
   // A quick scale "pulse" on the quantity whenever a button changes it — confirms the tap landed.
   const qtyControls = useAnimationControls();
   const bump = () => qtyControls.start({ scale: [1, 1.1, 1], transition: { duration: 0.18 } });
@@ -135,22 +137,17 @@ export function ItemDetailSheet({
             />
 
             <div className="flex items-center justify-between gap-3 mt-3 flex-wrap">
-              <div className="relative inline-flex items-center">
-                <span aria-hidden className={`absolute right-3 w-2 h-2 rounded-full pointer-events-none ${currentFwMeta.dot}`} />
-                <select
-                  value={selectedFramework}
-                  onChange={(e) => setSelectedFramework(e.target.value as TargetFramework)}
-                  aria-label="מסגרת מזמינה"
-                  className="appearance-none h-9 pr-7 pl-8 rounded-full border border-[var(--border)] bg-[var(--surface)] text-[13px] font-semibold text-[var(--foreground)] cursor-pointer outline-none focus:border-[var(--accent)]"
-                >
-                  {TARGET_FRAMEWORKS.map((fw) => (
-                    <option key={fw.id} value={fw.id}>
-                      {fw.name}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown className="w-3.5 h-3.5 absolute left-3 pointer-events-none text-[var(--muted)]" />
-              </div>
+              <button
+                type="button"
+                onClick={() => setFwPickerOpen(true)}
+                aria-haspopup="dialog"
+                aria-label={`מסגרת מזמינה: ${currentFwMeta.name}. לחץ לשינוי`}
+                className={`h-9 px-3.5 rounded-full text-[13px] font-semibold flex items-center gap-2 border-none cursor-pointer transition-colors ${currentFwMeta.activeBg} !text-white`}
+              >
+                <span aria-hidden className="w-2 h-2 rounded-full bg-white/90" />
+                <span>{currentFwMeta.name}</span>
+                <ChevronDown className="w-3.5 h-3.5 opacity-80" />
+              </button>
 
               {item.requestedByName && (
                 <span className="flex items-center gap-1.5 text-[13px] text-[var(--muted)] min-w-0">
@@ -294,6 +291,15 @@ export function ItemDetailSheet({
             </button>
           </div>
         </div>
+        <FrameworkPickerSheet
+          isOpen={fwPickerOpen}
+          onClose={() => setFwPickerOpen(false)}
+          selected={selectedFramework}
+          onSelect={(id) => {
+            if (id !== "all") setSelectedFramework(id);
+          }}
+          zIndex={120}
+        />
       </BottomSheet>
   );
 }

@@ -323,7 +323,7 @@ export function AddProductOverlay({
                           }}
                           className={`h-9 px-3.5 rounded-full text-[13px] font-semibold whitespace-nowrap shrink-0 flex items-center gap-1.5 border transition-colors cursor-pointer ${
                             active
-                              ? "bg-[var(--accent)] !text-white border-transparent"
+                              ? `${f.activeBg} !text-white border-transparent`
                               : "bg-[var(--surface)] text-[var(--foreground)]/80 border-[var(--border)] hover:bg-[var(--fill)]"
                           }`}
                         >
