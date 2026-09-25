@@ -88,7 +88,7 @@ export function DesktopSidePanel({
       <section className="space-y-2">
         <button
           onClick={onAdd}
-          className="w-full h-12 px-4 rounded-xl flex items-center justify-center gap-2 text-[15px] font-bold bg-[var(--accent)] hover:brightness-110 !text-white border-none cursor-pointer transition-[filter]"
+          className="w-full h-12 px-4 rounded-xl flex items-center justify-center gap-2 text-[15px] font-bold btn-primary !text-white border-none cursor-pointer transition-[filter]"
         >
           <Plus className="w-5 h-5 stroke-[2.5]" />
           הוסף מוצר

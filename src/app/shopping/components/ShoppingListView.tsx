@@ -67,7 +67,7 @@ export function ShoppingListView({
 
   // Undo snackbar for check-off / delete — replaces a confirmation dialog with a fast,
   // reversible action: the write already happened, "בטל" just flips it back.
-  const [undo, setUndo] = useState<{ label: string; revert: () => void } | null>(null);
+  const [undo, setUndo] = useState<{ id: number; label: string; revert: () => void } | null>(null);
   const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => () => {
@@ -76,7 +76,7 @@ export function ShoppingListView({
 
   const showUndo = (label: string, revert: () => void) => {
     if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
-    setUndo({ label, revert });
+    setUndo({ id: Date.now(), label, revert });
     undoTimerRef.current = setTimeout(() => setUndo(null), UNDO_TIMEOUT_MS);
   };
 
@@ -173,7 +173,7 @@ export function ShoppingListView({
                   : "bg-rose-500/10 border-rose-500/25 text-rose-600 dark:text-rose-400 hover:bg-rose-500/20"
               }`}
             >
-              <Flame className="w-3.5 h-3.5" />
+              <Flame className={`w-3.5 h-3.5 ${urgentFilterActive ? "fill-current" : ""}`} />
               <span className="tabular-nums">{urgentCount}</span>
               <span className="sr-only">פריטים דחופים</span>
             </button>
@@ -199,7 +199,7 @@ export function ShoppingListView({
             <span className={`text-xs font-semibold tabular-nums shrink-0 ${currentFw ? "opacity-80" : "text-[var(--muted)]"}`}>
               {selectedChip.count}
             </span>
-            <ChevronDown className="w-3.5 h-3.5 shrink-0 opacity-70" />
+            <ChevronDown className={`w-3.5 h-3.5 shrink-0 opacity-70 transition-transform duration-200 ${pickerOpen ? "rotate-180" : ""}`} />
           </button>
 
           {activeCategory !== null && (
@@ -243,7 +243,7 @@ export function ShoppingListView({
           {onAddClick && (
             <button
               onClick={onAddClick}
-              className="mt-5 h-11 px-5 rounded-xl bg-[var(--accent)] hover:brightness-110 !text-white text-sm font-bold border-none cursor-pointer inline-flex items-center gap-2"
+              className="mt-5 h-11 px-5 rounded-xl btn-primary !text-white text-sm font-bold border-none cursor-pointer inline-flex items-center gap-2"
             >
               הוסף מוצר
             </button>
@@ -251,7 +251,7 @@ export function ShoppingListView({
         </div>
       ) : activeRequests.length === 0 ? (
         <div className={`${cardClass} py-14 px-6 text-center my-2`}>
-          <div className="w-16 h-16 rounded-full bg-[var(--accent-soft)] text-[var(--accent-text)] flex items-center justify-center mx-auto mb-4">
+          <div className="w-16 h-16 rounded-full bg-[var(--accent-soft)] ring-8 ring-[var(--fill)] text-[var(--accent-text)] flex items-center justify-center mx-auto mb-5">
             <ShoppingBag className="w-8 h-8" />
           </div>
           <h3 className="text-lg font-bold text-[var(--foreground)]">הרשימה ריקה</h3>
@@ -261,7 +261,7 @@ export function ShoppingListView({
           {onAddClick && (
             <button
               onClick={onAddClick}
-              className="mt-5 h-11 px-5 rounded-xl bg-[var(--accent)] hover:brightness-110 !text-white text-sm font-bold border-none cursor-pointer inline-flex items-center gap-2"
+              className="mt-5 h-11 px-5 rounded-xl btn-primary !text-white text-sm font-bold border-none cursor-pointer inline-flex items-center gap-2"
             >
               הוסף מוצר
             </button>
@@ -294,8 +294,8 @@ export function ShoppingListView({
           return (
             <section key={cat} className={`${cardClass} mb-4`}>
               {/* Sticky under the chip row (52px) so the current aisle stays named while scrolling */}
-              <header className="sticky top-11 z-10 flex items-center gap-2.5 px-4 py-2.5 bg-[var(--surface)]/95 backdrop-blur border-b border-[var(--border)]">
-                <span aria-hidden className={`w-2.5 h-2.5 rounded-full ${CAT_SOLID[cat] ?? CAT_SOLID["כללי"]}`} />
+              <header className="sticky top-11 z-10 flex items-center gap-2.5 pl-4 pr-5 py-2.5 bg-[var(--surface)]/95 backdrop-blur border-b border-[var(--border)]">
+                <span aria-hidden className={`absolute right-0 top-0 bottom-0 w-[3px] ${CAT_SOLID[cat] ?? CAT_SOLID["כללי"]}`} />
                 <h2 className="text-sm font-bold text-[var(--foreground)]">{cat}</h2>
                 <span className="text-[13px] font-medium text-[var(--muted)] tabular-nums">{catItems.length}</span>
               </header>
@@ -360,7 +360,7 @@ export function ShoppingListView({
           <button
             onClick={() => setDeletedCollapsed(!deletedCollapsed)}
             aria-expanded={!deletedCollapsed}
-            className="flex items-center gap-1.5 text-[13px] font-semibold text-[var(--muted)] hover:text-[var(--foreground)] cursor-pointer py-2 bg-transparent border-none"
+            className="flex items-center gap-2 h-10 px-4 rounded-full text-[13px] font-semibold text-[var(--muted)] hover:text-[var(--foreground)] cursor-pointer bg-[var(--fill)] hover:bg-[var(--fill-strong)] border border-[var(--border)] transition-colors"
           >
             <span>פריטים שנמחקו ({sessionDeleted.length})</span>
             <ChevronDown className={`w-4 h-4 transition-transform ${deletedCollapsed ? "" : "rotate-180"}`} />
@@ -417,10 +417,11 @@ export function ShoppingListView({
                   setSelectedFramework?.(chip.id);
                   setPickerOpen(false);
                 }}
-                className={`w-full h-12 px-3 rounded-xl flex items-center gap-3 text-right cursor-pointer border-none transition-colors ${
+                className={`relative w-full h-12 px-3 rounded-xl flex items-center gap-3 text-right cursor-pointer border-none transition-colors ${
                   active ? "bg-[var(--accent-soft)]" : "bg-transparent hover:bg-[var(--fill)]"
                 }`}
               >
+                {active && <span aria-hidden className="absolute right-0 top-2.5 bottom-2.5 w-[3px] rounded-full bg-[var(--accent)]" />}
                 {fw ? (
                   <span aria-hidden className={`w-2.5 h-2.5 rounded-full shrink-0 ${fw.dot}`} />
                 ) : (
@@ -430,7 +431,13 @@ export function ShoppingListView({
                   {chip.name}
                 </span>
                 <span className="text-[13px] font-semibold tabular-nums text-[var(--muted)]">{chip.count}</span>
-                <Check className={`w-4 h-4 shrink-0 stroke-[3] text-[var(--accent-text)] ${active ? "" : "invisible"}`} />
+                <span className="w-4 h-4 shrink-0">
+                  {active && (
+                    <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", stiffness: 500, damping: 22 }} className="block">
+                      <Check className="w-4 h-4 stroke-[3] text-[var(--accent-text)]" />
+                    </motion.span>
+                  )}
+                </span>
               </button>
             );
           })}
@@ -455,8 +462,17 @@ export function ShoppingListView({
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 20 }}
             role="status"
-            className="fixed bottom-44 md:bottom-28 left-1/2 -translate-x-1/2 z-[90] bg-[#312E81] !text-white rounded-2xl shadow-[var(--shadow-pop)] pl-3 pr-4 py-2 flex items-center gap-3 max-w-[92vw]"
+            className="fixed bottom-44 md:bottom-28 left-1/2 -translate-x-1/2 z-[90] bg-[#312E81]/95 backdrop-blur-md !text-white rounded-2xl shadow-[var(--shadow-pop)] pl-3 pr-4 py-2 flex items-center gap-3 max-w-[92vw] overflow-hidden"
           >
+            {/* Countdown: the bar drains over the same 5s the undo stays available */}
+            <motion.span
+              key={undo.id}
+              aria-hidden
+              initial={{ scaleX: 1 }}
+              animate={{ scaleX: 0 }}
+              transition={{ duration: UNDO_TIMEOUT_MS / 1000, ease: "linear" }}
+              className="absolute bottom-0 inset-x-0 h-[3px] origin-right bg-indigo-300/70"
+            />
             <span className="text-sm font-medium truncate">{undo.label}</span>
             <button
               onClick={() => {

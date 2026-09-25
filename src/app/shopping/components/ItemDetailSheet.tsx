@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { motion, useAnimationControls } from "framer-motion";
 import { ShoppingRequest, TargetFramework } from "../types";
 import { Flame, Trash2, Minus, Plus, ArrowRightLeft, User, ChevronDown, MessageSquare } from "lucide-react";
 import { BottomSheet } from "./BottomSheet";
@@ -38,6 +39,9 @@ export function ItemDetailSheet({
   const [notes, setNotes] = useState("");
   const [isUrgent, setIsUrgent] = useState(false);
   const [selectedFramework, setSelectedFramework] = useState<TargetFramework>("main");
+  // A quick scale "pulse" on the quantity whenever a button changes it — confirms the tap landed.
+  const qtyControls = useAnimationControls();
+  const bump = () => qtyControls.start({ scale: [1, 1.1, 1], transition: { duration: 0.18 } });
 
   useEffect(() => {
     if (!item) return;
@@ -105,7 +109,7 @@ export function ItemDetailSheet({
             <button
               onClick={handleSave}
               disabled={!name.trim()}
-              className="flex-[2] h-12 bg-[var(--accent)] hover:brightness-110 !text-white text-[15px] font-bold rounded-xl transition-all active:scale-[0.98] cursor-pointer border-none disabled:opacity-40 disabled:cursor-not-allowed"
+              className="flex-[2] h-12 btn-primary !text-white text-[15px] font-bold rounded-xl transition-all active:scale-[0.97] cursor-pointer border-none disabled:opacity-40 disabled:cursor-not-allowed"
             >
               שמור שינויים
             </button>
@@ -167,12 +171,16 @@ export function ItemDetailSheet({
               <button
                 type="button"
                 aria-label="הפחת כמות"
-                onClick={() => setQtyValue((v) => steppedQuantity(v, step, -1, min))}
-                className="w-12 h-12 rounded-full bg-[var(--surface)] border border-[var(--border)] shadow-[var(--shadow-card)] flex items-center justify-center transition-transform active:scale-90 cursor-pointer shrink-0"
+                onClick={() => {
+                  setQtyValue((v) => steppedQuantity(v, step, -1, min));
+                  bump();
+                }}
+                className="w-12 h-12 rounded-full bg-[var(--surface)] border border-[var(--border)] shadow-[var(--shadow-card)] flex items-center justify-center transition-transform active:scale-[0.92] cursor-pointer shrink-0"
               >
                 <Minus className="w-5 h-5 stroke-[2.5] text-[var(--foreground)]" />
               </button>
-              <input
+              <motion.input
+                animate={qtyControls}
                 type="text"
                 inputMode="decimal"
                 aria-label="כמות"
@@ -187,8 +195,11 @@ export function ItemDetailSheet({
               <button
                 type="button"
                 aria-label="הוסף כמות"
-                onClick={() => setQtyValue((v) => steppedQuantity(v, step, 1))}
-                className="w-12 h-12 rounded-full bg-[var(--accent)] hover:brightness-110 flex items-center justify-center transition-transform active:scale-90 cursor-pointer shrink-0"
+                onClick={() => {
+                  setQtyValue((v) => steppedQuantity(v, step, 1));
+                  bump();
+                }}
+                className="w-12 h-12 rounded-full btn-primary flex items-center justify-center transition-transform active:scale-[0.92] cursor-pointer shrink-0"
               >
                 <Plus className="w-5 h-5 stroke-[2.5] text-white" />
               </button>
@@ -210,7 +221,10 @@ export function ItemDetailSheet({
                   <button
                     key={q}
                     type="button"
-                    onClick={() => setQtyValue(q)}
+                    onClick={() => {
+                      setQtyValue(q);
+                      bump();
+                    }}
                     className={`h-9 min-w-9 px-3 rounded-full text-[13px] font-semibold border transition-colors cursor-pointer shrink-0 tabular-nums ${
                       qtyValue === q
                         ? "bg-[var(--accent)] !text-white border-transparent"

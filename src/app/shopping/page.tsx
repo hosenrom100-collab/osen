@@ -8,7 +8,7 @@ import {
   doc, updateDoc, deleteDoc, setDoc, collection, query, where, onSnapshot, getDoc
 } from "firebase/firestore";
 import {
-  Loader2, ShoppingBag, Package, Plus
+  Loader2, ShoppingBag, Package, Plus, Lock
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { motion, AnimatePresence, MotionConfig } from "framer-motion";
@@ -229,7 +229,7 @@ export default function ShoppingPage() {
           <div className="px-2.5 sm:px-4 md:px-6 pt-2 shrink-0">
             <div className="max-w-[700px] lg:max-w-[1060px] mx-auto p-3 rounded-2xl bg-amber-500/10 border border-amber-500/25 flex items-center justify-between flex-wrap gap-3 text-right" dir="rtl">
               <div className="flex items-center gap-2.5 min-w-0">
-                <span className="text-lg shrink-0">🔒</span>
+                <span aria-hidden className="w-9 h-9 rounded-xl bg-amber-500/15 text-amber-700 dark:text-amber-400 flex items-center justify-center shrink-0"><Lock className="w-[18px] h-[18px]" /></span>
                 <div className="min-w-0">
                   <h4 className="text-sm font-bold text-amber-700 dark:text-amber-400">
                     מועד הקציבה השבועי חלף ({cutoffStatus.formattedTarget})
@@ -245,7 +245,7 @@ export default function ShoppingPage() {
               {(isAdmin || isLogistics) && (
                 <button
                   onClick={() => setShowCycleClosureModal(true)}
-                  className="h-10 px-4 rounded-xl bg-amber-500 hover:bg-amber-600 !text-white text-sm font-bold transition-all flex items-center gap-2 cursor-pointer active:scale-95 border-none shrink-0"
+                  className="h-10 px-4 rounded-xl bg-amber-500 hover:bg-amber-600 !text-white text-sm font-bold transition-all flex items-center gap-2 cursor-pointer active:scale-[0.97] border-none shrink-0"
                 >
                   <Package className="w-4 h-4 text-white" />
                   <span>הפקת רשימה</span>
@@ -367,7 +367,7 @@ export default function ShoppingPage() {
         <motion.button
           whileTap={{ scale: 0.95 }}
           onClick={() => setOverlayOpen(true)}
-          className="lg:hidden fixed bottom-24 md:bottom-8 left-4 sm:left-6 z-[55] h-14 min-w-14 px-4 rounded-full bg-[var(--accent)] !text-white shadow-[var(--shadow-pop)] flex items-center justify-center cursor-pointer border-none hover:brightness-110 transition-[filter]"
+          className="btn-primary lg:hidden fixed bottom-24 md:bottom-8 left-4 sm:left-6 z-[55] h-14 min-w-14 px-4 rounded-full !text-white flex items-center justify-center cursor-pointer"
           aria-label="הוסף מוצר לרשימה"
         >
           <Plus className="w-6 h-6 stroke-[2.5] shrink-0" />
@@ -534,7 +534,8 @@ export default function ShoppingPage() {
           )}
         </AnimatePresence>
       </div>
-      <ConfirmDialog />
+      {/* Rendered outside the themed root, so give it the same tokens */}
+      <div className="shopping-theme"><ConfirmDialog /></div>
       </MotionConfig>
     </RoleGuard>
   );

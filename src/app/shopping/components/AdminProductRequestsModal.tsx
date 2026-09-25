@@ -180,7 +180,7 @@ export function AdminProductRequestsModal({
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, scale: 0.95 }}
-          className="relative bg-[var(--surface)] border border-[var(--border)] rounded-3xl w-full max-w-xl p-6 shadow-2xl flex flex-col max-h-[85vh] text-right"
+          className="relative bg-[var(--surface)] border border-[var(--border)] rounded-3xl w-full max-w-xl p-6 shadow-[var(--shadow-pop)] flex flex-col max-h-[85vh] text-right"
           dir="rtl"
         >
           {/* Header */}
@@ -189,14 +189,14 @@ export function AdminProductRequestsModal({
               <Database className="w-6 h-6 text-[var(--accent-text)]" />
               <span>ניהול בקשות מוצרים חדשים</span>
               {requests.length > 0 && (
-                <span className="bg-rose-500 text-white text-xs px-2.5 py-0.5 rounded-full font-bold shadow-xs">
+                <span className="bg-rose-500 text-white text-xs px-2.5 py-0.5 rounded-full font-bold shadow-[var(--shadow-card)]">
                   {requests.length} ממתינים
                 </span>
               )}
             </h3>
             <button
               onClick={onClose}
-              className="p-2 rounded-full hover:bg-[var(--fill)] text-[var(--muted)] cursor-pointer transition-colors"
+              className="w-10 h-10 flex items-center justify-center rounded-full bg-[var(--fill-strong)] hover:brightness-95 text-[var(--muted)] cursor-pointer transition-colors border-none"
             >
               <X className="w-5 h-5" />
             </button>
@@ -210,7 +210,7 @@ export function AdminProductRequestsModal({
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="חפש בקשות..."
-              className="w-full bg-[var(--background)] border border-[var(--border)] rounded-xl py-2.5 pr-10 pl-4 text-sm font-bold focus:outline-none focus:border-[var(--accent)]"
+              className="w-full h-11 bg-[var(--background)] border border-[var(--border)] rounded-xl pr-10 pl-4 text-[15px] font-medium focus:outline-none focus:border-[var(--accent)]"
             />
           </div>
 
@@ -229,7 +229,7 @@ export function AdminProductRequestsModal({
                 return (
                   <div
                     key={req.id}
-                    className="p-4 bg-[var(--background)] border border-[var(--border)] rounded-2xl flex flex-col gap-3.5 shadow-sm transition-all"
+                    className="p-4 bg-[var(--background)] border border-[var(--border)] rounded-2xl flex flex-col gap-3.5 shadow-[var(--shadow-card)] transition-all"
                   >
                     {/* Header line & Actions */}
                     <div className="flex items-start justify-between gap-3">
@@ -238,7 +238,7 @@ export function AdminProductRequestsModal({
                           <div>
                             <div className="flex items-center gap-2 flex-wrap">
                               <h4 className="text-base font-bold text-[var(--foreground)]">{form.name}</h4>
-                              <span className="text-xs font-bold px-2 py-0.5 rounded-lg bg-[var(--accent-soft)] text-[var(--accent-text)] border border-[var(--accent-line)]">
+                              <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-[var(--accent-soft)] text-[var(--accent-text)]">
                                 {form.category}
                               </span>
                             </div>
@@ -360,14 +360,14 @@ export function AdminProductRequestsModal({
                         <button
                           onClick={() => handleReject(req.id)}
                           disabled={processing === req.id}
-                          className="px-3.5 py-2 rounded-xl text-xs font-bold bg-rose-500/10 text-rose-500 hover:bg-rose-500/20 transition-colors disabled:opacity-50 cursor-pointer"
+                          className="h-11 px-4 rounded-xl text-sm font-semibold bg-rose-500/10 text-rose-600 dark:text-rose-400 hover:bg-rose-500/20 transition-colors disabled:opacity-50 cursor-pointer"
                         >
                           דחה בקשה
                         </button>
                         <button
                           onClick={() => handleApprove(req)}
                           disabled={processing === req.id}
-                          className="px-4 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 !text-white transition-all shadow-md active:scale-95 disabled:opacity-50 cursor-pointer flex items-center gap-1"
+                          className="btn-primary h-11 px-4 rounded-xl text-sm font-semibold !text-white active:scale-[0.97] disabled:opacity-50 cursor-pointer flex items-center gap-1.5"
                         >
                           <Check className="w-4 h-4" />
                           <span>אשר והוסף לפול</span>

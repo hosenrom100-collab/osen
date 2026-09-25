@@ -3,7 +3,7 @@
 import Link from "next/link";
 import {
   ShoppingCart, FileText, ShoppingBag, RotateCcw, Settings, Star, Download,
-  Database, Edit3, Clock, Boxes, History,
+  Database, Edit3, Clock, Boxes, History, ChevronLeft,
 } from "lucide-react";
 import { BottomSheet } from "./BottomSheet";
 import { TargetFramework, ShoppingRequest } from "../types";
@@ -45,18 +45,26 @@ function MenuItem({
   onClick?: () => void;
   href?: string;
 }) {
-  const className = `w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl border transition-all text-sm font-bold text-right cursor-pointer ${
+  const className = `w-full flex items-center gap-3 px-3 min-h-[56px] rounded-2xl border transition-colors text-[15px] font-semibold text-right cursor-pointer ${
     danger
-      ? "bg-rose-500/10 hover:bg-rose-500/20 border-rose-500/20 text-rose-500"
-      : "bg-[var(--fill)] hover:bg-[var(--fill-strong)] border-[var(--border)] text-[var(--foreground)]"
+      ? "bg-rose-500/10 hover:bg-rose-500/20 border-rose-500/20 text-rose-600 dark:text-rose-400"
+      : "bg-[var(--surface)] hover:bg-[var(--fill)] border-[var(--border)] text-[var(--foreground)] shadow-[var(--shadow-card)]"
   }`;
   const content = (
     <>
-      {icon}
+      <span
+        aria-hidden
+        className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 [&>svg]:w-[18px] [&>svg]:h-[18px] ${
+          danger ? "bg-rose-500/15 text-rose-600" : "bg-[var(--accent-soft)] text-[var(--accent-text)]"
+        }`}
+      >
+        {icon}
+      </span>
       <span className="flex-1">{label}</span>
       {!!badge && badge > 0 && (
-        <span className="bg-rose-500 text-white text-xs px-1.5 py-0.5 rounded-full font-bold">{badge}</span>
+        <span className="bg-rose-500 text-white text-xs px-2 py-0.5 rounded-full font-bold tabular-nums">{badge}</span>
       )}
+      <ChevronLeft className="w-4 h-4 text-[var(--muted)]/50 shrink-0" />
     </>
   );
   if (href) {
@@ -114,11 +122,11 @@ export function MenuSheet({
       <div className="space-y-4">
         <div className="space-y-2">
           <MenuSectionLabel>קנייה אד-הוק</MenuSectionLabel>
-          <MenuItem icon={<ShoppingCart className="w-4 h-4 text-blue-500" />} label="בקשת קנייה אד-הוק חדשה" href="/store-authorization" onClick={onClose} />
-          <MenuItem icon={<FileText className="w-4 h-4 text-emerald-500" />} label="הבקשות שלי וסטטוס אישורים" href="/store-authorization/requests" onClick={onClose} />
+          <MenuItem icon={<ShoppingCart className="w-4 h-4" />} label="בקשת קנייה אד-הוק חדשה" href="/store-authorization" onClick={onClose} />
+          <MenuItem icon={<FileText className="w-4 h-4" />} label="הבקשות שלי וסטטוס אישורים" href="/store-authorization/requests" onClick={onClose} />
           {canPurchase && (
             <MenuItem
-              icon={<ShoppingBag className="w-4 h-4 text-blue-600" />}
+              icon={<ShoppingBag className="w-4 h-4" />}
               label="אישור בקשות אד-הוק"
               badge={pendingStoreAuthCount}
               href="/admin/store-requests"
@@ -132,12 +140,12 @@ export function MenuSheet({
             <MenuSectionLabel>ניהול הרשימה</MenuSectionLabel>
             <MenuItem icon={<Edit3 className="w-4 h-4 text-[var(--accent-text)]" />} label="ניהול קטגוריות ומועד קציבה" onClick={wrap(onOpenCategories)} />
             {(isAdmin || isManager || isLogistics) && (
-              <MenuItem icon={<Star className="w-4 h-4 text-amber-500" />} label="ניהול מוצרים נפוצים" onClick={wrap(onOpenStarManager)} />
+              <MenuItem icon={<Star className="w-4 h-4" />} label="ניהול מוצרים נפוצים" onClick={wrap(onOpenStarManager)} />
             )}
-            <MenuItem icon={<History className="w-4 h-4 text-slate-500" />} label="סבבים קודמים" onClick={wrap(onOpenCycleHistory)} />
+            <MenuItem icon={<History className="w-4 h-4" />} label="סבבים קודמים" onClick={wrap(onOpenCycleHistory)} />
             {isAdmin && (
               <MenuItem
-                icon={<Database className="w-4 h-4 text-amber-500" />}
+                icon={<Database className="w-4 h-4" />}
                 label="בקשות מוצרים חדשים"
                 badge={pendingRequestsCount}
                 onClick={wrap(onOpenAdminRequests)}
@@ -150,17 +158,18 @@ export function MenuSheet({
           <div className="space-y-3 pt-2">
             <MenuSectionLabel>הפקת רשימות לקניות וחלוקה (Word)</MenuSectionLabel>
             
-            <div className="p-3 bg-[var(--fill)] rounded-2xl border border-[var(--border)] space-y-2">
-              <div className="text-xs font-bold text-[var(--accent-text)] flex items-center justify-between">
+            <div className="p-3 bg-[var(--fill)] rounded-2xl space-y-2.5">
+              <div className="text-[13px] font-bold text-[var(--foreground)] flex items-center justify-between gap-2">
                 <div className="flex items-center gap-1.5">
-                  <ShoppingCart className="w-3.5 h-3.5" />
+                  <ShoppingCart className="w-4 h-4 text-[var(--accent-text)]" />
                   <span>רשימת סופר שוטפת</span>
                 </div>
                 <button
                   onClick={wrap(() => onExportOngoingList("all"))}
-                  className="py-1 px-2.5 rounded-lg bg-[var(--accent)] hover:brightness-110 text-white text-xs font-bold transition-all cursor-pointer border-none shadow-xs"
+                  className="btn-primary h-8 px-3 rounded-lg !text-white text-[13px] font-semibold cursor-pointer flex items-center gap-1.5"
                 >
-                  📑 רשימה מאוחדת ({activeSupermarket.length})
+                  <FileText className="w-3.5 h-3.5" />
+                  רשימה מאוחדת ({activeSupermarket.length})
                 </button>
               </div>
               
@@ -171,27 +180,29 @@ export function MenuSheet({
                     <button
                       key={fw.id}
                       onClick={wrap(() => onExportOngoingList(fw.id))}
-                      className={`py-2 px-2 rounded-xl ${fw.pillInactive} border text-xs font-bold transition-all cursor-pointer text-center leading-tight flex items-center justify-between gap-1`}
+                      className="h-10 px-2.5 rounded-xl bg-[var(--surface)] border border-[var(--border)] hover:bg-[var(--fill-strong)] text-[13px] font-semibold text-[var(--foreground)] transition-colors cursor-pointer text-right leading-tight flex items-center gap-2"
                     >
-                      <span className="truncate">📄 {fw.name}</span>
-                      <span className="text-xs font-bold opacity-80 shrink-0">({count})</span>
+                      <span aria-hidden className={`w-2 h-2 rounded-full shrink-0 ${fw.dot}`} />
+                      <span className="truncate flex-1">{fw.name}</span>
+                      <span className="text-xs font-semibold text-[var(--muted)] tabular-nums shrink-0">{count}</span>
                     </button>
                   );
                 })}
               </div>
             </div>
 
-            <div className="p-3 bg-[var(--fill)] rounded-2xl border border-[var(--border)] space-y-2">
-              <div className="text-xs font-bold text-amber-700 dark:text-amber-400 flex items-center justify-between">
+            <div className="p-3 bg-[var(--fill)] rounded-2xl space-y-2.5">
+              <div className="text-[13px] font-bold text-[var(--foreground)] flex items-center justify-between gap-2">
                 <div className="flex items-center gap-1.5">
-                  <Boxes className="w-3.5 h-3.5" />
+                  <Boxes className="w-4 h-4 text-[var(--accent-text)]" />
                   <span>רשימת רכש</span>
                 </div>
                 <button
                   onClick={wrap(() => onExportProcurementList("all"))}
-                  className="py-1 px-2.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold transition-all cursor-pointer border-none shadow-xs"
+                  className="btn-primary h-8 px-3 rounded-lg !text-white text-[13px] font-semibold cursor-pointer flex items-center gap-1.5"
                 >
-                  📑 רשימה מאוחדת ({activeProcurement.length})
+                  <FileText className="w-3.5 h-3.5" />
+                  רשימה מאוחדת ({activeProcurement.length})
                 </button>
               </div>
 
@@ -202,10 +213,11 @@ export function MenuSheet({
                     <button
                       key={fw.id}
                       onClick={wrap(() => onExportProcurementList(fw.id))}
-                      className={`py-2 px-2 rounded-xl ${fw.pillInactive} border text-xs font-bold transition-all cursor-pointer text-center leading-tight flex items-center justify-between gap-1`}
+                      className="h-10 px-2.5 rounded-xl bg-[var(--surface)] border border-[var(--border)] hover:bg-[var(--fill-strong)] text-[13px] font-semibold text-[var(--foreground)] transition-colors cursor-pointer text-right leading-tight flex items-center gap-2"
                     >
-                      <span className="truncate">📦 {fw.name}</span>
-                      <span className="text-xs font-bold opacity-80 shrink-0">({count})</span>
+                      <span aria-hidden className={`w-2 h-2 rounded-full shrink-0 ${fw.dot}`} />
+                      <span className="truncate flex-1">{fw.name}</span>
+                      <span className="text-xs font-semibold text-[var(--muted)] tabular-nums shrink-0">{count}</span>
                     </button>
                   );
                 })}

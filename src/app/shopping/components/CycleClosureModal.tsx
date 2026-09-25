@@ -2,10 +2,11 @@
 
 import React, { useState } from "react";
 import {
-  Package, FileText, Trash2, Plus, X, AlertCircle, CheckCircle2, ShoppingBag, Edit2, Lock, ArrowRight, Loader2
+  Package, FileText, Trash2, Plus, X, CheckCircle2, ShoppingBag, Edit2, Lock, ArrowRight, Loader2, Hourglass, Repeat, Zap, MessageSquare
 } from "lucide-react";
 import { ShoppingRequest, Product } from "../types";
 import { BottomSheet } from "./BottomSheet";
+import { CountUp } from "./CountUp";
 
 export interface CycleClosureModalProps {
   isOpen: boolean;
@@ -130,7 +131,7 @@ export function CycleClosureModal({
                   <button
                     onClick={() => { setIsExportConfirmOpen(true); setConfirmPassword(""); setConfirmError(""); }}
                     disabled={isProcessing || activeItems.length === 0}
-                    className="h-12 px-5 rounded-xl text-sm font-bold bg-[var(--accent)] hover:brightness-110 !text-white transition-all shadow-lg shadow-indigo-600/20 active:scale-95 cursor-pointer disabled:opacity-50 flex items-center gap-2 border-none"
+                    className="h-12 px-5 rounded-xl text-sm font-bold btn-primary !text-white transition-all shadow-[var(--shadow-pop)] shadow-indigo-600/20 active:scale-[0.97] cursor-pointer disabled:opacity-50 flex items-center gap-2 border-none"
                   >
                     <FileText className="w-4 h-4 text-white" />
                     <span>ייצא רשימה להדפסה (Word)</span>
@@ -164,6 +165,8 @@ export function CycleClosureModal({
                 )}
                 <div>
                   <label htmlFor="cycle-closure-password" className="sr-only">סיסמת מנהל</label>
+                  <div className="relative">
+                  <Lock className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--muted)] pointer-events-none" aria-hidden />
                   <input
                     id="cycle-closure-password"
                     type="password"
@@ -174,8 +177,9 @@ export function CycleClosureModal({
                     placeholder="הזן סיסמת מנהל..."
                     aria-invalid={!!confirmError}
                     aria-describedby={confirmError ? "cycle-closure-password-error" : undefined}
-                    className="w-full bg-[var(--background)] border border-[var(--border)] rounded-xl py-2.5 px-3 text-sm font-bold focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 outline-none text-center tracking-widest text-[var(--foreground)]"
+                    className="w-full h-12 bg-[var(--background)] border border-[var(--border)] rounded-xl pr-10 pl-3 text-[15px] font-medium focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 outline-none text-center tracking-widest text-[var(--foreground)]"
                   />
+                  </div>
                   {confirmError && (
                     <span id="cycle-closure-password-error" className="text-xs text-rose-500 font-bold mt-1.5 block">{confirmError}</span>
                   )}
@@ -191,7 +195,7 @@ export function CycleClosureModal({
                   <button
                     onClick={handleConfirmedClose}
                     disabled={isProcessing}
-                    className="h-12 px-5 rounded-xl text-sm font-bold bg-rose-600 hover:bg-rose-700 !text-white transition-all shadow-lg active:scale-95 cursor-pointer disabled:opacity-50 flex items-center gap-2 border-none"
+                    className="h-12 px-5 rounded-xl text-sm font-bold btn-danger !text-white transition-all shadow-[var(--shadow-pop)] active:scale-[0.97] cursor-pointer disabled:opacity-50 flex items-center gap-2 border-none"
                   >
                     {isProcessing ? <Loader2 className="w-4 h-4 animate-spin text-white" /> : <Lock className="w-4 h-4 text-white" />}
                     <span>אשר, ייצא וסגור סבב</span>
@@ -218,16 +222,18 @@ export function CycleClosureModal({
 
           <div className="grid grid-cols-3 gap-2 mb-4">
             {[
-              { n: purchasedCount, label: "נרכשו", cls: "bg-emerald-500/10 border-emerald-500/25 text-emerald-700 dark:text-emerald-400" },
-              { n: unpurchasedCount, label: "לא נרכשו", cls: "bg-amber-500/10 border-amber-500/25 text-amber-700 dark:text-amber-400" },
+              { n: purchasedCount, label: "נרכשו", Icon: CheckCircle2, cls: "bg-emerald-500/10 border-emerald-500/25 text-emerald-700 dark:text-emerald-400" },
+              { n: unpurchasedCount, label: "לא נרכשו", Icon: Hourglass, cls: "bg-amber-500/10 border-amber-500/25 text-amber-700 dark:text-amber-400" },
               {
                 n: carryOver ? unpurchasedCount : 0,
                 label: "יועברו הלאה",
+                Icon: Repeat,
                 cls: "bg-[var(--accent-soft)] border-[var(--accent-line)] text-[var(--accent-text)]",
               },
             ].map((stat) => (
               <div key={stat.label} className={`rounded-2xl border p-3 text-center ${stat.cls}`}>
-                <div className="text-2xl font-bold tabular-nums leading-none">{stat.n}</div>
+                <stat.Icon className="w-4 h-4 mx-auto mb-1.5 opacity-80" aria-hidden />
+                <div className="text-2xl font-bold tabular-nums leading-none"><CountUp value={stat.n} /></div>
                 <div className="text-[13px] font-semibold mt-1.5 opacity-90">{stat.label}</div>
               </div>
             ))}
@@ -235,8 +241,9 @@ export function CycleClosureModal({
 
           {/* Quick Add Bar - "מוצרי דקה ה-90" */}
           <div className="my-4 p-4 rounded-2xl bg-amber-500/5 border border-amber-500/20 shrink-0">
-            <span className="text-xs font-bold text-amber-700 dark:text-amber-400 block mb-2">
-              ⚡ הוספת מוצר של הרגע האחרון (דקה ה-90):
+            <span className="text-[13px] font-semibold text-amber-700 dark:text-amber-400 flex items-center gap-1.5 mb-2.5">
+              <Zap className="w-4 h-4" />
+              הוספת מוצר של הרגע האחרון (דקה ה-90)
             </span>
             <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
               <input
@@ -268,7 +275,7 @@ export function CycleClosureModal({
               <button
                 onClick={handleQuickAdd}
                 disabled={isAdding || !newName.trim()}
-                className="px-4 py-2 bg-amber-500 hover:bg-amber-600 !text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1 cursor-pointer disabled:opacity-50 border-none shadow-xs"
+                className="px-4 py-2 bg-amber-500 hover:bg-amber-600 !text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1 cursor-pointer disabled:opacity-50 border-none shadow-[var(--shadow-card)]"
               >
                 <Plus className="w-4 h-4 text-white" />
                 <span>הוסף לסבב</span>
@@ -304,7 +311,7 @@ export function CycleClosureModal({
                             <span className="font-bold text-[var(--foreground)] truncate">{item.name}</span>
                             {effectiveNotes && (
                               <span className="text-xs font-semibold text-[var(--muted)] bg-[var(--fill)] px-2 py-0.5 rounded-lg truncate max-w-[160px]">
-                                💬 {effectiveNotes}
+                                <MessageSquare className="w-3 h-3 inline -mt-0.5 ml-1" />{effectiveNotes}
                               </span>
                             )}
                           </div>

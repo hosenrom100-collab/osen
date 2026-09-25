@@ -72,8 +72,15 @@ export function BottomSheet({
 
             <div className="flex items-center justify-between gap-3 px-5 pt-3 pb-3 shrink-0">
               <h2 className="text-lg font-bold flex items-center gap-2.5 text-[var(--foreground)] min-w-0">
-                {icon}
-                <span>{title}</span>
+                {icon && (
+                  <span
+                    aria-hidden
+                    className="w-8 h-8 rounded-lg bg-[var(--accent-soft)] flex items-center justify-center shrink-0 [&>svg]:w-[18px] [&>svg]:h-[18px]"
+                  >
+                    {icon}
+                  </span>
+                )}
+                <span className="truncate">{title}</span>
               </h2>
               <button
                 onClick={onClose}
@@ -87,7 +94,7 @@ export function BottomSheet({
             <div className="flex-1 overflow-y-auto no-scrollbar px-5 pt-1 pb-5">{children}</div>
 
             {footer && (
-              <div className="px-5 pt-3 pb-4 shrink-0 border-t border-[var(--border)] bg-[var(--surface)]">{footer}</div>
+              <div className="px-5 pt-3 pb-4 shrink-0 border-t border-[var(--border)] bg-[var(--surface)]/90 backdrop-blur-md">{footer}</div>
             )}
           </motion.div>
         </div>

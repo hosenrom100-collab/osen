@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { ArrowRight, ShoppingCart, Boxes, Settings, Clock, Truck } from "lucide-react";
 import { CutoffStatus } from "../types";
@@ -68,28 +69,42 @@ export function ShoppingHeader({
               setListType("supermarket");
               setActiveCategory(null);
             }}
-            className={`px-4 h-9 rounded-lg text-[13px] font-semibold transition-all flex items-center gap-1.5 border-none cursor-pointer ${
+            className={`relative px-4 h-9 rounded-lg text-[13px] font-semibold transition-colors flex items-center gap-1.5 border-none cursor-pointer ${
               listType === "supermarket"
-                ? "bg-[var(--surface)] text-[var(--accent-text)] shadow-[var(--shadow-card)]"
+                ? "text-[var(--accent-text)]"
                 : "text-[var(--muted)] hover:text-[var(--foreground)] bg-transparent"
             }`}
           >
-            <ShoppingCart className="w-3.5 h-3.5 shrink-0" />
-            <span>סופר</span>
+{listType === "supermarket" && (
+              <motion.span
+                layoutId="list-type-thumb"
+                className="absolute inset-0 rounded-lg bg-[var(--surface)] shadow-[var(--shadow-card)]"
+                transition={{ type: "spring", stiffness: 420, damping: 34 }}
+              />
+            )}
+            <ShoppingCart className="relative w-3.5 h-3.5 shrink-0" />
+            <span className="relative">סופר</span>
           </button>
           <button
             onClick={() => {
               setListType("large");
               setActiveCategory(null);
             }}
-            className={`px-4 h-9 rounded-lg text-[13px] font-semibold transition-all flex items-center gap-1.5 border-none cursor-pointer ${
+            className={`relative px-4 h-9 rounded-lg text-[13px] font-semibold transition-colors flex items-center gap-1.5 border-none cursor-pointer ${
               listType === "large"
-                ? "bg-[var(--surface)] text-[var(--accent-text)] shadow-[var(--shadow-card)]"
+                ? "text-[var(--accent-text)]"
                 : "text-[var(--muted)] hover:text-[var(--foreground)] bg-transparent"
             }`}
           >
-            <Boxes className="w-3.5 h-3.5 shrink-0" />
-            <span>רכש</span>
+{listType === "large" && (
+              <motion.span
+                layoutId="list-type-thumb"
+                className="absolute inset-0 rounded-lg bg-[var(--surface)] shadow-[var(--shadow-card)]"
+                transition={{ type: "spring", stiffness: 420, damping: 34 }}
+              />
+            )}
+            <Boxes className="relative w-3.5 h-3.5 shrink-0" />
+            <span className="relative">רכש</span>
           </button>
         </div>
 
@@ -107,7 +122,14 @@ export function ShoppingHeader({
                     : "bg-[var(--fill)] text-[var(--muted)] hover:bg-[var(--fill-strong)]"
                 }`}
               >
-                <Clock className="w-3.5 h-3.5" />
+                {cutoffSoon ? (
+                  <span aria-hidden className="relative flex w-2 h-2">
+                    <span className="animate-ping absolute inset-0 rounded-full bg-amber-500/60" />
+                    <span className="relative w-2 h-2 rounded-full bg-amber-500" />
+                  </span>
+                ) : (
+                  <Clock className="w-3.5 h-3.5" />
+                )}
                 <span className="tabular-nums">{formatShortLeft(cutoffStatus.msLeft ?? 0)}</span>
               </button>
 

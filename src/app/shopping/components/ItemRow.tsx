@@ -91,11 +91,15 @@ export const ItemRow = memo(function ItemRow({ item, onCheck, onOpenDetail, show
               : "border-[var(--muted)]/50 group-hover/check:border-[var(--accent)] group-hover/check:bg-[var(--accent-soft)]"
           }`}
         >
-          <Check
-            className={`w-4 h-4 stroke-[3] transition-opacity ${
-              checking ? "opacity-100" : "opacity-0 group-hover/check:opacity-70 text-[var(--accent-text)]"
-            }`}
-          />
+          {checking ? (
+            // The tick is drawn stroke by stroke rather than popped in — small, but it's the moment
+            // the whole screen exists for.
+            <motion.svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={3.2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <motion.path d="M5 12.5l4.5 4.5L19 7.5" initial={{ pathLength: 0 }} animate={{ pathLength: 1 }} transition={{ duration: 0.25, ease: "easeOut" }} />
+            </motion.svg>
+          ) : (
+            <Check className="w-4 h-4 stroke-[3] transition-opacity opacity-0 group-hover/check:opacity-70 text-[var(--accent-text)]" />
+          )}
         </span>
       </span>
 
@@ -110,7 +114,7 @@ export const ItemRow = memo(function ItemRow({ item, onCheck, onOpenDetail, show
             {item.name}
           </span>
           {showFrameworkTag && (
-            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border shrink-0 ${fwMeta.color}`}>
+            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full shrink-0 ${fwMeta.color}`}>
               {fwMeta.shortName}
             </span>
           )}

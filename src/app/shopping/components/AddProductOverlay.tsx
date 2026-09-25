@@ -2,8 +2,9 @@
 
 import { useState, useRef, useEffect } from "react";
 import { CycleItemSnapshot, Product, ShoppingRequest, TargetFramework } from "../types";
-import { Plus, Search, X, Flame, CheckCircle2, AlertTriangle, Minus, ArrowRight, Sparkles, MapPin, History } from "lucide-react";
+import { Lock, Plus, Search, X, Flame, CheckCircle2, AlertTriangle, Minus, ArrowRight, Sparkles, MapPin, History } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { SwitchVisual } from "./Switch";
 import { rankSimilarProducts, findSimilarProduct } from "../lib/stringUtils";
 import { MEASUREMENT_UNITS, CAT_COLOR, CAT_SOLID, TARGET_FRAMEWORKS } from "../lib/constants";
 import { DEFAULT_CATEGORIES } from "../lib/constants";
@@ -275,7 +276,7 @@ export function AddProductOverlay({
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: "100%", opacity: 0.5 }}
             transition={{ type: "spring", damping: 25, stiffness: 220 }}
-            className="relative w-full h-[100dvh] md:h-auto md:max-h-[85vh] md:max-w-xl bg-[var(--surface)] border-t md:border border-[var(--border)] rounded-t-[1.25rem] md:rounded-3xl p-3 sm:p-5 md:p-6 shadow-2xl text-right flex flex-col overflow-hidden"
+            className="relative w-full h-[100dvh] md:h-auto md:max-h-[85vh] md:max-w-xl bg-[var(--surface)] border-t md:border border-[var(--border)] rounded-t-[1.25rem] md:rounded-3xl p-3 sm:p-5 md:p-6 shadow-[var(--shadow-pop)] text-right flex flex-col overflow-hidden"
             dir="rtl"
           >
             <div className="w-12 h-1 bg-[var(--border)] rounded-full mx-auto mb-2.5 md:hidden shrink-0" />
@@ -359,7 +360,7 @@ export function AddProductOverlay({
                     exit={{ opacity: 0, y: -6 }}
                     className="absolute -top-1 inset-x-0 z-30 flex justify-center pointer-events-none"
                   >
-                    <span className="px-3 py-1.5 rounded-full bg-emerald-600 !text-white text-xs font-bold shadow-lg flex items-center gap-1.5 max-w-[92%] truncate">
+                    <span className="px-3 py-1.5 rounded-full bg-emerald-600 !text-white text-xs font-bold shadow-[var(--shadow-pop)] flex items-center gap-1.5 max-w-[92%] truncate">
                       <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
                       <span className="truncate">{feedback}</span>
                     </span>
@@ -387,12 +388,13 @@ export function AddProductOverlay({
                           key={c}
                           type="button"
                           onClick={() => setPending((p) => (p ? { ...p, category: c } : p))}
-                          className={`py-1.5 px-3 rounded-full text-xs font-bold border transition-all cursor-pointer ${
+                          className={`h-9 px-3.5 rounded-full text-[13px] font-semibold border transition-colors cursor-pointer flex items-center gap-2 ${
                             pending.category === c
-                              ? `${CAT_SOLID[c] ?? CAT_SOLID["כללי"]} !text-white shadow-sm border-transparent`
-                              : "bg-[var(--background)] border-[var(--border)] text-[var(--muted)] hover:text-[var(--foreground)]"
+                              ? "bg-[var(--accent-soft)] border-[var(--accent-line)] text-[var(--accent-text)]"
+                              : "bg-[var(--surface)] border-[var(--border)] text-[var(--foreground)]/80 hover:bg-[var(--fill)]"
                           }`}
                         >
+                          <span aria-hidden className={`w-2 h-2 rounded-full ${CAT_SOLID[c] ?? CAT_SOLID["כללי"]}`} />
                           {c}
                         </button>
                       ))}
@@ -422,7 +424,7 @@ export function AddProductOverlay({
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => setQtyValue((v) => steppedQuantity(v, step, -1, min))}
-                      className="w-12 h-12 rounded-xl bg-[var(--fill)] hover:bg-[var(--fill-strong)] border border-[var(--border)] flex items-center justify-center transition-all active:scale-90 cursor-pointer shrink-0"
+                      className="w-12 h-12 rounded-xl bg-[var(--fill)] hover:bg-[var(--fill-strong)] border border-[var(--border)] flex items-center justify-center transition-all active:scale-[0.92] cursor-pointer shrink-0"
                     >
                       <Minus className="w-5 h-5 stroke-[3] text-[var(--foreground)]" />
                     </button>
@@ -439,7 +441,7 @@ export function AddProductOverlay({
                     />
                     <button
                       onClick={() => setQtyValue((v) => steppedQuantity(v, step, 1))}
-                      className="w-12 h-12 rounded-xl bg-[var(--accent)] hover:brightness-110 flex items-center justify-center transition-all active:scale-90 cursor-pointer shrink-0"
+                      className="w-12 h-12 rounded-xl btn-primary flex items-center justify-center transition-all active:scale-[0.92] cursor-pointer shrink-0"
                     >
                       <Plus className="w-5 h-5 stroke-[3] text-white" />
                     </button>
@@ -463,19 +465,17 @@ export function AddProductOverlay({
                 >
                   <span className={`flex items-center gap-2 text-sm font-bold ${urgent ? "text-rose-500" : "text-[var(--foreground)]"}`}>
                     <Flame className="w-4 h-4" />
-                    בקשה דחופה 🔥
+                    בקשה דחופה
                   </span>
-                  <span className={`w-10 h-6 rounded-full p-0.5 transition-all flex items-center ${urgent ? "bg-rose-500 justify-end" : "bg-[var(--fill-strong)] justify-start"}`}>
-                    <span className="w-5 h-5 rounded-full bg-white shadow-sm block" />
-                  </span>
+                  <SwitchVisual checked={urgent} tone="danger" />
                 </button>
               </div>
             ) : (
               /* ── Step 1: one search box, always visible. Empty = your favorites and last cycle's
                  items to tap; typing = matching products (or add a new one). No tabs to choose between. ── */
               <>
-                <div className="relative mb-3 shrink-0">
-                  <Search className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[var(--muted)] pointer-events-none" />
+                <div className="group relative mb-3 shrink-0">
+                  <Search className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[var(--muted)] group-focus-within:text-[var(--accent-text)] transition-colors pointer-events-none" />
                   <input
                     ref={searchInputRef}
                     type="text"
@@ -515,7 +515,7 @@ export function AddProductOverlay({
 
                 {isUserBlockedByFreeze && (
                   <div className="mb-3 p-3 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-300 text-sm font-medium flex items-center gap-2 text-right shrink-0">
-                    <span className="text-base">🔒</span>
+                    <Lock className="w-5 h-5 shrink-0" />
                     <span>הרשימה מוקפאת כרגע לקראת רכש. הזנת מוצרים חדשים תתאפשר מחדש לאחר פתיחת סבב חדש.</span>
                   </div>
                 )}
@@ -541,7 +541,7 @@ export function AddProductOverlay({
                               <button
                                 disabled={isUserBlockedByFreeze}
                                 onClick={() => selectProduct(similarProduct)}
-                                className="w-full h-10 px-3 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-700 dark:text-amber-300 font-bold text-sm border border-amber-500/20 transition-all active:scale-95 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-40"
+                                className="w-full h-10 px-3 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-700 dark:text-amber-300 font-bold text-sm border border-amber-500/20 transition-all active:scale-[0.97] flex items-center justify-center gap-2 cursor-pointer disabled:opacity-40"
                               >
                                 <Plus className="w-4 h-4" />
                                 <span>בחר &quot;{similarProduct.name}&quot;</span>
@@ -553,7 +553,7 @@ export function AddProductOverlay({
                             <button
                               onClick={() => selectNewProduct(inputVal)}
                               disabled={isUserBlockedByFreeze}
-                              className="w-full h-14 flex items-center justify-between px-5 rounded-2xl bg-[var(--accent)] hover:brightness-110 !text-white font-bold text-[15px] shadow-[var(--shadow-card)] active:scale-[0.98] transition-all cursor-pointer border-none shrink-0 disabled:opacity-40"
+                              className="w-full h-14 flex items-center justify-between px-5 rounded-2xl btn-primary !text-white font-bold text-[15px] shadow-[var(--shadow-card)] active:scale-[0.97] transition-all cursor-pointer border-none shrink-0 disabled:opacity-40"
                             >
                               <span className="!text-white truncate">
                                 {canAddDirectly ? `הוסף "${inputVal}" כמוצר חדש` : `לא מצאת? בקש הוספת "${inputVal}"`}
@@ -570,7 +570,7 @@ export function AddProductOverlay({
                                 key={p.id}
                                 onClick={() => selectProduct(p)}
                                 disabled={disabled}
-                                className={`w-full min-h-[56px] flex items-center justify-between gap-3 px-4 py-2 rounded-2xl border transition-all active:scale-[0.99] text-right shrink-0 ${
+                                className={`w-full min-h-[56px] flex items-center justify-between gap-3 px-4 py-2 rounded-2xl border transition-all active:scale-[0.97] text-right shrink-0 ${
                                   disabled
                                     ? "opacity-50 bg-transparent border-[var(--border)] cursor-not-allowed"
                                     : "bg-[var(--surface)] border-[var(--border)] shadow-[var(--shadow-card)] hover:border-[var(--accent-line)] cursor-pointer"
@@ -608,14 +608,14 @@ export function AddProductOverlay({
                       <div className="rounded-2xl border border-[var(--accent-line)] bg-[var(--accent-soft)] p-3.5">
                         <div className="flex items-center justify-between gap-2 mb-2.5">
                           <span className="text-[13px] font-bold text-[var(--accent-text)] flex items-center gap-1.5">
-                            <History className="w-4 h-4" />
+                            <span aria-hidden className="w-6 h-6 rounded-md bg-[var(--surface)] flex items-center justify-center"><History className="w-3.5 h-3.5" /></span>
                             הוזמנו בסבב הקודם ({lastOrdered.length})
                           </span>
                           <button
                             type="button"
                             onClick={addAllFromLast}
                             disabled={isUserBlockedByFreeze || favBusy}
-                            className="h-9 px-3.5 rounded-lg bg-[var(--accent)] hover:brightness-110 !text-white text-[13px] font-bold border-none cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                            className="h-9 px-3.5 rounded-lg btn-primary !text-white text-[13px] font-bold border-none cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
                           >
                             הוסף הכל
                           </button>
@@ -660,8 +660,11 @@ export function AddProductOverlay({
                               if (request) {
                                 const qty = parseQuantity(request.quantity).value;
                                 return (
-                                  <div
+                                  <motion.div
                                     key={p.id}
+                                    initial={{ scale: 0.96, opacity: 0.7 }}
+                                    animate={{ scale: 1, opacity: 1 }}
+                                    transition={{ type: "spring", stiffness: 420, damping: 26 }}
                                     className="rounded-2xl border border-emerald-500/30 bg-emerald-500/[0.08] p-3 min-h-[92px] flex flex-col justify-between gap-2"
                                   >
                                     <span className="text-[15px] font-semibold leading-snug line-clamp-2 text-[var(--foreground)]">{p.name}</span>
@@ -689,7 +692,7 @@ export function AddProductOverlay({
                                         </button>
                                       </div>
                                     </div>
-                                  </div>
+                                  </motion.div>
                                 );
                               }
                               return (
@@ -699,7 +702,7 @@ export function AddProductOverlay({
                                   aria-label={`הוסף ${p.name}`}
                                   onClick={() => quickAdd(p)}
                                   disabled={isUserBlockedByFreeze || favBusy}
-                                  className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow-card)] p-3 min-h-[92px] flex flex-col justify-between gap-2 text-right cursor-pointer transition-all active:scale-[0.97] hover:border-[var(--accent-line)] disabled:opacity-40 disabled:cursor-not-allowed"
+                                  className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow-card)] p-3 min-h-[92px] flex flex-col justify-between gap-2 text-right cursor-pointer transition-all active:scale-[0.97] hover:-translate-y-px hover:border-[var(--accent-line)] disabled:opacity-40 disabled:cursor-not-allowed"
                                 >
                                   <span className="text-[15px] font-semibold leading-snug line-clamp-2 text-[var(--foreground)]">{p.name}</span>
                                   <span className="self-end w-9 h-9 rounded-full bg-[var(--accent-soft)] text-[var(--accent-text)] flex items-center justify-center">
@@ -722,7 +725,7 @@ export function AddProductOverlay({
                 <button
                   onClick={handleConfirmAdd}
                   disabled={isUserBlockedByFreeze || !pending.category || !qtyValue}
-                  className="w-full py-4 bg-[var(--accent)] hover:brightness-110 !text-white text-sm font-bold rounded-2xl shadow-lg transition-all active:scale-[0.98] cursor-pointer border-none disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="w-full h-[52px] btn-primary !text-white text-[15px] font-bold rounded-xl transition-all active:scale-[0.97] cursor-pointer border-none disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   הוסף לרשימה
                 </button>
@@ -737,7 +740,7 @@ export function AddProductOverlay({
                   animate={{ y: 0 }}
                   exit={{ y: "100%" }}
                   transition={{ type: "spring", damping: 28, stiffness: 260 }}
-                  className="absolute inset-x-0 bottom-0 z-20 bg-[var(--surface)] border-t border-[var(--border)] rounded-t-2xl p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-2xl"
+                  className="absolute inset-x-0 bottom-0 z-20 bg-[var(--surface)] border-t border-[var(--border)] rounded-t-2xl p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-[var(--shadow-pop)]"
                 >
                   <div className="flex items-center justify-between mb-2.5 gap-2">
                     <div className="flex items-center gap-2 min-w-0">
@@ -775,7 +778,7 @@ export function AddProductOverlay({
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => setQtyValue((v) => steppedQuantity(v, step, -1, min))}
-                      className="w-11 h-11 rounded-xl bg-[var(--fill)] hover:bg-[var(--fill-strong)] border border-[var(--border)] flex items-center justify-center transition-all active:scale-90 cursor-pointer shrink-0"
+                      className="w-11 h-11 rounded-xl bg-[var(--fill)] hover:bg-[var(--fill-strong)] border border-[var(--border)] flex items-center justify-center transition-all active:scale-[0.92] cursor-pointer shrink-0"
                     >
                       <Minus className="w-5 h-5 stroke-[3] text-[var(--foreground)]" />
                     </button>
@@ -792,7 +795,7 @@ export function AddProductOverlay({
                     />
                     <button
                       onClick={() => setQtyValue((v) => steppedQuantity(v, step, 1))}
-                      className="w-11 h-11 rounded-xl bg-[var(--accent)] hover:brightness-110 flex items-center justify-center transition-all active:scale-90 cursor-pointer shrink-0"
+                      className="w-11 h-11 rounded-xl btn-primary flex items-center justify-center transition-all active:scale-[0.92] cursor-pointer shrink-0"
                     >
                       <Plus className="w-5 h-5 stroke-[3] text-white" />
                     </button>
@@ -809,7 +812,7 @@ export function AddProductOverlay({
                       type="button"
                       onClick={() => setUrgent((v) => !v)}
                       title="בקשה דחופה"
-                      className={`w-11 h-11 rounded-xl flex items-center justify-center transition-all active:scale-90 cursor-pointer border shrink-0 ${
+                      className={`w-11 h-11 rounded-xl flex items-center justify-center transition-all active:scale-[0.92] cursor-pointer border shrink-0 ${
                         urgent ? "bg-rose-500 border-transparent" : "bg-[var(--background)] border-[var(--border)]"
                       }`}
                     >
@@ -820,7 +823,7 @@ export function AddProductOverlay({
                   <button
                     onClick={handleConfirmAdd}
                     disabled={isUserBlockedByFreeze || !qtyValue}
-                    className="w-full mt-2.5 py-3 bg-[var(--accent)] hover:brightness-110 !text-white text-sm font-bold rounded-2xl shadow-lg transition-all active:scale-[0.98] cursor-pointer border-none disabled:opacity-40 disabled:cursor-not-allowed"
+                    className="w-full mt-2.5 h-[52px] btn-primary !text-white text-[15px] font-bold rounded-xl transition-all active:scale-[0.97] cursor-pointer border-none disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     הוסף לרשימה
                   </button>

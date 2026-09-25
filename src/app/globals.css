@@ -162,6 +162,53 @@
   --fill-strong:     rgba(79, 70, 229, 0.11);
 }
 
+/* ── Shopping: shared interaction language ─────────────────────────── */
+
+/* Primary action: soft vertical gradient, hairline highlight on top, tinted glow. Unlayered on
+   purpose so it wins over utility classes like bg-[var(--accent)]. */
+.btn-primary {
+  background-image: linear-gradient(180deg, #635bff 0%, #4338ca 100%);
+  background-color: var(--accent);
+  color: #fff;
+  border: none;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22), 0 4px 14px rgba(79, 70, 229, 0.32);
+  transition: filter 150ms ease-out, transform 120ms ease-out, box-shadow 150ms ease-out;
+}
+.btn-primary:hover:not(:disabled) { filter: brightness(1.07); }
+.btn-primary:active:not(:disabled) {
+  box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.25), 0 1px 4px rgba(79, 70, 229, 0.25);
+}
+.btn-primary:disabled { box-shadow: none; }
+
+/* Destructive twin of .btn-primary */
+.btn-danger {
+  background-image: linear-gradient(180deg, #f43f5e 0%, #be123c 100%);
+  background-color: #e11d48;
+  color: #fff;
+  border: none;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22), 0 4px 14px rgba(225, 29, 72, 0.3);
+  transition: filter 150ms ease-out, transform 120ms ease-out;
+}
+.btn-danger:hover:not(:disabled) { filter: brightness(1.07); }
+.btn-danger:disabled { box-shadow: none; }
+
+/* Keyboard focus: one visible ring for every control on the page. Text fields keep their own
+   border-color focus style, so they're excluded. */
+.shopping-theme :is(button, a, select, [role="button"], [role="tab"], [role="radio"], summary):focus-visible {
+  outline: 2px solid var(--accent-text);
+  outline-offset: 2px;
+  border-radius: inherit;
+}
+
+/* Finer icon stroke across the page; :where() keeps specificity at zero so explicit
+   stroke-[n] utilities on checkmarks and such still win. */
+:where(.shopping-theme svg.lucide) { stroke-width: 1.75; }
+
+/* Attention pulse for the cutoff tag; off for people who asked for less motion. */
+@media (prefers-reduced-motion: reduce) {
+  .shopping-theme .animate-ping { animation: none; }
+}
+
 /* ════════════════════════════════════════════════════════════════════
    BASE STYLES
    ════════════════════════════════════════════════════════════════════ */

@@ -58,23 +58,26 @@ export function CycleHistorySheet({ isOpen, onClose, listType }: CycleHistoryShe
           {cycles.map((cycle) => {
             const expanded = openId === cycle.id;
             return (
-              <div key={cycle.id} className="rounded-2xl border border-[var(--border)] bg-[var(--fill)] overflow-hidden">
+              <div key={cycle.id} className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow-card)] overflow-hidden">
                 <button
                   onClick={() => setOpenId(expanded ? null : cycle.id)}
                   aria-expanded={expanded}
                   className="w-full flex items-center gap-3 px-4 py-3 text-right cursor-pointer border-none bg-transparent"
                 >
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm font-bold text-[var(--foreground)]">
+                    <div className="text-base font-bold text-[var(--foreground)] tabular-nums">
                       {format(cycle.closedAt, "dd/MM/yyyy")}
                     </div>
-                    <div className="text-xs font-bold text-[var(--muted)] mt-0.5">
-                      {cycle.purchasedCount} נרכשו · {cycle.unpurchasedCount} לא נרכשו
-                      {cycle.carriedOverCount > 0 && ` (${cycle.carriedOverCount} הועברו הלאה)`}
-                      {cycle.closedByName && ` · נסגר ע״י ${cycle.closedByName}`}
+                    <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+                      <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-400">{cycle.purchasedCount} נרכשו</span>
+                      <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-400">{cycle.unpurchasedCount} לא נרכשו</span>
+                      {cycle.carriedOverCount > 0 && (
+                        <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-[var(--accent-soft)] text-[var(--accent-text)]">{cycle.carriedOverCount} הועברו הלאה</span>
+                      )}
+                      {cycle.closedByName && <span className="text-xs text-[var(--muted)]">נסגר ע״י {cycle.closedByName}</span>}
                     </div>
                   </div>
-                  <ChevronDown className={`w-4 h-4 text-[var(--muted)] transition-transform ${expanded ? "rotate-180" : ""}`} />
+                  <ChevronDown className={`w-4 h-4 text-[var(--muted)] transition-transform duration-200 ${expanded ? "rotate-180" : ""}`} />
                 </button>
 
                 {expanded && (

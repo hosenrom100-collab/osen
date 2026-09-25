@@ -8,7 +8,9 @@ import {
   Edit3, Settings, X, Plus, Minus, Trash2, Check, ShoppingBag, CheckCircle2,
   Receipt, Star, Upload, Loader2, Search, MessageSquare, Clock
 } from "lucide-react";
+import { motion } from "framer-motion";
 import { BottomSheet } from "./BottomSheet";
+import { Switch } from "./Switch";
 
 const CAT_COLOR: Record<string, string> = {
   "גבינות ומחלבה":       "text-amber-500 bg-amber-500/10 border-amber-500/20",
@@ -97,7 +99,7 @@ export function ShoppingModals({
         footer={
           <button
             onClick={() => setIsAddingCat(false)}
-            className="w-full h-12 bg-[var(--accent)] hover:brightness-110 !text-white text-[15px] font-bold rounded-xl transition-all active:scale-[0.98] cursor-pointer border-none"
+            className="w-full h-12 btn-primary !text-white text-[15px] font-bold rounded-xl transition-all active:scale-[0.97] cursor-pointer border-none"
           >
             סגור
           </button>
@@ -128,7 +130,7 @@ export function ShoppingModals({
                         setNewCatName("");
                       }
                     }}
-                    className="px-5 py-3 bg-[var(--accent)] hover:brightness-110 !text-white rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1 shrink-0 shadow-md shadow-indigo-600/10 active:scale-95 border-none"
+                    className="px-5 py-3 btn-primary !text-white rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1 shrink-0 shadow-[var(--shadow-pop)] shadow-indigo-600/10 active:scale-[0.97] border-none"
                   >
                     <Plus className="w-4 h-4 text-white" />
                     <span>הוסף</span>
@@ -165,14 +167,14 @@ export function ShoppingModals({
                                 onRenameCategory(cat, editingCatNewValue);
                                 setEditingCatName(null);
                               }}
-                              className="p-1.5 bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 border border-emerald-500/10 rounded-lg transition-colors cursor-pointer"
+                              className="w-9 h-9 flex items-center justify-center bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/20 rounded-lg transition-colors cursor-pointer"
                               title="שמור שם"
                             >
                               <Check className="w-4 h-4" />
                             </button>
                             <button
                               onClick={() => setEditingCatName(null)}
-                              className="p-1.5 bg-[var(--fill)] text-[var(--muted)] hover:bg-[var(--fill-strong)] border border-[var(--border)] rounded-lg transition-colors cursor-pointer"
+                              className="w-9 h-9 flex items-center justify-center bg-transparent text-[var(--muted)] hover:bg-[var(--fill-strong)] rounded-lg transition-colors cursor-pointer"
                               title="ביטול"
                             >
                               <X className="w-4 h-4" />
@@ -187,17 +189,17 @@ export function ShoppingModals({
                                   setEditingCatName(cat);
                                   setEditingCatNewValue(cat);
                                 }}
-                                className="p-1.5 bg-[var(--fill)] hover:bg-[var(--fill-strong)] text-[var(--muted)] hover:text-[var(--accent-text)] border border-[var(--border)] rounded-lg transition-all cursor-pointer"
+                                className="w-9 h-9 flex items-center justify-center bg-transparent hover:bg-[var(--fill-strong)] text-[var(--muted)] hover:text-[var(--accent-text)] rounded-lg transition-colors cursor-pointer"
                                 title="ערוך קטגוריה"
                               >
-                                <Edit3 className="w-3.5 h-3.5" />
+                                <Edit3 className="w-4 h-4" />
                               </button>
                               <button
                                 onClick={() => onDeleteCategory(cat)}
-                                className="p-1.5 bg-rose-500/5 hover:bg-rose-500/10 text-rose-500 border border-rose-500/10 rounded-lg transition-all cursor-pointer"
+                                className="w-9 h-9 flex items-center justify-center bg-transparent hover:bg-rose-500/10 text-rose-500 rounded-lg transition-colors cursor-pointer"
                                 title="מחק קטגוריה"
                               >
-                                <Trash2 className="w-3.5 h-3.5" />
+                                <Trash2 className="w-4 h-4" />
                               </button>
                             </div>
                           </>
@@ -216,15 +218,7 @@ export function ShoppingModals({
                       <Clock className="w-4 h-4 text-[var(--accent-text)]" />
                       מועד קציבה שבועי (Cutoff)
                     </span>
-                    <label className="relative inline-flex items-center cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={cutoffEnabled}
-                        onChange={(e) => setCutoffEnabled(e.target.checked)}
-                        className="sr-only peer"
-                      />
-                      <div className="w-9 h-5 bg-[var(--fill-strong)] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
-                    </label>
+                    <Switch checked={cutoffEnabled} onChange={setCutoffEnabled} label="הפעל מועד קציבה שבועי" />
                   </div>
 
                   {cutoffEnabled && (
@@ -322,7 +316,7 @@ export function ShoppingModals({
         footer={
           <button
             onClick={() => setShowManageStarModal(false)}
-            className="w-full h-12 bg-amber-500 hover:bg-amber-600 !text-white text-[15px] font-bold rounded-xl transition-all active:scale-[0.98] cursor-pointer border-none"
+            className="w-full h-12 bg-amber-500 hover:bg-amber-600 !text-white text-[15px] font-bold rounded-xl transition-all active:scale-[0.97] cursor-pointer border-none"
           >
             סיום
           </button>
@@ -383,14 +377,16 @@ export function ShoppingModals({
                         </div>
                         <button
                           onClick={() => onToggleStarProduct(p.id, isStar)}
-                          className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 border-none ${
-                            isStar
-                              ? "bg-amber-500 text-white shadow-sm"
-                              : "bg-[var(--fill)] text-[var(--muted)] hover:bg-[var(--fill-strong)]"
+                          aria-pressed={isStar}
+                          aria-label={isStar ? `הסר את ${p.name} ממוצרים נפוצים` : `הגדר את ${p.name} כמוצר נפוץ`}
+                          title={isStar ? "מוצר נפוץ" : "הגדר כנפוץ"}
+                          className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors cursor-pointer border-none shrink-0 ${
+                            isStar ? "bg-amber-500/15" : "bg-transparent hover:bg-[var(--fill-strong)]"
                           }`}
                         >
-                          <Star className={`w-3.5 h-3.5 ${isStar ? "fill-white" : ""}`} />
-                          <span>{isStar ? "מוצר נפוץ ⭐" : "+ הגדר כנפוץ"}</span>
+                          <motion.span key={String(isStar)} initial={{ scale: isStar ? 0.6 : 1 }} animate={{ scale: 1 }} transition={{ type: "spring", stiffness: 500, damping: 18 }} className="flex">
+                            <Star className={`w-5 h-5 ${isStar ? "fill-amber-400 text-amber-500" : "text-[var(--muted)]"}`} />
+                          </motion.span>
                         </button>
                       </div>
                     );
