@@ -29,7 +29,7 @@ export function TodaySchedule() {
   const [offset, setOffset] = useState(0);
   const date = toISO(addDays(new Date(), offset));
   const dates = useMemo(() => [date], [date]);
-  const { refs, workshops, changes, closures, patients, loading } = useScheduleData(dates);
+  const { refs, types, workshops, changes, closures, patients, loading } = useScheduleData(dates);
   const [pref, setPref] = useState<Pref>(EMPTY);
   const [editing, setEditing] = useState(false);
   const [now, setNow] = useState(0);
@@ -52,12 +52,12 @@ export function TodaySchedule() {
 
   const sessions = useMemo(() => {
     if (!refs) return [];
-    let list = buildSessions(dates, workshops, refs.programs, changes, closures).filter(s => s.kind !== "moved-away");
+    let list = buildSessions(dates, workshops, refs.programs, changes, closures, types).filter(s => s.kind !== "moved-away");
     if (pref.programId) list = list.filter(s => s.programId === pref.programId);
     if (pref.groupId) list = list.filter(s => s.groupIds.length === 0 || s.groupIds.includes(pref.groupId));
     if (pref.mine && user) list = list.filter(s => s.fixedBlock || s.staffIds.includes(user.uid));
     return list;
-  }, [refs, dates, workshops, changes, closures, pref, user]);
+  }, [refs, types, dates, workshops, changes, closures, pref, user]);
 
   if (loading || !refs) return <div className="h-40 animate-pulse bg-[var(--foreground)]/[0.04] rounded-lg" aria-hidden />;
 

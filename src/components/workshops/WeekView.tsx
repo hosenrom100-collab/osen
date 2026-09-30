@@ -384,7 +384,7 @@ export function TimeGrid({ columns, mode, groupName, laneMin, corner, drag: drag
               {l.placed.map(({ s, lane, span }) => (
                 <div key={s.id} onPointerDown={e => startDrag(e, s, "move")}
                   onClickCapture={e => { if (justDragged.current) { e.stopPropagation(); e.preventDefault(); } }}
-                  className={`group relative z-[1] min-w-0 p-0.5 ${dragApi?.can(s) ? "cursor-grab active:cursor-grabbing" : ""} ${drag?.started && drag.s.id === s.id ? "opacity-40" : ""}`}
+                  className={`group relative z-[1] min-w-0 [contain:inline-size] p-0.5 ${dragApi?.can(s) ? "cursor-grab active:cursor-grabbing" : ""} ${drag?.started && drag.s.id === s.id ? "opacity-40" : ""}`}
                   style={{ gridRow: `${HDR + 1 + rowOf(s.start)} / ${HDR + 1 + rowOf(s.end)}`, gridColumn: `${c1 + lane} / span ${span}` }}>
                   <SessionCard s={s} mode={mode} c={c} groups={col.showGroups} />
                   {dragApi?.can(s) && (

@@ -34,7 +34,7 @@ export default function DaySharePage() {
   const sharing = useRef(false); // one image per tap, even if the button is pressed twice
   // A day, or the Sunday-to-Saturday week that contains it.
   const dates = useMemo(() => (range === "day" ? [date] : weekDates(weekStartOf(parseISO(date)))), [date, range]);
-  const { refs, workshops, changes, closures, patients, loading } = useScheduleData(dates);
+  const { refs, types, workshops, changes, closures, patients, loading } = useScheduleData(dates);
 
   const program = refs?.programs.find(p => p.id === programId);
   const programGroups = useMemo(() => refs?.groups.filter(g => g.programId === programId) || [], [refs, programId]);
@@ -42,12 +42,12 @@ export default function DaySharePage() {
 
   const sessions = useMemo(() => {
     if (!refs) return [];
-    let list = buildSessions(dates, workshops, refs.programs, changes, closures);
+    let list = buildSessions(dates, workshops, refs.programs, changes, closures, types);
     if (programId) list = list.filter(s => s.programId === programId);
     // Keep whole-program entries plus those of the chosen group.
     if (groupId) list = list.filter(s => s.groupIds.length === 0 || s.groupIds.includes(groupId));
     return list;
-  }, [refs, dates, workshops, changes, closures, programId, groupId]);
+  }, [refs, types, dates, workshops, changes, closures, programId, groupId]);
 
   const closureOf = (d: string) => closures.find(c => c.date === d && (c.programIds.length === 0 || !programId || c.programIds.includes(programId)));
   // One block per day; in a week, days with nothing to show are left out.
@@ -207,7 +207,7 @@ export default function DaySharePage() {
                   if (s.band) {
                     return (
                       <div key={s.id} style={{ display: "flex", gap: 10, padding: "6px 10px", margin: "4px 0", borderRadius: 8, background: "#f3f4f6", color: SOFT, fontSize: 13 }}>
-                        <span dir="ltr" style={{ fontWeight: 600 }}>{s.start}–{s.end}</span><span>{s.workshopName}{grp ? ` · ${grp}` : ""}</span>
+                        <span dir="ltr" style={{ fontWeight: 600 }}>{s.start}–{s.end}</span><span>{s.workshopName}{[room, grp].filter(Boolean).length ? ` · ${[room, grp].filter(Boolean).join(" · ")}` : ""}{s.note ? ` · ${s.note}` : ""}</span>
                       </div>
                     );
                   }
