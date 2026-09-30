@@ -13,11 +13,15 @@ export function Dialog({ title, subtitle, accent, onClose, children, footer, wid
   children: React.ReactNode; footer?: React.ReactNode; wide?: boolean;
 }) {
   const box = useRef<HTMLDivElement>(null);
+  // Callers pass inline closers; keep the latest one in a ref so the effect below runs once per open,
+  // not on every keystroke (which used to pull focus out of the field being typed in).
+  const closeRef = useRef(onClose);
+  useEffect(() => { closeRef.current = onClose; });
   useEffect(() => {
     const back = document.activeElement as HTMLElement | null;
     box.current?.focus();
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") closeRef.current();
       if (e.key !== "Tab" || !box.current) return;
       const f = [...box.current.querySelectorAll<HTMLElement>('button,[href],input,select,textarea,[tabindex]:not([tabindex="-1"])')].filter(x => !x.hasAttribute("disabled"));
       if (!f.length) return;
@@ -29,7 +33,7 @@ export function Dialog({ title, subtitle, accent, onClose, children, footer, wid
     const overflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => { window.removeEventListener("keydown", onKey); document.body.style.overflow = overflow; back?.focus?.(); };
-  }, [onClose]);
+  }, []);
 
   const bar = accent !== undefined ? pastel(accent).bar : undefined;
   return (
