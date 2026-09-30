@@ -11,7 +11,7 @@ import { buildSessions } from "@/lib/workshops/buildWeek";
 import { hueStyle, programHue } from "@/lib/workshops/colors";
 import { shortDate, toISO } from "@/lib/workshops/dates";
 import { firstNames, participantsOf } from "@/lib/workshops/people";
-import { DAY_FULL, Session, isBand } from "@/lib/workshops/types";
+import { DAY_FULL, Session } from "@/lib/workshops/types";
 import { useScheduleData } from "@/lib/workshops/useScheduleData";
 import { dayOf } from "@/lib/workshops/dates";
 
@@ -112,7 +112,7 @@ export function TodaySchedule() {
             const st = state(s);
             const dead = s.kind === "cancelled";
             const t = hueStyle(programHue(refs.programs.find(p => p.id === s.programId), s.programId));
-            const count = s.fixedBlock || s.activity === "staff_meeting" ? 0 : firstNames(participantsOf(s, wById.get(s.workshopId), patients)).length;
+            const count = s.fixedBlock || !s.hasParticipants ? 0 : firstNames(participantsOf(s, wById.get(s.workshopId), patients)).length;
             const meta = [s.fixedBlock ? "" : s.staffIds.map(nameOf).filter(Boolean).join(", "), roomOf(s.locationId), !pref.groupId ? s.groupIds.map(id => refs.groups.find(g => g.id === id)?.name).filter(Boolean).join(", ") : ""].filter(Boolean).join(" · ");
             const tag = dead ? "בוטל" : s.kind === "moved-in" ? "הוזז אלינו" : s.kind === "extra" ? "מפגש נוסף" : s.change?.newStart || s.change?.newEnd ? "שעה שונתה" : s.change?.staffIds ? "מחליף" : "";
             return (
@@ -120,11 +120,11 @@ export function TodaySchedule() {
                 <div dir="ltr" className="w-12 shrink-0 text-center text-sm font-bold tabular-nums leading-tight pt-0.5">
                   {s.start}<div className="text-[11px] font-normal text-[var(--foreground)]/50">{s.end}</div>
                 </div>
-                {isBand(s.activity) ? (
+                {s.band ? (
                   <div className="flex-1 min-w-0 self-center rounded-md bg-[var(--foreground)]/[0.05] px-2.5 py-1 text-xs text-[var(--foreground)]/60 font-medium">{s.workshopName}{meta ? ` · ${meta}` : ""}</div>
                 ) : (
                   <div className="flex-1 min-w-0 rounded-md border border-s-[3px] px-2.5 py-1.5"
-                    style={{ backgroundColor: dead ? undefined : t.bg, borderColor: t.border, borderInlineStartColor: st === "now" ? "#d92d20" : t.accent }}>
+                    style={{ backgroundColor: dead ? undefined : t.fill, borderColor: t.soft, borderInlineStartColor: st === "now" ? "#d92d20" : t.bar }}>
                     <div className="flex items-center gap-2">
                       <span className={`text-sm font-bold ${dead ? "line-through text-[var(--foreground)]/45" : ""}`}>{s.workshopName}</span>
                       {st === "now" && <span className="text-[11px] font-bold text-[#d92d20]">עכשיו</span>}

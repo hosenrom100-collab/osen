@@ -12,7 +12,8 @@ import { PageSkeleton } from "@/components/ui/Skeleton";
 import { loadRefs, Refs } from "@/lib/workshops/data";
 import { buildSessions } from "@/lib/workshops/buildWeek";
 import { rangeDates, shortDate, overlaps, dayOf } from "@/lib/workshops/dates";
-import { ACTIVITY_LABEL, ActivityKind, Closure, DAY_FULL, DAY_SHORT, SessionChange, Slot, Workshop } from "@/lib/workshops/types";
+import { Closure, DAY_FULL, DAY_SHORT, SessionChange, Slot, Workshop } from "@/lib/workshops/types";
+import { ActivityType, DEFAULT_TYPES, loadActivityTypes } from "@/lib/workshops/activityTypes";
 
 interface PatientLite { id: string; name: string; programIds: string[]; groupIds: string[] }
 
@@ -22,6 +23,8 @@ export default function WorkshopDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const [refs, setRefs] = useState<Refs | null>(null);
+  const [types, setTypes] = useState<ActivityType[]>(DEFAULT_TYPES);
+  useEffect(() => { loadActivityTypes().then(setTypes); }, []);
   const [saved, setSaved] = useState<Workshop | null>(null);
   const [form, setForm] = useState<Workshop | null>(null);
   const [others, setOthers] = useState<Workshop[]>([]);
@@ -147,8 +150,8 @@ export default function WorkshopDetailPage() {
               <div><label className={labelCls}>תאריך סיום</label>
                 <input type="date" className={fieldCls} value={form.endDate} min={form.startDate} onChange={e => set({ endDate: e.target.value })} /></div>
               <div><label className={labelCls}>סוג פעילות</label>
-                <select className={fieldCls} value={form.kind || "workshop"} onChange={e => set({ kind: e.target.value as ActivityKind })}>
-                  {(Object.keys(ACTIVITY_LABEL) as ActivityKind[]).map(k => <option key={k} value={k}>{ACTIVITY_LABEL[k]}</option>)}
+                <select className={fieldCls} value={form.kind || "workshop"} onChange={e => set({ kind: e.target.value })}>
+                  {types.filter(t => !t.band && (!t.archived || t.id === (form.kind || "workshop"))).map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
                 </select></div>
               <div><label className={labelCls}>סטטוס</label>
                 <select className={fieldCls} value={form.status} onChange={e => set({ status: e.target.value as Workshop["status"] })}>

@@ -6,7 +6,7 @@ import { Session, Workshop } from "./types";
  * in the session's program (and groups) whose stay covers that date.
  */
 export function participantsOf(s: Session, workshop: Workshop | undefined, patients: PatientLite[]): PatientLite[] {
-  if (s.fixedBlock || s.activity === "staff_meeting") return [];
+  if (s.fixedBlock || !s.hasParticipants) return [];
   if (workshop?.participantIds?.length) {
     const ids = new Set(workshop.participantIds);
     return patients.filter(p => ids.has(p.id));

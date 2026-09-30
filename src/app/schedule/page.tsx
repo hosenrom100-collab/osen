@@ -14,13 +14,16 @@ import { PageSkeleton } from "@/components/ui/Skeleton";
 import { Dialog, fieldCls, labelCls, btnPrimary } from "@/components/workshops/Dialog";
 import { SessionEditor } from "@/components/workshops/SessionEditor";
 import { SeriesDays } from "@/components/workshops/SeriesDays";
-import { DayAgenda, DayGrid, Row, WeekGrid } from "@/components/workshops/WeekView";
+import { Column, DayAgenda, Row, TimeGrid } from "@/components/workshops/WeekView";
 import { findConflicts, staffBusyAt } from "@/lib/workshops/conflicts";
 import { buildSessions } from "@/lib/workshops/buildWeek";
 import { notifyStaff, Refs } from "@/lib/workshops/data";
 import { useScheduleData } from "@/lib/workshops/useScheduleData";
 import { firstNames, participantsOf } from "@/lib/workshops/people";
-import { programHue } from "@/lib/workshops/colors";
+import { ColorBy, hueStyle, sessionHue } from "@/lib/workshops/colors";
+import { typeById } from "@/lib/workshops/activityTypes";
+import { groupsRunInParallel } from "@/lib/workshops/lanes";
+import { ActivityTypesDialog } from "@/components/workshops/ActivityTypesDialog";
 import { toISO, weekDates, weekStartOf, shortDate, dayOf } from "@/lib/workshops/dates";
 import { Closure, DAY_FULL, DAY_SHORT, Session } from "@/lib/workshops/types";
 
@@ -39,6 +42,7 @@ const save = (key: string, value: unknown) => { try { localStorage.setItem(`sche
 type Mode = "program" | "staff" | "space";
 type View = "week" | "day";
 const MODES: [Mode, string][] = [["program", "לפי תוכנית"], ["staff", "לפי איש צוות"], ["space", "לפי מרחב"]];
+const COLOR_BY: [ColorBy, string][] = [["type", "סוג פעילות"], ["program", "תוכנית"], ["workshop", "סדנה"]];
 const VIEWS: [View, string][] = [["week", "שבוע"], ["day", "יום"]];
 
 export default function SchedulePage() {
@@ -46,7 +50,7 @@ export default function SchedulePage() {
   const today = toISO(new Date());
   const [weekStart, setWeekStart] = useState(weekStartOf(new Date()));
   const dates = useMemo(() => weekDates(weekStart), [weekStart]);
-  const { refs, workshops, changes, closures, absences, patients, loading, reload: load } = useScheduleData(dates);
+  const { refs, types, workshops, changes, closures, absences, patients, loading, reload: load } = useScheduleData(dates);
   const [mode, setMode] = useState<Mode>(() => readSaved<Mode>("mode", "program"));
   const [onlyMine, setOnlyMine] = useState(false);
   // A link (?program=…&group=…&view=day) wins over what this browser remembered.
@@ -54,11 +58,14 @@ export default function SchedulePage() {
   const [programSel, setProgramSel] = useState<string[]>(() => { const u = fromUrl("program"); return u ? [u] : readSaved<string[]>("programs", []).slice(0, 1); });
   const [groupSel, setGroupSel] = useState<string[]>(() => { const u = fromUrl("group"); return u ? [u] : readSaved<string[]>("groups", []).slice(0, 1); });
   const [view, setView] = useState<View>(() => (fromUrl("view") === "day" ? "day" : readSaved<View>("view", "week")));
+  const [colorBy, setColorBy] = useState<ColorBy>(() => readSaved<ColorBy>("colorBy", "type"));
+  const [focus, setFocus] = useState<string | null>(null);
+  const [showTypes, setShowTypes] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [settingsFor, setSettingsFor] = useState<string | null>(null);
   const [showShift, setShowShift] = useState(false);
   useEffect(() => {
-    save("mode", mode); save("programs", programSel); save("groups", groupSel); save("view", view);
+    save("mode", mode); save("programs", programSel); save("groups", groupSel); save("view", view); save("colorBy", colorBy);
     try {
       const q = new URLSearchParams();
       if (programSel[0]) q.set("program", programSel[0]);
@@ -66,7 +73,7 @@ export default function SchedulePage() {
       if (view === "day") q.set("view", "day");
       window.history.replaceState(null, "", q.size ? `?${q}` : window.location.pathname);
     } catch { /* ignore */ }
-  }, [mode, programSel, groupSel, view]);
+  }, [mode, programSel, groupSel, view, colorBy]);
   const [pickedDay, setSelectedDay] = useState(today);
   const [editing, setEditing] = useState<{ session: Session | null; extra?: { date: string; programId?: string } } | null>(null);
   const [showChanges, setShowChanges] = useState(false);
@@ -87,7 +94,7 @@ export default function SchedulePage() {
   const nameOf = useCallback((id: string) => refs?.staff.find(s => s.id === id)?.name || "—", [refs]);
   const roomOf = useCallback((id?: string) => refs?.locations.find(l => l.id === id)?.name, [refs]);
 
-  const all = useMemo(() => refs ? buildSessions(dates, workshops, refs.programs, changes, closures) : [], [dates, workshops, refs, changes, closures]);
+  const all = useMemo(() => refs ? buildSessions(dates, workshops, refs.programs, changes, closures, types) : [], [dates, workshops, refs, changes, closures, types]);
   const groupName = useCallback((id: string) => refs?.groups.find(g => g.id === id)?.name || "", [refs]);
   const groupsOf = useCallback((ids: string[]) => ids.map(groupName).filter(Boolean).join(", "), [groupName]);
   const sessions = useMemo(() => {
@@ -200,15 +207,49 @@ export default function SchedulePage() {
   const workshopById = new Map(workshops.map(w => [w.id, w]));
   const common = {
     sessions, warnings, nameOf, roomOf, groupsOf, showGroups: programSel.length === 0,
-    hueOf: (id: string) => programHue(programOf(id), id),
+    hueOf: (s: Session) => sessionHue(s, colorBy, types, refs.programs),
+    dim: (s: Session) => focusKey !== null && legendKey(s) !== focusKey,
     countOf: (s: Session) => {
-      if (s.fixedBlock || s.activity === "staff_meeting") return undefined;
+      if (s.fixedBlock || !s.hasParticipants) return undefined;
       const n = participantsOf(s, workshopById.get(s.workshopId), patients).length;
       return n || undefined;
     },
     // A fixed meal/break opens its program's schedule settings; everything else opens the session.
     onOpen: (s: Session) => (s.fixedBlock ? (isManager && setSettingsFor(s.programId)) : setEditing({ session: s })),
   };
+  const legendKey = (s: Session) => (colorBy === "type" ? s.activity : colorBy === "program" ? s.programId : s.workshopId);
+  const focusKey = focus;
+  const legend = (() => {
+    const seen = new Map<string, { key: string; label: string; hue: number }>();
+    for (const s of sessions) {
+      const k = legendKey(s);
+      if (!seen.has(k)) seen.set(k, { key: k, label: colorBy === "type" ? typeById(types, s.activity).label : colorBy === "program" ? programOf(s.programId)?.name || "—" : s.workshopName, hue: sessionHue(s, colorBy, types, refs.programs) });
+    }
+    return [...seen.values()];
+  })();
+  const addFor = (date: string, programId?: string) => (isManager && mode === "program" ? () => setEditing({ session: null, extra: { date, programId } }) : undefined);
+  const laneGroups = programSel[0] && !groupSel[0] ? refs.groups.filter(g => g.programId === programSel[0]) : [];
+  const weekLanes: "groups" | "stable" = (() => {
+    const p = programOf(programSel[0]);
+    if (!p || laneGroups.length < 2) return "stable";
+    return p.laneMode === "groups" || (p.laneMode === "auto" && groupsRunInParallel(sessions)) ? "groups" : "stable";
+  })();
+  const columns: Column[] = view === "week"
+    ? days.map(d => {
+        const date = dates[d];
+        const sub = closedFor(programSel[0] || null, date);
+        return {
+          id: date, today: date === today, sessions: sessions.filter(s => s.date === date), laneMode: weekLanes, groupIds: laneGroups.map(g => g.id),
+          showGroups: weekLanes === "stable" && !groupSel[0],
+          header: <>{DAY_FULL[dayOf(date)]} <span className={`font-normal tabular-nums ${date === today ? "text-[var(--accent)] font-bold" : "text-[var(--foreground)]/50"}`}>{shortDate(date)}</span></>,
+          sub, onAdd: addFor(date, programSel[0]),
+        };
+      })
+    : rows.map(row => ({
+        id: row.id, sessions: sessions.filter(s => s.date === selectedDay && row.match(s)), laneMode: "stable" as const,
+        today: selectedDay === today, header: <span className="truncate">{row.label}</span>,
+        sub: row.closedReason(selectedDay), onAdd: addFor(selectedDay, row.id.split(":")[0]),
+      }));
   const currentProgram = programSel[0] ? programOf(programSel[0]) : undefined;
   const moveDay = (delta: number) => {
     const d = addDays(new Date(`${selectedDay}T12:00:00`), delta);
@@ -276,6 +317,11 @@ export default function SchedulePage() {
                     {MODES.map(([k, l]) => (
                       <li key={k}><button aria-pressed={mode === k} className={`w-full text-right px-3 py-1.5 hover:bg-[var(--foreground)]/5 ${mode === k ? "font-bold text-[var(--accent)]" : ""}`} onClick={() => { setMode(k); setMenuOpen(false); }}>{l}</button></li>
                     ))}
+                    <li className="px-3 pt-1.5 pb-1 text-xs font-bold text-[var(--foreground)]/50">צבע לפי</li>
+                    {COLOR_BY.map(([k, l]) => (
+                      <li key={k}><button aria-pressed={colorBy === k} className={`w-full text-right px-3 py-1.5 hover:bg-[var(--foreground)]/5 ${colorBy === k ? "font-bold text-[var(--accent)]" : ""}`} onClick={() => { setColorBy(k); setFocus(null); setMenuOpen(false); }}>{l}</button></li>
+                    ))}
+                    <li className="border-t border-[var(--border)] my-1" />
                     <li><label className="flex items-center gap-2 px-3 py-1.5 cursor-pointer hover:bg-[var(--foreground)]/5"><input type="checkbox" checked={onlyMine} onChange={e => setOnlyMine(e.target.checked)} /> רק המפגשים שלי</label></li>
                     <li className="border-t border-[var(--border)] my-1" />
                     <li><Link className="block px-3 py-2 hover:bg-[var(--foreground)]/5" href={dayUrl}>עמוד יומי לשיתוף</Link></li>
@@ -283,6 +329,7 @@ export default function SchedulePage() {
                     {isManager && <>
                       <li className="border-t border-[var(--border)] my-1" />
                       <li><button className="w-full text-right px-3 py-2 hover:bg-[var(--foreground)]/5" onClick={() => { setMenuOpen(false); setShowShift(true); }}>דחיית מפגשי היום</button></li>
+                      <li><button className="w-full text-right px-3 py-2 hover:bg-[var(--foreground)]/5" onClick={() => { setMenuOpen(false); setShowTypes(true); }}>סוגי פעילות</button></li>
                       <li><button className="w-full text-right px-3 py-2 hover:bg-[var(--foreground)]/5" onClick={() => { setMenuOpen(false); setSeries({}); }}>ימי פעילות קבועים</button></li>
                       <li><button className="w-full text-right px-3 py-2 hover:bg-[var(--foreground)]/5" onClick={() => { setMenuOpen(false); setShowClosures(true); }}>ימים ללא פעילות</button></li>
                       {currentProgram && <li><button className="w-full text-right px-3 py-2 hover:bg-[var(--foreground)]/5" onClick={() => { setMenuOpen(false); setSettingsFor(currentProgram.id); }}>הגדרות לוז: {currentProgram.name}</button></li>}
@@ -295,6 +342,17 @@ export default function SchedulePage() {
             </div>
           </div>
         </header>
+
+        {legend.length > 1 && colorBy !== "workshop" && (
+          <div className="no-print px-3 py-1.5 border-b border-[var(--border)] flex flex-wrap items-center gap-1.5" role="group" aria-label="מקרא">
+            {legend.map(l => (
+              <button key={l.key} onClick={() => setFocus(f => (f === l.key ? null : l.key))} aria-pressed={focus === l.key}
+                className={`flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-medium border transition-colors ${focus === l.key ? "border-[var(--foreground)]/40 bg-[var(--foreground)]/5" : "border-transparent hover:bg-[var(--foreground)]/5 text-[var(--foreground)]/70"}`}>
+                <span className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: hueStyle(l.hue).bar }} aria-hidden />{l.label}
+              </button>
+            ))}
+          </div>
+        )}
 
         {weekChanges.length > 0 && (
           <div className="no-print px-3 py-1.5 border-b border-[var(--border)] flex flex-wrap items-center gap-x-3 gap-y-1.5 text-sm">
@@ -318,13 +376,7 @@ export default function SchedulePage() {
           </p>
         ) : (
           <div className="md:px-2 md:pt-2">
-            {view === "week" ? (
-              <WeekGrid {...common} dates={dates} days={days} rows={rows} mode={mode} today={today} globalClosure={globalClosure}
-                canEdit={isManager} onAdd={(date, rowId) => setEditing({ session: null, extra: { date, programId: rowId.split(":")[0] } })} />
-            ) : (
-              <DayGrid {...common} date={selectedDay} rows={rows} mode={mode} today={today} closure={globalClosure(selectedDay)}
-                canEdit={isManager} onAdd={(date, rowId) => setEditing({ session: null, extra: { date, programId: rowId.split(":")[0] } })} />
-            )}
+            <TimeGrid {...common} columns={columns} mode={mode} groupName={groupName} laneMin={view === "day" ? 10 : 7.5} />
             <DayAgenda {...common} dates={dates} days={days} rows={rows} mode={mode} today={today} globalClosure={globalClosure}
               selected={selectedDay} setSelected={setSelectedDay} canEdit={isManager}
               onAdd={date => setEditing({ session: null, extra: { date, programId: programSel.length === 1 ? programSel[0] : undefined } })} />
@@ -336,6 +388,8 @@ export default function SchedulePage() {
             key={editing.session?.id ?? "new"}
             session={editing.session} extra={editing.extra} workshops={activeWorkshops}
             staff={refs.staff} locations={refs.locations} canEdit={isManager}
+            accent={editing.session ? sessionHue(editing.session, colorBy, types, refs.programs) : undefined}
+            groupNames={editing.session ? editing.session.groupIds.map(groupName).filter(Boolean) : []}
             participants={editing.session ? firstNames(participantsOf(editing.session, workshopById.get(editing.session.workshopId), patients)) : []}
             busyFor={(staffId, date, start, end, workshopId) =>
               absences.some(a => a.userId === staffId && a.date === date) ? "בהיעדרות" : staffBusyAt(staffId, date, start, end, all, workshopId)?.workshopName}
@@ -372,12 +426,13 @@ export default function SchedulePage() {
         )}
 
         {settingsFor && programOf(settingsFor) && (
-          <ProgramScheduleSettings program={programOf(settingsFor)!} groups={refs.groups} onClose={() => setSettingsFor(null)} onSaved={() => { setSettingsFor(null); load(); }} />
+          <ProgramScheduleSettings program={programOf(settingsFor)!} groups={refs.groups} types={types} onClose={() => setSettingsFor(null)} onSaved={() => { setSettingsFor(null); load(); }} />
         )}
         {showShift && (
           <DayShiftDialog date={selectedDay} userId={user?.uid} scopeLabel={currentProgram ? currentProgram.name : "כל התוכניות"}
             sessions={sessions} onClose={() => setShowShift(false)} onSaved={() => { setShowShift(false); load(); }} />
         )}
+        {showTypes && <ActivityTypesDialog types={types} programs={refs.programs} onClose={() => setShowTypes(false)} onSaved={() => { setShowTypes(false); load(); }} />}
         {showClosures && <ClosuresDialog dates={dates} closures={closures} refs={refs} onClose={() => setShowClosures(false)} onChanged={load} />}
       </div>
     </RoleGuard>

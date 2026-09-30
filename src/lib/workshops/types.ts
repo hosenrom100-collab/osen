@@ -9,21 +9,13 @@ export interface Slot {
   groupIds?: string[]; // groups this weekly meeting is for; empty/missing = all of the workshop's groups
 }
 
-/** What kind of activity an entry is. Drives how it is drawn (card vs. quiet band) and which checks apply. */
-export type ActivityKind = "workshop" | "therapy" | "meal" | "break" | "transport" | "staff_meeting" | "event" | "free";
-
-export const ACTIVITY_LABEL: Record<ActivityKind, string> = {
-  workshop: "סדנה", therapy: "טיפול / שיחה", meal: "ארוחה", break: "הפסקה", transport: "הסעה",
-  staff_meeting: "ישיבת צוות", event: "אירוע", free: "זמן חופשי",
-};
-/** Kinds that are drawn as a quiet full-width band rather than a card. */
-export const BAND_KINDS: ActivityKind[] = ["meal", "break", "transport", "free"];
-export const isBand = (k?: ActivityKind) => !!k && BAND_KINDS.includes(k);
+/** Id of an activity type (see activityTypes.ts). Types are edited by managers, so this is a plain string. */
+export type ActivityKind = string;
 
 export interface Workshop {
   id: string;
   name: string;
-  kind?: ActivityKind; // missing = "workshop"
+  kind?: ActivityKind; // activity type id; missing = "workshop"
   programId: string;
   groupIds?: string[]; // groups within the program taking part; empty/missing = whole program
   startDate: string;
@@ -76,6 +68,7 @@ export interface Program {
   name: string;
   activeDays: number[];
   color?: number;              // hue 0-359; missing = derived from the id
+  laneMode?: "groups" | "stable" | "auto"; // how parallel activities are laid out side by side
   dailyBlocks?: DailyBlock[];
   staffGroupUrl?: string;        // community group of the program's staff
   participantsGroupUrl?: string; // community group of the program's participants
@@ -110,6 +103,8 @@ export interface Session {
   staffIds: string[];
   kind: SessionKind;
   activity: ActivityKind;
+  hasParticipants: boolean;
+  band: boolean;        // drawn as a quiet full-width band instead of a card
   fixedBlock?: boolean; // generated from a program's daily blocks; not editable as a session
   change?: SessionChange;
   note?: string;

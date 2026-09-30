@@ -10,7 +10,7 @@ import { buildSessions } from "@/lib/workshops/buildWeek";
 import { hueStyle, programHue } from "@/lib/workshops/colors";
 import { firstNames, participantsOf } from "@/lib/workshops/people";
 import { dayOf, shortDate, toISO } from "@/lib/workshops/dates";
-import { DAY_FULL, Session, isBand } from "@/lib/workshops/types";
+import { DAY_FULL, Session } from "@/lib/workshops/types";
 import { useScheduleData } from "@/lib/workshops/useScheduleData";
 import { btnGhost, btnPrimary, fieldCls } from "@/components/workshops/Dialog";
 
@@ -145,7 +145,7 @@ export default function DaySharePage() {
         <div className="max-w-md mx-auto px-3 pt-4">
           {/* The shareable card — inline styles only. */}
           <div ref={cardRef} style={{ background: "#ffffff", borderRadius: 14, overflow: "hidden", border: "1px solid #E5E7E0", color: INK }}>
-            <div style={{ background: tint.accent, color: "#ffffff", padding: "16px 18px" }}>
+            <div style={{ background: tint.bar, color: "#ffffff", padding: "16px 18px" }}>
               <div style={{ fontSize: 13, opacity: 0.85 }}>חוות רום · מרכז חוסן</div>
               <div style={{ fontSize: 22, fontWeight: 800, marginTop: 2 }}>{title}</div>
               <div style={{ fontSize: 16, fontWeight: 600, marginTop: 2 }}>{dayTitle}</div>
@@ -158,7 +158,7 @@ export default function DaySharePage() {
                 const ch = changeText(s);
                 const t = hueStyle(programHue(refs.programs.find(p => p.id === s.programId), s.programId));
                 const room = roomOf(s.locationId), grp = !group ? groupsOf(s) : "";
-                if (isBand(s.activity)) {
+                if (s.band) {
                   return (
                     <div key={s.id} style={{ display: "flex", gap: 10, padding: "6px 10px", margin: "4px 0", borderRadius: 8, background: "#f3f4f6", color: SOFT, fontSize: 13 }}>
                       <span dir="ltr" style={{ fontWeight: 600 }}>{s.start}–{s.end}</span><span>{s.workshopName}{grp ? ` · ${grp}` : ""}</span>
@@ -166,7 +166,7 @@ export default function DaySharePage() {
                   );
                 }
                 return (
-                  <div key={s.id} style={{ display: "flex", gap: 12, padding: "10px 12px", margin: "6px 0", borderRadius: 10, background: cancelled ? "#ffffff" : t.bg, border: `1px solid ${t.border}`, borderInlineStart: `4px solid ${t.accent}`, opacity: cancelled ? 0.6 : 1 }}>
+                  <div key={s.id} style={{ display: "flex", gap: 12, padding: "10px 12px", margin: "6px 0", borderRadius: 10, background: cancelled ? "#ffffff" : t.fill, border: `1px solid ${t.soft}`, borderInlineStart: `4px solid ${t.bar}`, opacity: cancelled ? 0.6 : 1 }}>
                     <div dir="ltr" style={{ minWidth: 52, textAlign: "center", fontWeight: 800, fontSize: 15, lineHeight: 1.25 }}>
                       <div>{s.start}</div><div style={{ fontWeight: 500, fontSize: 12, color: SOFT }}>{s.end}</div>
                     </div>

@@ -5,17 +5,19 @@ import { db } from "@/lib/firebase/config";
 import { doc, updateDoc } from "firebase/firestore";
 import { Plus, Trash2 } from "lucide-react";
 import { Dialog, fieldCls, labelCls, btnPrimary, btnGhost } from "./Dialog";
-import { ACTIVITY_LABEL, ActivityKind, DAY_SHORT, DailyBlock, Group, Program } from "@/lib/workshops/types";
+import { ActivityKind, DAY_SHORT, DailyBlock, Group, Program } from "@/lib/workshops/types";
+import { ActivityType } from "@/lib/workshops/activityTypes";
 import { PROGRAM_HUES, programHue } from "@/lib/workshops/colors";
 
-const BLOCK_KINDS: ActivityKind[] = ["meal", "break", "transport", "free"];
 const newId = () => Math.random().toString(36).slice(2, 9);
 const validUrl = (u: string) => !u || /^https?:\/\/\S+$/.test(u);
 
 /** Schedule settings of one program: colour, daily meals/breaks (per group if needed) and the community group links. */
-export function ProgramScheduleSettings({ program, groups, onClose, onSaved }: {
-  program: Program; groups: Group[]; onClose: () => void; onSaved: () => void;
+export function ProgramScheduleSettings({ program, groups, types, onClose, onSaved }: {
+  program: Program; groups: Group[]; types: ActivityType[]; onClose: () => void; onSaved: () => void;
 }) {
+  const blockTypes = types.filter(t => t.band && !t.archived);
+  const [laneMode, setLaneMode] = useState<NonNullable<Program["laneMode"]>>(program.laneMode || "stable");
   const [hue, setHue] = useState(programHue(program));
   const [blocks, setBlocks] = useState<DailyBlock[]>((program.dailyBlocks || []).map(b => ({ ...b })));
   const [staffUrl, setStaffUrl] = useState(program.staffGroupUrl || "");
@@ -29,14 +31,14 @@ export function ProgramScheduleSettings({ program, groups, onClose, onSaved }: {
     return (a.includes(v) ? a.filter(x => x !== v) : [...a, v]) as number[] & string[];
   };
   const add = (kind: ActivityKind, label: string, start: string, end: string) =>
-    setBlocks(bs => [...bs, { id: newId(), kind, label, start, end }]);
+    setBlocks(bs => [...bs, { id: newId(), kind: blockTypes.some(t => t.id === kind) ? kind : blockTypes[0]?.id || kind, label, start, end }]);
 
   const invalid = blocks.some(b => !b.label.trim() || b.end <= b.start) || !validUrl(staffUrl) || !validUrl(partUrl);
   const save = async () => {
     setSaving(true);
     try {
       await updateDoc(doc(db, "programs", program.id), {
-        scheduleColor: hue,
+        scheduleColor: hue, laneMode,
         dailyBlocks: blocks.map(b => ({ ...b, label: b.label.trim(), days: b.days || [], groupIds: b.groupIds || [] })),
         staffGroupUrl: staffUrl.trim(), participantsGroupUrl: partUrl.trim(),
       });
@@ -61,6 +63,17 @@ export function ProgramScheduleSettings({ program, groups, onClose, onSaved }: {
         </div>
       </div>
 
+      {progGroups.length > 1 && (
+        <div>
+          <label className={labelCls}>קבוצות באותה שעה</label>
+          <select className={fieldCls} value={laneMode} onChange={e => setLaneMode(e.target.value as typeof laneMode)}>
+            <option value="stable">מתחלפות: כל סדנה נשארת באותו צד (ברירת מחדל)</option>
+            <option value="groups">במקביל: עמודה קבועה לכל קבוצה</option>
+            <option value="auto">אוטומטי: עמודות לקבוצות רק בשבוע שבו הן פועלות במקביל</option>
+          </select>
+        </div>
+      )}
+
       <div>
         <label className={labelCls}>ארוחות, הפסקות והסעות קבועות</label>
         <p className="text-xs text-[var(--foreground)]/50 mb-2">מופיעות כל יום פעילות של התוכנית. אפשר להגביל לקבוצות מסוימות או לימים מסוימים.</p>
@@ -73,7 +86,7 @@ export function ProgramScheduleSettings({ program, groups, onClose, onSaved }: {
               </div>
               <div className="grid grid-cols-3 gap-2">
                 <select className={fieldCls} value={b.kind} onChange={e => patch(b.id, { kind: e.target.value as ActivityKind })}>
-                  {BLOCK_KINDS.map(k => <option key={k} value={k}>{ACTIVITY_LABEL[k]}</option>)}
+                  {blockTypes.concat(types.filter(t => t.band && t.archived && t.id === b.kind)).map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
                 </select>
                 <input type="time" className={fieldCls} value={b.start} onChange={e => patch(b.id, { start: e.target.value })} />
                 <input type="time" className={fieldCls} value={b.end} onChange={e => patch(b.id, { end: e.target.value })} />

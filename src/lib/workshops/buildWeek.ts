@@ -1,5 +1,6 @@
 import { Closure, Program, Session, SessionChange, Workshop } from "./types";
 import { dayOf } from "./dates";
+import { ActivityType, DEFAULT_TYPES, typeById } from "./activityTypes";
 
 /** Groups a weekly meeting is for: its own list, otherwise the workshop's. */
 export const slotGroups = (w: Workshop, slot: { groupIds?: string[] }) =>
@@ -17,7 +18,8 @@ export function buildSessions(
   workshops: Workshop[],
   programs: Program[],
   changes: SessionChange[],
-  closures: Closure[]
+  closures: Closure[],
+  types: ActivityType[] = DEFAULT_TYPES
 ): Session[] {
   const dateSet = new Set(dates);
   const progById = new Map(programs.map(p => [p.id, p]));
@@ -47,6 +49,8 @@ export function buildSessions(
     staffIds: change?.staffIds ?? base.staffIds,
     kind,
     activity: w.kind || "workshop",
+    band: typeById(types, w.kind).band,
+    hasParticipants: typeById(types, w.kind).hasParticipants,
     change,
     note: change?.note,
     base,
@@ -104,7 +108,7 @@ export function buildSessions(
         out.push({
           id: `block_${prog.id}_${b.id}_${date}`, changeId: null, workshopId: `block:${b.id}`, workshopName: b.label,
           programId: prog.id, groupIds: b.groupIds || [], slotId: null, origDate: date, date,
-          start: b.start, end: b.end, staffIds: [], kind: "normal", activity: b.kind, fixedBlock: true,
+          start: b.start, end: b.end, staffIds: [], kind: "normal", activity: b.kind, band: typeById(types, b.kind).band, hasParticipants: false, fixedBlock: true,
           base: { start: b.start, end: b.end, staffIds: [], groupIds: b.groupIds || [] },
         });
       }
