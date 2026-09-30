@@ -41,19 +41,24 @@ export function SeriesDays({ workshops, initialId, programs, groups, locations, 
   const add = (groupIds: string[]) =>
     setSlots([...slots, { id: newId(), day: days[0] ?? 0, start: "09:00", end: "10:30", groupIds: groupIds.length ? groupIds : undefined }]);
 
-  // Sections: one per workshop group, "all groups", and any other combination already saved.
-  const sections: { key: string; label: string; groupIds: string[] }[] = [];
-  if (wGroups.length === 0) sections.push({ key: "", label: "כל התוכנית", groupIds: [] });
-  else {
-    wGroups.forEach(g => sections.push({ key: g.id, label: g.name, groupIds: [g.id] }));
-    sections.push({ key: "", label: "כל הקבוצות יחד", groupIds: [] });
+  // Sections. A slot with no group list belongs to every group of the workshop, so:
+  //  - no groups: one section for the whole program;
+  //  - exactly one group: ONE section, named after it (there is no "together" vs "its own" to tell apart);
+  //  - several groups: one per group, "all the workshop's groups", and any other combination already saved.
+  type Sec = { key: string; label: string; groupIds: string[]; match: (s: Slot) => boolean };
+  const sections: Sec[] = [];
+  if (wGroups.length === 0) sections.push({ key: "", label: "כל התוכנית", groupIds: [], match: s => keyOf(s) === "" });
+  else if (wGroups.length === 1) {
+    const g = wGroups[0];
+    sections.push({ key: g.id, label: g.name, groupIds: [], match: s => !s.groupIds?.length || s.groupIds.every(id => id === g.id) });
+  } else {
+    wGroups.forEach(g => sections.push({ key: g.id, label: g.name, groupIds: [g.id], match: s => keyOf(s) === g.id }));
+    sections.push({ key: "", label: "כל קבוצות הסדנה יחד", groupIds: [], match: s => keyOf(s) === "" });
   }
   for (const s of slots) {
-    const k = keyOf(s);
-    if (!sections.some(x => x.key === k)) {
-      const ids = s.groupIds || [];
-      sections.push({ key: k, label: ids.map(id => groups.find(g => g.id === id)?.name || "—").join(" + "), groupIds: ids });
-    }
+    if (sections.some(x => x.match(s))) continue;
+    const k = keyOf(s), ids = s.groupIds || [];
+    sections.push({ key: k, label: ids.map(id => groups.find(g => g.id === id)?.name || "—").join(" + "), groupIds: ids, match: x => keyOf(x) === k });
   }
 
   const invalid = slots.some(s => s.end <= s.start);
@@ -72,7 +77,7 @@ export function SeriesDays({ workshops, initialId, programs, groups, locations, 
   };
 
   return (
-    <Dialog title="ימים ושעות קבועים" subtitle={w ? <>עורכים את הסדנה <b>{w.name}</b>. השינוי חל על כל המפגשים שלה, בכל השבועות.</> : undefined} onClose={onClose} wide
+    <Dialog title="ימים ושעות קבועים" subtitle={w ? <>עורכים את הסדנה <b>{w.name}</b>{wGroups.length ? ` · מיועדת ל${wGroups.map(g => g.name).join(", ")}` : ""}. השינוי חל על כל המפגשים שלה, בכל השבועות.</> : undefined} onClose={onClose} wide
       footer={<>
         <button onClick={save} disabled={saving || !w || invalid} className={btnPrimary}>שמור</button>
         <button onClick={onClose} className={btnGhost}>ביטול</button>
@@ -89,11 +94,11 @@ export function SeriesDays({ workshops, initialId, programs, groups, locations, 
           שינוי חד-פעמי (ביטול, הזזה, מחליף) עושים בלחיצה על המפגש ביומן. כאן משנים את המערכת הקבועה. לשם, תאריכים, צוות ומשתתפים, עוברים ל"כל פרטי הסדנה".
         </p>
         {sections.map(sec => {
-          const rows = slots.filter(s => keyOf(s) === sec.key);
+          const rows = slots.filter(sec.match);
           return (
             <section key={sec.key || "all"} className="border-t border-[var(--border)] pt-3 space-y-2">
               <h3 className="text-sm font-bold">{sec.label}</h3>
-              {rows.length === 0 && <p className="text-xs text-[var(--foreground)]/55 leading-relaxed">{sec.groupIds.length ? "אין ימים ייעודיים לקבוצה הזו. היא משתתפת בימים של ״כל הקבוצות יחד״ שמתחת." : "אין ימי פעילות."}</p>}
+              {rows.length === 0 && <p className="text-xs text-[var(--foreground)]/55 leading-relaxed">{wGroups.length > 1 && sec.groupIds.length ? "אין ימים ייעודיים לקבוצה הזו. היא משתתפת בימים של ״כל קבוצות הסדנה יחד״ שמתחת." : "אין ימי פעילות."}</p>}
               {rows.map(s => (
                 <div key={s.id} className="grid grid-cols-2 sm:grid-cols-[8rem_7rem_7rem_minmax(8rem,1fr)_auto] gap-2 items-center">
                   <select aria-label="יום" className={`${fieldCls} col-span-2 sm:col-span-1`} value={s.day} onChange={e => patch(s.id, { day: Number(e.target.value) })}>
