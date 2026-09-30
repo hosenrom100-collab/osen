@@ -59,10 +59,14 @@ export default function DaySharePage() {
   const groupsOf = (s: Session) => s.groupIds.map(id => refs?.groups.find(g => g.id === id)?.name || "").filter(Boolean).join(", ");
   const wById = useMemo(() => new Map(workshops.map(w => [w.id, w])), [workshops]);
 
+  // A workshop with its own hand-picked participants lists them on its own line; the rest share one list.
+  const customOf = (s: Session) => !!wById.get(s.workshopId)?.participantIds?.length;
+  const ownNames = (s: Session) => (customOf(s) && live(s) && !s.fixedBlock ? firstNames(participantsOf(s, wById.get(s.workshopId), patients)) : []);
+
   // Participants of the day, by group (first names only).
   const attendees = useMemo(() => {
     const seen = new Map<string, (typeof patients)[number]>();
-    sessions.filter(s => live(s) && !s.fixedBlock).forEach(s => participantsOf(s, wById.get(s.workshopId), patients).forEach(p => seen.set(p.id, p)));
+    sessions.filter(s => live(s) && !s.fixedBlock && !customOf(s)).forEach(s => participantsOf(s, wById.get(s.workshopId), patients).forEach(p => seen.set(p.id, p)));
     const all = [...seen.values()];
     if (!programGroups.length || group) return [{ label: group?.name || "", names: firstNames(all) }].filter(x => x.names.length);
     const out = programGroups.map(g => ({ label: g.name, names: firstNames(all.filter(p => p.groupIds.includes(g.id))) })).filter(x => x.names.length);
@@ -92,6 +96,8 @@ export default function DaySharePage() {
         const extra = [forStaff && !s.fixedBlock ? staffOf(s) : "", roomOf(s.locationId), !group ? groupsOf(s) : ""].filter(Boolean).join(" · ");
         const ch = changeText(s);
         lines.push(`${s.start}–${s.end}  ${s.workshopName}${extra ? ` (${extra})` : ""}${ch ? ` — *${ch}*` : ""}`);
+        const own = withNames ? ownNames(s) : [];
+        if (own.length) lines.push(`   משתתפים (${own.length}): ${own.join(", ")}`);
       });
     });
     if (withNames && total) {
@@ -113,17 +119,23 @@ export default function DaySharePage() {
   };
 
   const shareImage = async () => {
-    if (!cardRef.current) return;
+    if (!cardRef.current || sharing.current) return;
+    sharing.current = true;
+    try {
     const { default: html2canvas } = await import("html2canvas");
     const canvas = await html2canvas(cardRef.current, { scale: 2, backgroundColor: "#ffffff" });
     const blob: Blob | null = await new Promise(r => canvas.toBlob(r, "image/png"));
     if (!blob) return say("יצירת התמונה נכשלה.");
     const file = new File([blob], `לוז-${range === "week" ? "שבוע-" : ""}${date}.png`, { type: "image/png" });
-    if (navigator.canShare?.({ files: [file] })) { try { await navigator.share({ files: [file], title }); return; } catch { /* cancelled */ } }
+    if (navigator.canShare?.({ files: [file] })) {
+      try { await navigator.share({ files: [file] }); return; }
+      catch (e) { if ((e as Error)?.name === "AbortError") return; /* cancelled: do not also download a second copy */ }
+    }
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob); a.download = file.name; a.click();
     URL.revokeObjectURL(a.href);
     say("התמונה נשמרה. אפשר לשלוח אותה בוואטסאפ.");
+    } finally { sharing.current = false; }
   };
 
   if (loading || !refs) return <PageSkeleton />;
@@ -210,6 +222,7 @@ export default function DaySharePage() {
                         </div>
                         {[room, grp, staffOf(s)].filter(Boolean).length > 0 && <div style={{ fontSize: 13, color: SOFT, marginTop: 2 }}>{[room, grp, staffOf(s)].filter(Boolean).join(" · ")}</div>}
                         {s.note && <div style={{ fontSize: 13, marginTop: 4 }}>{s.note}</div>}
+                        {withNames && ownNames(s).length > 0 && <div style={{ fontSize: 13, marginTop: 4 }}><span style={{ fontWeight: 700 }}>משתתפים ({ownNames(s).length}): </span>{ownNames(s).join(", ")}</div>}
                       </div>
                     </div>
                   );
