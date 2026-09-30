@@ -30,8 +30,12 @@ export function ProgramScheduleSettings({ program, groups, types, onClose, onSav
     const a = (list || []) as (number | string)[];
     return (a.includes(v) ? a.filter(x => x !== v) : [...a, v]) as number[] & string[];
   };
-  const add = (kind: ActivityKind, label: string, start: string, end: string) =>
-    setBlocks(bs => [...bs, { id: newId(), kind: blockTypes.some(t => t.id === kind) ? kind : blockTypes[0]?.id || kind, label, start, end }]);
+  // The preset's own type when it still exists (even renamed); else a quiet type with a similar name; never just "the first one".
+  const add = (kind: ActivityKind, label: string, start: string, end: string) => {
+    const like = (t: ActivityType) => label.includes(t.label) || t.label.includes(label.split(" ")[0]);
+    const pick = blockTypes.find(t => t.id === kind) || blockTypes.find(like) || types.find(t => t.id === kind) || blockTypes[0];
+    setBlocks(bs => [...bs, { id: newId(), kind: pick?.id || kind, label, start, end }]);
+  };
 
   const invalid = blocks.some(b => !b.label.trim() || b.end <= b.start) || !validUrl(staffUrl) || !validUrl(partUrl);
   const save = async () => {
@@ -114,6 +118,7 @@ export function ProgramScheduleSettings({ program, groups, types, onClose, onSav
           ))}
         </ul>
         <div className="flex flex-wrap gap-2 mt-2">
+          <button onClick={() => add("meal", "ארוחת בוקר", "08:30", "09:00")} className={`${btnGhost} flex items-center gap-1 !py-1 !text-xs`}><Plus className="w-3.5 h-3.5" />ארוחת בוקר</button>
           <button onClick={() => add("meal", "ארוחת צהריים", "12:30", "13:15")} className={`${btnGhost} flex items-center gap-1 !py-1 !text-xs`}><Plus className="w-3.5 h-3.5" />ארוחת צהריים</button>
           <button onClick={() => add("break", "הפסקה", "10:30", "10:45")} className={`${btnGhost} flex items-center gap-1 !py-1 !text-xs`}><Plus className="w-3.5 h-3.5" />הפסקה</button>
           <button onClick={() => add("transport", "הסעה", "15:30", "16:00")} className={`${btnGhost} flex items-center gap-1 !py-1 !text-xs`}><Plus className="w-3.5 h-3.5" />הסעה</button>
