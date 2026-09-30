@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { DAY_FULL, DAY_SHORT, Session } from "@/lib/workshops/types";
 import { dayOf, shortDate } from "@/lib/workshops/dates";
-import { Plus } from "lucide-react";
+import { AlertTriangle, MapPin, Plus, User, Users } from "lucide-react";
 import { workshopColor } from "@/lib/workshops/colors";
 
 export interface Row { id: string; label: string; match: (s: Session) => boolean; closedReason: (date: string) => string | undefined }
@@ -20,40 +20,64 @@ interface Common {
 
 const sameSet = (a: string[], b: string[]) => [...a].sort().join() === [...b].sort().join();
 
+// Each kind of information has its own colour + weight, so a cell can be scanned at a glance.
+const INK = { staff: "#0b5c73", room: "#8a4b08", group: "#5b3a8c", warn: "#b42318" };
+const TAG = {
+  cancelled: "bg-[#fde2e2] text-[#b42318]",
+  moved: "bg-[#fff0c2] text-[#8a5a00]",
+  change: "bg-[#dbeafe] text-[#1e4fa3]",
+  quiet: "bg-black/5 text-[var(--foreground)]/60",
+};
+
 function SessionButton({ s, mode, c }: { s: Session; mode: "program" | "staff" | "space"; c: Common }) {
   const dead = s.kind === "cancelled" || s.kind === "moved-away";
   const color = workshopColor(s.workshopId);
   const warn = c.warnings.get(s.id);
   const substitute = !dead && s.change?.staffIds && !sameSet(s.staffIds, s.base.staffIds);
   const room = c.roomOf(s.locationId);
-  const meta = [
-    mode !== "staff" ? s.staffIds.map(c.nameOf).join(", ") : "",
-    mode !== "space" ? room : "",
-    mode !== "program" || c.showGroups ? c.groupsOf(s.groupIds) : "",
-  ].filter(Boolean).join(" · ");
+  const staff = mode !== "staff" ? s.staffIds.map(c.nameOf).join(", ") : "";
+  const groups = mode !== "program" || c.showGroups ? c.groupsOf(s.groupIds) : "";
 
   const tag =
-    s.kind === "cancelled" ? { t: "בוטל", cls: "text-rose-500" } :
-    s.kind === "moved-away" ? { t: `הוזז ל-${shortDate(s.change!.newDate!)}`, cls: "text-[var(--foreground)]/50" } :
-    s.kind === "moved-in" ? { t: `הוזז מ-${shortDate(s.origDate!)}`, cls: "text-amber-600" } :
-    s.kind === "extra" ? { t: "מפגש נוסף", cls: "text-amber-600" } :
-    substitute ? { t: "מחליף", cls: "text-amber-600" } :
-    s.change?.newStart || s.change?.newEnd ? { t: "שעה שונתה", cls: "text-amber-600" } :
-    s.change?.locationId !== undefined ? { t: "מרחב שונה", cls: "text-amber-600" } : null;
+    s.kind === "cancelled" ? { t: "בוטל", cls: TAG.cancelled } :
+    s.kind === "moved-away" ? { t: `הוזז ל-${shortDate(s.change!.newDate!)}`, cls: TAG.quiet } :
+    s.kind === "moved-in" ? { t: `הוזז מ-${shortDate(s.origDate!)}`, cls: TAG.moved } :
+    s.kind === "extra" ? { t: "מפגש נוסף", cls: TAG.moved } :
+    substitute ? { t: "מחליף", cls: TAG.change } :
+    s.change?.newStart || s.change?.newEnd ? { t: "שעה שונתה", cls: TAG.change } :
+    s.change?.locationId !== undefined ? { t: "מרחב שונה", cls: TAG.change } : null;
 
   return (
     <button onClick={() => c.onOpen(s)}
       style={dead ? undefined : { backgroundColor: color.bg, borderColor: color.border }}
       className={`w-full text-right px-2 py-1.5 mb-1 last:mb-0 rounded-md border hover:brightness-95 ${dead ? "border-dashed border-[var(--border)] bg-transparent" : ""} ${s.kind === "moved-in" || s.kind === "extra" ? "border-dashed" : ""}`}>
-      <div className={`flex items-center gap-1.5 text-xs tabular-nums ${dead ? "text-[var(--foreground)]/40" : "text-[var(--foreground)]/60"}`}>
-        <span className={s.kind === "cancelled" ? "line-through" : ""}>{s.start}–{s.end}</span>
-        {tag && <span className={`font-bold ${tag.cls}`}>{tag.t}</span>}
+      <div className="flex items-center gap-1.5">
+        <span className={`text-[13px] font-extrabold tabular-nums tracking-tight ${dead ? "text-[var(--foreground)]/40" : "text-[var(--foreground)]"} ${s.kind === "cancelled" ? "line-through" : ""}`}>{s.start}–{s.end}</span>
+        {tag && <span className={`px-1.5 rounded text-[11px] font-bold leading-4 ${tag.cls}`}>{tag.t}</span>}
         {s.change && !s.change.published && <span title="טרם פורסם לצוות" className="w-1.5 h-1.5 rounded-full bg-amber-500 mr-auto" />}
       </div>
-      <div className={`text-sm font-bold leading-snug ${dead ? "text-[var(--foreground)]/40" : ""} ${s.kind === "cancelled" ? "line-through" : ""}`}>{s.workshopName}</div>
-      {meta && !dead && <div className="text-xs text-[var(--foreground)]/60 leading-snug">{meta}</div>}
-      {s.note && <div className="text-xs text-[var(--foreground)]/60 italic leading-snug">{s.note}</div>}
-      {warn && !dead && <div className="text-xs text-amber-600 leading-snug">{warn[0]}{warn.length > 1 ? ` (+${warn.length - 1})` : ""}</div>}
+      <div className={`text-[15px] font-bold leading-snug mt-0.5 ${dead ? "text-[var(--foreground)]/40" : "text-[var(--foreground)]"} ${s.kind === "cancelled" ? "line-through" : ""}`}>{s.workshopName}</div>
+      {!dead && staff && (
+        <div className="flex items-start gap-1 text-xs font-medium leading-snug mt-0.5" style={{ color: INK.staff }}>
+          <User className="w-3 h-3 mt-0.5 shrink-0" /><span>{staff}</span>
+        </div>
+      )}
+      {!dead && mode !== "space" && room && (
+        <div className="flex items-start gap-1 text-xs font-medium leading-snug" style={{ color: INK.room }}>
+          <MapPin className="w-3 h-3 mt-0.5 shrink-0" /><span>{room}</span>
+        </div>
+      )}
+      {!dead && groups && (
+        <div className="flex items-start gap-1 text-xs font-medium leading-snug" style={{ color: INK.group }}>
+          <Users className="w-3 h-3 mt-0.5 shrink-0" /><span>{groups}</span>
+        </div>
+      )}
+      {s.note && <div className="text-xs leading-snug mt-0.5 px-1.5 py-0.5 rounded bg-white/60 text-[var(--foreground)]/75">{s.note}</div>}
+      {warn && !dead && (
+        <div className="flex items-start gap-1 text-xs font-bold leading-snug mt-0.5" style={{ color: INK.warn }}>
+          <AlertTriangle className="w-3 h-3 mt-0.5 shrink-0" /><span>{warn[0]}{warn.length > 1 ? ` (+${warn.length - 1})` : ""}</span>
+        </div>
+      )}
     </button>
   );
 }

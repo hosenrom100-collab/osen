@@ -196,7 +196,7 @@ export default function SchedulePage() {
 
   if (loading || !refs) return <PageSkeleton />;
 
-  const rangeLabel = `${format(weekStart, "d.M")} – ${format(addDays(weekStart, 6), "d.M.yyyy")}`;
+  const rangeLabel = `${format(weekStart, "d.M")} – ${format(addDays(weekStart, 6), "d.M.yyyy")}`; // print title only
   const common = { sessions, warnings, nameOf, roomOf, groupsOf, showGroups: programSel.length === 0, onOpen: (s: Session) => setEditing({ session: s }) };
   const activeWorkshops = workshops.filter(w => w.status === "active");
 
@@ -205,22 +205,35 @@ export default function SchedulePage() {
       <style>{`@media print { aside, nav, .no-print { display: none !important; } @page { size: A4 landscape; margin: 10mm; } body { background: #fff !important; } }`}</style>
       <div dir="rtl" style={LIGHT_VARS} className="min-h-screen bg-white text-[var(--foreground)] pb-24 md:pb-8">
         <header className="no-print sticky top-0 z-30 bg-white border-b border-[var(--border)]">
-          <div className="px-3 md:px-6 py-2.5 flex items-center gap-2">
-            <h1 className="text-base font-bold hidden sm:block ml-2">יומן שבועי</h1>
+          <div className="px-3 md:px-6 py-2 flex flex-wrap items-center gap-x-3 gap-y-2">
+            <h1 className="text-base font-bold hidden lg:block">יומן שבועי</h1>
             <div className="flex items-center">
-              <button onClick={() => setWeekStart(addDays(weekStart, -7))} aria-label="שבוע קודם" className="p-2 rounded-md hover:bg-[var(--foreground)]/5"><ChevronRight className="w-4 h-4" /></button>
-              <span className="text-sm font-bold tabular-nums min-w-[8.5rem] text-center">{rangeLabel}</span>
-              <button onClick={() => setWeekStart(addDays(weekStart, 7))} aria-label="שבוע הבא" className="p-2 rounded-md hover:bg-[var(--foreground)]/5"><ChevronLeft className="w-4 h-4" /></button>
+              <button onClick={() => setWeekStart(addDays(weekStart, -7))} aria-label="שבוע קודם" className="p-1.5 rounded-md hover:bg-[var(--foreground)]/5"><ChevronRight className="w-4 h-4" /></button>
+              {/* Separate spans: a single string gets its parts reordered by the RTL bidi algorithm. */}
+              <span className="flex items-center gap-1 text-sm font-bold tabular-nums min-w-[9rem] justify-center">
+                <span>{format(weekStart, "d.M")}</span><span className="text-[var(--foreground)]/40">–</span><span>{format(addDays(weekStart, 6), "d.M.yy")}</span>
+              </span>
+              <button onClick={() => setWeekStart(addDays(weekStart, 7))} aria-label="שבוע הבא" className="p-1.5 rounded-md hover:bg-[var(--foreground)]/5"><ChevronLeft className="w-4 h-4" /></button>
             </div>
-            <button onClick={() => setWeekStart(weekStartOf(new Date()))} className="text-sm px-2.5 py-1.5 rounded-md border border-[var(--border)] hover:bg-[var(--foreground)]/5">היום</button>
+            <button onClick={() => setWeekStart(weekStartOf(new Date()))} className="text-sm px-2.5 py-1 rounded-md border border-[var(--border)] hover:bg-[var(--foreground)]/5">היום</button>
+
+            <div className="flex border border-[var(--border)] rounded-md overflow-hidden">
+              {MODES.map(([k, l]) => (
+                <button key={k} onClick={() => setMode(k)} className={`px-2.5 py-1 text-sm ${mode === k ? "bg-[var(--accent)] text-white font-bold" : "text-[var(--foreground)]/70 hover:bg-[var(--foreground)]/5"}`}>{l}</button>
+              ))}
+            </div>
+            <label className="flex items-center gap-1.5 text-sm text-[var(--foreground)]/70 cursor-pointer">
+              <input type="checkbox" checked={onlyMine} onChange={e => setOnlyMine(e.target.checked)} /> רק שלי
+            </label>
+
             <div className="mr-auto flex items-center gap-1.5 relative">
               {isManager && (
                 <button onClick={() => setEditing({ session: null, extra: { date: dates.includes(today) ? today : dates[0], programId: programSel.length === 1 ? programSel[0] : undefined } })}
-                  aria-label="מפגש חד-פעמי" className={`${btnPrimary} flex items-center gap-1.5 !px-2.5 sm:!px-3.5`}>
+                  aria-label="מפגש חד-פעמי" className={`${btnPrimary} flex items-center gap-1.5 !px-2.5 !py-1.5 sm:!px-3`}>
                   <Plus className="w-4 h-4" /><span className="hidden sm:inline">מפגש חד-פעמי</span>
                 </button>
               )}
-              <button onClick={() => setMenuOpen(o => !o)} aria-label="עוד פעולות" aria-expanded={menuOpen} className="p-2 rounded-md border border-[var(--border)] hover:bg-[var(--foreground)]/5"><MoreHorizontal className="w-4 h-4" /></button>
+              <button onClick={() => setMenuOpen(o => !o)} aria-label="עוד פעולות" aria-expanded={menuOpen} className="p-1.5 rounded-md border border-[var(--border)] hover:bg-[var(--foreground)]/5"><MoreHorizontal className="w-4 h-4" /></button>
               {menuOpen && (
                 <>
                   <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
@@ -238,26 +251,18 @@ export default function SchedulePage() {
             </div>
           </div>
 
-          <div className="px-3 md:px-6 pb-2 flex flex-wrap items-center gap-x-4 gap-y-2">
-            <div className="flex border border-[var(--border)] rounded-md overflow-hidden">
-              {MODES.map(([k, l]) => (
-                <button key={k} onClick={() => setMode(k)} className={`px-3 py-1.5 text-sm ${mode === k ? "bg-[var(--accent)] text-white font-bold" : "text-[var(--foreground)]/70 hover:bg-[var(--foreground)]/5"}`}>{l}</button>
-              ))}
-            </div>
-            <label className="flex items-center gap-1.5 text-sm text-[var(--foreground)]/70">
-              <input type="checkbox" checked={onlyMine} onChange={e => setOnlyMine(e.target.checked)} /> רק המפגשים שלי
-            </label>
-            {(programSel.length > 0 || groupSel.length > 0) && (
-              <button onClick={() => { setProgramSel([]); setGroupSel([]); }} className="text-sm underline text-[var(--foreground)]/60">נקה סינון</button>
+          {/* One filter row: programs, then (once a program is picked) its groups. Scrolls on phones, wraps on wide screens. */}
+          <div className="px-3 md:px-6 pb-2 flex items-center gap-1 overflow-x-auto md:flex-wrap no-scrollbar" role="group" aria-label="סינון">
+            <Chips label="תוכנית" allLabel="הכול" selected={programSel} onClear={() => { setProgramSel([]); setGroupSel([]); }}
+              options={refs.programs.map(p => ({ id: p.id, label: p.name }))} onToggle={toggleProgram} />
+            {groupOptions.length > 0 && (
+              <>
+                <span className="shrink-0 w-px h-5 bg-[var(--border)] mx-1.5" aria-hidden />
+                <Chips label="קבוצה" allLabel="הכול" selected={groupSel} onClear={() => setGroupSel([])}
+                  options={groupOptions} onToggle={id => setGroupSel(s => s.includes(id) ? s.filter(x => x !== id) : [...s, id])} />
+              </>
             )}
           </div>
-
-          <ChipRow label="תוכנית" allLabel="כל התוכניות" selected={programSel} onClear={() => { setProgramSel([]); setGroupSel([]); }}
-            options={refs.programs.map(p => ({ id: p.id, label: p.name }))} onToggle={toggleProgram} />
-          {groupOptions.length > 0 && (
-            <ChipRow label="קבוצה" allLabel="כל הקבוצות" selected={groupSel} onClear={() => setGroupSel([])}
-              options={groupOptions} onToggle={id => setGroupSel(s => s.includes(id) ? s.filter(x => x !== id) : [...s, id])} />
-          )}
         </header>
 
         {weekChanges.length > 0 && (
@@ -272,7 +277,7 @@ export default function SchedulePage() {
           </div>
         )}
 
-        <p className="hidden print:block px-2 py-2 font-bold">יומן שבועי — {rangeLabel}</p>
+        <p className="hidden print:block px-2 py-2 font-bold">יומן שבועי — <bdi dir="ltr">{rangeLabel}</bdi></p>
 
         {rows.length === 0 ? (
           <p className="text-sm text-[var(--foreground)]/50 py-20 text-center px-4">
@@ -333,18 +338,18 @@ export default function SchedulePage() {
   );
 }
 
-function ChipRow({ label, allLabel, options, selected, onToggle, onClear }: {
+function Chips({ label, allLabel, options, selected, onToggle, onClear }: {
   label: string; allLabel: string; options: { id: string; label: string }[]; selected: string[];
   onToggle: (id: string) => void; onClear: () => void;
 }) {
   const chip = (on: boolean) =>
-    `shrink-0 whitespace-nowrap px-3 py-1 rounded-md text-sm border ${on ? "bg-[var(--accent)] border-[var(--accent)] text-white font-bold" : "border-[var(--border)] text-[var(--foreground)]/75 hover:bg-[var(--foreground)]/5"}`;
+    `shrink-0 whitespace-nowrap px-2.5 py-0.5 rounded-md text-[13px] border ${on ? "bg-[var(--accent)] border-[var(--accent)] text-white font-bold" : "border-[var(--border)] text-[var(--foreground)]/75 hover:bg-[var(--foreground)]/5"}`;
   return (
-    <div className="px-3 md:px-6 pb-2 flex items-center gap-1.5 overflow-x-auto no-scrollbar" role="group" aria-label={label}>
+    <>
       <span className="shrink-0 text-xs font-bold text-[var(--foreground)]/50 ml-1">{label}</span>
       <button onClick={onClear} className={chip(selected.length === 0)}>{allLabel}</button>
       {options.map(o => <button key={o.id} onClick={() => onToggle(o.id)} aria-pressed={selected.includes(o.id)} className={chip(selected.includes(o.id))}>{o.label}</button>)}
-    </div>
+    </>
   );
 }
 
