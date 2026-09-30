@@ -29,7 +29,12 @@ const TAG = {
   quiet: "bg-black/5 text-[var(--foreground)]/60",
 };
 
-function SessionButton({ s, mode, c }: { s: Session; mode: "program" | "staff" | "space"; c: Common }) {
+// Below these heights (px) the details flow side by side instead of stacking, so short sessions still show everything.
+const COMPACT_PX = 92, DENSE_PX = 56;
+
+function SessionButton({ s, mode, c, h }: { s: Session; mode: "program" | "staff" | "space"; c: Common; h?: number }) {
+  const dense = h !== undefined && h < DENSE_PX;
+  const compact = h !== undefined && h < COMPACT_PX;
   const dead = s.kind === "cancelled" || s.kind === "moved-away";
   const color = workshopColor(s.workshopId);
   const warn = c.warnings.get(s.id);
@@ -48,15 +53,18 @@ function SessionButton({ s, mode, c }: { s: Session; mode: "program" | "staff" |
     s.change?.locationId !== undefined ? { t: "מרחב שונה", cls: TAG.change } : null;
 
   return (
-    <button onClick={() => c.onOpen(s)}
+    <button onClick={() => c.onOpen(s)} title={`${s.start}–${s.end} ${s.workshopName}${staff ? ` · ${staff}` : ""}${room ? ` · ${room}` : ""}${groups ? ` · ${groups}` : ""}`}
       style={dead ? undefined : { backgroundColor: color.bg, borderColor: color.border }}
-      className={`w-full text-right px-2 py-1.5 mb-1 last:mb-0 rounded-md border hover:brightness-95 ${dead ? "border-dashed border-[var(--border)] bg-transparent" : ""} ${s.kind === "moved-in" || s.kind === "extra" ? "border-dashed" : ""}`}>
+      className={`w-full text-right ${compact ? "px-1.5 py-0.5" : "px-2 py-1.5"} mb-1 last:mb-0 rounded-md border hover:brightness-95 ${dead ? "border-dashed border-[var(--border)] bg-transparent" : ""} ${s.kind === "moved-in" || s.kind === "extra" ? "border-dashed" : ""}`}>
+      <div className={dense ? "flex flex-wrap items-baseline gap-x-1.5" : undefined}>
       <div className="flex items-center gap-1.5">
         <span className={`text-[13px] font-extrabold tabular-nums tracking-tight ${dead ? "text-[var(--foreground)]/40" : "text-[var(--foreground)]"} ${s.kind === "cancelled" ? "line-through" : ""}`}>{s.start}–{s.end}</span>
         {tag && <span className={`px-1.5 rounded text-[11px] font-bold leading-4 ${tag.cls}`}>{tag.t}</span>}
         {s.change && !s.change.published && <span title="טרם פורסם לצוות" className="w-1.5 h-1.5 rounded-full bg-amber-500 mr-auto" />}
       </div>
-      <div className={`text-[15px] font-bold leading-snug mt-0.5 ${dead ? "text-[var(--foreground)]/40" : "text-[var(--foreground)]"} ${s.kind === "cancelled" ? "line-through" : ""}`}>{s.workshopName}</div>
+      <div className={`${compact ? "text-[13px]" : "text-[15px]"} font-bold leading-snug ${dense ? "" : "mt-0.5"} ${dead ? "text-[var(--foreground)]/40" : "text-[var(--foreground)]"} ${s.kind === "cancelled" ? "line-through" : ""}`}>{s.workshopName}</div>
+      </div>
+      <div className={compact ? "flex flex-wrap gap-x-2" : undefined}>
       {!dead && staff && (
         <div className="flex items-start gap-1 text-xs font-medium leading-snug mt-0.5" style={{ color: INK.staff }}>
           <User className="w-3 h-3 mt-0.5 shrink-0" /><span>{staff}</span>
@@ -72,7 +80,8 @@ function SessionButton({ s, mode, c }: { s: Session; mode: "program" | "staff" |
           <Users className="w-3 h-3 mt-0.5 shrink-0" /><span>{groups}</span>
         </div>
       )}
-      {s.note && <div className="text-xs leading-snug mt-0.5 px-1.5 py-0.5 rounded bg-white/60 text-[var(--foreground)]/75">{s.note}</div>}
+      </div>
+      {s.note && !dense && <div className="text-xs leading-snug mt-0.5 px-1.5 py-0.5 rounded bg-white/60 text-[var(--foreground)]/75">{s.note}</div>}
       {warn && !dead && (
         <div className="flex items-start gap-1 text-xs font-bold leading-snug mt-0.5" style={{ color: INK.warn }}>
           <AlertTriangle className="w-3 h-3 mt-0.5 shrink-0" /><span>{warn[0]}{warn.length > 1 ? ` (+${warn.length - 1})` : ""}</span>
@@ -153,10 +162,11 @@ function Timeline({ list, axis, mode, c }: { list: Session[]; axis: ReturnType<t
         });
         return placed.map(({ s, lane }) => {
           const top = axis.y(mins(s.start));
+          const height = Math.max(axis.y(mins(s.end)) - top - 2, 28);
           return (
             <div key={s.id} className="absolute overflow-hidden px-0.5 [&>button]:h-full [&>button]:mb-0 [&>button]:overflow-hidden"
-              style={{ top: top + 1, height: Math.max(axis.y(mins(s.end)) - top - 2, 28), insetInlineStart: `${(lane / laneEnd.length) * 100}%`, width: `${100 / laneEnd.length}%` }}>
-              <SessionButton s={s} mode={mode} c={c} />
+              style={{ top: top + 1, height, insetInlineStart: `${(lane / laneEnd.length) * 100}%`, width: `${100 / laneEnd.length}%` }}>
+              <SessionButton s={s} mode={mode} c={c} h={height} />
             </div>
           );
         });
