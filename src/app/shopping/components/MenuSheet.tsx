@@ -28,6 +28,8 @@ interface MenuSheetProps {
   onExportOngoingList: (framework?: "all" | TargetFramework) => void;
   onExportSplitOngoingLists: () => void;
   onExportSplitProcurementLists: () => void;
+  exportFormat: "word" | "pdf";
+  onExportFormatChange: (format: "word" | "pdf") => void;
 }
 
 function MenuItem({
@@ -104,6 +106,8 @@ export function MenuSheet({
   onExportOngoingList,
   onExportSplitOngoingLists,
   onExportSplitProcurementLists,
+  exportFormat,
+  onExportFormatChange,
 }: MenuSheetProps) {
   const wrap = (fn: () => void) => () => {
     onClose();
@@ -156,7 +160,23 @@ export function MenuSheet({
 
         {canPurchase && (
           <div className="space-y-3 pt-2">
-            <MenuSectionLabel>הפקת רשימות לקניות וחלוקה (Word)</MenuSectionLabel>
+            <MenuSectionLabel>הפקת רשימות לקניות וחלוקה</MenuSectionLabel>
+
+            <div role="radiogroup" aria-label="פורמט קובץ" className="flex gap-1 p-1 bg-[var(--fill)] rounded-xl">
+              {(["word", "pdf"] as const).map((f) => (
+                <button
+                  key={f}
+                  role="radio"
+                  aria-checked={exportFormat === f}
+                  onClick={() => onExportFormatChange(f)}
+                  className={`flex-1 h-8 rounded-lg text-[13px] font-semibold cursor-pointer transition-colors ${
+                    exportFormat === f ? "bg-[var(--surface)] text-[var(--foreground)] shadow-[var(--shadow-card)]" : "text-[var(--muted)]"
+                  }`}
+                >
+                  {f === "word" ? "Word" : "PDF"}
+                </button>
+              ))}
+            </div>
             
             <div className="p-3 bg-[var(--fill)] rounded-2xl space-y-2.5">
               <div className="text-[13px] font-bold text-[var(--foreground)] flex items-center justify-between gap-2">

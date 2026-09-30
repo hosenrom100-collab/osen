@@ -5,20 +5,21 @@ import { format } from "date-fns";
 import { ShoppingRequest, Product, TargetFramework } from "../types";
 import { toDateOrNull } from "../lib/dateUtils";
 import { FRAMEWORK_LABELS, TARGET_FRAMEWORKS } from "../lib/constants";
+import { generateShoppingListPdf } from "@/lib/pdf/shoppingListPdf";
 import { generateShoppingListWord, generateDocxWithLetterhead } from "@/lib/word-generator";
 
 export function useExport(
   requests: ShoppingRequest[],
   pool: Product[],
   showToast: (message: string, type: "success" | "warning") => void,
-  weekLabels: { supermarket: string; large: string }
+  weekLabels: { supermarket: string; large: string },
+  exportFormat: "word" | "pdf" = "word"
 ) {
   const exportItemsToWord = async (
     items: ShoppingRequest[],
     options: {
       title: string;
       subtitle?: string;
-      weekLabel?: string;
       filename: string;
       successMsg: string;
       includeFrameworkName?: boolean;
@@ -40,13 +41,21 @@ export function useExport(
       });
 
       const dateStr = format(new Date(), "dd/MM/yyyy");
-      const docx = generateShoppingListWord(itemsToExport, {
-        date: dateStr,
-        title: options.title,
-        subtitle: options.subtitle,
-        weekLabel: options.weekLabel,
-      });
-      await generateDocxWithLetterhead(docx, `${options.filename}_${format(new Date(), "yyyy-MM-dd")}.docx`);
+      const stamp = format(new Date(), "yyyy-MM-dd");
+      if (exportFormat === "pdf") {
+        await generateShoppingListPdf(
+          itemsToExport,
+          { date: dateStr, title: options.title, subtitle: options.subtitle },
+          `${options.filename}_${stamp}.pdf`
+        );
+      } else {
+        const docx = generateShoppingListWord(itemsToExport, {
+          date: dateStr,
+          title: options.title,
+          subtitle: options.subtitle,
+          });
+        await generateDocxWithLetterhead(docx, `${options.filename}_${stamp}.docx`);
+      }
       showToast(options.successMsg, "success");
     } catch (e) {
       console.error(e);
@@ -61,7 +70,7 @@ export function useExport(
     const filtered = framework === "all" ? active : active.filter((r) => (r.targetFramework || "main") === framework);
 
     const label = framework === "all" ? "מאוחדת" : FRAMEWORK_LABELS[framework] || framework;
-    const frameworkTitle = `רשימת קניות סופר - ${label}`;
+    const frameworkTitle = `רשימת קניות - ${label}`;
     const filename = `רשימת_קניות_${label.replace(/["״\s]/g, "_")}`;
 
     if (filtered.length === 0) {
@@ -70,9 +79,8 @@ export function useExport(
     }
 
     await exportItemsToWord(filtered, {
-      title: frameworkTitle,
-      subtitle: "מרכז חוסן - חרבות ברזל",
-      weekLabel: weekLabels.supermarket,
+      title: `רשימת קניות ${weekLabels.supermarket}`,
+      subtitle: `מרכז חוסן - חרבות ברזל · ${label}`,
       filename,
       successMsg: `הופקה ${frameworkTitle} והורדה בהצלחה!`,
       includeFrameworkName: framework === "all",
@@ -95,9 +103,8 @@ export function useExport(
     }
 
     await exportItemsToWord(filtered, {
-      title: frameworkTitle,
-      subtitle: "מרכז חוסן - חרבות ברזל",
-      weekLabel: weekLabels.large,
+      title: `רשימת רכש וציוד ${weekLabels.large}`,
+      subtitle: `מרכז חוסן - חרבות ברזל · ${label}`,
       filename,
       successMsg: `הופקה ${frameworkTitle} והורדה בהצלחה!`,
       includeFrameworkName: framework === "all",

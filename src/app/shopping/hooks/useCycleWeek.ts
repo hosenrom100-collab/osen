@@ -1,18 +1,18 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { CutoffConfig, ShoppingRequest } from "../types";
+import { ShoppingRequest } from "../types";
 import { fetchRecentCycles } from "../lib/closeCycle";
-import { getCycleWeekLabel } from "../lib/cycleWeek";
+import { getDeliveryDate } from "../lib/cycleWeek";
 import { toDateOrNull } from "../lib/dateUtils";
 
 type ListType = "supermarket" | "large";
 
 /**
- * Week label per list. A list's cycle starts when the previous one was closed; if it was
+ * Delivery label per list ("למשלוח שיגיע ביום חמישי dd/MM"). A list's cycle starts when the previous one was closed; if it was
  * never closed, at its earliest live item. Call `refresh` after closing a cycle.
  */
-export function useCycleWeeks(requests: ShoppingRequest[], cutoffConfig?: CutoffConfig) {
+export function useCycleWeeks(requests: ShoppingRequest[]) {
   const [lastClosed, setLastClosed] = useState<Record<ListType, Date | null>>({ supermarket: null, large: null });
 
   const refresh = useCallback(async () => {
@@ -38,8 +38,10 @@ export function useCycleWeeks(requests: ShoppingRequest[], cutoffConfig?: Cutoff
       .filter((d): d is Date => d !== null)
       .sort((a, b) => a.getTime() - b.getTime())[0];
     // A carried-over item predates the close, so the close date wins whenever there is one.
-    const start = lastClosed[listType] && lastClosed[listType]!.getTime() > 0 ? lastClosed[listType]! : earliest ?? new Date();
-    return getCycleWeekLabel(start, cutoffConfig);
+    const closed = lastClosed[listType];
+    const openedByClose = !!closed && closed.getTime() > 0;
+    const start = openedByClose ? closed! : earliest ?? new Date();
+    return `למשלוח שיגיע ביום חמישי ${getDeliveryDate(start, openedByClose)}`;
   };
 
   return { weekLabels: { supermarket: labelFor("supermarket"), large: labelFor("large") }, refreshWeeks: refresh };

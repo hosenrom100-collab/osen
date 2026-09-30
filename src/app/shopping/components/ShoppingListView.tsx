@@ -227,7 +227,7 @@ export function ShoppingListView({
                   ? `הורד רשימה מאוחדת (${listType === "large" ? "רכש" : "סופר"})`
                   : `הורד רשימת ${currentFw?.name || ""} (${listType === "large" ? "רכש" : "סופר"})`
               }
-              aria-label="הורד רשימה כקובץ Word"
+              aria-label="הורד רשימה"
               className="lg:hidden mr-auto h-8 w-8 rounded-full border bg-[var(--surface)] border-[var(--border)] hover:bg-[var(--fill)] flex items-center justify-center shrink-0 cursor-pointer transition-colors"
             >
               <Download className="w-4 h-4 text-[var(--accent-text)]" />

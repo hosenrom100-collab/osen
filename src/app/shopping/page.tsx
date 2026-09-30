@@ -112,7 +112,19 @@ export default function ShoppingPage() {
     refetchSettings,
   } = useShoppingData(user, isAdmin, listType);
 
-  const { weekLabels, refreshWeeks } = useCycleWeeks(requests, cutoffConfig);
+  const [exportFormat, setExportFormat] = useState<"word" | "pdf">("word");
+  useEffect(() => {
+    try {
+      if (localStorage.getItem("shopping-export-format") === "pdf") setExportFormat("pdf");
+    } catch {}
+  }, []);
+  const changeExportFormat = (f: "word" | "pdf") => {
+    setExportFormat(f);
+    try {
+      localStorage.setItem("shopping-export-format", f);
+    } catch {}
+  };
+  const { weekLabels, refreshWeeks } = useCycleWeeks(requests);
   const lastCycleItems = useLastCycleItems(listType, overlayOpen);
 
   const { pullDistance, isRefreshing, handlers: pullToRefreshHandlers } = usePullToRefresh(refetchSettings);
@@ -182,7 +194,7 @@ export default function ShoppingPage() {
     exportOngoingList,
     exportSplitOngoingLists,
     exportSplitProcurementLists,
-  } = useExport(requests, pool, showToast, weekLabels);
+  } = useExport(requests, pool, showToast, weekLabels, exportFormat);
 
   // Purchased vs total for what the list shows (list type + framework filter) — feeds the header line and the desktop rail.
   const progress = useMemo(() => {
@@ -430,6 +442,8 @@ export default function ShoppingPage() {
           onExportOngoingList={exportOngoingList}
           onExportSplitOngoingLists={exportSplitOngoingLists}
           onExportSplitProcurementLists={exportSplitProcurementLists}
+          exportFormat={exportFormat}
+          onExportFormatChange={changeExportFormat}
         />
 
         {/* Admin Product Requests Modal */}

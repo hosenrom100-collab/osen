@@ -1312,7 +1312,6 @@ export const generateShoppingListWord = (
     date: string;
     title?: string;
     subtitle?: string;
-    weekLabel?: string;
     logoHeaderData?: Uint8Array;
     logoFooterData?: Uint8Array;
   }
@@ -1327,13 +1326,7 @@ export const generateShoppingListWord = (
 
   if (metadata.subtitle) {
     children.push(
-      createParagraph(metadata.subtitle, { alignment: AlignmentType.CENTER, bold: true, size: 24, spacingAfter: metadata.weekLabel ? 60 : 240, color: "4f46e5" })
-    );
-  }
-
-  if (metadata.weekLabel) {
-    children.push(
-      createParagraph(metadata.weekLabel, { alignment: AlignmentType.CENTER, bold: true, size: 26, spacingAfter: 240 })
+      createParagraph(metadata.subtitle, { alignment: AlignmentType.CENTER, bold: true, size: 24, spacingAfter: 240, color: "4f46e5" })
     );
   }
 
