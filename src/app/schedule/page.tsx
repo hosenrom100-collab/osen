@@ -500,7 +500,7 @@ export default function SchedulePage() {
         )}
 
         {settingsFor && programOf(settingsFor) && (
-          <ProgramScheduleSettings program={programOf(settingsFor)!} groups={refs.groups} types={types} onClose={() => setSettingsFor(null)} onSaved={() => { setSettingsFor(null); load(); }} />
+          <ProgramScheduleSettings program={programOf(settingsFor)!} groups={refs.groups} locations={refs.locations} types={types} onClose={() => setSettingsFor(null)} onSaved={() => { setSettingsFor(null); load(); }} />
         )}
         {showShift && (
           <DayShiftDialog date={selectedDay} userId={user?.uid} scopeLabel={currentProgram ? currentProgram.name : "כל התוכניות"}

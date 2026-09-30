@@ -64,6 +64,7 @@ export interface DailyBlock {
   end: string;
   days?: number[];     // missing/empty = every active day of the program
   groupIds?: string[]; // missing/empty = every group of the program
+  locationId?: string; // where it happens (e.g. the dining room); optional
 }
 
 export interface Program {

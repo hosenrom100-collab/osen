@@ -121,8 +121,8 @@ export function buildSessions(
         out.push({
           id: `block_${prog.id}_${b.id}_${date}`, changeId: null, workshopId: `block:${b.id}`, workshopName: b.label,
           programId: prog.id, groupIds: b.groupIds || [], slotId: null, origDate: date, date,
-          start: b.start, end: b.end, staffIds: [], kind: "normal", activity: b.kind, band: true, hasParticipants: false, audience: "participants", fixedBlock: true,
-          base: { start: b.start, end: b.end, staffIds: [], groupIds: b.groupIds || [] },
+          start: b.start, end: b.end, staffIds: [], locationId: b.locationId || undefined, kind: "normal", activity: b.kind, band: true, hasParticipants: false, audience: "participants", fixedBlock: true,
+          base: { start: b.start, end: b.end, staffIds: [], locationId: b.locationId || undefined, groupIds: b.groupIds || [] },
         });
       }
     }

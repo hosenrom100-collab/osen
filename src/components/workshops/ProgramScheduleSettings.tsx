@@ -13,8 +13,8 @@ const newId = () => Math.random().toString(36).slice(2, 9);
 const validUrl = (u: string) => !u || /^https?:\/\/\S+$/.test(u);
 
 /** Schedule settings of one program: colour, daily meals/breaks (per group if needed) and the community group links. */
-export function ProgramScheduleSettings({ program, groups, types, onClose, onSaved }: {
-  program: Program; groups: Group[]; types: ActivityType[]; onClose: () => void; onSaved: () => void;
+export function ProgramScheduleSettings({ program, groups, locations, types, onClose, onSaved }: {
+  program: Program; groups: Group[]; locations: { id: string; name: string }[]; types: ActivityType[]; onClose: () => void; onSaved: () => void;
 }) {
   const blockTypes = types.filter(t => t.band && !t.archived);
   const [laneMode, setLaneMode] = useState<NonNullable<Program["laneMode"]>>(program.laneMode || "stable");
@@ -43,7 +43,7 @@ export function ProgramScheduleSettings({ program, groups, types, onClose, onSav
     try {
       await updateDoc(doc(db, "programs", program.id), {
         scheduleColor: hue, laneMode,
-        dailyBlocks: blocks.map(b => ({ ...b, label: b.label.trim(), days: b.days || [], groupIds: b.groupIds || [] })),
+        dailyBlocks: blocks.map(b => ({ ...b, label: b.label.trim(), days: b.days || [], groupIds: b.groupIds || [], locationId: b.locationId || "" })),
         staffGroupUrl: staffUrl.trim(), participantsGroupUrl: partUrl.trim(),
       });
       onSaved();
@@ -91,6 +91,10 @@ export function ProgramScheduleSettings({ program, groups, types, onClose, onSav
               <div className="grid grid-cols-2 gap-2">
                 <select className={`${fieldCls} col-span-2`} value={b.kind} onChange={e => patch(b.id, { kind: e.target.value as ActivityKind })}>
                   {blockTypes.concat(types.filter(t => t.band && t.archived && t.id === b.kind)).map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
+                </select>
+                <select className={`${fieldCls} col-span-2`} value={b.locationId || ""} onChange={e => patch(b.id, { locationId: e.target.value })} aria-label="מרחב">
+                  <option value="">ללא מרחב</option>
+                  {locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
                 </select>
                 <input type="time" className={fieldCls} value={b.start} onChange={e => patch(b.id, { start: e.target.value })} />
                 <input type="time" className={fieldCls} value={b.end} onChange={e => patch(b.id, { end: e.target.value })} />
