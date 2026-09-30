@@ -683,7 +683,7 @@ export default function Home() {
             
             <div className="flex items-center gap-2 mb-4">
               <Sparkles className="w-4 h-4 text-blue-400 " />
-              <h2 className="text-[11px] font-bold uppercase tracking-wider text-[var(--foreground)]">תובנות והתראות תקופת טיפול</h2>
+              <h2 className="text-[11px] font-bold text-[var(--foreground)]">תובנות והתראות תקופת טיפול</h2>
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

@@ -1448,7 +1448,7 @@ export default function PatientDetailPage() {
   if (loading) return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-[var(--background)] gap-4">
       <Loader2 className="w-10 h-10 text-emerald-500 animate-spin" />
-      <p className="text-sm font-bold text-[var(--foreground)]/30 uppercase tracking-[0.2em]">טוען תיק משתתף...</p>
+      <p className="text-sm font-bold text-[var(--foreground)]/30">טוען תיק משתתף...</p>
     </div>
   );
 
@@ -1489,18 +1489,18 @@ export default function PatientDetailPage() {
               <div className="flex flex-col min-w-0">
                 <div className="flex items-center gap-2 mb-0.5">
                   <h1 className="text-lg md:text-2xl font-bold tracking-tight leading-tight text-slate-900 truncate">{patientName}</h1>
-                  <span className={`px-1.5 py-0.5 md:px-2.5 md:py-1 rounded-full text-[7px] md:text-[11px] font-bold uppercase tracking-wider shrink-0 ${
+                  <span className={`px-1.5 py-0.5 md:px-2.5 md:py-1 rounded-full text-[7px] md:text-[11px] font-bold shrink-0 ${
                     patient.status === 'active' ? "bg-emerald-500/10 text-emerald-500" : "bg-slate-500/10 text-slate-500"
                   }`}>
                     {patient.status === 'active' ? 'פעיל' : 'בטיפול'}
                   </span>
                   {patient.isGroupContract && (
-                    <span className="px-1.5 py-0.5 md:px-2.5 md:py-1 rounded-full text-[7px] md:text-[11px] font-bold uppercase tracking-wider shrink-0 bg-purple-500/10 text-purple-600 border border-purple-200">
+                    <span className="px-1.5 py-0.5 md:px-2.5 md:py-1 rounded-full text-[7px] md:text-[11px] font-bold shrink-0 bg-purple-500/10 text-purple-600 border border-purple-200">
                       חוזה קבוצתי
                     </span>
                   )}
                 </div>
-                <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[8px] md:text-[11px] text-slate-400 font-bold uppercase tracking-wider">
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[8px] md:text-[11px] text-slate-400 font-bold">
                   <span className="text-emerald-600/80">{fullGroupName}</span>
                 </div>
               </div>
@@ -1609,7 +1609,7 @@ export default function PatientDetailPage() {
                     <stat.icon className="w-4 h-4" />
                  </div>
                  <div className="min-w-0">
-                   <p className="text-[8px] md:text-[11px] font-bold text-[var(--foreground)]/40 uppercase tracking-wider mb-0.5 truncate">{stat.label}</p>
+                   <p className="text-[8px] md:text-[11px] font-bold text-[var(--foreground)]/40 mb-0.5 truncate">{stat.label}</p>
                    <p className="text-sm md:text-base font-bold text-[var(--foreground)]">{stat.value}</p>
                  </div>
                </div>
@@ -1677,11 +1677,11 @@ export default function PatientDetailPage() {
                            </div>
                            <div className="grid grid-cols-2 gap-3 text-xs">
                              <div>
-                               <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">שם מלא</p>
+                               <p className="text-[11px] font-bold text-slate-400 mb-0.5">שם מלא</p>
                                <p className="font-bold text-slate-700">{patient.firstName} {patient.lastName}</p>
                              </div>
                              <div>
-                               <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">טלפון</p>
+                               <p className="text-[11px] font-bold text-slate-400 mb-0.5">טלפון</p>
                                {patient.phone ? (
                                  <a href={`tel:${patient.phone}`} className="font-bold text-emerald-600 hover:underline flex items-center gap-1">
                                    <Phone className="w-3 h-3" />
@@ -1692,7 +1692,7 @@ export default function PatientDetailPage() {
                                )}
                              </div>
                              <div>
-                               <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">סטטוס</p>
+                               <p className="text-[11px] font-bold text-slate-400 mb-0.5">סטטוס</p>
                                <span className={`inline-block px-2 py-0.5 rounded-full text-[11px] font-bold ${
                                  patient.status === 'active' ? 'bg-emerald-100 text-emerald-700' :
                                  patient.status === 'pending' ? 'bg-amber-100 text-amber-700' :
@@ -1714,7 +1714,7 @@ export default function PatientDetailPage() {
                            </div>
                            <div className="space-y-3">
                              <div>
-                               <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">תוכניות פעילות</p>
+                               <p className="text-[11px] font-bold text-slate-400 mb-1.5">תוכניות פעילות</p>
                                <div className="flex flex-wrap gap-1.5">
                                  {(() => {
                                    const pIds = patient.programIds || (patient.programId ? [patient.programId] : []);
@@ -1732,7 +1732,7 @@ export default function PatientDetailPage() {
                              </div>
 
                              <div>
-                               <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">קבוצות משויכות</p>
+                               <p className="text-[11px] font-bold text-slate-400 mb-1.5">קבוצות משויכות</p>
                                <div className="flex flex-wrap gap-1.5">
                                  {(() => {
                                    const gIds = patient.groupIds || (patient.hosenType ? [patient.hosenType] : []);
@@ -1760,7 +1760,7 @@ export default function PatientDetailPage() {
                            <div className="space-y-3.5 text-xs">
                              <div className="flex items-center justify-between">
                                <div>
-                                 <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">עו"ס מלווה בחווה</p>
+                                 <p className="text-[11px] font-bold text-slate-400 mb-0.5">עו"ס מלווה בחווה</p>
                                  <p className="font-bold text-slate-700">
                                    {socialWorkers.find(w => w.id === patient.assignedWorkerId)?.name || "טרם שובץ עו\"ס"}
                                  </p>
@@ -1769,7 +1769,7 @@ export default function PatientDetailPage() {
 
                              <div className="flex items-center justify-between border-t border-slate-200/50 pt-2.5">
                                <div>
-                                 <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">עו"ס שיקום משרד הביטחון</p>
+                                 <p className="text-[11px] font-bold text-slate-400 mb-0.5">עו"ס שיקום משרד הביטחון</p>
                                  <p className="font-bold text-slate-700">
                                    {(() => {
                                      const rehab = rehabWorkers.find(w => w.id === patient.rehabWorkerId);
@@ -1808,15 +1808,15 @@ export default function PatientDetailPage() {
                            </div>
                            <div className="grid grid-cols-2 gap-3 text-xs">
                              <div>
-                               <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">תחילת השתתפות</p>
+                               <p className="text-[11px] font-bold text-slate-400 mb-0.5">תחילת השתתפות</p>
                                <p className="font-bold text-slate-700">{patient.startDate ? format(parseISO(patient.startDate), "dd/MM/yyyy") : "—"}</p>
                              </div>
                              <div>
-                               <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">סיום משוער</p>
+                               <p className="text-[11px] font-bold text-slate-400 mb-0.5">סיום משוער</p>
                                <p className="font-bold text-slate-700">{patient.endDate ? format(parseISO(patient.endDate), "dd/MM/yyyy") : "—"}</p>
                              </div>
                              <div className="col-span-2 border-t border-slate-200/50 pt-2.5">
-                               <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">ועדת נכות משרד הביטחון</p>
+                               <p className="text-[11px] font-bold text-slate-400 mb-0.5">ועדת נכות משרד הביטחון</p>
                                <p className="font-bold text-slate-700">
                                  {patient.disabilityCommitteePassed 
                                    ? "עברה / לא נדרשת" 
@@ -1883,8 +1883,8 @@ export default function PatientDetailPage() {
                                 <Calendar className="w-4 h-4" />
                               </div>
                               <div>
-                                <h4 className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-900">תקופת שהות</h4>
-                                <p className="text-[11px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">ניהול זמני תוכנית</p>
+                                <h4 className="text-[11px] font-bold text-slate-900">תקופת שהות</h4>
+                                <p className="text-[11px] text-slate-400 font-bold mt-0.5">ניהול זמני תוכנית</p>
                               </div>
                             </div>
                             {isUrgent && <div className="w-2 h-2 rounded-full bg-rose-500 animate-ping" />}
@@ -1894,11 +1894,11 @@ export default function PatientDetailPage() {
                             {/* Dates visualization */}
                             <div className="grid grid-cols-2 gap-2">
                               <div className="bg-slate-50 rounded-lg p-2.5">
-                                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">תאריך התחלה</p>
+                                <p className="text-[11px] font-bold text-slate-400 mb-1">תאריך התחלה</p>
                                 <p className="text-xs font-bold text-slate-700">{patient.startDate ? format(parseISO(patient.startDate), "dd/MM/yyyy") : "—"}</p>
                               </div>
                               <div className={`rounded-lg p-2.5 ${isUrgent ? 'bg-rose-50' : 'bg-slate-50'}`}>
-                                <p className={`text-[11px] font-bold uppercase tracking-wider mb-1 ${isUrgent ? 'text-rose-400' : 'text-slate-400'}`}>תאריך סיום</p>
+                                <p className={`text-[11px] font-bold mb-1 ${isUrgent ? 'text-rose-400' : 'text-slate-400'}`}>תאריך סיום</p>
                                 <p className={`text-xs font-bold ${isUrgent ? 'text-rose-600' : 'text-slate-700'}`}>{endDate ? format(endDate, "dd/MM/yyyy") : "—"}</p>
                               </div>
                             </div>
@@ -1906,7 +1906,7 @@ export default function PatientDetailPage() {
                             {/* Progress bar */}
                             <div className="space-y-1.5">
                               <div className="flex justify-between items-end">
-                                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">התקדמות תקופה</span>
+                                <span className="text-[11px] font-bold text-slate-400">התקדמות תקופה</span>
                                 <span className={`text-sm font-bold ${isExpired ? 'text-slate-400' : isUrgent ? 'text-rose-500' : 'text-emerald-500'}`}>
                                   {isExpired ? 'הסתיימה' : `${days} ימים נותרו`}
                                 </span>
@@ -1966,7 +1966,7 @@ export default function PatientDetailPage() {
 
                       return (
                         <div className="border-b border-slate-200/60 py-3">
-                          <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-2.5">מסמכים ותוכניות</h4>
+                          <h4 className="text-[11px] font-bold text-slate-400 mb-2.5">מסמכים ותוכניות</h4>
                           <div className={`grid ${items.length === 1 ? 'grid-cols-1' : items.length === 2 ? 'grid-cols-2' : items.length === 3 ? 'grid-cols-3' : 'grid-cols-2 sm:grid-cols-4'} gap-2`}>
                             {items.map((item) => (
                               <div
@@ -2007,7 +2007,7 @@ export default function PatientDetailPage() {
 
                       return (
                         <div className="border-b border-slate-200/60 py-3">
-                          <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-2.5">סימון דוחות</h4>
+                          <h4 className="text-[11px] font-bold text-slate-400 mb-2.5">סימון דוחות</h4>
                           <div className={`grid ${items.length === 1 ? 'grid-cols-1' : items.length === 2 ? 'grid-cols-2' : 'grid-cols-3'} gap-2`}>
                             {items.map((item) => (
                               <div
@@ -2036,7 +2036,7 @@ export default function PatientDetailPage() {
 
                     {/* ── Arrival Method ── */}
                     <div className="border-b border-slate-200/60 py-3">
-                      <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-2.5">אופן הגעה</h4>
+                      <h4 className="text-[11px] font-bold text-slate-400 mb-2.5">אופן הגעה</h4>
                       <div className="grid grid-cols-2 gap-2">
                         {[
                           { value: "private_car" as const, label: "רכב פרטי", icon: CarFront },
@@ -2087,7 +2087,7 @@ export default function PatientDetailPage() {
                   return (
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                       <div className="bg-emerald-500/10 border border-emerald-500/10 rounded-2xl p-4 text-right shadow-sm">
-                        <div className="text-[11px] font-bold text-emerald-600 uppercase tracking-wider mb-1">נוכחות בפועל</div>
+                        <div className="text-[11px] font-bold text-emerald-600 mb-1">נוכחות בפועל</div>
                         <div className="flex items-baseline gap-1">
                           <span className="text-2xl font-bold text-slate-800">{presentDays}</span>
                           <span className="text-xs text-slate-400 font-bold">ימים</span>
@@ -2095,7 +2095,7 @@ export default function PatientDetailPage() {
                       </div>
                       
                       <div className="bg-rose-500/10 border border-rose-500/10 rounded-2xl p-4 text-right shadow-sm">
-                        <div className="text-[11px] font-bold text-rose-600 uppercase tracking-wider mb-1">היעדרויות</div>
+                        <div className="text-[11px] font-bold text-rose-600 mb-1">היעדרויות</div>
                         <div className="flex items-baseline gap-1">
                           <span className="text-2xl font-bold text-slate-800">{absentDays}</span>
                           <span className="text-xs text-slate-400 font-bold">ימים</span>
@@ -2103,7 +2103,7 @@ export default function PatientDetailPage() {
                       </div>
 
                       <div className="bg-blue-500/10 border border-blue-500/10 rounded-2xl p-4 text-right shadow-sm col-span-2 md:col-span-2">
-                        <div className="text-[11px] font-bold text-blue-600 uppercase tracking-wider mb-1">אחוז נוכחות כולל</div>
+                        <div className="text-[11px] font-bold text-blue-600 mb-1">אחוז נוכחות כולל</div>
                         <div className="flex items-center gap-3">
                           <div className="flex items-baseline gap-0.5">
                             <span className="text-2xl font-bold text-slate-800">{attendanceRate}</span>
@@ -2215,7 +2215,7 @@ export default function PatientDetailPage() {
                                         <span className="text-[11px] font-semibold text-slate-400">
                                           {att.status === "present" ? "☀️ הגעה לחווה" : "💤 היעדרות"}
                                         </span>
-                                        <span className={`text-[11px] font-bold px-3 py-1 rounded-full border uppercase tracking-tighter ${
+                                        <span className={`text-[11px] font-bold px-3 py-1 rounded-full border tracking-tighter ${
                                           att.status === "present"
                                             ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
                                             : "bg-rose-500/10 text-rose-600 border-rose-500/20"
@@ -2243,7 +2243,7 @@ export default function PatientDetailPage() {
                 {/* Visual Header */}
                 <div className="flex flex-col gap-1 text-right">
                   <h3 className="text-sm font-bold text-slate-800">הפקת אישורים רשמיים</h3>
-                  <p className="text-[11px] text-slate-400 font-bold uppercase tracking-wider">בחר את האישור הרלוונטי להפקה מיידית בפורמט Word רשמי</p>
+                  <p className="text-[11px] text-slate-400 font-bold">בחר את האישור הרלוונטי להפקה מיידית בפורמט Word רשמי</p>
                 </div>
 
                 {/* Manual Generation Grid */}
@@ -2257,7 +2257,7 @@ export default function PatientDetailPage() {
                           </div>
                           <div>
                             <h4 className="text-xs md:text-sm font-bold text-slate-800">הנפקת אישור שהייה</h4>
-                            <p className="text-[11px] text-slate-400 font-bold uppercase tracking-wide">אישור רשמי ופרטי התוכנית</p>
+                            <p className="text-[11px] text-slate-400 font-bold tracking-wide">אישור רשמי ופרטי התוכנית</p>
                           </div>
                         </div>
                         <p className="text-[11px] text-slate-500 leading-relaxed font-semibold">
@@ -2267,7 +2267,7 @@ export default function PatientDetailPage() {
                       <button
                         onClick={() => generateReport('participation')}
                         disabled={reportLoading}
-                        className="w-full bg-emerald-500 text-white py-3 rounded-2xl text-[11px] font-bold uppercase tracking-wider transition-all hover:bg-emerald-600 shadow-sm active:scale-[0.98] flex items-center justify-center gap-1.5 mt-5 cursor-pointer border-none"
+                        className="w-full bg-emerald-500 text-white py-3 rounded-2xl text-[11px] font-bold transition-all hover:bg-emerald-600 shadow-sm active:scale-[0.98] flex items-center justify-center gap-1.5 mt-5 cursor-pointer border-none"
                       >
                         {reportLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
                         להורדת אישור שהייה
@@ -2283,7 +2283,7 @@ export default function PatientDetailPage() {
                           </div>
                           <div>
                             <h4 className="text-xs md:text-sm font-bold text-slate-800">אישור נוכחות חודשי</h4>
-                            <p className="text-[11px] text-slate-400 font-bold uppercase tracking-wide">פירוט ימי הגעה בפועל</p>
+                            <p className="text-[11px] text-slate-400 font-bold tracking-wide">פירוט ימי הגעה בפועל</p>
                           </div>
                         </div>
                         <p className="text-[11px] text-slate-500 leading-relaxed font-semibold">
@@ -2312,7 +2312,7 @@ export default function PatientDetailPage() {
                          <button
                           onClick={() => generateReport('travel')}
                           disabled={reportLoading}
-                          className="flex-1 bg-sky-500 hover:bg-sky-600 text-white py-3 rounded-2xl text-[11px] font-bold uppercase tracking-wider transition-all shadow-sm active:scale-[0.98] flex items-center justify-center gap-1.5 cursor-pointer border-none"
+                          className="flex-1 bg-sky-500 hover:bg-sky-600 text-white py-3 rounded-2xl text-[11px] font-bold transition-all shadow-sm active:scale-[0.98] flex items-center justify-center gap-1.5 cursor-pointer border-none"
                          >
                           {reportLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
                           הפקת אישור נסיעות
@@ -2329,7 +2329,7 @@ export default function PatientDetailPage() {
                 {/* Visual Header */}
                 <div className="flex flex-col gap-1 text-right">
                   <h3 className="text-sm font-bold text-slate-800">הפקת דו״חות טיפוליים</h3>
-                  <p className="text-[11px] text-slate-400 font-bold uppercase tracking-wider">הפקת דו״חות הערכה ותוכניות שיקום המבוססות על שאלוני התקדמות אינטראקטיביים</p>
+                  <p className="text-[11px] text-slate-400 font-bold">הפקת דו״חות הערכה ותוכניות שיקום המבוססות על שאלוני התקדמות אינטראקטיביים</p>
                 </div>
 
                 {/* Manual Generation Grid */}
@@ -2343,7 +2343,7 @@ export default function PatientDetailPage() {
                           </div>
                           <div>
                             <h4 className="text-xs md:text-sm font-bold text-slate-800">הנפקת דו״ח תקופתי</h4>
-                            <p className="text-[11px] text-slate-400 font-bold uppercase tracking-wide">השמה / עזיבה / חצי שנתי / הארכה</p>
+                            <p className="text-[11px] text-slate-400 font-bold tracking-wide">השמה / עזיבה / חצי שנתי / הארכה</p>
                           </div>
                         </div>
                         <p className="text-[11px] text-slate-500 leading-relaxed font-semibold">
@@ -2356,7 +2356,7 @@ export default function PatientDetailPage() {
                           setShowPeriodicModal(true);
                         }}
                         disabled={reportLoading}
-                        className="w-full bg-violet-500 text-white py-3 rounded-2xl text-[11px] font-bold uppercase tracking-wider transition-all hover:bg-violet-600 shadow-sm active:scale-[0.98] flex items-center justify-center gap-1.5 mt-5 cursor-pointer border-none"
+                        className="w-full bg-violet-500 text-white py-3 rounded-2xl text-[11px] font-bold transition-all hover:bg-violet-600 shadow-sm active:scale-[0.98] flex items-center justify-center gap-1.5 mt-5 cursor-pointer border-none"
                       >
                         {reportLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
                         למחולל דו״ח תקופתי
@@ -2372,7 +2372,7 @@ export default function PatientDetailPage() {
                           </div>
                           <div>
                             <h4 className="text-xs md:text-sm font-bold text-slate-800">הנפקת דו״ח תפקודי</h4>
-                            <p className="text-[11px] text-slate-400 font-bold uppercase tracking-wide">עבור משרד הביטחון - ועדות רפואיות</p>
+                            <p className="text-[11px] text-slate-400 font-bold tracking-wide">עבור משרד הביטחון - ועדות רפואיות</p>
                           </div>
                         </div>
                         <p className="text-[11px] text-slate-500 leading-relaxed font-semibold">
@@ -2385,7 +2385,7 @@ export default function PatientDetailPage() {
                           setShowFunctionalModal(true);
                         }}
                         disabled={reportLoading}
-                        className="w-full bg-violet-500 text-white py-3 rounded-2xl text-[11px] font-bold uppercase tracking-wider transition-all hover:bg-violet-600 shadow-sm active:scale-[0.98] flex items-center justify-center gap-1.5 mt-5 cursor-pointer border-none"
+                        className="w-full bg-violet-500 text-white py-3 rounded-2xl text-[11px] font-bold transition-all hover:bg-violet-600 shadow-sm active:scale-[0.98] flex items-center justify-center gap-1.5 mt-5 cursor-pointer border-none"
                       >
                         {reportLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
                         למחולל דו״ח תפקודי
@@ -2401,7 +2401,7 @@ export default function PatientDetailPage() {
                           </div>
                           <div>
                             <h4 className="text-xs md:text-sm font-bold text-slate-800">תוכנית שיקום אישית</h4>
-                            <p className="text-[11px] text-slate-400 font-bold uppercase tracking-wide">מטרות, מקורות סיוע ודרכי עבודה</p>
+                            <p className="text-[11px] text-slate-400 font-bold tracking-wide">מטרות, מקורות סיוע ודרכי עבודה</p>
                           </div>
                         </div>
                         <p className="text-[11px] text-slate-500 leading-relaxed font-semibold">
@@ -2414,7 +2414,7 @@ export default function PatientDetailPage() {
                           setShowRehabPlanModal(true);
                         }}
                         disabled={reportLoading}
-                        className="w-full bg-violet-500 text-white py-3 rounded-2xl text-[11px] font-bold uppercase tracking-wider transition-all hover:bg-violet-600 shadow-sm active:scale-[0.98] flex items-center justify-center gap-1.5 mt-5 cursor-pointer border-none"
+                        className="w-full bg-violet-500 text-white py-3 rounded-2xl text-[11px] font-bold transition-all hover:bg-violet-600 shadow-sm active:scale-[0.98] flex items-center justify-center gap-1.5 mt-5 cursor-pointer border-none"
                       >
                         {reportLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
                         לבניית תוכנית שיקום
@@ -2720,7 +2720,7 @@ export default function PatientDetailPage() {
                       <h3 className="text-base font-bold text-slate-900">
                         {pendingReportType === 'participation' ? 'התאמת אישור שהייה' : 'התאמת אישור נוכחות חודשי'}
                       </h3>
-                      <p className="text-[11px] text-slate-400 font-bold uppercase tracking-wider">
+                      <p className="text-[11px] text-slate-400 font-bold">
                         התאמת שדה הנמען לפני הנפקת המסמך
                       </p>
                     </div>
@@ -2735,7 +2735,7 @@ export default function PatientDetailPage() {
 
                 <div className="space-y-4">
                   <div className="space-y-1.5">
-                    <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400">עבור (נמען):</label>
+                    <label className="text-[11px] font-bold text-slate-400">עבור (נמען):</label>
                     <input
                       type="text"
                       value={recipientText}
@@ -2748,13 +2748,13 @@ export default function PatientDetailPage() {
                   <div className="pt-2 flex gap-3">
                     <button
                       onClick={executePDFGeneration}
-                      className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white py-3.5 rounded-2xl text-[11px] font-bold uppercase tracking-wider transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+                      className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white py-3.5 rounded-2xl text-[11px] font-bold transition-all active:scale-[0.98] flex items-center justify-center gap-2"
                     >
                       הפק אישור
                     </button>
                     <button
                       onClick={() => setShowRecipientModal(false)}
-                      className="flex-1 bg-slate-50 hover:bg-slate-100 border border-slate-200 py-3.5 rounded-2xl text-[11px] font-bold uppercase tracking-wider transition-all"
+                      className="flex-1 bg-slate-50 hover:bg-slate-100 border border-slate-200 py-3.5 rounded-2xl text-[11px] font-bold transition-all"
                     >
                       ביטול
                     </button>
@@ -2793,7 +2793,7 @@ export default function PatientDetailPage() {
                       <h3 className="text-sm md:text-base font-bold text-slate-900">
                         הפקת מכתב החזר נסיעות חודשי
                       </h3>
-                      <p className="text-[11px] md:text-[11px] text-slate-400 font-bold uppercase tracking-wider">
+                      <p className="text-[11px] md:text-[11px] text-slate-400 font-bold">
                         {travelStep === "details" && "שלב א׳: הגדרת פרטי המשתתף והתאריכים"}
                         {travelStep === "signatory" && "שלב ב׳: הגדרת מורשה החתימה"}
                         {travelStep === "preview" && "שלב ג׳: תצוגה מקדימה ואישור סופי"}
@@ -2853,7 +2853,7 @@ export default function PatientDetailPage() {
                     <div className="space-y-4">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-1.5">
-                          <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400">תאריך המכתב:</label>
+                          <label className="text-[11px] font-bold text-slate-400">תאריך המכתב:</label>
                           <input
                             type="text"
                             value={travelLetterDate}
@@ -2862,7 +2862,7 @@ export default function PatientDetailPage() {
                           />
                         </div>
                         <div className="space-y-1.5">
-                          <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400">עבור (נמען):</label>
+                          <label className="text-[11px] font-bold text-slate-400">עבור (נמען):</label>
                           <input
                             type="text"
                             value={travelRecipient}
@@ -2874,7 +2874,7 @@ export default function PatientDetailPage() {
 
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div className="space-y-1.5">
-                          <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400">שם פרטי:</label>
+                          <label className="text-[11px] font-bold text-slate-400">שם פרטי:</label>
                           <input
                             type="text"
                             value={travelFirstName}
@@ -2883,7 +2883,7 @@ export default function PatientDetailPage() {
                           />
                         </div>
                         <div className="space-y-1.5">
-                          <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400">שם משפחה:</label>
+                          <label className="text-[11px] font-bold text-slate-400">שם משפחה:</label>
                           <input
                             type="text"
                             value={travelLastName}
@@ -2892,7 +2892,7 @@ export default function PatientDetailPage() {
                           />
                         </div>
                         <div className="space-y-1.5">
-                          <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400">תעודת זהות:</label>
+                          <label className="text-[11px] font-bold text-slate-400">תעודת זהות:</label>
                           <input
                             type="text"
                             value={travelIdNumber}
@@ -2904,7 +2904,7 @@ export default function PatientDetailPage() {
 
                       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                         <div className="space-y-1.5">
-                          <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400">אישור הגעה מהתאריך:</label>
+                          <label className="text-[11px] font-bold text-slate-400">אישור הגעה מהתאריך:</label>
                           <input
                             type="text"
                             value={travelApprovalStartDate}
@@ -2913,7 +2913,7 @@ export default function PatientDetailPage() {
                           />
                         </div>
                         <div className="space-y-1.5">
-                          <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400">שם התוכנית:</label>
+                          <label className="text-[11px] font-bold text-slate-400">שם התוכנית:</label>
                           <input
                             type="text"
                             value={travelProgramName}
@@ -2922,7 +2922,7 @@ export default function PatientDetailPage() {
                           />
                         </div>
                         <div className="space-y-1.5">
-                          <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400">ימי פעילות בחווה:</label>
+                          <label className="text-[11px] font-bold text-slate-400">ימי פעילות בחווה:</label>
                           <input
                             type="text"
                             value={travelActivityDays}
@@ -2931,7 +2931,7 @@ export default function PatientDetailPage() {
                           />
                         </div>
                         <div className="space-y-1.5">
-                          <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400">שעות פעילות בחווה:</label>
+                          <label className="text-[11px] font-bold text-slate-400">שעות פעילות בחווה:</label>
                           <input
                             type="text"
                             value={travelActivityHours}
@@ -2942,7 +2942,7 @@ export default function PatientDetailPage() {
                       </div>
 
                       <div className="space-y-1.5">
-                        <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400">בחר חודשים רלוונטיים (ניתן לבחור יותר מחודש אחד):</label>
+                        <label className="text-[11px] font-bold text-slate-400">בחר חודשים רלוונטיים (ניתן לבחור יותר מחודש אחד):</label>
                         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 py-3 border-b border-slate-200">
                           {Array.from({ length: 12 }).map((_, i) => {
                             const d = subMonths(new Date(), i);
@@ -2974,7 +2974,7 @@ export default function PatientDetailPage() {
                       </div>
 
                       <div className="space-y-1.5">
-                        <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400">תאריכי הגעה בחודש:</label>
+                        <label className="text-[11px] font-bold text-slate-400">תאריכי הגעה בחודש:</label>
                         <textarea
                           rows={3}
                           value={travelAttendanceDatesStr}
@@ -2986,7 +2986,7 @@ export default function PatientDetailPage() {
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-1.5">
-                          <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400">אופן הגעה / אמצעי תחבורה:</label>
+                          <label className="text-[11px] font-bold text-slate-400">אופן הגעה / אמצעי תחבורה:</label>
                           <input
                             type="text"
                             value={travelTransportationMethod}
@@ -2995,7 +2995,7 @@ export default function PatientDetailPage() {
                           />
                         </div>
                         <div className="space-y-1.5">
-                          <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400">סה״כ ימי הגעה בפועל בחודש (למשל: 12):</label>
+                          <label className="text-[11px] font-bold text-slate-400">סה״כ ימי הגעה בפועל בחודש (למשל: 12):</label>
                           <input
                             type="text"
                             value={travelTotalDays}
@@ -3009,10 +3009,10 @@ export default function PatientDetailPage() {
 
                   {travelStep === "signatory" && (
                     <div className="space-y-4 py-4">
-                      <h4 className="text-[11px] font-bold uppercase text-slate-900 mb-2 border-b border-slate-100 pb-2">פרטי חתימה מורשית</h4>
+                      <h4 className="text-[11px] font-bold text-slate-900 mb-2 border-b border-slate-100 pb-2">פרטי חתימה מורשית</h4>
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div className="space-y-1.5">
-                          <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400">שם מורשה חתימה:</label>
+                          <label className="text-[11px] font-bold text-slate-400">שם מורשה חתימה:</label>
                           <input
                             type="text"
                             value={travelSignatoryName}
@@ -3021,7 +3021,7 @@ export default function PatientDetailPage() {
                           />
                         </div>
                         <div className="space-y-1.5">
-                          <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400">תפקיד:</label>
+                          <label className="text-[11px] font-bold text-slate-400">תפקיד:</label>
                           <input
                             type="text"
                             value={travelSignatoryTitle}
@@ -3030,7 +3030,7 @@ export default function PatientDetailPage() {
                           />
                         </div>
                         <div className="space-y-1.5">
-                          <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400">ארגון:</label>
+                          <label className="text-[11px] font-bold text-slate-400">ארגון:</label>
                           <input
                             type="text"
                             value={travelSignatoryOrg}
@@ -3046,7 +3046,7 @@ export default function PatientDetailPage() {
                     <div className="space-y-3 py-2">
                       <div className="border border-slate-200 rounded-3xl p-5 md:p-6 bg-slate-50 max-h-[40vh] overflow-y-auto font-sans leading-relaxed text-slate-800 text-right shadow-inner select-text scrollbar-thin">
                         <div className="flex justify-between items-start border-b border-slate-200/60 pb-3 mb-4">
-                          <div className="text-[11px] text-slate-400 font-bold uppercase tracking-wider">תצוגה מקדימה רשמית</div>
+                          <div className="text-[11px] text-slate-400 font-bold">תצוגה מקדימה רשמית</div>
                           <div className="text-xs font-bold text-slate-600">{travelLetterDate}</div>
                         </div>
                         <div className="space-y-4 text-xs">
@@ -3084,13 +3084,13 @@ export default function PatientDetailPage() {
                     <>
                       <button
                         onClick={() => setTravelStep("signatory")}
-                        className="flex-1 bg-sky-500 hover:bg-sky-600 text-white py-3 rounded-2xl text-[11px] font-bold uppercase tracking-wider transition-all active:scale-[0.98] cursor-pointer border-none"
+                        className="flex-1 bg-sky-500 hover:bg-sky-600 text-white py-3 rounded-2xl text-[11px] font-bold transition-all active:scale-[0.98] cursor-pointer border-none"
                       >
                         המשך לשלב הבא
                       </button>
                       <button
                         onClick={() => setShowTravelModal(false)}
-                        className="flex-1 bg-slate-50 hover:bg-slate-100 border border-slate-200 py-3 rounded-2xl text-[11px] font-bold uppercase tracking-wider transition-all cursor-pointer"
+                        className="flex-1 bg-slate-50 hover:bg-slate-100 border border-slate-200 py-3 rounded-2xl text-[11px] font-bold transition-all cursor-pointer"
                       >
                         ביטול
                       </button>
@@ -3101,13 +3101,13 @@ export default function PatientDetailPage() {
                     <>
                       <button
                         onClick={() => setTravelStep("preview")}
-                        className="flex-1 bg-sky-500 hover:bg-sky-600 text-white py-3 rounded-2xl text-[11px] font-bold uppercase tracking-wider transition-all active:scale-[0.98] cursor-pointer border-none"
+                        className="flex-1 bg-sky-500 hover:bg-sky-600 text-white py-3 rounded-2xl text-[11px] font-bold transition-all active:scale-[0.98] cursor-pointer border-none"
                       >
                         המשך לתצוגה מקדימה
                       </button>
                       <button
                         onClick={() => setTravelStep("details")}
-                        className="flex-1 bg-slate-50 hover:bg-slate-100 border border-slate-200 py-3 rounded-2xl text-[11px] font-bold uppercase tracking-wider transition-all cursor-pointer"
+                        className="flex-1 bg-slate-50 hover:bg-slate-100 border border-slate-200 py-3 rounded-2xl text-[11px] font-bold transition-all cursor-pointer"
                       >
                         חזור
                       </button>
@@ -3119,14 +3119,14 @@ export default function PatientDetailPage() {
                       <button
                         onClick={executeTravelWordGeneration}
                         disabled={reportLoading}
-                        className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white py-3 rounded-2xl text-[11px] font-bold uppercase tracking-wider transition-all active:scale-[0.98] flex items-center justify-center gap-2 cursor-pointer border-none"
+                        className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white py-3 rounded-2xl text-[11px] font-bold transition-all active:scale-[0.98] flex items-center justify-center gap-2 cursor-pointer border-none"
                       >
                         {reportLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
                         הורד קובץ Word
                       </button>
                       <button
                         onClick={() => setTravelStep("signatory")}
-                        className="flex-1 bg-slate-50 hover:bg-slate-100 border border-slate-200 py-3 rounded-2xl text-[11px] font-bold uppercase tracking-wider transition-all cursor-pointer"
+                        className="flex-1 bg-slate-50 hover:bg-slate-100 border border-slate-200 py-3 rounded-2xl text-[11px] font-bold transition-all cursor-pointer"
                       >
                         חזור
                       </button>
@@ -3166,7 +3166,7 @@ export default function PatientDetailPage() {
                       <h3 className="text-sm md:text-base font-bold text-slate-900">
                         הפקת אישור שהייה בחווה
                       </h3>
-                      <p className="text-[11px] md:text-[11px] text-slate-400 font-bold uppercase tracking-wider">
+                      <p className="text-[11px] md:text-[11px] text-slate-400 font-bold">
                         {stayStep === "details" && "שלב א׳: הגדרת פרטי המשתתף והתאריכים"}
                         {stayStep === "signatory" && "שלב ב׳: הגדרת מורשה החתימה"}
                         {stayStep === "preview" && "שלב ג׳: תצוגה מקדימה ואישור סופי"}
@@ -3226,7 +3226,7 @@ export default function PatientDetailPage() {
                     <div className="space-y-4">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-1.5">
-                          <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400">תאריך המכתב:</label>
+                          <label className="text-[11px] font-bold text-slate-400">תאריך המכתב:</label>
                           <input
                             type="text"
                             value={stayLetterDate}
@@ -3235,7 +3235,7 @@ export default function PatientDetailPage() {
                           />
                         </div>
                         <div className="space-y-1.5">
-                          <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400">עבור (נמען):</label>
+                          <label className="text-[11px] font-bold text-slate-400">עבור (נמען):</label>
                           <input
                             type="text"
                             value={stayRecipient}
@@ -3247,7 +3247,7 @@ export default function PatientDetailPage() {
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-1.5">
-                          <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400">שם פרטי:</label>
+                          <label className="text-[11px] font-bold text-slate-400">שם פרטי:</label>
                           <input
                             type="text"
                             value={stayFirstName}
@@ -3256,7 +3256,7 @@ export default function PatientDetailPage() {
                           />
                         </div>
                         <div className="space-y-1.5">
-                          <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400">שם משפחה:</label>
+                          <label className="text-[11px] font-bold text-slate-400">שם משפחה:</label>
                           <input
                             type="text"
                             value={stayLastName}
@@ -3268,7 +3268,7 @@ export default function PatientDetailPage() {
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-1.5">
-                          <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400">תעודת זהות:</label>
+                          <label className="text-[11px] font-bold text-slate-400">תעודת זהות:</label>
                           <input
                             type="text"
                             value={stayIdNumber}
@@ -3277,7 +3277,7 @@ export default function PatientDetailPage() {
                           />
                         </div>
                         <div className="space-y-1.5">
-                          <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400">החל מהתאריך (תאריך כניסה):</label>
+                          <label className="text-[11px] font-bold text-slate-400">החל מהתאריך (תאריך כניסה):</label>
                           <input
                             type="text"
                             value={stayStartDate}
@@ -3289,7 +3289,7 @@ export default function PatientDetailPage() {
 
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div className="space-y-1.5">
-                          <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400">שם התוכנית:</label>
+                          <label className="text-[11px] font-bold text-slate-400">שם התוכנית:</label>
                           <input
                             type="text"
                             value={stayProgramName}
@@ -3298,7 +3298,7 @@ export default function PatientDetailPage() {
                           />
                         </div>
                         <div className="space-y-1.5">
-                          <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400">ימי פעילות בחווה:</label>
+                          <label className="text-[11px] font-bold text-slate-400">ימי פעילות בחווה:</label>
                           <input
                             type="text"
                             value={stayActivityDays}
@@ -3307,7 +3307,7 @@ export default function PatientDetailPage() {
                           />
                         </div>
                         <div className="space-y-1.5">
-                          <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400">שעות פעילות:</label>
+                          <label className="text-[11px] font-bold text-slate-400">שעות פעילות:</label>
                           <input
                             type="text"
                             value={stayActivityHours}
@@ -3319,7 +3319,7 @@ export default function PatientDetailPage() {
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-1.5">
-                          <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400">מסלול התוכנית (למשל: שיקום תעסוקתי):</label>
+                          <label className="text-[11px] font-bold text-slate-400">מסלול התוכנית (למשל: שיקום תעסוקתי):</label>
                           <input
                             type="text"
                             value={stayProgramTrack}
@@ -3328,7 +3328,7 @@ export default function PatientDetailPage() {
                           />
                         </div>
                         <div className="space-y-1.5">
-                          <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400">גורם מממן:</label>
+                          <label className="text-[11px] font-bold text-slate-400">גורם מממן:</label>
                           <input
                             type="text"
                             value={stayFundingSource}
@@ -3339,7 +3339,7 @@ export default function PatientDetailPage() {
                       </div>
 
                       <div className="space-y-1.5">
-                        <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400">הערות והנחיות מיוחדות:</label>
+                        <label className="text-[11px] font-bold text-slate-400">הערות והנחיות מיוחדות:</label>
                         <textarea
                           rows={2}
                           value={staySpecialRemarks}
@@ -3353,10 +3353,10 @@ export default function PatientDetailPage() {
 
                   {stayStep === "signatory" && (
                     <div className="space-y-4 py-4">
-                      <h4 className="text-[11px] font-bold uppercase text-slate-900 mb-2 border-b border-slate-100 pb-2">פרטי חתימה מורשית</h4>
+                      <h4 className="text-[11px] font-bold text-slate-900 mb-2 border-b border-slate-100 pb-2">פרטי חתימה מורשית</h4>
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div className="space-y-1.5">
-                          <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400">שם מורשה חתימה:</label>
+                          <label className="text-[11px] font-bold text-slate-400">שם מורשה חתימה:</label>
                           <input
                             type="text"
                             value={staySignatoryName}
@@ -3365,7 +3365,7 @@ export default function PatientDetailPage() {
                           />
                         </div>
                         <div className="space-y-1.5">
-                          <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400">תפקיד:</label>
+                          <label className="text-[11px] font-bold text-slate-400">תפקיד:</label>
                           <input
                             type="text"
                             value={staySignatoryTitle}
@@ -3374,7 +3374,7 @@ export default function PatientDetailPage() {
                           />
                         </div>
                         <div className="space-y-1.5">
-                          <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400">ארגון:</label>
+                          <label className="text-[11px] font-bold text-slate-400">ארגון:</label>
                           <input
                             type="text"
                             value={staySignatoryOrg}
@@ -3390,7 +3390,7 @@ export default function PatientDetailPage() {
                     <div className="space-y-3 py-2">
                       <div className="border border-slate-200 rounded-3xl p-5 md:p-6 bg-slate-50 max-h-[40vh] overflow-y-auto font-sans leading-relaxed text-slate-800 text-right shadow-inner select-text scrollbar-thin">
                         <div className="flex justify-between items-start border-b border-slate-200/60 pb-3 mb-4">
-                          <div className="text-[11px] text-slate-400 font-bold uppercase tracking-wider">תצוגה מקדימה רשמית</div>
+                          <div className="text-[11px] text-slate-400 font-bold">תצוגה מקדימה רשמית</div>
                           <div className="text-xs font-bold text-slate-600">{stayLetterDate}</div>
                         </div>
                         <div className="space-y-4 text-xs">
@@ -3423,13 +3423,13 @@ export default function PatientDetailPage() {
                     <>
                       <button
                         onClick={() => setStayStep("signatory")}
-                        className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white py-3 rounded-2xl text-[11px] font-bold uppercase tracking-wider transition-all active:scale-[0.98] cursor-pointer border-none"
+                        className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white py-3 rounded-2xl text-[11px] font-bold transition-all active:scale-[0.98] cursor-pointer border-none"
                       >
                         המשך לשלב הבא
                       </button>
                       <button
                         onClick={() => setShowStayModal(false)}
-                        className="flex-1 bg-slate-50 hover:bg-slate-100 border border-slate-200 py-3 rounded-2xl text-[11px] font-bold uppercase tracking-wider transition-all cursor-pointer"
+                        className="flex-1 bg-slate-50 hover:bg-slate-100 border border-slate-200 py-3 rounded-2xl text-[11px] font-bold transition-all cursor-pointer"
                       >
                         ביטול
                       </button>
@@ -3440,13 +3440,13 @@ export default function PatientDetailPage() {
                     <>
                       <button
                         onClick={() => setStayStep("preview")}
-                        className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white py-3 rounded-2xl text-[11px] font-bold uppercase tracking-wider transition-all active:scale-[0.98] cursor-pointer border-none"
+                        className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white py-3 rounded-2xl text-[11px] font-bold transition-all active:scale-[0.98] cursor-pointer border-none"
                       >
                         המשך לתצוגה מקדימה
                       </button>
                       <button
                         onClick={() => setStayStep("details")}
-                        className="flex-1 bg-slate-50 hover:bg-slate-100 border border-slate-200 py-3 rounded-2xl text-[11px] font-bold uppercase tracking-wider transition-all cursor-pointer"
+                        className="flex-1 bg-slate-50 hover:bg-slate-100 border border-slate-200 py-3 rounded-2xl text-[11px] font-bold transition-all cursor-pointer"
                       >
                         חזור
                       </button>
@@ -3458,14 +3458,14 @@ export default function PatientDetailPage() {
                       <button
                         onClick={executeStayWordGeneration}
                         disabled={reportLoading}
-                        className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white py-3 rounded-2xl text-[11px] font-bold uppercase tracking-wider transition-all active:scale-[0.98] flex items-center justify-center gap-2 cursor-pointer border-none"
+                        className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white py-3 rounded-2xl text-[11px] font-bold transition-all active:scale-[0.98] flex items-center justify-center gap-2 cursor-pointer border-none"
                       >
                         {reportLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
                         הורד קובץ Word
                       </button>
                       <button
                         onClick={() => setStayStep("signatory")}
-                        className="flex-1 bg-slate-50 hover:bg-slate-100 border border-slate-200 py-3 rounded-2xl text-[11px] font-bold uppercase tracking-wider transition-all cursor-pointer"
+                        className="flex-1 bg-slate-50 hover:bg-slate-100 border border-slate-200 py-3 rounded-2xl text-[11px] font-bold transition-all cursor-pointer"
                       >
                         חזור
                       </button>
@@ -3505,7 +3505,7 @@ export default function PatientDetailPage() {
                       <h3 className="text-sm md:text-base font-bold text-slate-900">
                         הפקת דו״ח תקופתי
                       </h3>
-                      <p className="text-[11px] md:text-[11px] text-slate-400 font-bold uppercase tracking-wider">
+                      <p className="text-[11px] md:text-[11px] text-slate-400 font-bold">
                         {periodicStep === "input" && "שלב א׳: שאלון ופרטי הדו״ח"}
                         {periodicStep === "preview" && "שלב ב׳: תצוגה מקדימה ואישור סופי"}
                       </p>
@@ -3587,7 +3587,7 @@ export default function PatientDetailPage() {
                     {periodicFormRevealed && (
                     <div className="space-y-4 border-t border-slate-100 pt-4">
                       <div className="space-y-1.5">
-                        <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400">סוג הדו״ח:</label>
+                        <label className="text-[11px] font-bold text-slate-400">סוג הדו״ח:</label>
                         <select
                           value={periodicReportType}
                           onChange={(e: any) => setPeriodicReportType(e.target.value)}
@@ -3602,13 +3602,13 @@ export default function PatientDetailPage() {
                       </div>
 
                       <details className="bg-slate-50 border border-slate-200 rounded-2xl p-3 group">
-                        <summary className="cursor-pointer text-[11px] font-bold uppercase tracking-wider text-slate-500 select-none">
+                        <summary className="cursor-pointer text-[11px] font-bold text-slate-500 select-none">
                           פרטים טכניים (נמען, מזהים, תאריכים)
                         </summary>
                         <div className="mt-3 space-y-4">
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="space-y-1.5">
-                              <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400">תאריך המכתב:</label>
+                              <label className="text-[11px] font-bold text-slate-400">תאריך המכתב:</label>
                               <input
                                 type="text"
                                 value={periodicLetterDate}
@@ -3617,7 +3617,7 @@ export default function PatientDetailPage() {
                               />
                             </div>
                             <div className="space-y-1.5">
-                              <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400">תעודת זהות:</label>
+                              <label className="text-[11px] font-bold text-slate-400">תעודת זהות:</label>
                               <input
                                 type="text"
                                 placeholder="000000000"
@@ -3630,7 +3630,7 @@ export default function PatientDetailPage() {
 
                           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div className="space-y-1.5">
-                              <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400">עבור (נמען):</label>
+                              <label className="text-[11px] font-bold text-slate-400">עבור (נמען):</label>
                               <input
                                 type="text"
                                 value={periodicRecipient}
@@ -3639,7 +3639,7 @@ export default function PatientDetailPage() {
                               />
                             </div>
                             <div className="space-y-1.5">
-                              <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400">עו״ס במשרד הביטחון:</label>
+                              <label className="text-[11px] font-bold text-slate-400">עו״ס במשרד הביטחון:</label>
                               <input
                                 type="text"
                                 value={periodicRehabWorker}
@@ -3648,7 +3648,7 @@ export default function PatientDetailPage() {
                               />
                             </div>
                             <div className="space-y-1.5">
-                              <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400">לשכת מחוז השיקום:</label>
+                              <label className="text-[11px] font-bold text-slate-400">לשכת מחוז השיקום:</label>
                               <input
                                 type="text"
                                 value={periodicRehabDistrict}
@@ -3660,7 +3660,7 @@ export default function PatientDetailPage() {
 
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="space-y-1.5">
-                              <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400">מתייחס לתקופה מתאריך:</label>
+                              <label className="text-[11px] font-bold text-slate-400">מתייחס לתקופה מתאריך:</label>
                               <input
                                 type="text"
                                 placeholder="לדוגמה: 01.06.2026"
@@ -3670,7 +3670,7 @@ export default function PatientDetailPage() {
                               />
                             </div>
                             <div className="space-y-1.5">
-                              <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400">עד תאריך:</label>
+                              <label className="text-[11px] font-bold text-slate-400">עד תאריך:</label>
                               <input
                                 type="text"
                                 placeholder="לדוגמה: 30.06.2026"
@@ -3683,7 +3683,7 @@ export default function PatientDetailPage() {
 
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="space-y-1.5">
-                              <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400">ימי פעילות:</label>
+                              <label className="text-[11px] font-bold text-slate-400">ימי פעילות:</label>
                               <input
                                 type="text"
                                 value={periodicWorkDays}
@@ -3692,7 +3692,7 @@ export default function PatientDetailPage() {
                               />
                             </div>
                             <div className="space-y-1.5">
-                              <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400">שעות פעילות:</label>
+                              <label className="text-[11px] font-bold text-slate-400">שעות פעילות:</label>
                               <input
                                 type="text"
                                 value={periodicWorkHours}
@@ -3703,7 +3703,7 @@ export default function PatientDetailPage() {
                           </div>
 
                           <div className="space-y-1.5">
-                            <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400">שם עו״ס החווה (חתימה):</label>
+                            <label className="text-[11px] font-bold text-slate-400">שם עו״ס החווה (חתימה):</label>
                             <input
                               type="text"
                               value={periodicFarmSocialWorker}
@@ -3715,7 +3715,7 @@ export default function PatientDetailPage() {
                       </details>
 
                       <div className="space-y-1.5">
-                        <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400">1. תיאור תוכנית השיקום:</label>
+                        <label className="text-[11px] font-bold text-slate-400">1. תיאור תוכנית השיקום:</label>
                         <textarea
                           value={periodicRehabDescription}
                           onChange={(e) => setPeriodicRehabDescription(e.target.value)}
@@ -3726,7 +3726,7 @@ export default function PatientDetailPage() {
 
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div className="space-y-1.5">
-                          <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400">1א. סטטוס התקדמות כללי:</label>
+                          <label className="text-[11px] font-bold text-slate-400">1א. סטטוס התקדמות כללי:</label>
                           <input
                             type="text"
                             value={periodicProgressStatus}
@@ -3735,7 +3735,7 @@ export default function PatientDetailPage() {
                           />
                         </div>
                         <div className="space-y-1.5">
-                          <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400">1ב. מידת שיתוף פעולה:</label>
+                          <label className="text-[11px] font-bold text-slate-400">1ב. מידת שיתוף פעולה:</label>
                           <input
                             type="text"
                             value={periodicCooperationLevel}
@@ -3744,7 +3744,7 @@ export default function PatientDetailPage() {
                           />
                         </div>
                         <div className="space-y-1.5">
-                          <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400">1ג. תפקוד בסדנאות ועבודה חקלאית:</label>
+                          <label className="text-[11px] font-bold text-slate-400">1ג. תפקוד בסדנאות ועבודה חקלאית:</label>
                           <input
                             type="text"
                             value={periodicWorkshopPerformance}
@@ -3755,7 +3755,7 @@ export default function PatientDetailPage() {
                       </div>
 
                       <div className="space-y-1.5">
-                        <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400">2. מקום ההשמה:</label>
+                        <label className="text-[11px] font-bold text-slate-400">2. מקום ההשמה:</label>
                         <input
                           type="text"
                           value={periodicPlacementLocation}
@@ -3765,7 +3765,7 @@ export default function PatientDetailPage() {
                       </div>
 
                       <div className="space-y-1.5">
-                        <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400">4. סיכום תהליך הליווי / השתלבות:</label>
+                        <label className="text-[11px] font-bold text-slate-400">4. סיכום תהליך הליווי / השתלבות:</label>
                         <textarea
                           value={periodicSummaryProcess}
                           onChange={(e) => setPeriodicSummaryProcess(e.target.value)}
@@ -3776,7 +3776,7 @@ export default function PatientDetailPage() {
 
                       <div className="space-y-1.5">
                         <div className="flex flex-col gap-1">
-                          <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400">5. המלצות להמשך:</label>
+                          <label className="text-[11px] font-bold text-slate-400">5. המלצות להמשך:</label>
                           {(periodicReportType === "דו\"ח סיכום תקופה" || periodicReportType === "בקשה להארכה") && (
                             <div className="flex flex-col gap-1 my-1">
                               <span className="text-[11px] font-bold text-slate-500">המלצות מהירות להארכת שהות:</span>
@@ -3818,7 +3818,7 @@ export default function PatientDetailPage() {
                       </div>
 
                       <div className="space-y-1.5">
-                        <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400">5א. יעד מרכזי לתקופה הבאה:</label>
+                        <label className="text-[11px] font-bold text-slate-400">5א. יעד מרכזי לתקופה הבאה:</label>
                         <textarea
                           value={periodicNextPeriodGoal}
                           onChange={(e) => setPeriodicNextPeriodGoal(e.target.value)}
@@ -3833,7 +3833,7 @@ export default function PatientDetailPage() {
                     <div className="space-y-3 py-2">
                       <div className="border border-slate-200 rounded-3xl p-5 md:p-6 bg-slate-50 max-h-[40vh] overflow-y-auto font-sans leading-relaxed text-slate-800 text-right shadow-inner select-text scrollbar-thin">
                         <div className="flex justify-between items-start border-b border-slate-200/60 pb-3 mb-4">
-                          <div className="text-[11px] text-slate-400 font-bold uppercase tracking-wider">תצוגה מקדימה רשמית</div>
+                          <div className="text-[11px] text-slate-400 font-bold">תצוגה מקדימה רשמית</div>
                           <div className="text-xs font-bold text-slate-600">{periodicLetterDate}</div>
                         </div>
                         <div className="space-y-4 text-xs">
@@ -3895,13 +3895,13 @@ export default function PatientDetailPage() {
                       <button
                         onClick={() => setPeriodicStep("preview")}
                         disabled={!periodicFormRevealed}
-                        className="flex-1 bg-violet-500 hover:bg-violet-600 disabled:opacity-40 disabled:cursor-not-allowed text-white py-3 rounded-2xl text-[11px] font-bold uppercase tracking-wider transition-all active:scale-[0.98] cursor-pointer border-none"
+                        className="flex-1 bg-violet-500 hover:bg-violet-600 disabled:opacity-40 disabled:cursor-not-allowed text-white py-3 rounded-2xl text-[11px] font-bold transition-all active:scale-[0.98] cursor-pointer border-none"
                       >
                         המשך לתצוגה מקדימה
                       </button>
                       <button
                         onClick={() => setShowPeriodicModal(false)}
-                        className="flex-1 bg-slate-50 hover:bg-slate-100 border border-slate-200 py-3 rounded-2xl text-[11px] font-bold uppercase tracking-wider transition-all cursor-pointer"
+                        className="flex-1 bg-slate-50 hover:bg-slate-100 border border-slate-200 py-3 rounded-2xl text-[11px] font-bold transition-all cursor-pointer"
                       >
                         ביטול
                       </button>
@@ -3913,14 +3913,14 @@ export default function PatientDetailPage() {
                       <button
                         onClick={executePeriodicWordGeneration}
                         disabled={reportLoading}
-                        className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white py-3 rounded-2xl text-[11px] font-bold uppercase tracking-wider transition-all active:scale-[0.98] flex items-center justify-center gap-2 cursor-pointer border-none"
+                        className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white py-3 rounded-2xl text-[11px] font-bold transition-all active:scale-[0.98] flex items-center justify-center gap-2 cursor-pointer border-none"
                       >
                         {reportLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
                         הורד קובץ Word
                       </button>
                       <button
                         onClick={() => setPeriodicStep("input")}
-                        className="flex-1 bg-slate-50 hover:bg-slate-100 border border-slate-200 py-3 rounded-2xl text-[11px] font-bold uppercase tracking-wider transition-all cursor-pointer"
+                        className="flex-1 bg-slate-50 hover:bg-slate-100 border border-slate-200 py-3 rounded-2xl text-[11px] font-bold transition-all cursor-pointer"
                       >
                         חזור
                       </button>
@@ -3961,7 +3961,7 @@ export default function PatientDetailPage() {
                       <h3 className="text-base font-bold text-slate-900">
                         מחולל דו״ח תפקודי אינטראקטיבי
                       </h3>
-                      <p className="text-[11px] text-slate-400 font-bold uppercase tracking-wider">
+                      <p className="text-[11px] text-slate-400 font-bold">
                         שאלון הערכה ועריכת הדו״ח
                       </p>
                     </div>
@@ -4138,14 +4138,14 @@ export default function PatientDetailPage() {
                       <button
                         onClick={executeFunctionalWordGeneration}
                         disabled={reportLoading || !functionalFreeText.trim()}
-                        className="flex-1 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white py-3.5 rounded-2xl text-[11px] font-bold uppercase tracking-wider transition-all active:scale-[0.98] flex items-center justify-center gap-2 shadow-lg cursor-pointer border-none"
+                        className="flex-1 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white py-3.5 rounded-2xl text-[11px] font-bold transition-all active:scale-[0.98] flex items-center justify-center gap-2 shadow-lg cursor-pointer border-none"
                       >
                         {reportLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
                         הורד קובץ Word
                       </button>
                       <button
                         onClick={() => setShowFunctionalModal(false)}
-                        className="flex-1 bg-slate-50 hover:bg-slate-100 border border-slate-200 py-3.5 rounded-2xl text-[11px] font-bold uppercase tracking-wider transition-all cursor-pointer border-none"
+                        className="flex-1 bg-slate-50 hover:bg-slate-100 border border-slate-200 py-3.5 rounded-2xl text-[11px] font-bold transition-all cursor-pointer border-none"
                       >
                         ביטול
                       </button>
@@ -4187,7 +4187,7 @@ export default function PatientDetailPage() {
                       <h3 className="text-base font-bold text-slate-900">
                         מחולל תוכנית שיקום אישית
                       </h3>
-                      <p className="text-[11px] text-slate-400 font-bold uppercase tracking-wider">
+                      <p className="text-[11px] text-slate-400 font-bold">
                         {rehabPlanStep === "survey"
                           ? "שלב א׳: שאלון הערכה מהיר להתאמת תוכן התוכנית"
                           : "שלב ב׳: עריכת התוכנית הסופית"}
@@ -4289,14 +4289,14 @@ export default function PatientDetailPage() {
                       <button
                         onClick={executeRehabPlanGeneration}
                         disabled={reportLoading || !rehabPlanEditableText.trim()}
-                        className="flex-1 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white py-3.5 rounded-2xl text-[11px] font-bold uppercase tracking-wider transition-all active:scale-[0.98] flex items-center justify-center gap-2 shadow-lg cursor-pointer border-none"
+                        className="flex-1 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white py-3.5 rounded-2xl text-[11px] font-bold transition-all active:scale-[0.98] flex items-center justify-center gap-2 shadow-lg cursor-pointer border-none"
                       >
                         {reportLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
                         הורד קובץ Word
                       </button>
                       <button
                         onClick={() => setShowRehabPlanModal(false)}
-                        className="flex-1 bg-slate-50 hover:bg-slate-100 border border-slate-200 py-3.5 rounded-2xl text-[11px] font-bold uppercase tracking-wider transition-all cursor-pointer border-none"
+                        className="flex-1 bg-slate-50 hover:bg-slate-100 border border-slate-200 py-3.5 rounded-2xl text-[11px] font-bold transition-all cursor-pointer border-none"
                       >
                         ביטול
                       </button>

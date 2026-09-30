@@ -286,7 +286,7 @@ export default function AdminSettingsPage() {
             </button>
             <div className="flex-1 min-w-0 text-right">
               <h1 className="text-sm font-bold leading-tight">הגדרות ראשיות</h1>
-              <p className="text-[11px] text-[var(--foreground)]/40 font-bold uppercase tracking-wider mt-0.5">Main System Settings</p>
+              <p className="text-[11px] text-[var(--foreground)]/40 font-bold mt-0.5">Main System Settings</p>
             </div>
             <button
               onClick={handleSaveSettings}
@@ -324,7 +324,7 @@ export default function AdminSettingsPage() {
 
             <div className="space-y-4 text-right">
               <div>
-                <label className="block text-[11px] font-bold text-[var(--foreground)]/40 uppercase tracking-wider mb-1.5">
+                <label className="block text-[11px] font-bold text-[var(--foreground)]/40 mb-1.5">
                   פירוט פעילות באישור שהייה
                 </label>
                 <textarea
@@ -336,7 +336,7 @@ export default function AdminSettingsPage() {
               </div>
 
               <div>
-                <label className="block text-[11px] font-bold text-[var(--foreground)]/40 uppercase tracking-wider mb-1.5">
+                <label className="block text-[11px] font-bold text-[var(--foreground)]/40 mb-1.5">
                   פירוט פעילות באישור נסיעות
                 </label>
                 <textarea
@@ -359,7 +359,7 @@ export default function AdminSettingsPage() {
             <div className="space-y-4 text-right">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-[11px] font-bold text-[var(--foreground)]/40 uppercase tracking-wider mb-1.5">
+                  <label className="block text-[11px] font-bold text-[var(--foreground)]/40 mb-1.5">
                     שם המנהלת המקצועית
                   </label>
                   <input
@@ -370,7 +370,7 @@ export default function AdminSettingsPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-bold text-[var(--foreground)]/40 uppercase tracking-wider mb-1.5">
+                  <label className="block text-[11px] font-bold text-[var(--foreground)]/40 mb-1.5">
                     תואר ותפקיד (מנהלת מקצועית)
                   </label>
                   <input
@@ -384,13 +384,13 @@ export default function AdminSettingsPage() {
 
               {/* Signature Canvas Pad */}
               <div className="space-y-3.5 pt-2">
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-[var(--foreground)]/40">
+                <label className="block text-[11px] font-bold text-[var(--foreground)]/40">
                   חתימה דיגיטלית של המנהלת המקצועית
                 </label>
                 
                 {localSignatureImage && (
                   <div className="border-b border-[var(--border)] py-4 flex flex-col items-center justify-center gap-2">
-                    <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">תצוגה מקדימה של החתימה הפעילה:</p>
+                    <p className="text-[11px] font-bold text-slate-400">תצוגה מקדימה של החתימה הפעילה:</p>
                     <img src={localSignatureImage} alt="חתימה פעילה" className="max-h-24 object-contain bg-white" />
                   </div>
                 )}
@@ -444,7 +444,7 @@ export default function AdminSettingsPage() {
 
                   <div className="grid grid-cols-1 gap-4">
                     <div>
-                      <label className="block text-[11px] font-bold text-[var(--foreground)]/40 uppercase tracking-wider mb-1">
+                      <label className="block text-[11px] font-bold text-[var(--foreground)]/40 mb-1">
                         שעות פעילות
                       </label>
                       <input
@@ -462,7 +462,7 @@ export default function AdminSettingsPage() {
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-[11px] font-bold text-[var(--foreground)]/40 uppercase tracking-wider mb-1">
+                        <label className="block text-[11px] font-bold text-[var(--foreground)]/40 mb-1">
                           פירוט פעילות באישור שהייה (מותאם לתוכנית)
                         </label>
                         <textarea
@@ -479,7 +479,7 @@ export default function AdminSettingsPage() {
                       </div>
 
                       <div>
-                        <label className="block text-[11px] font-bold text-[var(--foreground)]/40 uppercase tracking-wider mb-1">
+                        <label className="block text-[11px] font-bold text-[var(--foreground)]/40 mb-1">
                           פירוט פעילות באישור נסיעות (מותאם לתוכנית)
                         </label>
                         <textarea

@@ -100,7 +100,7 @@ export function DesktopSidebar() {
         {!collapsed && (
           <div className="flex flex-col">
             <span className="text-base font-bold text-[var(--foreground)] tracking-tight leading-none">חוסן קונקט</span>
-            <span className="text-[11px] text-[var(--foreground)]/40 font-bold uppercase tracking-wider mt-1">Hosen Connect</span>
+            <span className="text-[11px] text-[var(--foreground)]/40 font-bold mt-1">Hosen Connect</span>
           </div>
         )}
         {!collapsed && (

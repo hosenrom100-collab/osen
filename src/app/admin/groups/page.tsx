@@ -181,7 +181,7 @@ export default function GroupManagementPage() {
                       </div>
                       <div>
                         <span className="font-bold text-lg">{group.name}</span>
-                        <div className="text-[11px] text-slate-500 uppercase tracking-wider mt-0.5">מזהה: {group.id.slice(0, 8)}</div>
+                        <div className="text-[11px] text-slate-500 mt-0.5">מזהה: {group.id.slice(0, 8)}</div>
                       </div>
                     </div>
                     <button

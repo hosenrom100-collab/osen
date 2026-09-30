@@ -521,7 +521,7 @@ export default function PatientTrackingPage() {
                         "תוכנית שיקום",
                         'עו"ס',
                       ].map(h => (
-                        <th key={h} className="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-[var(--muted)] whitespace-nowrap">
+                        <th key={h} className="px-4 py-3 text-[11px] font-bold text-[var(--muted)] whitespace-nowrap">
                           {h}
                         </th>
                       ))}

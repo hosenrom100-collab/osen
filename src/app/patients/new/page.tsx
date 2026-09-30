@@ -33,7 +33,7 @@ export default function NewPatientPage() {
                 <Users className="w-8 h-8 text-emerald-500" />
                 יצירת משתתף חדש
               </h1>
-              <p className="text-sm font-bold text-[var(--foreground)]/40 uppercase tracking-wider mt-1">פתיחת תיק משתתף במערכת חוסן</p>
+              <p className="text-sm font-bold text-[var(--foreground)]/40 mt-1">פתיחת תיק משתתף במערכת חוסן</p>
             </div>
           </header>
 

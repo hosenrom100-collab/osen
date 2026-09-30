@@ -27,7 +27,7 @@ interface Props {
   onEditSeries?: (workshopId: string) => void;
 }
 
-const Chip = ({ children }: { children: React.ReactNode }) => <span className="inline-block px-2.5 py-0.5 rounded-full bg-[var(--foreground)]/[0.06] text-[13px]">{children}</span>;
+const Chip = ({ children }: { children: React.ReactNode }) => <span className="inline-flex items-center h-7 px-3 rounded-full bg-[var(--btn-soft)] text-[var(--btn-soft-text)] text-[13px] font-medium">{children}</span>;
 const Section = ({ label, children }: { label: string; children: React.ReactNode }) => (
   <div><h3 className={labelCls}>{label}</h3><div className="flex flex-wrap gap-1.5 text-sm">{children}</div></div>
 );

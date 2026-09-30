@@ -540,3 +540,6 @@ button[class*="border-[var(--border)]"]:not([class*=" bg-"]):not([class^="bg-"])
   --cal-faint: #8a8078;
   --cal-now: #d92d20;
 }
+
+/* Finer icon stroke across the whole app (zero specificity, so explicit stroke utilities still win). */
+:where(svg.lucide) { stroke-width: 1.75; }

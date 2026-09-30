@@ -776,7 +776,7 @@ export default function PatientsPage() {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="space-y-1">
             <h1 className="text-2xl font-bold tracking-tight">ניהול משתתפים</h1>
-            <p className="text-[11px] text-[var(--foreground)]/40 font-bold uppercase tracking-[0.2em] flex items-center gap-2">
+            <p className="text-[11px] text-[var(--foreground)]/40 font-bold flex items-center gap-2">
               <Users className="w-3 h-3 text-emerald-500" />
               <span>{filtered.length} רשומות פעילות</span>
             </p>
@@ -891,7 +891,7 @@ export default function PatientsPage() {
                   <div className="overflow-y-auto max-h-[320px] pr-1 space-y-4 no-scrollbar">
                     {/* Status Section */}
                     <div className="space-y-1.5">
-                      <h4 className="text-[11px] font-bold uppercase text-[var(--muted)] tracking-wider mb-2 pr-1 border-r-2 border-blue-500">סטטוס פעילות</h4>
+                      <h4 className="text-[11px] font-bold text-[var(--muted)] mb-2 pr-1 border-r-2 border-blue-500">סטטוס פעילות</h4>
                       <div className="grid grid-cols-1 gap-1">
                         {[
                           { id: "active", name: "פעילים" },
@@ -919,7 +919,7 @@ export default function PatientsPage() {
                     {/* Programs Section */}
                     {programs.length > 0 && (
                       <div className="space-y-1.5">
-                        <h4 className="text-[11px] font-bold uppercase text-[var(--muted)] tracking-wider mb-2 pr-1 border-r-2 border-emerald-500">תוכניות</h4>
+                        <h4 className="text-[11px] font-bold text-[var(--muted)] mb-2 pr-1 border-r-2 border-emerald-500">תוכניות</h4>
                         <div className="grid grid-cols-1 gap-1">
                           {programs.map(p => {
                             const isSelected = selectedFilters.programs.includes(p.id);
@@ -945,7 +945,7 @@ export default function PatientsPage() {
                     {/* Groups Section */}
                     {groups.length > 0 && (
                       <div className="space-y-1.5">
-                        <h4 className="text-[11px] font-bold uppercase text-[var(--muted)] tracking-wider mb-2 pr-1 border-r-2 border-indigo-500">קבוצות</h4>
+                        <h4 className="text-[11px] font-bold text-[var(--muted)] mb-2 pr-1 border-r-2 border-indigo-500">קבוצות</h4>
                         <div className="grid grid-cols-1 gap-1">
                           {groups.map(g => {
                             const prog = programs.find(p => p.id === g.programId);
@@ -973,7 +973,7 @@ export default function PatientsPage() {
                     {/* Caregivers Section */}
                     {Object.keys(staff).length > 0 && (
                       <div className="space-y-1.5">
-                        <h4 className="text-[11px] font-bold uppercase text-[var(--muted)] tracking-wider mb-2 pr-1 border-r-2 border-amber-500">עו"ס מלווה / מטפל</h4>
+                        <h4 className="text-[11px] font-bold text-[var(--muted)] mb-2 pr-1 border-r-2 border-amber-500">עו"ס מלווה / מטפל</h4>
                         <div className="grid grid-cols-1 gap-1">
                           {Object.entries(staff).map(([id, name]) => {
                             const isSelected = selectedFilters.workers?.includes(id);
@@ -1114,7 +1114,7 @@ export default function PatientsPage() {
           {loading ? (
             <div className="flex flex-col items-center justify-center py-40 gap-4 opacity-20">
               <Loader2 className="w-10 h-10 animate-spin" />
-              <p className="text-xs font-bold uppercase tracking-wider">טוען נתונים...</p>
+              <p className="text-xs font-bold">טוען נתונים...</p>
             </div>
           ) : filtered.length === 0 ? (
             <div className="text-center py-40 bg-[var(--foreground)]/5 border border-dashed border-[var(--border)] rounded-[3rem] opacity-20">
@@ -1126,19 +1126,19 @@ export default function PatientsPage() {
                 <table className="w-full text-right border-collapse">
                   <thead>
                     <tr className="border-b border-[var(--border)]">
-                      <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-3 py-3 text-[11px] font-bold uppercase tracking-wider text-[var(--muted)] z-10 shadow-[inset_0_-1px_0_var(--border)]">משתתף</th>
-                      <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-3 py-3 text-[11px] font-bold uppercase tracking-wider text-[var(--muted)] z-10 shadow-[inset_0_-1px_0_var(--border)]">עו"ס מלווה</th>
-                      {!isLogistics && <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-3 py-3 text-[11px] font-bold uppercase tracking-wider text-[var(--muted)] z-10 shadow-[inset_0_-1px_0_var(--border)]">עו"ס שיקום (משרד הביטחון)</th>}
-                      <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-3 py-3 text-[11px] font-bold uppercase tracking-wider text-[var(--muted)] z-10 shadow-[inset_0_-1px_0_var(--border)]">תוכנית</th>
-                      <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-2 py-3 text-[11px] font-bold uppercase tracking-wider text-[var(--muted)] text-center z-10 shadow-[inset_0_-1px_0_var(--border)]">רכב</th>
-                      {!isLogistics && <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-3 py-3 text-[11px] font-bold uppercase tracking-wider text-[var(--muted)] z-10 shadow-[inset_0_-1px_0_var(--border)]">תאריך התחלה</th>}
-                      {!isLogistics && <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-3 py-3 text-[11px] font-bold uppercase tracking-wider text-[var(--muted)] z-10 shadow-[inset_0_-1px_0_var(--border)]">תאריך סיום</th>}
-                      {!isLogistics && <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-2 py-3 text-[11px] font-bold uppercase tracking-wider text-[var(--muted)] text-center z-10 shadow-[inset_0_-1px_0_var(--border)]">תוכנית שיקום</th>}
-                      {!isLogistics && <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-2 py-3 text-[11px] font-bold uppercase tracking-wider text-[var(--muted)] text-center z-10 shadow-[inset_0_-1px_0_var(--border)]">דוח אמצע והארכה</th>}
-                      {!isLogistics && <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-2 py-3 text-[11px] font-bold uppercase tracking-wider text-[var(--muted)] text-center z-10 shadow-[inset_0_-1px_0_var(--border)]">התקבלה הארכה</th>}
-                      {!isLogistics && <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-2 py-3 text-[11px] font-bold uppercase tracking-wider text-[var(--muted)] text-center z-10 shadow-[inset_0_-1px_0_var(--border)]">דוח סיכום</th>}
-                      <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-3 py-3 text-[11px] font-bold uppercase tracking-wider text-[var(--muted)] z-10 shadow-[inset_0_-1px_0_var(--border)]">סטטוס</th>
-                      {!isLogistics && <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-3 py-3 text-[11px] font-bold uppercase tracking-wider text-[var(--muted)] w-12 z-10 shadow-[inset_0_-1px_0_var(--border)]"></th>}
+                      <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-3 py-3 text-[11px] font-bold text-[var(--muted)] z-10 shadow-[inset_0_-1px_0_var(--border)]">משתתף</th>
+                      <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-3 py-3 text-[11px] font-bold text-[var(--muted)] z-10 shadow-[inset_0_-1px_0_var(--border)]">עו"ס מלווה</th>
+                      {!isLogistics && <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-3 py-3 text-[11px] font-bold text-[var(--muted)] z-10 shadow-[inset_0_-1px_0_var(--border)]">עו"ס שיקום (משרד הביטחון)</th>}
+                      <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-3 py-3 text-[11px] font-bold text-[var(--muted)] z-10 shadow-[inset_0_-1px_0_var(--border)]">תוכנית</th>
+                      <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-2 py-3 text-[11px] font-bold text-[var(--muted)] text-center z-10 shadow-[inset_0_-1px_0_var(--border)]">רכב</th>
+                      {!isLogistics && <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-3 py-3 text-[11px] font-bold text-[var(--muted)] z-10 shadow-[inset_0_-1px_0_var(--border)]">תאריך התחלה</th>}
+                      {!isLogistics && <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-3 py-3 text-[11px] font-bold text-[var(--muted)] z-10 shadow-[inset_0_-1px_0_var(--border)]">תאריך סיום</th>}
+                      {!isLogistics && <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-2 py-3 text-[11px] font-bold text-[var(--muted)] text-center z-10 shadow-[inset_0_-1px_0_var(--border)]">תוכנית שיקום</th>}
+                      {!isLogistics && <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-2 py-3 text-[11px] font-bold text-[var(--muted)] text-center z-10 shadow-[inset_0_-1px_0_var(--border)]">דוח אמצע והארכה</th>}
+                      {!isLogistics && <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-2 py-3 text-[11px] font-bold text-[var(--muted)] text-center z-10 shadow-[inset_0_-1px_0_var(--border)]">התקבלה הארכה</th>}
+                      {!isLogistics && <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-2 py-3 text-[11px] font-bold text-[var(--muted)] text-center z-10 shadow-[inset_0_-1px_0_var(--border)]">דוח סיכום</th>}
+                      <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-3 py-3 text-[11px] font-bold text-[var(--muted)] z-10 shadow-[inset_0_-1px_0_var(--border)]">סטטוס</th>
+                      {!isLogistics && <th className="sticky top-0 bg-[var(--surface)]/90 backdrop-blur px-3 py-3 text-[11px] font-bold text-[var(--muted)] w-12 z-10 shadow-[inset_0_-1px_0_var(--border)]"></th>}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[var(--border)]">
@@ -1710,14 +1710,14 @@ export default function PatientsPage() {
                       <table className="w-full text-right border-collapse">
                         <thead>
                           <tr className="bg-[var(--foreground)]/[0.02] border-b border-[var(--border)] sticky top-0 z-10">
-                            <th className="px-4 py-3 text-[11px] font-bold uppercase text-[var(--muted)]">שם פרטי</th>
-                            <th className="px-4 py-3 text-[11px] font-bold uppercase text-[var(--muted)]">שם משפחה</th>
-                            <th className="px-4 py-3 text-[11px] font-bold uppercase text-[var(--muted)]">תעודת זהות</th>
-                            <th className="px-4 py-3 text-[11px] font-bold uppercase text-[var(--muted)]">טלפון</th>
-                            <th className="px-4 py-3 text-[11px] font-bold uppercase text-[var(--muted)]">עו"ס מלווה</th>
-                            <th className="px-4 py-3 text-[11px] font-bold uppercase text-[var(--muted)]">תוכנית</th>
-                            <th className="px-4 py-3 text-[11px] font-bold uppercase text-[var(--muted)]">קבוצה</th>
-                            <th className="px-4 py-3 text-[11px] font-bold uppercase text-[var(--muted)]">סטטוס</th>
+                            <th className="px-4 py-3 text-[11px] font-bold text-[var(--muted)]">שם פרטי</th>
+                            <th className="px-4 py-3 text-[11px] font-bold text-[var(--muted)]">שם משפחה</th>
+                            <th className="px-4 py-3 text-[11px] font-bold text-[var(--muted)]">תעודת זהות</th>
+                            <th className="px-4 py-3 text-[11px] font-bold text-[var(--muted)]">טלפון</th>
+                            <th className="px-4 py-3 text-[11px] font-bold text-[var(--muted)]">עו"ס מלווה</th>
+                            <th className="px-4 py-3 text-[11px] font-bold text-[var(--muted)]">תוכנית</th>
+                            <th className="px-4 py-3 text-[11px] font-bold text-[var(--muted)]">קבוצה</th>
+                            <th className="px-4 py-3 text-[11px] font-bold text-[var(--muted)]">סטטוס</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-[var(--border)]">
