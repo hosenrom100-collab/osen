@@ -2,14 +2,15 @@
 
 import { useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { addDays } from "date-fns";
-import { ChevronLeft, ChevronRight, Copy, Download, Printer, Send } from "lucide-react";
+import { addDays, parseISO } from "date-fns";
+import { CalendarDays, ChevronLeft, ChevronRight, Copy, Download, Printer, Send } from "lucide-react";
+import { MiniCalendar } from "@/components/workshops/MiniCalendar";
 import { RoleGuard } from "@/components/auth/RoleGuard";
 import { PageSkeleton } from "@/components/ui/Skeleton";
 import { buildSessions } from "@/lib/workshops/buildWeek";
 import { hueStyle, programHue } from "@/lib/workshops/colors";
 import { firstNames, participantsOf } from "@/lib/workshops/people";
-import { dayOf, shortDate, toISO } from "@/lib/workshops/dates";
+import { dayOf, shortDate, toISO, weekDates, weekStartOf } from "@/lib/workshops/dates";
 import { DAY_FULL, Session } from "@/lib/workshops/types";
 import { useScheduleData } from "@/lib/workshops/useScheduleData";
 import { btnGhost, btnPrimary, fieldCls } from "@/components/workshops/Dialog";
@@ -25,9 +26,12 @@ export default function DaySharePage() {
   const [programId, setProgramId] = useState(() => readParam("program"));
   const [groupId, setGroupId] = useState(() => readParam("group"));
   const [withNames, setWithNames] = useState(true);
+  const [range, setRange] = useState<"day" | "week">(() => (readParam("range") === "week" ? "week" : "day"));
+  const [calOpen, setCalOpen] = useState(false);
   const [toast, setToast] = useState("");
   const cardRef = useRef<HTMLDivElement>(null);
-  const dates = useMemo(() => [date], [date]);
+  // A day, or the Sunday-to-Saturday week that contains it.
+  const dates = useMemo(() => (range === "day" ? [date] : weekDates(weekStartOf(parseISO(date)))), [date, range]);
   const { refs, workshops, changes, closures, patients, loading } = useScheduleData(dates);
 
   const program = refs?.programs.find(p => p.id === programId);
@@ -43,7 +47,11 @@ export default function DaySharePage() {
     return list;
   }, [refs, dates, workshops, changes, closures, programId, groupId]);
 
-  const closure = closures.find(c => c.date === date && (c.programIds.length === 0 || !programId || c.programIds.includes(programId)));
+  const closureOf = (d: string) => closures.find(c => c.date === d && (c.programIds.length === 0 || !programId || c.programIds.includes(programId)));
+  // One block per day; in a week, days with nothing to show are left out.
+  const byDay = dates
+    .map(d => ({ date: d, closure: closureOf(d), list: sessions.filter(s => s.date === d && s.kind !== "moved-away") }))
+    .filter(x => range === "day" || x.list.length > 0 || x.closure);
 
   const roomOf = (id?: string) => refs?.locations.find(l => l.id === id)?.name || "";
   const staffOf = (s: Session) => s.staffIds.map(id => refs?.staff.find(p => p.id === id)?.name || "").filter(Boolean).map(n => n.split(" ")[0]).join(", ");
@@ -64,7 +72,8 @@ export default function DaySharePage() {
   const total = attendees.reduce((n, g) => n + g.names.length, 0);
 
   const title = [program?.name || "כל התוכניות", group?.name].filter(Boolean).join(" · ");
-  const dayTitle = `יום ${DAY_FULL[dayOf(date)]} ${shortDate(date)}`;
+  const dayName = (d: string) => `יום ${DAY_FULL[dayOf(d)]} ${shortDate(d)}`;
+  const dayTitle = range === "day" ? dayName(date) : `שבוע ${shortDate(dates[0])} – ${shortDate(dates[6])}`;
   const hue = programHue(program, programId);
   const tint = hueStyle(hue);
 
@@ -75,11 +84,14 @@ export default function DaySharePage() {
   // One text per audience: participants get what/when/where, staff also see who leads it.
   const buildText = (forStaff: boolean) => {
     const lines = [`*${title}*`, dayTitle, ""];
-    if (closure) lines.push(closure.reason || "אין פעילות");
-    sessions.filter(s => s.kind !== "moved-away").forEach(s => {
-      const extra = [forStaff && !s.fixedBlock ? staffOf(s) : "", roomOf(s.locationId), !group ? groupsOf(s) : ""].filter(Boolean).join(" · ");
-      const ch = changeText(s);
-      lines.push(`${s.start}–${s.end}  ${s.workshopName}${extra ? ` (${extra})` : ""}${ch ? ` — *${ch}*` : ""}`);
+    byDay.forEach((day, i) => {
+      if (range === "week") lines.push(`${i ? "\n" : ""}*${dayName(day.date)}*`);
+      if (day.closure) lines.push(day.closure.reason || "אין פעילות");
+      day.list.forEach(s => {
+        const extra = [forStaff && !s.fixedBlock ? staffOf(s) : "", roomOf(s.locationId), !group ? groupsOf(s) : ""].filter(Boolean).join(" · ");
+        const ch = changeText(s);
+        lines.push(`${s.start}–${s.end}  ${s.workshopName}${extra ? ` (${extra})` : ""}${ch ? ` — *${ch}*` : ""}`);
+      });
     });
     if (withNames && total) {
       lines.push("", `*משתתפים (${total})*`);
@@ -105,7 +117,7 @@ export default function DaySharePage() {
     const canvas = await html2canvas(cardRef.current, { scale: 2, backgroundColor: "#ffffff" });
     const blob: Blob | null = await new Promise(r => canvas.toBlob(r, "image/png"));
     if (!blob) return say("יצירת התמונה נכשלה.");
-    const file = new File([blob], `לוז-${date}.png`, { type: "image/png" });
+    const file = new File([blob], `לוז-${range === "week" ? "שבוע-" : ""}${date}.png`, { type: "image/png" });
     if (navigator.canShare?.({ files: [file] })) { try { await navigator.share({ files: [file], title }); return; } catch { /* cancelled */ } }
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob); a.download = file.name; a.click();
@@ -115,8 +127,7 @@ export default function DaySharePage() {
 
   if (loading || !refs) return <PageSkeleton />;
 
-  const moveDay = (d: number) => setDate(toISO(addDays(new Date(`${date}T12:00:00`), d)));
-  const visible = sessions.filter(s => s.kind !== "moved-away");
+  const step = (dir: number) => setDate(toISO(addDays(new Date(`${date}T12:00:00`), dir * (range === "week" ? 7 : 1))));
 
   return (
     <RoleGuard allowedRoles={["admin", "manager", "instructor", "social_worker", "employee", "logistics"]} redirectTo="/">
@@ -134,10 +145,27 @@ export default function DaySharePage() {
               {programGroups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
             </select>
           )}
-          <div className="flex items-center">
-            <button onClick={() => moveDay(-1)} aria-label="יום קודם" className="p-1.5 rounded-md hover:bg-black/5"><ChevronRight className="w-4 h-4" /></button>
-            <span className="text-sm font-bold min-w-[7rem] text-center">{dayTitle}</span>
-            <button onClick={() => moveDay(1)} aria-label="יום הבא" className="p-1.5 rounded-md hover:bg-black/5"><ChevronLeft className="w-4 h-4" /></button>
+          <div className="flex border border-[var(--border)] rounded-lg overflow-hidden" role="group" aria-label="טווח">
+            {([["day", "יום"], ["week", "שבוע"]] as const).map(([k, l]) => (
+              <button key={k} onClick={() => setRange(k)} aria-pressed={range === k}
+                className={`px-3 py-1.5 text-sm ${range === k ? "bg-[var(--btn)] text-white font-bold" : "text-[#1f2937]/70 hover:bg-black/5"}`}>{l}</button>
+            ))}
+          </div>
+          <div className="flex items-center relative">
+            <button onClick={() => step(-1)} aria-label="הקודם" className="p-1.5 rounded-md hover:bg-black/5"><ChevronRight className="w-4 h-4" /></button>
+            <button onClick={() => setCalOpen(o => !o)} aria-expanded={calOpen} aria-label="בחירה מלוח שנה"
+              className="flex items-center gap-1.5 text-sm font-bold min-w-[9rem] justify-center px-2 py-1.5 rounded-md hover:bg-black/5">
+              <CalendarDays className="w-4 h-4 opacity-60" />{dayTitle}
+            </button>
+            <button onClick={() => step(1)} aria-label="הבא" className="p-1.5 rounded-md hover:bg-black/5"><ChevronLeft className="w-4 h-4" /></button>
+            {calOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setCalOpen(false)} />
+                <div className="absolute top-full mt-1 right-0 z-50">
+                  <MiniCalendar value={date} range={range} onPick={iso => { setDate(iso); setCalOpen(false); }} />
+                </div>
+              </>
+            )}
           </div>
           <label className="flex items-center gap-1.5 text-sm cursor-pointer"><input type="checkbox" checked={withNames} onChange={e => setWithNames(e.target.checked)} /> עם שמות משתתפים</label>
         </div>
@@ -151,36 +179,41 @@ export default function DaySharePage() {
               <div style={{ fontSize: 16, fontWeight: 600, marginTop: 2 }}>{dayTitle}</div>
             </div>
             <div style={{ padding: "12px 14px" }}>
-              {closure && <div style={{ padding: "10px 12px", marginBottom: 8, borderRadius: 8, background: "#f3f4f6", fontWeight: 700 }}>{closure.reason || "אין פעילות"}</div>}
-              {visible.length === 0 && !closure && <div style={{ padding: "24px 0", textAlign: "center", color: SOFT }}>אין פעילות מתוכננת ליום זה.</div>}
-              {visible.map(s => {
-                const cancelled = s.kind === "cancelled";
-                const ch = changeText(s);
-                const t = hueStyle(programHue(refs.programs.find(p => p.id === s.programId), s.programId));
-                const room = roomOf(s.locationId), grp = !group ? groupsOf(s) : "";
-                if (s.band) {
+              {byDay.every(d => d.list.length === 0 && !d.closure) && <div style={{ padding: "24px 0", textAlign: "center", color: SOFT }}>אין פעילות מתוכננת {range === "week" ? "בשבוע זה" : "ליום זה"}.</div>}
+              {byDay.map(day => (
+                <div key={day.date} style={{ marginBottom: range === "week" ? 10 : 0 }}>
+                  {range === "week" && <div style={{ fontWeight: 800, fontSize: 14, padding: "6px 2px 2px", color: tint.ink }}>{dayName(day.date)}</div>}
+                  {day.closure && <div style={{ padding: "10px 12px", marginBottom: 8, borderRadius: 8, background: "#f3f4f6", fontWeight: 700 }}>{day.closure.reason || "אין פעילות"}</div>}
+                  {day.list.map(s => {
+                  const cancelled = s.kind === "cancelled";
+                  const ch = changeText(s);
+                  const t = hueStyle(programHue(refs.programs.find(p => p.id === s.programId), s.programId));
+                  const room = roomOf(s.locationId), grp = !group ? groupsOf(s) : "";
+                  if (s.band) {
+                    return (
+                      <div key={s.id} style={{ display: "flex", gap: 10, padding: "6px 10px", margin: "4px 0", borderRadius: 8, background: "#f3f4f6", color: SOFT, fontSize: 13 }}>
+                        <span dir="ltr" style={{ fontWeight: 600 }}>{s.start}–{s.end}</span><span>{s.workshopName}{grp ? ` · ${grp}` : ""}</span>
+                      </div>
+                    );
+                  }
                   return (
-                    <div key={s.id} style={{ display: "flex", gap: 10, padding: "6px 10px", margin: "4px 0", borderRadius: 8, background: "#f3f4f6", color: SOFT, fontSize: 13 }}>
-                      <span dir="ltr" style={{ fontWeight: 600 }}>{s.start}–{s.end}</span><span>{s.workshopName}{grp ? ` · ${grp}` : ""}</span>
+                    <div key={s.id} style={{ display: "flex", gap: 12, padding: "10px 12px", margin: "6px 0", borderRadius: 10, background: cancelled ? "#ffffff" : t.fill, border: `1px solid ${t.soft}`, borderInlineStart: `4px solid ${t.bar}`, opacity: cancelled ? 0.6 : 1 }}>
+                      <div dir="ltr" style={{ minWidth: 52, textAlign: "center", fontWeight: 800, fontSize: 15, lineHeight: 1.25 }}>
+                        <div>{s.start}</div><div style={{ fontWeight: 500, fontSize: 12, color: SOFT }}>{s.end}</div>
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: 800, fontSize: 16, textDecoration: cancelled ? "line-through" : "none" }}>
+                          {s.workshopName}
+                          {ch && <span style={{ marginInlineStart: 8, fontSize: 12, fontWeight: 700, padding: "1px 7px", borderRadius: 6, background: cancelled ? "#fde2e2" : "#fff0c2", color: cancelled ? "#b42318" : "#8a5a00" }}>{ch}</span>}
+                        </div>
+                        {[room, grp, staffOf(s)].filter(Boolean).length > 0 && <div style={{ fontSize: 13, color: SOFT, marginTop: 2 }}>{[room, grp, staffOf(s)].filter(Boolean).join(" · ")}</div>}
+                        {s.note && <div style={{ fontSize: 13, marginTop: 4 }}>{s.note}</div>}
+                      </div>
                     </div>
                   );
-                }
-                return (
-                  <div key={s.id} style={{ display: "flex", gap: 12, padding: "10px 12px", margin: "6px 0", borderRadius: 10, background: cancelled ? "#ffffff" : t.fill, border: `1px solid ${t.soft}`, borderInlineStart: `4px solid ${t.bar}`, opacity: cancelled ? 0.6 : 1 }}>
-                    <div dir="ltr" style={{ minWidth: 52, textAlign: "center", fontWeight: 800, fontSize: 15, lineHeight: 1.25 }}>
-                      <div>{s.start}</div><div style={{ fontWeight: 500, fontSize: 12, color: SOFT }}>{s.end}</div>
-                    </div>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontWeight: 800, fontSize: 16, textDecoration: cancelled ? "line-through" : "none" }}>
-                        {s.workshopName}
-                        {ch && <span style={{ marginInlineStart: 8, fontSize: 12, fontWeight: 700, padding: "1px 7px", borderRadius: 6, background: cancelled ? "#fde2e2" : "#fff0c2", color: cancelled ? "#b42318" : "#8a5a00" }}>{ch}</span>}
-                      </div>
-                      {[room, grp, staffOf(s)].filter(Boolean).length > 0 && <div style={{ fontSize: 13, color: SOFT, marginTop: 2 }}>{[room, grp, staffOf(s)].filter(Boolean).join(" · ")}</div>}
-                      {s.note && <div style={{ fontSize: 13, marginTop: 4 }}>{s.note}</div>}
-                    </div>
-                  </div>
-                );
-              })}
+                  })}
+                </div>
+              ))}
             </div>
             {withNames && total > 0 && (
               <div style={{ padding: "4px 18px 16px", borderTop: "1px solid #E5E7E0", marginTop: 4 }}>
