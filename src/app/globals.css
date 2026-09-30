@@ -524,3 +524,19 @@ button[class*="border-[var(--border)]"]:not([class*=" bg-"]):not([class^="bg-"])
 [role="dialog"] textarea, .fixed.inset-0.z-50 textarea { resize: vertical; line-height: 1.5; }
 [role="dialog"] :is(h2, h3, p, li, label, dd, dt, span), .fixed.inset-0.z-50 :is(h2, h3, p, li, label) { overflow-wrap: anywhere; }
 [role="dialog"] select { text-overflow: ellipsis; }
+
+/* ════════════════════════════════════════════════════════════════════
+   CALENDAR TOKENS — one source for the frame, lines and text colours of the schedule.
+   Fixed colours (the calendar is always on white), every pair checked for AA on white.
+   ════════════════════════════════════════════════════════════════════ */
+:root {
+  --cal-surface: #ffffff;
+  --cal-frame: #ddd6cb;
+  --cal-line-hour: #ece7df;
+  --cal-line-day: #e3ddd3;
+  --cal-line-lane: #f1ede6;
+  --cal-ink: #2b211b;
+  --cal-muted: #6b6158;
+  --cal-faint: #8a8078;
+  --cal-now: #d92d20;
+}

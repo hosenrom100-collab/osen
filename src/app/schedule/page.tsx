@@ -8,7 +8,8 @@ import { addDoc, collection, deleteDoc, doc, writeBatch } from "firebase/firesto
 import { ChevronLeft, ChevronRight, MoreHorizontal, Plus } from "lucide-react";
 import { ProgramScheduleSettings } from "@/components/workshops/ProgramScheduleSettings";
 import { DayShiftDialog } from "@/components/workshops/DayShiftDialog";
-import { addDays, format } from "date-fns";
+import { addDays, format, getWeek } from "date-fns";
+import { he } from "date-fns/locale";
 import Link from "next/link";
 import { PageSkeleton } from "@/components/ui/Skeleton";
 import { Dialog, fieldCls, labelCls, btnPrimary } from "@/components/workshops/Dialog";
@@ -290,13 +291,13 @@ export default function SchedulePage() {
         return {
           id: date, date, today: date === today, sessions: sessions.filter(s => s.date === date), laneMode: weekLanes, groupIds: laneGroups.map(g => g.id),
           showGroups: weekLanes === "stable" && !groupSel[0],
-          header: <span className="flex flex-col items-center leading-tight"><span className="text-sm">יום {DAY_FULL[dayOf(date)]}</span><span className={`text-xs font-semibold tabular-nums mt-0.5 ${date === today ? "text-[var(--accent)]" : "text-[var(--foreground)]/55"}`}>{shortDate(date)}</span></span>,
+          header: <span className="flex flex-col items-center leading-none" aria-label={`יום ${DAY_FULL[dayOf(date)]} ${shortDate(date)}`}><span className="text-xs font-medium text-[var(--cal-muted)]">{DAY_FULL[dayOf(date)]}</span><span className={`mt-1 inline-flex items-center justify-center min-w-8 h-8 px-1 rounded-full text-xl font-bold tabular-nums ${date === today ? "bg-[var(--accent)] text-white" : ""}`}>{format(new Date(`${date}T12:00:00`), "d")}</span><span className="mt-0.5 text-[11px] text-[var(--cal-faint)] tabular-nums">{format(new Date(`${date}T12:00:00`), "MMM", { locale: he })}</span></span>,
           sub, onAdd: addFor(date, programSel[0]),
         };
       })
     : rows.map(row => ({
         id: row.id, sessions: sessions.filter(s => s.date === selectedDay && row.match(s)), laneMode: "stable" as const,
-        today: selectedDay === today, header: <span className="truncate">{row.label}</span>,
+        today: selectedDay === today, header: <span className="block truncate text-sm font-bold pb-0.5" title={row.label}>{row.label}</span>,
         sub: row.closedReason(selectedDay), onAdd: addFor(selectedDay, row.id.split(":")[0]),
       }));
   const currentProgram = programSel[0] ? programOf(programSel[0]) : undefined;
@@ -443,8 +444,8 @@ export default function SchedulePage() {
               : "אין מפגשים בשבוע זה."}
           </p>
         ) : (
-          <div className="md:px-2 md:pt-2">
-            <TimeGrid {...common} columns={columns} mode={mode} groupName={groupName} laneMin={view === "day" ? 8.5 : 6.5} drag={dragApi} />
+          <div className="md:px-4 md:pt-3 md:pb-6">
+            <TimeGrid {...common} columns={columns} mode={mode} groupName={groupName} laneMin={view === "day" ? 8.5 : 6.5} drag={dragApi} corner={view === "week" ? `שבוע ${getWeek(weekStart, { weekStartsOn: 0 })}` : undefined} />
             <DayAgenda {...common} dates={dates} days={days} rows={rows} mode={mode} today={today} globalClosure={globalClosure}
               selected={selectedDay} setSelected={setSelectedDay} canEdit={isManager}
               onAdd={date => setEditing({ session: null, extra: { date, programId: programSel.length === 1 ? programSel[0] : undefined } })} />

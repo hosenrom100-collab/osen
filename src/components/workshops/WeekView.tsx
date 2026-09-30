@@ -144,8 +144,8 @@ interface DragState {
   to: { date: string; start: string; end: string; col: number } | null;
 }
 
-export function TimeGrid({ columns, mode, groupName, laneMin, drag: dragApi, ...c }: Common & {
-  columns: Column[]; mode: Mode; groupName: (id: string) => string; laneMin: number; drag?: DragApi;
+export function TimeGrid({ columns, mode, groupName, laneMin, corner, drag: dragApi, ...c }: Common & {
+  columns: Column[]; mode: Mode; groupName: (id: string) => string; laneMin: number; corner?: string; drag?: DragApi;
 }) {
   const now = useNowMinutes();
   const gridRef = useRef<HTMLDivElement>(null);
@@ -169,7 +169,7 @@ export function TimeGrid({ columns, mode, groupName, laneMin, drag: dragApi, ...
     "auto", ...(hasLabels ? ["auto"] : []),
     ...(times.length < 2 ? ["minmax(96px, auto)"] : times.slice(0, -1).map((t, i) => {
       const dur = times[i + 1] - t;
-      return covered[i] ? `minmax(${Math.max(Math.round(dur * PX_PER_MIN), 34)}px, auto)` : "18px";
+      return covered[i] ? `minmax(${Math.max(Math.round(dur * PX_PER_MIN), 34)}px, auto)` : dur >= 60 ? "26px" : "10px";
     })),
   ].join(" ");
 
@@ -257,44 +257,73 @@ export function TimeGrid({ columns, mode, groupName, laneMin, drag: dragApi, ...
   }, [dragging]);
 
   const rowFor = (t: number) => Math.min(Math.max(times.findLastIndex(x => x <= t), 0), Math.max(times.length - 2, 0));
+  // Hour labels: every covered round hour, plus an in-between time only when it is 25+ minutes from the last label.
+  const labelAt = new Set<number>();
+  { let last = -999; times.slice(0, -1).forEach((t, i) => { if (covered[i] && (t % 60 === 0 || t - last >= 25)) { labelAt.add(t); last = t; } }); }
+  const hasSub = columns.some(col => col.sub);
+  const hasToday = columns.some(col => col.today);
   const nowRow = now === null ? -1 : times.findIndex((t, i) => i < times.length - 1 && now >= t && now < times[i + 1]);
 
   return (
-    <div className="hidden md:block overflow-x-auto border-y border-[var(--border)]">
+    <div className="hidden md:block lg:overflow-clip overflow-x-auto rounded-[14px] border border-[var(--cal-frame)] bg-[var(--cal-surface)]">
       <div ref={gridRef} className="grid min-w-max lg:min-w-0 relative" style={{ gridTemplateColumns: cols, gridTemplateRows: rows }}>
         {/* Invisible row anchors: where each time row really is, for dragging. */}
         {times.slice(0, -1).map((t, i) => <div key={`a${t}`} data-trow={i} className="pointer-events-none" style={{ gridRow: HDR + 1 + i, gridColumn: 1 }} />)}
-        {/* Hour lines: whole hours a little stronger than the in-between breakpoints. */}
-        {times.slice(0, -1).map((t, i) => (
-          <div key={`l${t}`} className={`pointer-events-none border-t ${t % 60 === 0 ? "border-[var(--border)]" : "border-[var(--border-subtle)]"}`}
-            style={{ gridRow: HDR + 1 + i, gridColumn: "1 / -1" }} />
-        ))}
-        {/* Hour labels. */}
-        {times.slice(0, -1).map((t, i) => covered[i] && (
-          <div key={`t${t}`} className="relative text-[11px] font-semibold tabular-nums text-[#3a2a21]/70 text-center pt-0.5"
-            style={{ gridRow: HDR + 1 + i, gridColumn: 1 }}>{String(Math.floor(t / 60)).padStart(2, "0")}:{String(t % 60).padStart(2, "0")}</div>
+
+        {/* Stretches with no activity: a hatched band, named when long enough to matter. */}
+        {times.slice(0, -1).map((t, i) => !covered[i] && (
+          <div key={`g${t}`} className="pointer-events-none flex items-center justify-center text-[11px] font-medium text-[var(--cal-faint)]"
+            style={{ gridRow: HDR + 1 + i, gridColumn: "2 / -1", backgroundImage: "repeating-linear-gradient(135deg, rgba(43,33,27,0.035) 0 6px, transparent 6px 12px)" }}>
+            {times[i + 1] - t >= 60 && <span className="bg-white px-2 rounded">ללא פעילות · {fmtMin(t)}–{fmtMin(times[i + 1])}</span>}
+          </div>
         ))}
 
-        <div className="bg-white border-b border-[var(--border)]" style={{ gridRow: `1 / ${HDR + 1}`, gridColumn: 1 }} />
+        {/* Hour lines stop at the gutter; a short tick joins them to it. Only round hours get a line. */}
+        {times.slice(0, -1).map((t, i) => t % 60 === 0 && (
+          <div key={`l${t}`} className="pointer-events-none border-t border-[var(--cal-line-hour)]" style={{ gridRow: HDR + 1 + i, gridColumn: "2 / -1" }} />
+        ))}
+        {times.slice(0, -1).map((t, i) => t % 60 === 0 && (
+          <div key={`k${t}`} className="pointer-events-none border-t border-[var(--cal-line-day)] w-1.5 justify-self-end" style={{ gridRow: HDR + 1 + i, gridColumn: 1 }} />
+        ))}
+        {/* Hour labels, centred on their line. */}
+        {times.slice(0, -1).map((t, i) => labelAt.has(t) && (
+          <div key={`t${t}`} className="relative" style={{ gridRow: HDR + 1 + i, gridColumn: 1 }}>
+            <span className={`absolute inset-x-0 top-0 -translate-y-1/2 text-center tabular-nums leading-none bg-[var(--cal-surface)] py-0.5 ${t % 60 === 0 ? "text-xs font-semibold text-[var(--cal-muted)]" : "text-[11px] font-medium text-[var(--cal-faint)]"}`}>{fmtMin(t)}</span>
+          </div>
+        ))}
+        {/* "Now" chip in the gutter, level with the red line. */}
+        {hasToday && nowRow >= 0 && now !== null && (
+          <div className="relative z-10 pointer-events-none" style={{ gridRow: HDR + 1 + nowRow, gridColumn: 1 }}>
+            <span className="absolute inset-x-0.5 -translate-y-1/2 text-center text-[10px] font-bold leading-none tabular-nums rounded bg-[var(--cal-now)] text-white py-0.5"
+              style={{ top: `${((now - times[nowRow]) / (times[nowRow + 1] - times[nowRow])) * 100}%` }}>{fmtMin(now)}</span>
+          </div>
+        )}
+
+        {/* Corner above the gutter: the week number, so the frame reads as one piece. */}
+        <div className="sticky top-[3.25rem] z-20 bg-[var(--cal-surface)] border-b border-[var(--cal-frame)] flex items-end justify-center pb-1.5 text-[11px] font-semibold text-[var(--cal-faint)]"
+          style={{ gridRow: `1 / ${HDR + 1}`, gridColumn: 1 }}>{corner}</div>
         {columns.map((col, k) => {
           const l = laid[k];
           const c1 = starts[k];
           return (
             <div key={col.id} className="contents">
-              {/* Day header, lane labels, separator, empty-cell add button. */}
-              <div data-col={k} className={`px-2 py-1.5 text-sm font-bold text-center border-b border-[var(--border)] text-[#3a2a21] ${col.today ? "bg-[var(--accent-soft)] border-b-2 !border-b-[var(--accent)]" : "bg-white"}`}
+              {/* One continuous day separator, header to bottom, so header and body always line up. */}
+              <div className="pointer-events-none border-s border-[var(--cal-line-day)]" style={{ gridRow: `1 / -1`, gridColumn: c1 }} />
+              {l.laneLabels && l.laneLabels.slice(1).map((_, i) => (
+                <div key={`d${i}`} className="pointer-events-none border-s border-dashed border-[var(--cal-line-lane)]" style={{ gridRow: `2 / -1`, gridColumn: c1 + i + 1 }} />
+              ))}
+              <div data-col={k} className={`sticky top-[3.25rem] z-20 bg-[var(--cal-surface)] px-2 pt-2 text-center text-[var(--cal-ink)] ${l.laneLabels ? "" : "border-b border-[var(--cal-frame)] pb-2"}`}
                 style={{ gridRow: 1, gridColumn: `${c1} / span ${l.lanes}` }}>
                 {col.header}
-                {col.sub && <div className="text-xs font-normal text-[var(--foreground)]/60">{col.sub}</div>}
+                {hasSub && <div className="mt-1 min-h-[1.25rem]">{col.sub && <span className="inline-block max-w-full truncate px-2 rounded-full bg-[var(--cal-ink)]/[0.06] text-[11px] font-medium text-[var(--cal-muted)]">{col.sub}</span>}</div>}
               </div>
               {l.laneLabels && l.laneLabels.map((name, i) => (
-                <div key={i} className="px-2 pb-1 text-xs font-semibold text-center text-[#3a2a21]/70 truncate border-b border-[var(--border)] bg-white"
-                  style={{ gridRow: 2, gridColumn: c1 + i }}>{name}</div>
+                <div key={i} className="sticky top-[7.25rem] z-20 bg-[var(--cal-surface)] px-2 pb-1.5 pt-0.5 text-[11px] font-semibold text-center text-[var(--cal-muted)] truncate border-b border-[var(--cal-frame)]"
+                  style={{ gridRow: 2, gridColumn: c1 + i }} title={name}>{name}</div>
               ))}
-              <div className="pointer-events-none border-s border-[var(--border)]" style={{ gridRow: `${HDR + 1} / -1`, gridColumn: c1 }} />
               {col.onAdd && (
                 <button onClick={col.onAdd} aria-label="הוסף מפגש חד-פעמי" title="הוסף מפגש חד-פעמי"
-                  className="group flex items-end justify-center pb-1 text-xs font-semibold text-transparent hover:text-[var(--foreground)]/50 hover:bg-[var(--foreground)]/[0.025] focus-visible:text-[var(--foreground)]/60"
+                  className="group flex items-end justify-center pb-1 text-xs font-semibold text-transparent hover:text-[var(--cal-muted)] hover:bg-[var(--cal-ink)]/[0.025] focus-visible:text-[var(--cal-muted)]"
                   style={{ gridRow: `${HDR + 1} / -1`, gridColumn: `${c1} / span ${l.lanes}` }}>
                   <span className="flex items-center gap-1"><Plus className="w-3 h-3" />הוסף</span>
                 </button>
@@ -314,7 +343,7 @@ export function TimeGrid({ columns, mode, groupName, laneMin, drag: dragApi, ...
               {col.today && nowRow >= 0 && now !== null && (
                 <div className="relative z-10 pointer-events-none" style={{ gridRow: HDR + 1 + nowRow, gridColumn: `${c1} / span ${l.lanes}` }}>
                   <div className="absolute inset-x-0 flex items-center" style={{ top: `${((now - times[nowRow]) / (times[nowRow + 1] - times[nowRow])) * 100}%` }}>
-                    <span className="w-2 h-2 -mr-1 rounded-full bg-[#d92d20]" /><span className="flex-1 border-t-[1.5px] border-[#d92d20]" />
+                    <span className="w-2 h-2 -mr-1 rounded-full bg-[var(--cal-now)]" /><span className="flex-1 border-t-[1.5px] border-[var(--cal-now)]" />
                   </div>
                 </div>
               )}
