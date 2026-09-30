@@ -12,7 +12,7 @@ import { PageSkeleton } from "@/components/ui/Skeleton";
 import { loadRefs, Refs } from "@/lib/workshops/data";
 import { buildSessions } from "@/lib/workshops/buildWeek";
 import { rangeDates, shortDate, overlaps, dayOf } from "@/lib/workshops/dates";
-import { Closure, DAY_FULL, DAY_SHORT, SessionChange, Slot, Workshop } from "@/lib/workshops/types";
+import { ACTIVITY_LABEL, ActivityKind, Closure, DAY_FULL, DAY_SHORT, SessionChange, Slot, Workshop } from "@/lib/workshops/types";
 
 interface PatientLite { id: string; name: string; programIds: string[]; groupIds: string[] }
 
@@ -146,6 +146,10 @@ export default function WorkshopDetailPage() {
                 <input type="date" className={fieldCls} value={form.startDate} onChange={e => set({ startDate: e.target.value })} /></div>
               <div><label className={labelCls}>תאריך סיום</label>
                 <input type="date" className={fieldCls} value={form.endDate} min={form.startDate} onChange={e => set({ endDate: e.target.value })} /></div>
+              <div><label className={labelCls}>סוג פעילות</label>
+                <select className={fieldCls} value={form.kind || "workshop"} onChange={e => set({ kind: e.target.value as ActivityKind })}>
+                  {(Object.keys(ACTIVITY_LABEL) as ActivityKind[]).map(k => <option key={k} value={k}>{ACTIVITY_LABEL[k]}</option>)}
+                </select></div>
               <div><label className={labelCls}>סטטוס</label>
                 <select className={fieldCls} value={form.status} onChange={e => set({ status: e.target.value as Workshop["status"] })}>
                   <option value="active">פעילה</option><option value="draft">טיוטה (לא מופיעה ביומן)</option><option value="cancelled">מבוטלת</option>

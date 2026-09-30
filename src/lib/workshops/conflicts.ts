@@ -17,7 +17,7 @@ export function findConflicts(
     if (!list.includes(msg)) list.push(msg);
     warnings.set(id, list);
   };
-  const live = sessions.filter(s => s.kind !== "cancelled" && s.kind !== "moved-away");
+  const live = sessions.filter(s => !s.fixedBlock && s.kind !== "cancelled" && s.kind !== "moved-away");
   const progById = new Map(programs.map(p => [p.id, p]));
 
   for (let i = 0; i < live.length; i++) {

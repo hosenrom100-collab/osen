@@ -21,6 +21,7 @@ import { he } from "date-fns/locale";
 import { PageSkeleton, SkeletonRows } from "@/components/ui/Skeleton";
 import { QuickActionGrid, StatRow } from "@/components/ui/Section";
 import { ScheduleEditorModal } from "@/components/home/ScheduleEditorModal";
+import { TodaySchedule } from "@/components/home/TodaySchedule";
 import { FRAMEWORK_LABELS } from "@/app/shopping/lib/constants";
 
 interface GroupStat   { id: string; name: string; present: number; absent: number; total: number }
@@ -786,6 +787,7 @@ export default function Home() {
                 <ChevronLeft className="w-4 h-4 text-amber-600" />
               </Link>
             )}
+            <TodaySchedule />
             {isStrictAdmin ? (
               <>
                 {/* ── Absence Approvals Summary ── */}

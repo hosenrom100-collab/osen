@@ -9,9 +9,21 @@ export interface Slot {
   groupIds?: string[]; // groups this weekly meeting is for; empty/missing = all of the workshop's groups
 }
 
+/** What kind of activity an entry is. Drives how it is drawn (card vs. quiet band) and which checks apply. */
+export type ActivityKind = "workshop" | "therapy" | "meal" | "break" | "transport" | "staff_meeting" | "event" | "free";
+
+export const ACTIVITY_LABEL: Record<ActivityKind, string> = {
+  workshop: "סדנה", therapy: "טיפול / שיחה", meal: "ארוחה", break: "הפסקה", transport: "הסעה",
+  staff_meeting: "ישיבת צוות", event: "אירוע", free: "זמן חופשי",
+};
+/** Kinds that are drawn as a quiet full-width band rather than a card. */
+export const BAND_KINDS: ActivityKind[] = ["meal", "break", "transport", "free"];
+export const isBand = (k?: ActivityKind) => !!k && BAND_KINDS.includes(k);
+
 export interface Workshop {
   id: string;
   name: string;
+  kind?: ActivityKind; // missing = "workshop"
   programId: string;
   groupIds?: string[]; // groups within the program taking part; empty/missing = whole program
   startDate: string;
@@ -48,10 +60,25 @@ export interface Closure {
   reason: string;
 }
 
+/** A fixed daily entry of one program (lunch, break, transport…). Empty groupIds = the whole program. */
+export interface DailyBlock {
+  id: string;
+  kind: ActivityKind;
+  label: string;
+  start: string;
+  end: string;
+  days?: number[];     // missing/empty = every active day of the program
+  groupIds?: string[]; // missing/empty = every group of the program
+}
+
 export interface Program {
   id: string;
   name: string;
   activeDays: number[];
+  color?: number;              // hue 0-359; missing = derived from the id
+  dailyBlocks?: DailyBlock[];
+  staffGroupUrl?: string;        // community group of the program's staff
+  participantsGroupUrl?: string; // community group of the program's participants
 }
 
 export interface Group {
@@ -82,6 +109,8 @@ export interface Session {
   locationId?: string;
   staffIds: string[];
   kind: SessionKind;
+  activity: ActivityKind;
+  fixedBlock?: boolean; // generated from a program's daily blocks; not editable as a session
   change?: SessionChange;
   note?: string;
   base: { start: string; end: string; staffIds: string[]; locationId?: string; groupIds?: string[] };

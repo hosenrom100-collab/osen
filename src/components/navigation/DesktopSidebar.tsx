@@ -120,13 +120,13 @@ export function DesktopSidebar() {
         
         {/* Workspace Section */}
         <div>
-          {!collapsed && <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-[var(--foreground)]/30 px-4 mb-4">מרחב עבודה</p>}
+          {!collapsed && <p className="text-xs font-bold text-[var(--foreground)]/40 px-4 mb-3">מרחב עבודה</p>}
           <div className="space-y-1">
             {NAV.filter(item => !(item.href === "/patients" && role === "instructor")).map(({ href, icon: Icon, label }) => {
               const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
               return (
                 <Link key={href} href={href} title={collapsed ? label : undefined}
-                  className={`flex items-center gap-3 ${collapsed ? "justify-center px-0" : "px-4"} py-2.5 rounded-xl text-sm font-bold transition-all duration-200 group relative ${
+                  className={`flex items-center gap-3 ${collapsed ? "justify-center px-0" : "px-4"} py-2.5 rounded-lg text-sm font-bold transition-colors duration-150 group relative ${
                     active
                       ? "bg-[var(--primary-faint)] text-[var(--primary)]"
                       : "text-[var(--foreground)]/50 hover:text-[var(--primary)] hover:bg-[var(--foreground)]/5"
@@ -148,13 +148,13 @@ export function DesktopSidebar() {
         {/* Administration Section */}
         {(isManager || isLogistics || role === "social_worker" || roles?.includes("social_worker")) && (
           <div>
-            {!collapsed && <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-[var(--foreground)]/30 px-4 mb-4">ניהול ובקרה</p>}
+            {!collapsed && <p className="text-xs font-bold text-[var(--foreground)]/40 px-4 mb-3">ניהול ובקרה</p>}
             <div className="space-y-1">
               {visibleAdminNav.map(({ href, icon: Icon, label, badge }) => {
                 const active = pathname.startsWith(href);
                 return (
                   <Link key={href} href={href} title={collapsed ? label : undefined}
-                    className={`flex items-center gap-3 ${collapsed ? "justify-center px-0" : "px-4"} py-2.5 rounded-xl text-sm font-bold transition-all duration-200 group relative ${
+                    className={`flex items-center gap-3 ${collapsed ? "justify-center px-0" : "px-4"} py-2.5 rounded-lg text-sm font-bold transition-colors duration-150 group relative ${
                       active
                         ? "bg-[var(--primary-faint)] text-[var(--primary)]"
                         : "text-[var(--foreground)]/50 hover:text-[var(--primary)] hover:bg-[var(--foreground)]/5"
@@ -196,13 +196,12 @@ export function DesktopSidebar() {
                 {initials}
               </div>
             )}
-            <div className="absolute -bottom-0.5 -left-0.5 w-3 h-3 bg-emerald-500 border-2 border-[var(--sidebar-bg)] rounded-full" />
           </div>
           {!collapsed && <div className="flex-1 min-w-0">
             <p className="text-xs font-bold text-[var(--foreground)] truncate leading-none mb-1">
               {user?.displayName || user?.email?.split('@')[0]}
             </p>
-            <p className="text-[11px] text-[var(--foreground)]/40 font-bold uppercase tracking-[0.05em]">
+            <p className="text-[11px] text-[var(--foreground)]/45 font-semibold">
               {ROLE_HE[displayRole] || displayRole}
             </p>
           </div>}

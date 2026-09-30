@@ -15,6 +15,8 @@ interface Props {
   locations: Person[];
   canEdit: boolean;
   warnings: string[];
+  participants?: string[]; // first names of the people attending
+  busyFor?: (staffId: string, date: string, start: string, end: string, workshopId?: string) => string | undefined;
   userId?: string;
   onClose: () => void;
   onSaved: () => void;
@@ -23,7 +25,7 @@ interface Props {
 
 const sameSet = (a: string[], b: string[]) => [...a].sort().join() === [...b].sort().join();
 
-export function SessionEditor({ session, extra, workshops, staff, locations, canEdit, warnings, userId, onClose, onSaved, onEditSeries }: Props) {
+export function SessionEditor({ session, extra, workshops, staff, locations, canEdit, warnings, participants = [], busyFor, userId, onClose, onSaved, onEditSeries }: Props) {
   const isExtra = !session || session.kind === "extra";
   const ch = session?.change;
   const [workshopId, setWorkshopId] = useState(session?.workshopId || "");
@@ -45,6 +47,13 @@ export function SessionEditor({ session, extra, workshops, staff, locations, can
     const w = workshops.find(x => x.id === id);
     if (w && !session) setStaffIds(w.staffIds || []);
   };
+  const shiftBy = (d: number) => {
+    const add = (t: string) => { const m = Math.min(1439, Math.max(0, Number(t.slice(0, 2)) * 60 + Number(t.slice(3)) + d)); return `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`; };
+    setStart(add(start)); setEnd(add(end));
+  };
+  // Free people first, so picking a substitute does not mean guessing who is available.
+  const busyOf = (id: string) => busyFor?.(id, date, start, end, workshopId);
+  const staffSorted = [...staff].sort((a, b) => Number(!!busyOf(a.id)) - Number(!!busyOf(b.id)));
   const toggleStaff = (id: string) => setStaffIds(s => (s.includes(id) ? s.filter(x => x !== id) : [...s, id]));
 
   const save = async () => {
@@ -97,6 +106,7 @@ export function SessionEditor({ session, extra, workshops, staff, locations, can
           <div><dt className={labelCls}>מועד</dt><dd>יום {DAY_FULL[dayOf(session.date)]} {shortDate(session.date)} · {session.start}–{session.end}</dd></div>
           <div><dt className={labelCls}>מעבירים</dt><dd>{session.staffIds.map(nameOf).join(", ") || "—"}</dd></div>
           <div><dt className={labelCls}>מרחב</dt><dd>{locations.find(l => l.id === session.locationId)?.name || "—"}</dd></div>
+          {participants.length > 0 && <div><dt className={labelCls}>משתתפים ({participants.length})</dt><dd>{participants.join(", ")}</dd></div>}
           {session.kind === "cancelled" && <p className="text-rose-500 font-bold">המפגש בוטל</p>}
           {session.note && <div><dt className={labelCls}>הערה</dt><dd>{session.note}</dd></div>}
         </dl>
@@ -142,6 +152,9 @@ export function SessionEditor({ session, extra, workshops, staff, locations, can
             <p className="text-xs text-[var(--foreground)]/50 mt-1">המפגש יוזז מ-{shortDate(session!.origDate!)} ל-{date && shortDate(date)}.</p>
           )}
         </div>
+        <div className="flex gap-2">
+          {[-15, 15].map(d => <button key={d} type="button" onClick={() => shiftBy(d)} className={`${btnGhost} !py-1 !text-xs`}>{d > 0 ? `+${d} דקות` : `${d} דקות`}</button>)}
+        </div>
         <div className="grid grid-cols-2 gap-3">
           <div><label className={labelCls}>התחלה</label><input type="time" className={fieldCls} value={start} onChange={e => setStart(e.target.value)} /></div>
           <div><label className={labelCls}>סיום</label><input type="time" className={fieldCls} value={end} onChange={e => setEnd(e.target.value)} /></div>
@@ -156,16 +169,27 @@ export function SessionEditor({ session, extra, workshops, staff, locations, can
         <div>
           <label className={labelCls}>מעבירים{!isExtra && session && <span className="font-normal"> — מקור: {session.base.staffIds.map(nameOf).join(", ") || "—"}</span>}</label>
           <ul className="grid grid-cols-2 gap-x-3 max-h-40 overflow-y-auto border border-[var(--border)] rounded-md px-2.5 py-1">
-            {staff.map(s => (
-              <li key={s.id}>
-                <label className="flex items-center gap-2 py-1 text-sm cursor-pointer">
-                  <input type="checkbox" checked={staffIds.includes(s.id)} onChange={() => toggleStaff(s.id)} /> {s.name}
-                </label>
-              </li>
-            ))}
+            {staffSorted.map(s => {
+              const busy = busyOf(s.id);
+              return (
+                <li key={s.id}>
+                  <label className={`flex items-center gap-2 py-1 text-sm cursor-pointer ${busy && !staffIds.includes(s.id) ? "text-[var(--foreground)]/45" : ""}`} title={busy ? `תפוס/ה: ${busy}` : undefined}>
+                    <input type="checkbox" checked={staffIds.includes(s.id)} onChange={() => toggleStaff(s.id)} /> {s.name}
+                    {busy && <span className="text-[11px] text-amber-600">· {busy}</span>}
+                  </label>
+                </li>
+              );
+            })}
           </ul>
         </div>
       </fieldset>
+
+      {participants.length > 0 && (
+        <div>
+          <label className={labelCls}>משתתפים ({participants.length})</label>
+          <p className="text-sm leading-relaxed">{participants.join(", ")}</p>
+        </div>
+      )}
 
       <div>
         <label className={labelCls}>הערה (מוצגת ביומן)</label>

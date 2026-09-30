@@ -46,6 +46,7 @@ export function buildSessions(
     locationId: change?.locationId ?? base.locationId,
     staffIds: change?.staffIds ?? base.staffIds,
     kind,
+    activity: w.kind || "workshop",
     change,
     note: change?.note,
     base,
@@ -91,6 +92,23 @@ export function buildSessions(
     if (!slot) continue;
     const base = { start: slot.start, end: slot.end, staffIds: w.staffIds, locationId: slot.locationId, groupIds: slotGroups(w, slot) };
     out.push(make(w, ch.newDate, slot.id, ch.originalDate, base, "moved-in", ch, ch.id));
+  }
+
+  // 3. Each program's fixed daily blocks (meals, breaks, transport), on its active days.
+  for (const date of dates) {
+    const day = dayOf(date);
+    for (const prog of programs) {
+      if (!prog.activeDays.includes(day) || isClosed(prog.id, date)) continue;
+      for (const b of prog.dailyBlocks || []) {
+        if (b.days?.length && !b.days.includes(day)) continue;
+        out.push({
+          id: `block_${prog.id}_${b.id}_${date}`, changeId: null, workshopId: `block:${b.id}`, workshopName: b.label,
+          programId: prog.id, groupIds: b.groupIds || [], slotId: null, origDate: date, date,
+          start: b.start, end: b.end, staffIds: [], kind: "normal", activity: b.kind, fixedBlock: true,
+          base: { start: b.start, end: b.end, staffIds: [], groupIds: b.groupIds || [] },
+        });
+      }
+    }
   }
 
   return out.sort((a, b) => a.date.localeCompare(b.date) || a.start.localeCompare(b.start));
