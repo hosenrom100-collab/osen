@@ -236,6 +236,7 @@ export default function SchedulePage() {
     hueOf: (s: Session) => sessionHue(s, colorBy, types, refs.programs),
     typeLabel: (s: Session) => (s.activity !== "workshop" && !s.band ? typeById(types, s.activity).label : undefined),
     dim: (s: Session) => focusKey !== null && legendKey(s) !== focusKey,
+    peekNames: (s: Session) => (s.fixedBlock || !s.hasParticipants ? [] : firstNames(participantsOf(s, workshopById.get(s.workshopId), patients))),
     countOf: (s: Session) => {
       if (s.fixedBlock || !s.hasParticipants) return undefined;
       const n = participantsOf(s, workshopById.get(s.workshopId), patients).length;

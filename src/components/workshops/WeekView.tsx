@@ -21,6 +21,7 @@ export interface Common {
   typeLabel: (s: Session) => string | undefined; // name of the type when it is not a plain workshop
   dim: (s: Session) => boolean;    // faded while another legend item is highlighted
   countOf: (s: Session) => number | undefined; // headcount of a session, when known
+  peekNames: (s: Session) => string[];          // first names of the people attending, for the hover peek
   showGroups?: boolean; // show group names on sessions even in program mode
   onOpen: (s: Session) => void;
 }
@@ -38,57 +39,108 @@ function changeNote(s: Session): string {
   return parts.join(", ");
 }
 
-/** A session card. Its height follows its content (the grid row grows), so nothing is ever cut off. */
-function Card({ s, mode, c, groups }: { s: Session; mode: Mode; c: Common; groups?: boolean }) {
+/** What a session card says, shared by the card itself and the hover peek. */
+function facts(s: Session, mode: Mode, c: Common, groups?: boolean) {
   const dead = s.kind === "cancelled" || s.kind === "moved-away";
-  const t = hueStyle(c.hueOf(s));
-  const warn = c.warnings.get(s.id);
-  const note = changeNote(s);
   const room = c.roomOf(s.locationId);
   const staff = mode !== "staff" && !s.fixedBlock ? s.staffIds.map(c.nameOf).join(", ") : "";
   const grp = groups || mode !== "program" || c.showGroups ? c.groupsOf(s.groupIds) : "";
-  const meta = [staff, grp].filter(Boolean).join(" · ");
-  const showRoom = !!room && !dead && mode !== "space";
-  const count = dead ? undefined : c.countOf(s);
-  const special = dead ? undefined : c.typeLabel(s);          // events, therapy… stand out from plain workshops
+  return { dead, room, staff, grp, count: dead ? undefined : c.countOf(s), special: dead ? undefined : c.typeLabel(s), note: changeNote(s), warn: c.warnings.get(s.id) };
+}
+
+/**
+ * A session card. Its height follows its content (the grid row grows), so nothing is ever cut off.
+ * Order of importance: name, then when/where, then who, then the note; small tags at the bottom.
+ */
+function Card({ s, mode, c, groups }: { s: Session; mode: Mode; c: Common; groups?: boolean }) {
+  const t = hueStyle(c.hueOf(s));
+  const f = facts(s, mode, c, groups);
   const oneOff = s.kind === "extra" || s.kind === "moved-in";
+  const showRoom = !!f.room && !f.dead && mode !== "space";
+  const meta = [f.staff, f.grp].filter(Boolean).join(" · ");
+  const hover = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [peek, setPeek] = useState<DOMRect | null>(null);
+  const enter = (e: React.MouseEvent<HTMLElement>) => {
+    const el = e.currentTarget;
+    if (hover.current) clearTimeout(hover.current);
+    hover.current = setTimeout(() => setPeek(el.getBoundingClientRect()), 280);
+  };
+  const leave = () => { if (hover.current) clearTimeout(hover.current); setPeek(null); };
 
   return (
-    <button onClick={() => c.onOpen(s)}
-      title={[`${s.start}–${s.end} ${s.workshopName}`, meta, room ? `מרחב: ${room}` : "", count ? `${count} משתתפים` : "", note, s.note, warn?.join(" | ")].filter(Boolean).join("\n")}
-      style={dead ? undefined : { backgroundColor: t.fill, color: t.ink, borderColor: oneOff ? t.bar : undefined, borderInlineStartColor: t.bar, boxShadow: special ? `inset 0 0 0 1.5px ${t.bar}` : undefined }}
-      className={`block w-full h-full text-start rounded-md px-2.5 py-1.5 md:px-2 md:py-1 border-s-[3px] transition-opacity hover:brightness-[0.97] ${c.dim(s) ? "opacity-30" : ""} ${dead ? "border border-dashed border-[var(--border)] text-[var(--foreground)]/45" : "border-transparent"} ${oneOff && !dead ? "border border-dashed" : ""}`}>
-      <span className="flex items-center gap-1.5 text-xs md:text-[11px] font-medium tabular-nums opacity-80">
-        <span>{s.start}–{s.end}</span>
-        {s.kind === "cancelled" && <span className="font-bold text-[#b42318] opacity-100">בוטל</span>}
-        {special && <span className="px-1.5 rounded font-bold opacity-100 bg-white/70 text-[11px]" style={{ color: t.ink }}>{special}</span>}
-        {oneOff && !dead && <span className="px-1.5 rounded font-bold opacity-100 bg-[#fff0c2] text-[#8a5a00] text-[11px]">{s.kind === "extra" ? "חד-פעמי" : "הוזז"}</span>}
-        <span className="mr-auto flex items-center gap-1.5">
-          {count ? <span className="px-1.5 rounded bg-black/[0.06] font-semibold" title={`${count} משתתפים`}>{count}</span> : null}
-          {warn && !dead && <span className="w-2 h-2 rounded-full bg-[#d92d20]" title={warn.join("\n")} />}
-          {note && !dead && <span className="text-[10px]" title={note}>◆</span>}
-          {s.change && !s.change.published && <span className="w-1.5 h-1.5 rounded-full bg-amber-500" title="טרם פורסם לצוות" />}
+    <>
+      <button onClick={() => { leave(); c.onOpen(s); }} onMouseEnter={enter} onMouseLeave={leave} onPointerDown={leave}
+        aria-label={[`${s.start}–${s.end}`, s.workshopName, f.room && `מרחב ${f.room}`, f.staff, f.grp, f.count ? `${f.count} משתתפים` : "", f.note, f.warn?.join(", ")].filter(Boolean).join(", ")}
+        style={f.dead ? undefined : { backgroundColor: t.fill, color: t.ink, borderInlineStartColor: t.bar, borderInlineStartStyle: oneOff ? "dashed" : "solid" }}
+        className={`block w-full h-full text-start rounded-md px-2.5 py-1.5 md:px-2 md:py-1 border-s-[3px] transition-[filter,opacity] hover:brightness-[0.97] focus-visible:outline-2 focus-visible:outline-[var(--accent)] ${c.dim(s) ? "opacity-30" : ""} ${f.dead ? "border border-dashed border-[var(--cal-frame)] text-[var(--cal-muted)]" : "border-transparent"}`}>
+        <span className="flex items-start gap-1.5">
+          <span className={`flex-1 min-w-0 text-[15px] md:text-[13.5px] font-bold leading-snug line-clamp-2 ${s.kind === "cancelled" ? "line-through" : ""}`}>{s.workshopName}</span>
+          <span className="flex items-center gap-1.5 pt-1 shrink-0">
+            {f.warn && !f.dead && <span className="w-2 h-2 rounded-full bg-[var(--cal-now)]" />}
+            {f.note && !f.dead && <span className="text-[10px] leading-none text-[var(--cal-muted)]">◆</span>}
+            {s.change && !s.change.published && <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />}
+          </span>
         </span>
-      </span>
-      <span className={`block text-[15px] md:text-[13.5px] font-bold leading-snug mt-0.5 line-clamp-2 ${s.kind === "cancelled" ? "line-through" : ""}`}>{s.workshopName}</span>
-      {meta && !dead && <span className="block text-xs md:text-[11.5px] leading-snug mt-0.5 line-clamp-2 text-[var(--foreground)]/65">{meta}</span>}
-      {showRoom && (
-        <span className="inline-flex items-center gap-1 max-w-full mt-1 px-2 py-0.5 md:px-1.5 md:py-px rounded-md bg-white/75 text-xs md:text-[11px] font-bold" style={{ color: t.ink }} title={`מרחב: ${room}`}>
-          <MapPin className="w-3 h-3 shrink-0" /><span className="truncate">{room}</span>
+        <span className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs md:text-[11.5px] tabular-nums">
+          <span className="font-semibold text-[var(--cal-muted)]">{s.start}–{s.end}</span>
+          {s.kind === "cancelled" && <span className="font-bold text-[#b42318]">בוטל</span>}
+          {showRoom && (
+            <span className="inline-flex items-center gap-1 max-w-full px-1.5 rounded bg-white/80 font-bold" style={{ color: t.ink }}>
+              <MapPin className="w-3 h-3 shrink-0" /><span className="truncate">{f.room}</span>
+            </span>
+          )}
         </span>
-      )}
-      {s.note && !dead && <span className="block text-xs leading-snug mt-0.5 line-clamp-2 text-[var(--foreground)]/75">{s.note}</span>}
-    </button>
+        {meta && !f.dead && <span className="block mt-0.5 text-xs md:text-[11.5px] leading-snug line-clamp-2 text-[var(--cal-muted)]">{meta}</span>}
+        {s.note && !f.dead && <span className="block mt-0.5 text-xs md:text-[11.5px] leading-snug line-clamp-2 italic text-[var(--cal-ink)]/80">{s.note}</span>}
+        {(f.special || oneOff || f.count) && !f.dead && (
+          <span className="mt-1 flex flex-wrap items-center gap-1 text-[11px] font-semibold">
+            {f.special && <span className="px-1.5 rounded bg-white/80" style={{ color: t.ink }}>{f.special}</span>}
+            {oneOff && <span className="px-1.5 rounded bg-[#fff0c2] text-[#6b4700]">{s.kind === "extra" ? "חד-פעמי" : "הוזז"}</span>}
+            {f.count ? <span className="px-1.5 rounded bg-black/[0.06] tabular-nums text-[var(--cal-muted)]" title={`${f.count} משתתפים`}>{f.count} משתתפים</span> : null}
+            {f.warn && !f.dead && <span className="text-[#b42318] font-bold">{f.warn[0]}{f.warn.length > 1 ? ` (+${f.warn.length - 1})` : ""}</span>}
+          </span>
+        )}
+      </button>
+      {peek && <Peek s={s} f={f} rect={peek} c={c} accent={t.bar} />}
+    </>
   );
 }
 
-/** Fixed daily entries (lunch, break, transport): a quiet band, not a card. */
+/** Hover card with everything about a session, untruncated (like Google Calendar's quick look). */
+function Peek({ s, f, rect, c, accent }: { s: Session; f: ReturnType<typeof facts>; rect: DOMRect; c: Common; accent: string }) {
+  const W = 288;
+  const left = rect.left > W + 16 ? rect.left - W - 8 : Math.min(rect.right + 8, window.innerWidth - W - 8);
+  const top = Math.min(Math.max(rect.top - 4, 8), window.innerHeight - 260);
+  const names = c.peekNames(s);
+  const rows: [string, string][] = [
+    ["מדריכים", s.staffIds.map(c.nameOf).join(", ")],
+    ["קבוצות", c.groupsOf(s.groupIds)],
+    ["מרחב", f.room || ""],
+  ].filter(([, v]) => v) as [string, string][];
+  return (
+    <div role="tooltip" dir="rtl" className="fixed z-[80] pointer-events-none rounded-xl bg-white text-[var(--cal-ink)] border border-[var(--cal-frame)] shadow-[0_8px_28px_rgba(0,0,0,0.16)] p-3 text-start"
+      style={{ left, top, width: W, borderInlineStart: `4px solid ${accent}` }}>
+      <div className="text-[15px] font-bold leading-snug">{s.workshopName}</div>
+      <div className="text-xs text-[var(--cal-muted)] tabular-nums mt-0.5">{s.date.split("-").reverse().slice(0, 2).join(".")} · {s.start}–{s.end}{f.special ? ` · ${f.special}` : ""}</div>
+      <dl className="mt-2 space-y-1 text-[13px]">
+        {rows.map(([k, v]) => <div key={k} className="flex gap-2"><dt className="w-14 shrink-0 text-[var(--cal-faint)]">{k}</dt><dd className="min-w-0 break-words">{v}</dd></div>)}
+        {f.count ? <div className="flex gap-2"><dt className="w-14 shrink-0 text-[var(--cal-faint)]">משתתפים</dt><dd className="min-w-0 break-words">{f.count}{names.length ? ` · ${names.slice(0, 24).join(", ")}${names.length > 24 ? ` ועוד ${names.length - 24}` : ""}` : ""}</dd></div> : null}
+        {s.note && <div className="flex gap-2"><dt className="w-14 shrink-0 text-[var(--cal-faint)]">הערה</dt><dd className="min-w-0 break-words">{s.note}</dd></div>}
+        {f.note && <div className="flex gap-2"><dt className="w-14 shrink-0 text-[var(--cal-faint)]">שינוי</dt><dd>{f.note}</dd></div>}
+      </dl>
+      {f.warn && <ul className="mt-2 rounded-md bg-[#fde8e5] text-[#9b1c12] text-xs px-2 py-1.5 space-y-0.5">{f.warn.map(w => <li key={w}>{w}</li>)}</ul>}
+    </div>
+  );
+}
+
+/** Fixed daily entries (lunch, break, transport): a quiet hatched band, not a card. */
 function BandCard({ s, c, groups }: { s: Session; c: Common; groups?: boolean }) {
   const g = groups || c.showGroups || s.groupIds.length ? c.groupsOf(s.groupIds) : "";
   return (
     <button onClick={() => c.onOpen(s)} title={`${s.start}–${s.end} ${s.workshopName}${g ? ` · ${g}` : ""}`}
-      className={`block w-full h-full text-start rounded-md px-2.5 py-0.5 bg-[var(--foreground)]/[0.05] text-[var(--foreground)]/60 text-xs md:text-[11px] ${c.dim(s) ? "opacity-30" : ""}`}>
-      <span className="font-medium tabular-nums">{s.start}–{s.end}</span>{" "}
+      style={{ backgroundImage: "repeating-linear-gradient(135deg, rgba(43,33,27,0.04) 0 6px, transparent 6px 12px)" }}
+      className={`block w-full h-full text-start rounded-md px-2.5 py-0.5 md:px-2 bg-[var(--cal-ink)]/[0.04] text-[var(--cal-muted)] text-xs md:text-[11.5px] ${c.dim(s) ? "opacity-30" : ""}`}>
+      <span className="font-semibold tabular-nums">{s.start}–{s.end}</span>{" "}
       <span className="font-semibold line-clamp-2">{s.workshopName}{g ? ` · ${g}` : ""}</span>
     </button>
   );
