@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { DAY_SHORT, Session } from "@/lib/workshops/types";
 import { dayOf, shortDate } from "@/lib/workshops/dates";
 import { MapPin, Plus } from "lucide-react";
@@ -111,6 +111,7 @@ function useNowMinutes() {
 
 export interface Column {
   id: string;
+  date?: string;                      // the day this column is (week view); dragging sideways moves a session here
   header: React.ReactNode;
   sub?: string;                       // closure / absence note under the header
   sessions: Session[];
@@ -126,10 +127,31 @@ export interface Column {
  * time sits on the same horizontal line in every column, rows grow to fit their content, and stretches with no
  * activity collapse. Parallel sessions sit in lanes that stay the same from day to day.
  */
-export function TimeGrid({ columns, mode, groupName, laneMin, ...c }: Common & {
-  columns: Column[]; mode: Mode; groupName: (id: string) => string; laneMin: number;
+export interface DragApi {
+  can: (s: Session) => boolean;
+  onDrop: (s: Session, to: { date: string; start: string; end: string }) => void;
+  conflict: (s: Session, to: { date: string; start: string; end: string }) => string | undefined;
+}
+
+const fmtMin = (m: number) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+const STEP = 15;
+const PX_PER_MIN = 1.1;
+
+interface DragState {
+  s: Session; mode: "move" | "resize"; x0: number; y0: number; started: boolean;
+  grab: number;          // minutes between the session start and the time under the pointer when grabbing
+  x: number; y: number;
+  to: { date: string; start: string; end: string; col: number } | null;
+}
+
+export function TimeGrid({ columns, mode, groupName, laneMin, drag: dragApi, ...c }: Common & {
+  columns: Column[]; mode: Mode; groupName: (id: string) => string; laneMin: number; drag?: DragApi;
 }) {
   const now = useNowMinutes();
+  const gridRef = useRef<HTMLDivElement>(null);
+  const [drag, setDrag] = useState<DragState | null>(null);
+  const dragRef = useRef<DragState | null>(null);
+  const justDragged = useRef(false);
   const all = columns.flatMap(col => col.sessions);
   const { times, covered, rowOf } = timeRows(all);
   const pref = new Map<string, number>(); // workshop → lane, shared by all days so it stays on one side
@@ -151,11 +173,97 @@ export function TimeGrid({ columns, mode, groupName, laneMin, ...c }: Common & {
     })),
   ].join(" ");
 
+  const toMin = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3));
+
+  // Pointer → clock time, through the row rectangles actually on screen (rows are not linear in time).
+  const timeAt = (y: number): number | null => {
+    const els = gridRef.current?.querySelectorAll<HTMLElement>("[data-trow]");
+    if (!els || !els.length) return null;
+    const first = els[0].getBoundingClientRect(), last = els[els.length - 1].getBoundingClientRect();
+    if (y < first.top) return times[0] - (first.top - y) / PX_PER_MIN;
+    if (y >= last.bottom) return times[times.length - 1] + (y - last.bottom) / PX_PER_MIN;
+    for (let i = 0; i < els.length; i++) {
+      const r = els[i].getBoundingClientRect();
+      if (y >= r.top && y < r.bottom) return times[i] + ((y - r.top) / r.height) * (times[i + 1] - times[i]);
+    }
+    return null;
+  };
+  const colAt = (x: number): number => {
+    const heads = [...(gridRef.current?.querySelectorAll<HTMLElement>("[data-col]") || [])];
+    let best = 0, bestD = Infinity;
+    heads.forEach((h, i) => {
+      const r = h.getBoundingClientRect();
+      const d = x < r.left ? r.left - x : x > r.right ? x - r.right : 0;
+      if (d < bestD) { bestD = d; best = Number(h.dataset.col ?? i); }
+    });
+    return best;
+  };
+  const snap = (m: number) => Math.round(m / STEP) * STEP;
+  const computeTo = (st: DragState, x: number, y: number): DragState["to"] => {
+    const tp = timeAt(y);
+    if (tp === null) return null;
+    const dur = toMin(st.s.end) - toMin(st.s.start);
+    const origin = Math.max(columns.findIndex(col => col.sessions.some(z => z.id === st.s.id)), 0);
+    if (st.mode === "resize") {
+      const start = toMin(st.s.start);
+      const end = Math.min(1440, Math.max(start + STEP, snap(tp)));
+      return { date: st.s.date, start: fmtMin(start), end: fmtMin(end === 1440 ? 1439 : end), col: origin };
+    }
+    const start = Math.min(1439 - dur, Math.max(0, snap(tp - st.grab)));
+    const col = columns.some(col => col.date) ? colAt(x) : origin;
+    return { date: columns[col]?.date ?? st.s.date, start: fmtMin(start), end: fmtMin(start + dur), col };
+  };
+  const computeRef = useRef(computeTo);
+  computeRef.current = computeTo;
+  const dropRef = useRef(dragApi?.onDrop);
+  dropRef.current = dragApi?.onDrop;
+
+  const startDrag = (e: React.PointerEvent, s: Session, m: "move" | "resize") => {
+    if (!dragApi?.can(s) || e.button !== 0) return;
+    const tp = timeAt(e.clientY) ?? toMin(s.start);
+    const st: DragState = { s, mode: m, x0: e.clientX, y0: e.clientY, started: false, grab: tp - toMin(s.start), x: e.clientX, y: e.clientY, to: null };
+    dragRef.current = st;
+    setDrag(st);
+  };
+  const dragging = drag !== null;
+  useEffect(() => {
+    if (!dragging) return;
+    const move = (e: PointerEvent) => {
+      const st = dragRef.current;
+      if (!st || (!st.started && Math.hypot(e.clientX - st.x0, e.clientY - st.y0) < 5)) return;
+      const next = { ...st, started: true, x: e.clientX, y: e.clientY, to: computeRef.current(st, e.clientX, e.clientY) };
+      dragRef.current = next; setDrag(next);
+    };
+    const end = (cancel: boolean) => {
+      const st = dragRef.current;
+      dragRef.current = null; setDrag(null);
+      if (!st?.started) return;
+      justDragged.current = true;
+      setTimeout(() => { justDragged.current = false; }, 60);
+      const to = st.to;
+      if (!cancel && to && (to.date !== st.s.date || to.start !== st.s.start || to.end !== st.s.end)) dropRef.current?.(st.s, { date: to.date, start: to.start, end: to.end });
+    };
+    const up = () => end(false);
+    const key = (e: KeyboardEvent) => { if (e.key === "Escape") end(true); };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+    window.addEventListener("keydown", key);
+    const prevSelect = document.body.style.userSelect;
+    document.body.style.userSelect = "none";
+    return () => {
+      window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up); window.removeEventListener("keydown", key);
+      document.body.style.userSelect = prevSelect;
+    };
+  }, [dragging]);
+
+  const rowFor = (t: number) => Math.min(Math.max(times.findLastIndex(x => x <= t), 0), Math.max(times.length - 2, 0));
   const nowRow = now === null ? -1 : times.findIndex((t, i) => i < times.length - 1 && now >= t && now < times[i + 1]);
 
   return (
     <div className="hidden md:block overflow-x-auto border-y border-[var(--border)]">
-      <div className="grid min-w-max lg:min-w-0 relative" style={{ gridTemplateColumns: cols, gridTemplateRows: rows }}>
+      <div ref={gridRef} className="grid min-w-max lg:min-w-0 relative" style={{ gridTemplateColumns: cols, gridTemplateRows: rows }}>
+        {/* Invisible row anchors: where each time row really is, for dragging. */}
+        {times.slice(0, -1).map((t, i) => <div key={`a${t}`} data-trow={i} className="pointer-events-none" style={{ gridRow: HDR + 1 + i, gridColumn: 1 }} />)}
         {/* Hour lines: whole hours a little stronger than the in-between breakpoints. */}
         {times.slice(0, -1).map((t, i) => (
           <div key={`l${t}`} className={`pointer-events-none border-t ${t % 60 === 0 ? "border-[var(--border)]" : "border-[var(--border-subtle)]"}`}
@@ -174,7 +282,7 @@ export function TimeGrid({ columns, mode, groupName, laneMin, ...c }: Common & {
           return (
             <div key={col.id} className="contents">
               {/* Day header, lane labels, separator, empty-cell add button. */}
-              <div className={`px-2 py-2 text-sm font-bold border-b border-[var(--border)] text-[#3a2a21] ${col.today ? "bg-[var(--accent-soft)] border-b-2 !border-b-[var(--accent)]" : "bg-[#f3eee8]"}`}
+              <div data-col={k} className={`px-2 py-2 text-sm font-bold border-b border-[var(--border)] text-[#3a2a21] ${col.today ? "bg-[var(--accent-soft)] border-b-2 !border-b-[var(--accent)]" : "bg-[#f3eee8]"}`}
                 style={{ gridRow: 1, gridColumn: `${c1} / span ${l.lanes}` }}>
                 {col.header}
                 {col.sub && <div className="text-xs font-normal text-[var(--foreground)]/60">{col.sub}</div>}
@@ -192,9 +300,15 @@ export function TimeGrid({ columns, mode, groupName, laneMin, ...c }: Common & {
                 </button>
               )}
               {l.placed.map(({ s, lane, span }) => (
-                <div key={s.id} className="relative z-[1] min-w-0 p-0.5"
+                <div key={s.id} onPointerDown={e => startDrag(e, s, "move")}
+                  onClickCapture={e => { if (justDragged.current) { e.stopPropagation(); e.preventDefault(); } }}
+                  className={`group relative z-[1] min-w-0 p-0.5 ${dragApi?.can(s) ? "cursor-grab active:cursor-grabbing" : ""} ${drag?.started && drag.s.id === s.id ? "opacity-40" : ""}`}
                   style={{ gridRow: `${HDR + 1 + rowOf(s.start)} / ${HDR + 1 + rowOf(s.end)}`, gridColumn: `${c1 + lane} / span ${span}` }}>
                   <SessionCard s={s} mode={mode} c={c} groups={col.showGroups} />
+                  {dragApi?.can(s) && (
+                    <div onPointerDown={e => { e.stopPropagation(); startDrag(e, s, "resize"); }} title="גרור לשינוי משך"
+                      className="absolute inset-x-3 bottom-0.5 h-1.5 rounded-full bg-black/30 cursor-ns-resize opacity-0 group-hover:opacity-100 z-[2]" />
+                  )}
                 </div>
               ))}
               {col.today && nowRow >= 0 && now !== null && (
@@ -207,8 +321,24 @@ export function TimeGrid({ columns, mode, groupName, laneMin, ...c }: Common & {
             </div>
           );
         })}
+        {drag?.started && drag.to && (() => {
+          const k = drag.to.col, from = rowFor(toMin(drag.to.start)), upto = rowFor(toMin(drag.to.end) - 1) + 1;
+          return <div className="pointer-events-none z-[6] rounded-md border-2 border-dashed border-[var(--accent)] bg-[var(--accent-soft)]"
+            style={{ gridRow: `${HDR + 1 + from} / ${HDR + 1 + Math.max(upto, from + 1)}`, gridColumn: `${starts[k] ?? 2} / span ${laid[k]?.lanes ?? 1}` }} />;
+        })()}
         {times.length < 2 && <div className="text-sm text-[var(--foreground)]/50 px-3 py-6" style={{ gridRow: HDR + 1, gridColumn: "2 / -1" }}>אין מפגשים בתקופה זו.</div>}
       </div>
+      {drag?.started && drag.to && (() => {
+        const warn = dragApi?.conflict(drag.s, drag.to);
+        const d = drag.to.date;
+        return (
+          <div className="fixed z-[60] pointer-events-none px-3 py-2 rounded-lg bg-[#2b1e17] text-white text-xs shadow-[0_8px_24px_rgba(0,0,0,0.3)] max-w-[16rem]" style={{ left: drag.x + 14, top: drag.y + 14 }} dir="rtl">
+            <div className="font-bold text-[13px]">{drag.s.workshopName}</div>
+            <div className="tabular-nums mt-0.5">{d !== drag.s.date ? `${shortDate(d)} · ` : ""}{drag.to.start}–{drag.to.end}</div>
+            {warn && <div className="mt-1 text-[#ffb4a8] font-semibold">{warn}</div>}
+          </div>
+        );
+      })()}
     </div>
   );
 }

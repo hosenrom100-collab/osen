@@ -14,7 +14,7 @@ import { PageSkeleton } from "@/components/ui/Skeleton";
 import { Dialog, fieldCls, labelCls, btnPrimary } from "@/components/workshops/Dialog";
 import { SessionEditor } from "@/components/workshops/SessionEditor";
 import { SeriesDays } from "@/components/workshops/SeriesDays";
-import { Column, DayAgenda, Row, TimeGrid } from "@/components/workshops/WeekView";
+import { Column, DayAgenda, DragApi, Row, TimeGrid } from "@/components/workshops/WeekView";
 import { findConflicts, staffBusyAt } from "@/lib/workshops/conflicts";
 import { buildSessions } from "@/lib/workshops/buildWeek";
 import { notifyStaff, Refs } from "@/lib/workshops/data";
@@ -23,6 +23,7 @@ import { firstNames, participantsOf } from "@/lib/workshops/people";
 import { ColorBy, hueStyle, sessionHue } from "@/lib/workshops/colors";
 import { typeById } from "@/lib/workshops/activityTypes";
 import { groupsRunInParallel } from "@/lib/workshops/lanes";
+import { moveSession } from "@/lib/workshops/moveSession";
 import { ActivityTypesDialog } from "@/components/workshops/ActivityTypesDialog";
 import { toISO, weekDates, weekStartOf, shortDate, dayOf } from "@/lib/workshops/dates";
 import { Closure, DAY_FULL, DAY_SHORT, Session } from "@/lib/workshops/types";
@@ -62,6 +63,8 @@ export default function SchedulePage() {
   const [colorBy, setColorBy] = useState<ColorBy>(() => readSaved<ColorBy>("colorBy", "type"));
   const [focus, setFocus] = useState<string | null>(null);
   const [showTypes, setShowTypes] = useState(false);
+  const [toast, setToast] = useState<{ text: string; undo?: () => Promise<void> } | null>(null);
+  useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(null), 8000); return () => clearTimeout(t); }, [toast]);
   const [menuOpen, setMenuOpen] = useState(false);
   const [settingsFor, setSettingsFor] = useState<string | null>(null);
   const [showShift, setShowShift] = useState(false);
@@ -229,6 +232,29 @@ export default function SchedulePage() {
     }
     return [...seen.values()];
   })();
+  // Drag a card to move it (sideways = another day), or its bottom edge to change the length. Managers only.
+  const dragApi: DragApi | undefined = isManager ? {
+    can: s => !s.fixedBlock && !!s.changeId && s.kind !== "cancelled" && s.kind !== "moved-away",
+    conflict: (s, to) => {
+      const warn: string[] = [];
+      for (const id of s.staffIds) {
+        if (absences.some(a => a.userId === id && a.date === to.date)) warn.push(`${nameOf(id)} בהיעדרות`);
+        const busy = staffBusyAt(id, to.date, to.start, to.end, all, s.workshopId);
+        if (busy) warn.push(`${nameOf(id)} משובץ ב"${busy.workshopName}"`);
+      }
+      const room = s.locationId && all.find(o => o.id !== s.id && !o.fixedBlock && o.kind !== "cancelled" && o.kind !== "moved-away" && o.locationId === s.locationId && o.date === to.date && o.start < to.end && to.start < o.end);
+      if (room) warn.push(`${roomOf(s.locationId)} תפוס ב"${room.workshopName}"`);
+      if (closedFor(s.programId, to.date)) warn.push("יום ללא פעילות");
+      return warn.slice(0, 3).join(" · ") || undefined;
+    },
+    onDrop: async (s, to) => {
+      try {
+        const undo = await moveSession(s, to, user?.uid);
+        setToast({ text: `${s.workshopName} עודכן ל-${to.date !== s.date ? `${shortDate(to.date)} ` : ""}${to.start}–${to.end}`, undo: async () => { await undo(); load(); } });
+        load();
+      } catch { setToast({ text: "השינוי לא נשמר. נסה שוב." }); }
+    },
+  } : undefined;
   const addFor = (date: string, programId?: string) => (isManager && mode === "program" ? () => setEditing({ session: null, extra: { date, programId } }) : undefined);
   const laneGroups = programSel[0] && !groupSel[0] ? refs.groups.filter(g => g.programId === programSel[0]) : [];
   const weekLanes: "groups" | "stable" = (() => {
@@ -241,7 +267,7 @@ export default function SchedulePage() {
         const date = dates[d];
         const sub = closedFor(programSel[0] || null, date);
         return {
-          id: date, today: date === today, sessions: sessions.filter(s => s.date === date), laneMode: weekLanes, groupIds: laneGroups.map(g => g.id),
+          id: date, date, today: date === today, sessions: sessions.filter(s => s.date === date), laneMode: weekLanes, groupIds: laneGroups.map(g => g.id),
           showGroups: weekLanes === "stable" && !groupSel[0],
           header: <>{DAY_FULL[dayOf(date)]} <span className={`font-normal tabular-nums ${date === today ? "text-[var(--accent)] font-bold" : "text-[var(--foreground)]/50"}`}>{shortDate(date)}</span></>,
           sub, onAdd: addFor(date, programSel[0]),
@@ -378,7 +404,7 @@ export default function SchedulePage() {
           </p>
         ) : (
           <div className="md:px-2 md:pt-2">
-            <TimeGrid {...common} columns={columns} mode={mode} groupName={groupName} laneMin={view === "day" ? 10 : 7.5} />
+            <TimeGrid {...common} columns={columns} mode={mode} groupName={groupName} laneMin={view === "day" ? 10 : 7.5} drag={dragApi} />
             <DayAgenda {...common} dates={dates} days={days} rows={rows} mode={mode} today={today} globalClosure={globalClosure}
               selected={selectedDay} setSelected={setSelectedDay} canEdit={isManager}
               onAdd={date => setEditing({ session: null, extra: { date, programId: programSel.length === 1 ? programSel[0] : undefined } })} />
@@ -433,6 +459,12 @@ export default function SchedulePage() {
         {showShift && (
           <DayShiftDialog date={selectedDay} userId={user?.uid} scopeLabel={currentProgram ? currentProgram.name : "כל התוכניות"}
             sessions={sessions} onClose={() => setShowShift(false)} onSaved={() => { setShowShift(false); load(); }} />
+        )}
+        {toast && (
+          <div role="status" className="no-print fixed bottom-20 md:bottom-6 inset-x-0 z-[70] mx-auto w-fit max-w-[92vw] flex items-center gap-3 bg-[#2b1e17] text-white text-sm pl-3 pr-4 py-2.5 rounded-lg shadow-[0_8px_24px_rgba(0,0,0,0.3)]">
+            <span>{toast.text}</span>
+            {toast.undo && <button onClick={async () => { await toast.undo!(); setToast(null); }} className="font-bold underline text-[#8fd3b4]">בטל</button>}
+          </div>
         )}
         {showTypes && <ActivityTypesDialog types={types} programs={refs.programs} onClose={() => setShowTypes(false)} onSaved={() => { setShowTypes(false); load(); }} />}
         {showClosures && <ClosuresDialog dates={dates} closures={closures} refs={refs} onClose={() => setShowClosures(false)} onChanged={load} />}
