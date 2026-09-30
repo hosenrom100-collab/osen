@@ -60,6 +60,6 @@ export const fieldCls =
   "w-full bg-[var(--card-bg)] border border-[var(--border)] rounded-lg px-3 py-2 text-sm focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent)]/15 outline-none transition-shadow";
 export const labelCls = "block text-xs font-semibold text-[var(--foreground)]/55 mb-1.5";
 export const btnPrimary =
-  "bg-[var(--accent)] text-white px-4 py-2 rounded-lg text-sm font-bold hover:brightness-110 active:brightness-95 disabled:opacity-40 disabled:cursor-not-allowed transition";
+  "bg-[var(--btn)] text-[var(--btn-text)] px-4 py-2 rounded-lg text-sm font-bold hover:bg-[var(--btn-hover)] active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed transition";
 export const btnGhost =
-  "px-3.5 py-2 rounded-lg text-sm font-semibold text-[var(--foreground)]/75 hover:bg-[var(--foreground)]/5 border border-[var(--border)] transition-colors";
+  "px-3.5 py-2 rounded-lg text-sm font-semibold bg-[var(--btn-soft)] text-[var(--btn-soft-text)] hover:bg-[var(--btn-soft-hover)] disabled:opacity-40 transition-colors";

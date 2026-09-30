@@ -27,14 +27,14 @@
   --color-subtle:       #475569;
 
   /* Brand tokens */
-  --color-primary:      #8a9f52;
-  --color-primary-faint:rgba(138, 159, 82, 0.12);
+  --color-primary:      #4f977a;
+  --color-primary-faint:rgba(79, 151, 122, 0.14);
 
-  /* ── ONE brand palette: olive ──────────────────────────────────────
+  /* ── ONE brand palette: deep green ──────────────────────────────────────
      Every decorative hue used to be a different colour (violet, indigo, blue, teal,
-     cyan...). They all resolve to the single olive scale now. Semantic colours
+     cyan...). They all resolve to the single deep-green scale now. Semantic colours
      (emerald = success, rose = alert, amber = pending) are left alone on purpose. */
-  --color-olive-50:  #f6f8ee;
+  --color-olive-50:  #eef6f2;
   --color-olive-100: #eaefd8;
   --color-olive-200: #d6e0b3;
   --color-olive-300: #b9c985;
@@ -144,19 +144,27 @@
   --text-secondary:  #94a3b8;
   --text-muted:      #64748b;
 
-  --primary:         #8a9f52;
-  --primary-rgb:     138, 159, 82;
-  --primary-faint:   rgba(138, 159, 82, 0.12);
+  --primary:         #4f977a;
+  --primary-rgb:     79, 151, 122;
+  --primary-faint:   rgba(79, 151, 122, 0.14);
+
+  /* Buttons: espresso (a lighter roast on dark backgrounds) */
+  --btn:             #7a5a45;
+  --btn-hover:       #8c6a52;
+  --btn-text:        #ffffff;
+  --btn-soft:        rgba(214, 180, 150, 0.14);
+  --btn-soft-hover:  rgba(214, 180, 150, 0.24);
+  --btn-soft-text:   #e3cbb5;
 
   --scrollbar-track: #0b1120;
   --scrollbar-thumb: #1e293b;
 
   --muted:           #94a3b8;
-  --accent:          #6f8340;
-  --accent-text:     #b9c985;
-  --accent-soft:     rgba(138, 159, 82, 0.14);
-  --accent-soft-hover: rgba(138, 159, 82, 0.24);
-  --accent-line:     rgba(155, 177, 92, 0.30);
+  --accent:          #2f7a5e;
+  --accent-text:     #80b89e;
+  --accent-soft:     rgba(79, 151, 122, 0.16);
+  --accent-soft-hover: rgba(79, 151, 122, 0.26);
+  --accent-line:     rgba(79, 151, 122, 0.32);
   --shadow-card:     none;
   --shadow-pop:      0 12px 40px rgba(0,0,0,0.5);
 }
@@ -177,8 +185,8 @@
   --color-foreground:  #1e293b;
   --color-muted:       #475569;
   --color-subtle:      #94a3b8;
-  --color-primary:     #5f7332;
-  --color-primary-faint: #f1f5e4;
+  --color-primary:     #1f5c46;
+  --color-primary-faint: #e6f0eb;
 
   --background:      #F7F7F3;
   --surface:         #ffffff;
@@ -195,19 +203,27 @@
   --text-secondary:  #475569;
   --text-muted:      #64748b;
 
-  --primary:         #5f7332;
-  --primary-rgb:     95, 115, 50;
-  --primary-faint:   #f1f5e4;
+  --primary:         #1f5c46;
+  --primary-rgb:     31, 92, 70;
+  --primary-faint:   #e6f0eb;
+
+  /* Buttons: espresso */
+  --btn:             #3a2a21;
+  --btn-hover:       #2b1e17;
+  --btn-text:        #ffffff;
+  --btn-soft:        #f0e9e3;
+  --btn-soft-hover:  #e6dcd3;
+  --btn-soft-text:   #3a2a21;
 
   --scrollbar-track: #F7F7F3;
   --scrollbar-thumb: #cbd5e1;
 
   --muted:           #475569;
-  --accent:          #5f7332;
-  --accent-text:     #4a5a28;
-  --accent-soft:     rgba(95, 115, 50, 0.09);
-  --accent-soft-hover: rgba(95, 115, 50, 0.16);
-  --accent-line:     rgba(95, 115, 50, 0.24);
+  --accent:          #1f5c46;
+  --accent-text:     #174a38;
+  --accent-soft:     rgba(31, 92, 70, 0.09);
+  --accent-soft-hover: rgba(31, 92, 70, 0.16);
+  --accent-line:     rgba(31, 92, 70, 0.24);
   --shadow-card:     none;
   --shadow-pop:      0 12px 40px rgba(15,23,42,0.16);
 }
@@ -217,12 +233,12 @@
    "fill" tints stay scoped here.
    ════════════════════════════════════════════════════════════════════ */
 .shopping-theme {
-  --fill:            rgba(155, 177, 92, 0.08);
-  --fill-strong:     rgba(155, 177, 92, 0.15);
+  --fill:            rgba(79, 151, 122, 0.08);
+  --fill-strong:     rgba(79, 151, 122, 0.15);
 }
 .light .shopping-theme {
-  --fill:            rgba(95, 115, 50, 0.06);
-  --fill-strong:     rgba(95, 115, 50, 0.11);
+  --fill:            rgba(31, 92, 70, 0.06);
+  --fill-strong:     rgba(31, 92, 70, 0.11);
 }
 
 /* ── Shopping: shared interaction language ─────────────────────────── */
@@ -230,12 +246,12 @@
 /* Primary action: soft vertical gradient, hairline highlight on top, tinted glow. Unlayered on
    purpose so it wins over utility classes like bg-[var(--accent)]. */
 .btn-primary {
-  background-color: var(--accent);
-  color: #fff;
+  background-color: var(--btn);
+  color: var(--btn-text);
   border: none;
   transition: background-color 150ms ease-out, transform 120ms ease-out;
 }
-.btn-primary:hover:not(:disabled) { background-color: #4a5a28; }
+.btn-primary:hover:not(:disabled) { background-color: var(--btn-hover); }
 .btn-primary:active:not(:disabled) { transform: scale(0.98); }
 .btn-primary:disabled { opacity: 0.5; }
 
@@ -364,11 +380,11 @@ body {
    SELECTION & FOCUS
    ════════════════════════════════════════════════════════════════════ */
 ::selection {
-  background-color: rgba(122,144,64,0.18);
+  background-color: rgba(79,151,122,0.22);
   color: var(--foreground);
 }
 .light ::selection {
-  background-color: rgba(95,115,50,0.14);
+  background-color: rgba(31,92,70,0.16);
 }
 
 :focus-visible {
@@ -421,3 +437,37 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 @keyframes sheet-up { from { opacity: 0; transform: translateY(24px) } to { opacity: 1; transform: none } }
 @keyframes sheet-pop { from { opacity: 0; transform: scale(0.98) translateY(6px) } to { opacity: 1; transform: none } }
 @media (prefers-reduced-motion: reduce) { .sheet-anim, .sheet-backdrop { animation: none !important } }
+
+
+/* ════════════════════════════════════════════════════════════════════
+   BUTTONS — one language everywhere: espresso.
+   Solid actions are espresso with white text; quiet actions (formerly hollow outlines) are a soft
+   espresso tint. Unlayered on purpose, so it wins over the utility classes scattered through the pages.
+   Text links, tabs, nav, focus rings and progress keep the deep-green accent.
+   ════════════════════════════════════════════════════════════════════ */
+
+/* Solid fills that used the old accent/primary colour */
+:is(button, a)[class*="bg-[var(--accent)]"]:not([class*="bg-[var(--accent)]/"]),
+:is(button, a)[class*="bg-[var(--primary)]"]:not([class*="bg-[var(--primary)]/"]):not([class*="bg-[var(--primary)]-"]),
+:is(button, a)[class*="bg-primary"]:not([class*="bg-primary/"]):not([class*="bg-primary-"]) {
+  background-color: var(--btn);
+  border-color: var(--btn);
+  color: var(--btn-text);
+}
+:is(button, a)[class*="bg-[var(--accent)]"]:not([class*="bg-[var(--accent)]/"]):hover:not(:disabled),
+:is(button, a)[class*="bg-[var(--primary)]"]:not([class*="bg-[var(--primary)]/"]):hover:not(:disabled),
+:is(button, a)[class*="bg-primary"]:not([class*="bg-primary/"]):hover:not(:disabled) {
+  background-color: var(--btn-hover);
+  opacity: 1;
+}
+
+/* Hollow outlined buttons become a soft filled tint. Buttons that already have their own
+   background (or sit inside a segmented control, which has no border of its own) are left alone. */
+button[class*="border-[var(--border)]"]:not([class*=" bg-"]):not([class^="bg-"]):not([aria-pressed]):not([role="tab"]) {
+  background-color: var(--btn-soft);
+  border-color: transparent;
+  color: var(--btn-soft-text);
+}
+button[class*="border-[var(--border)]"]:not([class*=" bg-"]):not([class^="bg-"]):not([aria-pressed]):not([role="tab"]):hover:not(:disabled) {
+  background-color: var(--btn-soft-hover);
+}

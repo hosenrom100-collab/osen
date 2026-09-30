@@ -30,7 +30,8 @@ import { Closure, DAY_FULL, DAY_SHORT, Session } from "@/lib/workshops/types";
 // The calendar is always shown on white, whatever the app theme is.
 const LIGHT_VARS = {
   "--background": "#ffffff", "--card-bg": "#ffffff", "--foreground": "#1f2937",
-  "--border": "#E5E7E0", "--border-subtle": "#EEF0E9", "--accent": "#5f7332", "--accent-soft": "rgba(95,115,50,0.07)",
+  "--border": "#E5E7E0", "--border-subtle": "#EEF0E9", "--accent": "#1f5c46", "--accent-soft": "rgba(31,92,70,0.07)",
+  "--btn": "#3a2a21", "--btn-hover": "#2b1e17", "--btn-text": "#ffffff", "--btn-soft": "#f0e9e3", "--btn-soft-hover": "#e6dcd3", "--btn-soft-text": "#3a2a21",
 } as React.CSSProperties;
 
 // Filter choices are remembered per browser (best effort — storage can be unavailable).
