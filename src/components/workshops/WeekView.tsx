@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { DAY_FULL, DAY_SHORT, Session } from "@/lib/workshops/types";
 import { dayOf, shortDate } from "@/lib/workshops/dates";
 import { Plus } from "lucide-react";
@@ -13,6 +14,7 @@ interface Common {
   nameOf: (id: string) => string;
   roomOf: (id?: string) => string | undefined;
   groupsOf: (ids: string[]) => string;
+  showGroups?: boolean; // show group names on sessions even in program mode
   onOpen: (s: Session) => void;
 }
 
@@ -27,7 +29,7 @@ function SessionButton({ s, mode, c }: { s: Session; mode: "program" | "staff" |
   const meta = [
     mode !== "staff" ? s.staffIds.map(c.nameOf).join(", ") : "",
     mode !== "space" ? room : "",
-    mode !== "program" ? c.groupsOf(s.groupIds) : "",
+    mode !== "program" || c.showGroups ? c.groupsOf(s.groupIds) : "",
   ].filter(Boolean).join(" · ");
 
   const tag =
@@ -61,11 +63,12 @@ export function WeekGrid({ dates, days, rows, mode, today, globalClosure, canEdi
   globalClosure: (date: string) => string | undefined; canEdit: boolean; onAdd: (date: string, rowId: string) => void;
 }) {
   const cols = days.map(d => dates[d]);
-  const template = { gridTemplateColumns: `9rem repeat(${cols.length}, minmax(0, 1fr))` };
+  const template = { gridTemplateColumns: `8rem repeat(${cols.length}, minmax(9rem, 1fr))` };
   return (
-    <div className="hidden md:block border-y border-[var(--border)]">
-      <div className="grid border-b border-[var(--border)] text-sm font-bold" style={template}>
-        <div />
+    <div className="hidden md:block overflow-x-auto border-y border-[var(--border)]">
+     <div className="min-w-max lg:min-w-0">
+      <div className="grid border-b border-[var(--border)] text-sm font-bold bg-[var(--background)]" style={template}>
+        <div className="sticky right-0 bg-[var(--background)] z-10" />
         {cols.map(date => (
           <div key={date} className={`px-2 py-2 border-r border-[var(--border)] ${date === today ? "bg-[var(--accent-soft)]" : ""}`}>
             יום {DAY_FULL[dayOf(date)]} <span className="font-normal text-[var(--foreground)]/50 tabular-nums">{shortDate(date)}</span>
@@ -75,7 +78,7 @@ export function WeekGrid({ dates, days, rows, mode, today, globalClosure, canEdi
       </div>
       {rows.map(row => (
         <div key={row.id} className="grid border-b border-[var(--border)] last:border-b-0" style={template}>
-          <div className="px-2 py-2 text-sm font-bold">{row.label}</div>
+          <div className="sticky right-0 z-10 bg-[var(--background)] px-2 py-2 text-sm font-bold">{row.label}</div>
           {cols.map(date => {
             const list = c.sessions.filter(s => s.date === date && row.match(s));
             const closed = row.closedReason(date);
@@ -94,19 +97,29 @@ export function WeekGrid({ dates, days, rows, mode, today, globalClosure, canEdi
           })}
         </div>
       ))}
+     </div>
     </div>
   );
 }
 
-export function DayAgenda({ dates, days, mode, today, selected, setSelected, rows, globalClosure, ...c }: Common & {
+export function DayAgenda({ dates, days, mode, today, selected, setSelected, rows, globalClosure, canEdit, onAdd, ...c }: Common & {
   dates: string[]; days: number[]; mode: "program" | "staff" | "space"; today: string; rows: Row[];
   selected: string; setSelected: (d: string) => void; globalClosure: (date: string) => string | undefined;
+  canEdit: boolean; onAdd: (date: string) => void;
 }) {
   const cols = days.map(d => dates[d]);
+  const [touchX, setTouchX] = useState<number | null>(null);
+  // Days run right-to-left, so swiping left goes to the next day.
+  const onTouchEnd = (x: number) => {
+    if (touchX === null || Math.abs(x - touchX) < 60) return;
+    const i = cols.indexOf(selected) + (x < touchX ? 1 : -1);
+    if (i >= 0 && i < cols.length) setSelected(cols[i]);
+    setTouchX(null);
+  };
   const daySessions = c.sessions.filter(s => s.date === selected);
   const closure = globalClosure(selected);
   return (
-    <div className="md:hidden">
+    <div className="md:hidden" onTouchStart={e => setTouchX(e.touches[0].clientX)} onTouchEnd={e => onTouchEnd(e.changedTouches[0].clientX)}>
       <div className="flex border-b border-[var(--border)] overflow-x-auto">
         {cols.map(date => (
           <button key={date} onClick={() => setSelected(date)}
@@ -130,6 +143,11 @@ export function DayAgenda({ dates, days, mode, today, selected, setSelected, row
         );
       })}
       {daySessions.length === 0 && !closure && <p className="px-4 py-10 text-sm text-center text-[var(--foreground)]/50">אין מפגשים ביום זה.</p>}
+      {canEdit && (
+        <div className="px-4 py-3">
+          <button onClick={() => onAdd(selected)} className="flex items-center gap-1.5 text-sm font-bold text-[var(--accent)]"><Plus className="w-4 h-4" /> הוסף מפגש חד-פעמי ליום זה</button>
+        </div>
+      )}
     </div>
   );
 }

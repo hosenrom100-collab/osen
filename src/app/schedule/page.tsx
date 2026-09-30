@@ -5,11 +5,11 @@ import { RoleGuard } from "@/components/auth/RoleGuard";
 import { useAuth } from "@/context/AuthContext";
 import { db } from "@/lib/firebase/config";
 import { addDoc, collection, deleteDoc, doc, getDocs, query, where, writeBatch } from "firebase/firestore";
-import { ChevronLeft, ChevronRight, Plus, Printer } from "lucide-react";
+import { ChevronLeft, ChevronRight, MoreHorizontal, Plus } from "lucide-react";
 import { addDays, format } from "date-fns";
 import Link from "next/link";
 import { PageSkeleton } from "@/components/ui/Skeleton";
-import { Dialog, fieldCls, labelCls, btnPrimary, btnGhost } from "@/components/workshops/Dialog";
+import { Dialog, fieldCls, labelCls, btnPrimary } from "@/components/workshops/Dialog";
 import { SessionEditor } from "@/components/workshops/SessionEditor";
 import { SeriesDays } from "@/components/workshops/SeriesDays";
 import { DayAgenda, Row, WeekGrid } from "@/components/workshops/WeekView";
@@ -25,6 +25,12 @@ const LIGHT_VARS = {
   "--border": "#E5E7E0", "--border-subtle": "#EEF0E9", "--accent": "#5f7332", "--accent-soft": "rgba(95,115,50,0.07)",
 } as React.CSSProperties;
 
+// Filter choices are remembered per browser (best effort — storage can be unavailable).
+const readSaved = <T,>(key: string, fallback: T): T => {
+  try { const v = localStorage.getItem(`schedule.${key}`); return v ? (JSON.parse(v) as T) : fallback; } catch { return fallback; }
+};
+const save = (key: string, value: unknown) => { try { localStorage.setItem(`schedule.${key}`, JSON.stringify(value)); } catch { /* ignore */ } };
+
 type Mode = "program" | "staff" | "space";
 const MODES: [Mode, string][] = [["program", "תוכניות"], ["staff", "אנשי צוות"], ["space", "מרחבים"]];
 
@@ -38,9 +44,12 @@ export default function SchedulePage() {
   const [closures, setClosures] = useState<Closure[]>([]);
   const [absences, setAbsences] = useState<AbsenceLite[]>([]);
   const [loading, setLoading] = useState(true);
-  const [mode, setMode] = useState<Mode>("program");
+  const [mode, setMode] = useState<Mode>(() => readSaved<Mode>("mode", "program"));
   const [onlyMine, setOnlyMine] = useState(false);
-  const [groupFilter, setGroupFilter] = useState("");
+  const [programSel, setProgramSel] = useState<string[]>(() => readSaved<string[]>("programs", []));
+  const [groupSel, setGroupSel] = useState<string[]>(() => readSaved<string[]>("groups", []));
+  const [menuOpen, setMenuOpen] = useState(false);
+  useEffect(() => { save("mode", mode); save("programs", programSel); save("groups", groupSel); }, [mode, programSel, groupSel]);
   const [pickedDay, setSelectedDay] = useState(today);
   const [editing, setEditing] = useState<{ session: Session | null; extra?: { date: string; programId?: string } } | null>(null);
   const [showChanges, setShowChanges] = useState(false);
@@ -59,6 +68,9 @@ export default function SchedulePage() {
       loadAbsences(dates).catch(() => []),
     ]);
     setRefs(r);
+    // Saved filter picks may point at programs/groups that no longer exist.
+    setProgramSel(sel => sel.filter(id => r.programs.some(p => p.id === id)));
+    setGroupSel(sel => sel.filter(id => r.groups.some(g => g.id === id)));
     setWorkshops(wSnap.docs.map(d => ({ id: d.id, ...d.data() } as Workshop)).filter(w => w.startDate <= dates[6]));
     setChanges(chSnap.docs.map(d => ({ id: d.id, ...d.data() } as SessionChange)));
     setClosures(clSnap.docs.map(d => ({ id: d.id, ...d.data() } as Closure)));
@@ -79,13 +91,28 @@ export default function SchedulePage() {
   const sessions = useMemo(() => {
     let list = all;
     if (onlyMine && user) list = list.filter(s => s.staffIds.includes(user.uid));
-    if (groupFilter) {
-      const g = refs?.groups.find(x => x.id === groupFilter);
-      // A group sees its own sessions plus whole-program ones for its program.
-      list = list.filter(s => s.groupIds.includes(groupFilter) || (s.groupIds.length === 0 && s.programId === g?.programId));
+    if (programSel.length) list = list.filter(s => programSel.includes(s.programId));
+    if (groupSel.length && refs) {
+      // Per program: if some of its groups are picked, keep their sessions plus whole-program ones.
+      list = list.filter(s => {
+        const own = refs.groups.filter(g => g.programId === s.programId).map(g => g.id);
+        const chosen = groupSel.filter(id => own.includes(id));
+        return chosen.length === 0 || s.groupIds.length === 0 || s.groupIds.some(id => chosen.includes(id));
+      });
     }
     return list;
-  }, [all, onlyMine, user, groupFilter, refs]);
+  }, [all, onlyMine, user, programSel, groupSel, refs]);
+
+  const groupOptions = useMemo(
+    () => (refs && programSel.length ? refs.groups.filter(g => programSel.includes(g.programId)).map(g => ({ id: g.id, label: g.name })) : []),
+    [refs, programSel]
+  );
+  const toggleProgram = (id: string) => {
+    const next = programSel.includes(id) ? programSel.filter(x => x !== id) : [...programSel, id];
+    setProgramSel(next);
+    // Drop group picks that belong to a program that is no longer selected.
+    setGroupSel(gs => gs.filter(gid => refs?.groups.find(g => g.id === gid && next.includes(g.programId))));
+  };
   const warnings = useMemo(() => refs ? findConflicts(all, refs.programs, absences, nameOf, id => roomOf(id) || "המרחב") : new Map<string, string[]>(), [all, refs, absences, nameOf, roomOf]);
 
   const closedFor = useCallback((programId: string | null, date: string) => {
@@ -93,25 +120,33 @@ export default function SchedulePage() {
     return c?.reason || (c ? "אין פעילות" : undefined);
   }, [closures]);
 
+  const shownPrograms = useMemo(
+    () => (refs ? (programSel.length ? refs.programs.filter(p => programSel.includes(p.id)) : refs.programs) : []),
+    [refs, programSel]
+  );
+
+  // Rows exist even when a program has no sessions this week, so the grid is always visible.
   const rows: Row[] = useMemo(() => {
     if (!refs) return [];
     if (mode === "program") {
-      // One row per program; programs whose workshops are split by group get a row per group.
       const out: Row[] = [];
-      for (const p of refs.programs) {
-        const ps = sessions.filter(s => s.programId === p.id);
-        if (ps.length === 0) continue;
-        const closedReason = (d: string) => closedFor(p.id, d) || undefined;
-        const groupIds = [...new Set(ps.flatMap(s => s.groupIds))];
-        if (groupIds.length === 0) {
+      for (const p of shownPrograms) {
+        const closedReason = (d: string) => closedFor(p.id, d) || (p.activeDays.includes(dayOf(d)) ? undefined : "לא יום פעילות");
+        const pGroups = refs.groups.filter(g => g.programId === p.id);
+        // No program picked → one merged row per program; a picked program is split by group.
+        if (programSel.length === 0 || pGroups.length === 0) {
           out.push({ id: p.id, label: p.name, match: (s: Session) => s.programId === p.id, closedReason });
           continue;
         }
-        for (const g of refs.groups.filter(x => groupIds.includes(x.id))) {
-          out.push({ id: `${p.id}:${g.id}`, label: `${p.name} · ${g.name}`, match: (s: Session) => s.programId === p.id && s.groupIds.includes(g.id), closedReason });
+        const chosen = groupSel.filter(id => pGroups.some(g => g.id === id));
+        for (const g of chosen.length ? pGroups.filter(x => chosen.includes(x.id)) : pGroups) {
+          out.push({
+            id: `${p.id}:${g.id}`, label: `${p.name} · ${g.name}`, closedReason,
+            match: (s: Session) => s.programId === p.id && (s.groupIds.includes(g.id) || (chosen.length > 0 && s.groupIds.length === 0)),
+          });
         }
-        if (ps.some(s => s.groupIds.length === 0)) {
-          out.push({ id: `${p.id}:all`, label: `${p.name} · כל התוכנית`, match: (s: Session) => s.programId === p.id && s.groupIds.length === 0, closedReason });
+        if (!chosen.length && sessions.some(s => s.programId === p.id && s.groupIds.length === 0)) {
+          out.push({ id: `${p.id}:all`, label: `${p.name} · כל התוכנית`, closedReason, match: (s: Session) => s.programId === p.id && s.groupIds.length === 0 });
         }
       }
       return out;
@@ -127,15 +162,15 @@ export default function SchedulePage() {
     const list = refs.locations.filter(l => ids.has(l.id)).map(l => ({ id: l.id, label: l.name, match: (s: Session) => (s.locationId || "") === l.id, closedReason: () => undefined }));
     if (ids.has("")) list.push({ id: "", label: "ללא מרחב", match: (s: Session) => !s.locationId, closedReason: () => undefined });
     return list;
-  }, [refs, mode, sessions, absences, closedFor]);
+  }, [refs, mode, sessions, absences, closedFor, shownPrograms, programSel, groupSel]);
 
-  // Only show weekdays that matter this week.
+  // Weekdays = active days of the programs on screen, plus any day that has a session.
   const days = useMemo(() => {
     const set = new Set<number>();
-    refs?.programs.forEach(p => { if (sessions.some(s => s.programId === p.id)) p.activeDays.forEach(d => set.add(d)); });
+    (mode === "program" ? shownPrograms : refs?.programs || []).forEach(p => p.activeDays.forEach(d => set.add(d)));
     sessions.forEach(s => set.add(dayOf(s.date)));
     return set.size ? [...set].sort() : [0, 1, 2, 3, 4];
-  }, [refs, sessions]);
+  }, [refs, sessions, shownPrograms, mode]);
 
   const globalClosure = (d: string) => closedFor(null, d);
 
@@ -162,47 +197,71 @@ export default function SchedulePage() {
   if (loading || !refs) return <PageSkeleton />;
 
   const rangeLabel = `${format(weekStart, "d.M")} – ${format(addDays(weekStart, 6), "d.M.yyyy")}`;
-  const common = { sessions, warnings, nameOf, roomOf, groupsOf, onOpen: (s: Session) => setEditing({ session: s }) };
+  const common = { sessions, warnings, nameOf, roomOf, groupsOf, showGroups: programSel.length === 0, onOpen: (s: Session) => setEditing({ session: s }) };
   const activeWorkshops = workshops.filter(w => w.status === "active");
 
   return (
     <RoleGuard allowedRoles={["admin", "manager", "instructor", "social_worker", "employee", "logistics"]} redirectTo="/">
       <style>{`@media print { aside, nav, .no-print { display: none !important; } @page { size: A4 landscape; margin: 10mm; } body { background: #fff !important; } }`}</style>
       <div dir="rtl" style={LIGHT_VARS} className="min-h-screen bg-white text-[var(--foreground)] pb-24 md:pb-8">
-        <header className="no-print border-b border-[var(--border)] px-4 md:px-6 py-3 flex flex-wrap items-center gap-x-4 gap-y-2">
-          <h1 className="text-base font-bold">יומן שבועי</h1>
-          <div className="flex items-center gap-1">
-            <button onClick={() => setWeekStart(addDays(weekStart, -7))} aria-label="שבוע קודם" className="p-1.5 rounded-md hover:bg-[var(--foreground)]/5"><ChevronRight className="w-4 h-4" /></button>
-            <span className="text-sm font-bold tabular-nums w-40 text-center">{rangeLabel}</span>
-            <button onClick={() => setWeekStart(addDays(weekStart, 7))} aria-label="שבוע הבא" className="p-1.5 rounded-md hover:bg-[var(--foreground)]/5"><ChevronLeft className="w-4 h-4" /></button>
-            <button onClick={() => setWeekStart(weekStartOf(new Date()))} className="text-sm px-2 py-1 rounded-md hover:bg-[var(--foreground)]/5">היום</button>
+        <header className="no-print sticky top-0 z-30 bg-white border-b border-[var(--border)]">
+          <div className="px-3 md:px-6 py-2.5 flex items-center gap-2">
+            <h1 className="text-base font-bold hidden sm:block ml-2">יומן שבועי</h1>
+            <div className="flex items-center">
+              <button onClick={() => setWeekStart(addDays(weekStart, -7))} aria-label="שבוע קודם" className="p-2 rounded-md hover:bg-[var(--foreground)]/5"><ChevronRight className="w-4 h-4" /></button>
+              <span className="text-sm font-bold tabular-nums min-w-[8.5rem] text-center">{rangeLabel}</span>
+              <button onClick={() => setWeekStart(addDays(weekStart, 7))} aria-label="שבוע הבא" className="p-2 rounded-md hover:bg-[var(--foreground)]/5"><ChevronLeft className="w-4 h-4" /></button>
+            </div>
+            <button onClick={() => setWeekStart(weekStartOf(new Date()))} className="text-sm px-2.5 py-1.5 rounded-md border border-[var(--border)] hover:bg-[var(--foreground)]/5">היום</button>
+            <div className="mr-auto flex items-center gap-1.5 relative">
+              {isManager && (
+                <button onClick={() => setEditing({ session: null, extra: { date: dates.includes(today) ? today : dates[0], programId: programSel.length === 1 ? programSel[0] : undefined } })}
+                  aria-label="מפגש חד-פעמי" className={`${btnPrimary} flex items-center gap-1.5 !px-2.5 sm:!px-3.5`}>
+                  <Plus className="w-4 h-4" /><span className="hidden sm:inline">מפגש חד-פעמי</span>
+                </button>
+              )}
+              <button onClick={() => setMenuOpen(o => !o)} aria-label="עוד פעולות" aria-expanded={menuOpen} className="p-2 rounded-md border border-[var(--border)] hover:bg-[var(--foreground)]/5"><MoreHorizontal className="w-4 h-4" /></button>
+              {menuOpen && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
+                  <ul className="absolute left-0 top-full mt-1 z-50 w-56 bg-white border border-[var(--border)] rounded-md shadow-md py-1 text-sm">
+                    {isManager && <>
+                      <li><button className="w-full text-right px-3 py-2 hover:bg-[var(--foreground)]/5" onClick={() => { setMenuOpen(false); setSeries({}); }}>ימי פעילות קבועים</button></li>
+                      <li><button className="w-full text-right px-3 py-2 hover:bg-[var(--foreground)]/5" onClick={() => { setMenuOpen(false); setShowClosures(true); }}>ימים ללא פעילות</button></li>
+                      <li><Link className="block px-3 py-2 hover:bg-[var(--foreground)]/5" href="/admin/workshops">ניהול סדנאות</Link></li>
+                      <li><Link className="block px-3 py-2 hover:bg-[var(--foreground)]/5" href="/admin/spaces">ניהול מרחבים</Link></li>
+                    </>}
+                    <li><button className="w-full text-right px-3 py-2 hover:bg-[var(--foreground)]/5" onClick={() => { setMenuOpen(false); window.print(); }}>הדפסה</button></li>
+                  </ul>
+                </>
+              )}
+            </div>
           </div>
-          <div className="flex border border-[var(--border)] rounded-md overflow-hidden">
-            {MODES.map(([k, l]) => (
-              <button key={k} onClick={() => setMode(k)} className={`px-3 py-1.5 text-sm ${mode === k ? "bg-[var(--accent)] text-white font-bold" : "text-[var(--foreground)]/70 hover:bg-[var(--foreground)]/5"}`}>{l}</button>
-            ))}
+
+          <div className="px-3 md:px-6 pb-2 flex flex-wrap items-center gap-x-4 gap-y-2">
+            <div className="flex border border-[var(--border)] rounded-md overflow-hidden">
+              {MODES.map(([k, l]) => (
+                <button key={k} onClick={() => setMode(k)} className={`px-3 py-1.5 text-sm ${mode === k ? "bg-[var(--accent)] text-white font-bold" : "text-[var(--foreground)]/70 hover:bg-[var(--foreground)]/5"}`}>{l}</button>
+              ))}
+            </div>
+            <label className="flex items-center gap-1.5 text-sm text-[var(--foreground)]/70">
+              <input type="checkbox" checked={onlyMine} onChange={e => setOnlyMine(e.target.checked)} /> רק המפגשים שלי
+            </label>
+            {(programSel.length > 0 || groupSel.length > 0) && (
+              <button onClick={() => { setProgramSel([]); setGroupSel([]); }} className="text-sm underline text-[var(--foreground)]/60">נקה סינון</button>
+            )}
           </div>
-          <select aria-label="סינון לפי קבוצה" className="border border-[var(--border)] rounded-md bg-transparent px-2 py-1.5 text-sm" value={groupFilter} onChange={e => setGroupFilter(e.target.value)}>
-            <option value="">כל הקבוצות</option>
-            {refs.groups.map(g => <option key={g.id} value={g.id}>{refs.programs.find(p => p.id === g.programId)?.name} · {g.name}</option>)}
-          </select>
-          <label className="flex items-center gap-1.5 text-sm text-[var(--foreground)]/70">
-            <input type="checkbox" checked={onlyMine} onChange={e => setOnlyMine(e.target.checked)} /> רק המפגשים שלי
-          </label>
-          <div className="mr-auto flex items-center gap-2">
-            {isManager && <>
-              <button onClick={() => setEditing({ session: null, extra: { date: dates.includes(today) ? today : dates[0] } })} className={`${btnGhost} flex items-center gap-1.5`}><Plus className="w-4 h-4" /> מפגש חד-פעמי</button>
-              <button onClick={() => setSeries({})} className={btnGhost}>ימי פעילות קבועים</button>
-              <button onClick={() => setShowClosures(true)} className={btnGhost}>ימים ללא פעילות</button>
-              <Link href="/admin/workshops" className={btnGhost}>סדנאות</Link>
-              <Link href="/admin/spaces" className={btnGhost}>מרחבים</Link>
-            </>}
-            <button onClick={() => window.print()} aria-label="הדפסה" className={btnGhost}><Printer className="w-4 h-4" /></button>
-          </div>
+
+          <ChipRow label="תוכנית" allLabel="כל התוכניות" selected={programSel} onClear={() => { setProgramSel([]); setGroupSel([]); }}
+            options={refs.programs.map(p => ({ id: p.id, label: p.name }))} onToggle={toggleProgram} />
+          {groupOptions.length > 0 && (
+            <ChipRow label="קבוצה" allLabel="כל הקבוצות" selected={groupSel} onClear={() => setGroupSel([])}
+              options={groupOptions} onToggle={id => setGroupSel(s => s.includes(id) ? s.filter(x => x !== id) : [...s, id])} />
+          )}
         </header>
 
         {weekChanges.length > 0 && (
-          <div className="no-print px-4 md:px-6 py-2 border-b border-[var(--border)] flex items-center gap-3 text-sm bg-amber-500/5">
+          <div className="no-print px-3 md:px-6 py-2 border-b border-[var(--border)] flex flex-wrap items-center gap-x-3 gap-y-1.5 text-sm bg-amber-500/5">
             <button onClick={() => setShowChanges(true)} className="font-bold underline">שינויים השבוע ({weekChanges.length})</button>
             {isManager && unpublished.length > 0 && (
               <>
@@ -217,14 +276,17 @@ export default function SchedulePage() {
 
         {rows.length === 0 ? (
           <p className="text-sm text-[var(--foreground)]/50 py-20 text-center px-4">
-            {workshops.length === 0 ? <>אין סדנאות מוגדרות. {isManager && <Link href="/admin/workshops" className="underline">הגדר סדנה ראשונה</Link>}</> : "אין מפגשים בשבוע זה."}
+            {mode === "program"
+              ? <>אין תוכניות פעילות. {isManager && <Link href="/admin/programs" className="underline">הגדר תוכנית</Link>}</>
+              : "אין מפגשים בשבוע זה."}
           </p>
         ) : (
           <div className="md:px-6 md:pt-4">
             <WeekGrid {...common} dates={dates} days={days} rows={rows} mode={mode} today={today} globalClosure={globalClosure}
               canEdit={isManager} onAdd={(date, rowId) => setEditing({ session: null, extra: { date, programId: rowId.split(":")[0] } })} />
             <DayAgenda {...common} dates={dates} days={days} rows={rows} mode={mode} today={today} globalClosure={globalClosure}
-              selected={selectedDay} setSelected={setSelectedDay} />
+              selected={selectedDay} setSelected={setSelectedDay} canEdit={isManager}
+              onAdd={date => setEditing({ session: null, extra: { date, programId: programSel.length === 1 ? programSel[0] : undefined } })} />
           </div>
         )}
 
@@ -268,6 +330,21 @@ export default function SchedulePage() {
         {showClosures && <ClosuresDialog dates={dates} closures={closures} refs={refs} onClose={() => setShowClosures(false)} onChanged={load} />}
       </div>
     </RoleGuard>
+  );
+}
+
+function ChipRow({ label, allLabel, options, selected, onToggle, onClear }: {
+  label: string; allLabel: string; options: { id: string; label: string }[]; selected: string[];
+  onToggle: (id: string) => void; onClear: () => void;
+}) {
+  const chip = (on: boolean) =>
+    `shrink-0 whitespace-nowrap px-3 py-1 rounded-md text-sm border ${on ? "bg-[var(--accent)] border-[var(--accent)] text-white font-bold" : "border-[var(--border)] text-[var(--foreground)]/75 hover:bg-[var(--foreground)]/5"}`;
+  return (
+    <div className="px-3 md:px-6 pb-2 flex items-center gap-1.5 overflow-x-auto no-scrollbar" role="group" aria-label={label}>
+      <span className="shrink-0 text-xs font-bold text-[var(--foreground)]/50 ml-1">{label}</span>
+      <button onClick={onClear} className={chip(selected.length === 0)}>{allLabel}</button>
+      {options.map(o => <button key={o.id} onClick={() => onToggle(o.id)} aria-pressed={selected.includes(o.id)} className={chip(selected.includes(o.id))}>{o.label}</button>)}
+    </div>
   );
 }
 
