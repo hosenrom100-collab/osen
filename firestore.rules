@@ -234,6 +234,19 @@ service cloud.firestore {
       allow read: if isAuthenticated();
       allow write: if isManager();
     }
+    // Workshops & weekly schedule
+    match /workshops/{docId} {
+      allow read: if isAuthenticated();
+      allow write: if isManager();
+    }
+    match /session_changes/{docId} {
+      allow read: if isAuthenticated();
+      allow write: if isManager();
+    }
+    match /closures/{docId} {
+      allow read: if isAuthenticated();
+      allow write: if isManager();
+    }
     match /programs/{docId} {
       allow read: if isAuthenticated();
       allow write: if isManager();

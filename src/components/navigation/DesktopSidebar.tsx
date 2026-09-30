@@ -16,6 +16,7 @@ import { motion } from "framer-motion";
 
 const NAV = [
   { href: "/",           icon: Home,          label: "בית",           color: "text-indigo-400" },
+  { href: "/schedule",   icon: Calendar,      label: "יומן שבועי",    color: "text-indigo-400" },
   { href: "/attendance", icon: ClipboardList, label: "נוכחות",        color: "text-emerald-400" },
   { href: "/patients",   icon: Users,         label: "משתתפים",       color: "text-sky-400" },
   { href: "/shopping",   icon: ShoppingCart,  label: "קניות",         color: "text-indigo-400" },

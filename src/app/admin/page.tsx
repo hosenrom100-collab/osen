@@ -46,7 +46,10 @@ const CATEGORIES = [
     title: "תוכניות ולוז",
     color: "text-blue-500",
     modules: [
-      { title: "תוכניות וקבוצות", desc: "ניהול תוכניות ולוחות זמנים", icon: Layers,        path: "/admin/programs",           color: "text-blue-500 bg-blue-500/10",      roles: ["admin","manager"] },
+      { title: "תוכניות וקבוצות", desc: "ניהול תוכניות וקבוצות", icon: Layers,        path: "/admin/programs",           color: "text-blue-500 bg-blue-500/10",      roles: ["admin","manager"] },
+      { title: "סדנאות",          desc: "שיבוץ מעבירים ומשתתפים לסדנאות", icon: Calendar,      path: "/admin/workshops",          color: "text-blue-500 bg-blue-500/10",      roles: ["admin","manager"] },
+      { title: "יומן שבועי",      desc: "לוח פעילות, שינויים וימים ללא פעילות", icon: Calendar,      path: "/schedule",                 color: "text-blue-500 bg-blue-500/10",      roles: ["admin","manager","instructor","social_worker","employee","logistics"] },
+      { title: "מרחבים",          desc: "ניהול המקומות שבהם מתקיימות הסדנאות", icon: MapPin,      path: "/admin/spaces",             color: "text-blue-500 bg-blue-500/10",      roles: ["admin","manager"] },
     ],
   },
   {
