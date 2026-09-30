@@ -3,6 +3,7 @@
 import { DAY_FULL, DAY_SHORT, Session } from "@/lib/workshops/types";
 import { dayOf, shortDate } from "@/lib/workshops/dates";
 import { Plus } from "lucide-react";
+import { workshopColor } from "@/lib/workshops/colors";
 
 export interface Row { id: string; label: string; match: (s: Session) => boolean; closedReason: (date: string) => string | undefined }
 
@@ -19,6 +20,7 @@ const sameSet = (a: string[], b: string[]) => [...a].sort().join() === [...b].so
 
 function SessionButton({ s, mode, c }: { s: Session; mode: "program" | "staff" | "space"; c: Common }) {
   const dead = s.kind === "cancelled" || s.kind === "moved-away";
+  const color = workshopColor(s.workshopId);
   const warn = c.warnings.get(s.id);
   const substitute = !dead && s.change?.staffIds && !sameSet(s.staffIds, s.base.staffIds);
   const room = c.roomOf(s.locationId);
@@ -39,7 +41,8 @@ function SessionButton({ s, mode, c }: { s: Session; mode: "program" | "staff" |
 
   return (
     <button onClick={() => c.onOpen(s)}
-      className={`w-full text-right px-2 py-1.5 rounded-md hover:bg-[var(--foreground)]/5 ${s.kind === "moved-in" || s.kind === "extra" ? "border border-dashed border-[var(--border)]" : ""}`}>
+      style={dead ? undefined : { backgroundColor: color.bg, borderColor: color.border }}
+      className={`w-full text-right px-2 py-1.5 mb-1 last:mb-0 rounded-md border hover:brightness-95 ${dead ? "border-dashed border-[var(--border)] bg-transparent" : ""} ${s.kind === "moved-in" || s.kind === "extra" ? "border-dashed" : ""}`}>
       <div className={`flex items-center gap-1.5 text-xs tabular-nums ${dead ? "text-[var(--foreground)]/40" : "text-[var(--foreground)]/60"}`}>
         <span className={s.kind === "cancelled" ? "line-through" : ""}>{s.start}–{s.end}</span>
         {tag && <span className={`font-bold ${tag.cls}`}>{tag.t}</span>}

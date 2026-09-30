@@ -19,6 +19,12 @@ import { loadAbsences, loadRefs, notifyStaff, Refs } from "@/lib/workshops/data"
 import { toISO, weekDates, weekStartOf, shortDate, dayOf } from "@/lib/workshops/dates";
 import { Closure, DAY_SHORT, Session, SessionChange, Workshop } from "@/lib/workshops/types";
 
+// The calendar is always shown on white, whatever the app theme is.
+const LIGHT_VARS = {
+  "--background": "#ffffff", "--card-bg": "#ffffff", "--foreground": "#1f2937",
+  "--border": "#E5E7E0", "--border-subtle": "#EEF0E9", "--accent": "#5f7332", "--accent-soft": "rgba(95,115,50,0.07)",
+} as React.CSSProperties;
+
 type Mode = "program" | "staff" | "space";
 const MODES: [Mode, string][] = [["program", "תוכניות"], ["staff", "אנשי צוות"], ["space", "מרחבים"]];
 
@@ -162,7 +168,7 @@ export default function SchedulePage() {
   return (
     <RoleGuard allowedRoles={["admin", "manager", "instructor", "social_worker", "employee", "logistics"]} redirectTo="/">
       <style>{`@media print { aside, nav, .no-print { display: none !important; } @page { size: A4 landscape; margin: 10mm; } body { background: #fff !important; } }`}</style>
-      <div dir="rtl" className="min-h-screen bg-[var(--background)] text-[var(--foreground)] pb-24 md:pb-8">
+      <div dir="rtl" style={LIGHT_VARS} className="min-h-screen bg-white text-[var(--foreground)] pb-24 md:pb-8">
         <header className="no-print border-b border-[var(--border)] px-4 md:px-6 py-3 flex flex-wrap items-center gap-x-4 gap-y-2">
           <h1 className="text-base font-bold">יומן שבועי</h1>
           <div className="flex items-center gap-1">
