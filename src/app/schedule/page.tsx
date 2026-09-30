@@ -336,48 +336,48 @@ export default function SchedulePage() {
     <RoleGuard allowedRoles={["admin", "manager", "instructor", "social_worker", "employee", "logistics"]} redirectTo="/">
       <style>{`@media print { aside, nav, .no-print { display: none !important; } @page { size: A4 landscape; margin: 10mm; } body { background: #fff !important; } }`}</style>
       <div dir="rtl" style={LIGHT_VARS} className="min-h-screen bg-white text-[var(--foreground)] pb-24 md:pb-8">
-        <header className="no-print sticky top-0 z-30 bg-white border-b border-[var(--border)]">
-          <div className="px-3 py-2 flex flex-wrap items-center gap-x-3 gap-y-2">
+        <header className="no-print sticky top-0 z-30 bg-white/95 backdrop-blur border-b border-[var(--cal-frame)]">
+          <div className="px-3 md:px-4 py-2 flex flex-wrap items-center gap-x-3 gap-y-2">
             {/* 1. What am I looking at: program, then its group. */}
             <select value={programSel[0] || ""} onChange={e => pickProgram(e.target.value)} aria-label="תוכנית"
-              className="text-sm font-bold bg-transparent border border-[var(--border)] rounded-md px-2.5 py-1.5 max-w-[11rem] focus:border-[var(--accent)] outline-none">
+              className="text-sm font-bold bg-transparent border border-[var(--cal-frame)] rounded-lg px-2.5 h-8 max-w-[11rem] focus:border-[var(--accent)] outline-none">
               <option value="">כל התוכניות</option>
               {refs.programs.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
             </select>
             {groupOptions.length > 1 && (
               <select value={groupSel[0] || ""} onChange={e => pickGroup(e.target.value)} aria-label="קבוצה"
-                className="text-sm bg-transparent border border-[var(--border)] rounded-md px-2.5 py-1.5 max-w-[10rem] focus:border-[var(--accent)] outline-none">
+                className="text-sm bg-transparent border border-[var(--cal-frame)] rounded-lg px-2.5 h-8 max-w-[10rem] focus:border-[var(--accent)] outline-none">
                 <option value="">כל הקבוצות</option>
                 {groupOptions.map(g => <option key={g.id} value={g.id}>{g.label}</option>)}
               </select>
             )}
 
             {/* 2. When: one control, steps by week or by day. */}
-            <div className="flex items-center">
-              <button onClick={() => step(-1)} aria-label="הקודם" className="p-1.5 rounded-md hover:bg-[var(--foreground)]/5"><ChevronRight className="w-4 h-4" /></button>
+            <div className="flex items-center mx-auto">
+              <button onClick={() => step(-1)} aria-label="הקודם" className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[var(--foreground)]/5"><ChevronRight className="w-4 h-4" /></button>
               {/* Separate spans: a single string gets its parts reordered by the RTL bidi algorithm. */}
-              <span className="flex items-center gap-1 text-sm font-bold tabular-nums min-w-[8.5rem] justify-center">
+              <span className="flex items-center gap-1 text-base font-bold tabular-nums min-w-[9rem] justify-center">
                 {view === "day" ? <span>{dayLabel}</span> : <><span>{format(weekStart, "d.M")}</span><span className="text-[var(--foreground)]/40">–</span><span>{format(addDays(weekStart, 6), "d.M")}</span></>}
               </span>
-              <button onClick={() => step(1)} aria-label="הבא" className="p-1.5 rounded-md hover:bg-[var(--foreground)]/5"><ChevronLeft className="w-4 h-4" /></button>
+              <button onClick={() => step(1)} aria-label="הבא" className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[var(--foreground)]/5"><ChevronLeft className="w-4 h-4" /></button>
             </div>
-            {!atCurrent && <button onClick={goToday} className="text-sm px-2.5 py-1 rounded-md border border-[var(--border)] hover:bg-[var(--foreground)]/5">היום</button>}
+            {!atCurrent && <button onClick={goToday} className="text-sm px-3 h-8 rounded-lg border border-[var(--cal-frame)] hover:bg-[var(--foreground)]/5">היום</button>}
 
             {/* 3. How: view and actions. */}
-            <div className="mr-auto flex items-center gap-1.5 relative">
-              <div className="flex border border-[var(--border)] rounded-md overflow-hidden" role="group" aria-label="תצוגה">
+            <div className="flex items-center gap-1.5 relative">
+              <div className="flex border border-[var(--cal-frame)] rounded-lg overflow-hidden" role="group" aria-label="תצוגה">
                 {VIEWS.map(([k, l]) => (
                   <button key={k} onClick={() => { if (k === "day") setSelectedDay(selectedDay); setView(k); }} aria-pressed={view === k}
-                    className={`px-2.5 py-1 text-sm ${view === k ? "bg-[var(--accent)] text-white font-bold" : "text-[var(--foreground)]/70 hover:bg-[var(--foreground)]/5"}`}>{l}</button>
+                    className={`px-3 h-8 text-sm ${view === k ? "bg-[var(--accent)] text-white font-bold" : "text-[var(--foreground)]/70 hover:bg-[var(--foreground)]/5"}`}>{l}</button>
                 ))}
               </div>
               {isManager && (
                 <button onClick={() => setEditing({ session: null, extra: { date: view === "day" ? selectedDay : dates.includes(today) ? today : dates[0], programId: programSel[0] } })}
-                  aria-label="מפגש חד-פעמי" className={`${btnPrimary} flex items-center gap-1.5 !px-2.5 !py-1.5 sm:!px-3`}>
+                  aria-label="מפגש חד-פעמי" className={`${btnPrimary} flex items-center gap-1.5 !px-3 !py-0 h-8`}>
                   <Plus className="w-4 h-4" /><span className="hidden sm:inline">מפגש</span>
                 </button>
               )}
-              <button onClick={() => setMenuOpen(o => !o)} aria-label="עוד פעולות" aria-expanded={menuOpen} className="p-1.5 rounded-md border border-[var(--border)] hover:bg-[var(--foreground)]/5"><MoreHorizontal className="w-4 h-4" /></button>
+              <button onClick={() => setMenuOpen(o => !o)} aria-label="עוד פעולות" aria-expanded={menuOpen} className="w-8 h-8 flex items-center justify-center rounded-lg border border-[var(--cal-frame)] hover:bg-[var(--foreground)]/5"><MoreHorizontal className="w-4 h-4" /></button>
               {menuOpen && (
                 <>
                   <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
@@ -413,7 +413,7 @@ export default function SchedulePage() {
         </header>
 
         {legend.length > 1 && colorBy !== "workshop" && (
-          <div className="no-print px-3 py-1.5 border-b border-[var(--border)] flex flex-wrap items-center gap-1.5" role="group" aria-label="מקרא">
+          <div className="no-print px-3 md:px-4 pt-3 flex flex-wrap items-center gap-1.5" role="group" aria-label="מקרא">
             {legend.map(l => (
               <button key={l.key} onClick={() => setFocus(f => (f === l.key ? null : l.key))} aria-pressed={focus === l.key}
                 className={`flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-medium border transition-colors ${focus === l.key ? "border-[var(--foreground)]/40 bg-[var(--foreground)]/5" : "border-transparent hover:bg-[var(--foreground)]/5 text-[var(--foreground)]/70"}`}>
@@ -424,8 +424,8 @@ export default function SchedulePage() {
         )}
 
         {weekChanges.length > 0 && (
-          <div className="no-print px-3 py-1.5 border-b border-[var(--border)] flex flex-wrap items-center gap-x-3 gap-y-1.5 text-sm">
-            <button onClick={() => setShowChanges(true)} className="font-semibold underline">שינויים השבוע ({weekChanges.length})</button>
+          <div className="no-print px-3 md:px-4 pt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-sm">
+            <button onClick={() => setShowChanges(true)} className="px-2.5 py-0.5 rounded-full bg-[var(--cal-ink)]/[0.06] font-semibold">שינויים השבוע ({weekChanges.length})</button>
             {isManager && unpublished.length > 0 && (
               <>
                 <span className="text-[var(--foreground)]/60 flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-amber-500" />{unpublished.length} טרם פורסמו לצוות</span>
