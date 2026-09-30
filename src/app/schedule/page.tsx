@@ -205,7 +205,7 @@ export default function SchedulePage() {
       <style>{`@media print { aside, nav, .no-print { display: none !important; } @page { size: A4 landscape; margin: 10mm; } body { background: #fff !important; } }`}</style>
       <div dir="rtl" style={LIGHT_VARS} className="min-h-screen bg-white text-[var(--foreground)] pb-24 md:pb-8">
         <header className="no-print sticky top-0 z-30 bg-white border-b border-[var(--border)]">
-          <div className="px-3 md:px-6 py-2 flex flex-wrap items-center gap-x-3 gap-y-2">
+          <div className="px-3 md:px-3 py-2 flex flex-wrap items-center gap-x-3 gap-y-2">
             <h1 className="text-base font-bold hidden lg:block">יומן שבועי</h1>
             <div className="flex items-center">
               <button onClick={() => setWeekStart(addDays(weekStart, -7))} aria-label="שבוע קודם" className="p-1.5 rounded-md hover:bg-[var(--foreground)]/5"><ChevronRight className="w-4 h-4" /></button>
@@ -286,7 +286,7 @@ export default function SchedulePage() {
               : "אין מפגשים בשבוע זה."}
           </p>
         ) : (
-          <div className="md:px-6 md:pt-4">
+          <div className="md:px-2 md:pt-2">
             <WeekGrid {...common} dates={dates} days={days} rows={rows} mode={mode} today={today} globalClosure={globalClosure}
               canEdit={isManager} onAdd={(date, rowId) => setEditing({ session: null, extra: { date, programId: rowId.split(":")[0] } })} />
             <DayAgenda {...common} dates={dates} days={days} rows={rows} mode={mode} today={today} globalClosure={globalClosure}

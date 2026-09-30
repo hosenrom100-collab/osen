@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { 
   Home, ClipboardList, Users, ShoppingCart, 
   Settings, Clock, MessageSquare, Calendar,
-  Sun, Moon, HelpCircle, Utensils, ShoppingBag
+  Sun, Moon, HelpCircle, Utensils, ShoppingBag, ChevronsLeft, ChevronsRight
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useSettings } from "@/context/SettingsContext";
@@ -37,6 +37,17 @@ export function DesktopSidebar() {
   const { theme, setTheme } = useSettings();
 
   const [pendingStoreCount, setPendingStoreCount] = useState(0);
+
+  // A saved choice wins; otherwise the sidebar folds away on the wide schedule page.
+  const [saved, setSaved] = useState<boolean | null>(null);
+  useEffect(() => {
+    try { const v = localStorage.getItem("sidebar.collapsed"); setSaved(v === null ? null : v === "1"); } catch { /* ignore */ }
+  }, []);
+  const collapsed = saved ?? pathname.startsWith("/schedule");
+  const toggle = () => {
+    setSaved(!collapsed);
+    try { localStorage.setItem("sidebar.collapsed", collapsed ? "0" : "1"); } catch { /* ignore */ }
+  };
 
   const canApproveStoreRequests = isAdmin || isManager || isLogistics;
 
@@ -79,37 +90,49 @@ export function DesktopSidebar() {
   const displayRole = role || roles[0] || "";
 
   return (
-    <aside className="hidden md:flex w-64 shrink-0 h-screen sticky top-0 flex-col bg-[var(--sidebar-bg)] border-l border-[var(--border)] z-20">
+    <aside className={`hidden md:flex ${collapsed ? "w-[72px]" : "w-64"} shrink-0 h-screen sticky top-0 flex-col bg-[var(--sidebar-bg)] border-l border-[var(--border)] z-20 transition-[width] duration-200`}>
 
       {/* App Brand */}
-      <div className="flex items-center gap-3 px-6 h-20 shrink-0 border-b border-[var(--border-subtle)]">
+      <div className={`flex items-center gap-3 h-20 shrink-0 border-b border-[var(--border-subtle)] ${collapsed ? "justify-center px-0" : "px-6"}`}>
         <div className="w-9 h-9 bg-[var(--accent)] text-white rounded-lg flex items-center justify-center">
           <span className="font-bold text-base italic">H</span>
         </div>
-        <div className="flex flex-col">
-          <span className="text-base font-bold text-[var(--foreground)] tracking-tight leading-none">חוסן קונקט</span>
-          <span className="text-[11px] text-[var(--foreground)]/40 font-bold uppercase tracking-wider mt-1">Hosen Connect</span>
-        </div>
+        {!collapsed && (
+          <div className="flex flex-col">
+            <span className="text-base font-bold text-[var(--foreground)] tracking-tight leading-none">חוסן קונקט</span>
+            <span className="text-[11px] text-[var(--foreground)]/40 font-bold uppercase tracking-wider mt-1">Hosen Connect</span>
+          </div>
+        )}
+        {!collapsed && (
+          <button onClick={toggle} title="כיווץ סרגל הצד" aria-label="כיווץ סרגל הצד" className="mr-auto p-1.5 rounded-lg text-[var(--foreground)]/40 hover:bg-[var(--foreground)]/5 hover:text-[var(--foreground)]">
+            <ChevronsRight className="w-4 h-4" />
+          </button>
+        )}
       </div>
+      {collapsed && (
+        <button onClick={toggle} title="הרחבת סרגל הצד" aria-label="הרחבת סרגל הצד" className="mx-auto mt-3 p-1.5 rounded-lg text-[var(--foreground)]/40 hover:bg-[var(--foreground)]/5 hover:text-[var(--foreground)]">
+          <ChevronsLeft className="w-4 h-4" />
+        </button>
+      )}
 
       {/* Main Navigation */}
-      <nav className="flex-1 overflow-y-auto px-3 py-6 space-y-8 no-scrollbar">
+      <nav className={`flex-1 overflow-y-auto py-6 space-y-8 no-scrollbar ${collapsed ? "px-2" : "px-3"}`}>
         
         {/* Workspace Section */}
         <div>
-          <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-[var(--foreground)]/30 px-4 mb-4">מרחב עבודה</p>
+          {!collapsed && <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-[var(--foreground)]/30 px-4 mb-4">מרחב עבודה</p>}
           <div className="space-y-1">
             {NAV.filter(item => !(item.href === "/patients" && role === "instructor")).map(({ href, icon: Icon, label }) => {
               const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
               return (
-                <Link key={href} href={href}
-                  className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-bold transition-all duration-200 group relative ${
+                <Link key={href} href={href} title={collapsed ? label : undefined}
+                  className={`flex items-center gap-3 ${collapsed ? "justify-center px-0" : "px-4"} py-2.5 rounded-xl text-sm font-bold transition-all duration-200 group relative ${
                     active
                       ? "bg-[var(--primary-faint)] text-[var(--primary)]"
                       : "text-[var(--foreground)]/50 hover:text-[var(--primary)] hover:bg-[var(--foreground)]/5"
                   }`}>
                   <Icon className={`w-4 h-4 shrink-0 transition-colors ${active ? "text-[var(--primary)]" : "text-[var(--foreground)]/30 group-hover:text-[var(--primary)]/60"}`} />
-                  <span>{label}</span>
+                  {!collapsed && <span>{label}</span>}
                   {active && (
                     <motion.div 
                       layoutId="sidebar-active"
@@ -125,21 +148,21 @@ export function DesktopSidebar() {
         {/* Administration Section */}
         {(isManager || isLogistics || role === "social_worker" || roles?.includes("social_worker")) && (
           <div>
-            <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-[var(--foreground)]/30 px-4 mb-4">ניהול ובקרה</p>
+            {!collapsed && <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-[var(--foreground)]/30 px-4 mb-4">ניהול ובקרה</p>}
             <div className="space-y-1">
               {visibleAdminNav.map(({ href, icon: Icon, label, badge }) => {
                 const active = pathname.startsWith(href);
                 return (
-                  <Link key={href} href={href}
-                    className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-bold transition-all duration-200 group relative ${
+                  <Link key={href} href={href} title={collapsed ? label : undefined}
+                    className={`flex items-center gap-3 ${collapsed ? "justify-center px-0" : "px-4"} py-2.5 rounded-xl text-sm font-bold transition-all duration-200 group relative ${
                       active
                         ? "bg-[var(--primary-faint)] text-[var(--primary)]"
                         : "text-[var(--foreground)]/50 hover:text-[var(--primary)] hover:bg-[var(--foreground)]/5"
                     }`}>
                     <Icon className={`w-4 h-4 shrink-0 transition-colors ${active ? "text-[var(--primary)]" : "text-[var(--foreground)]/30 group-hover:text-[var(--primary)]/60"}`} />
-                    <span>{label}</span>
+                    {!collapsed && <span>{label}</span>}
                     {badge !== undefined && badge > 0 && (
-                      <span className="mr-auto px-2 py-0.5 text-[11px] font-bold text-white bg-red-500 rounded-full shadow-sm">
+                      <span className={`${collapsed ? "absolute top-0.5 left-1" : "mr-auto"} px-2 py-0.5 text-[11px] font-bold text-white bg-red-500 rounded-full shadow-sm`}>
                         {badge}
                       </span>
                     )}
@@ -158,9 +181,9 @@ export function DesktopSidebar() {
       </nav>
 
       {/* User & Settings Footer */}
-      <div className="mt-auto border-t border-[var(--border-subtle)] p-4">
-        <Link href="/profile"
-          className="flex items-center gap-3 p-3 rounded-2xl hover:bg-[var(--foreground)]/5 transition-all group">
+      <div className={`mt-auto border-t border-[var(--border-subtle)] ${collapsed ? "p-2" : "p-4"}`}>
+        <Link href="/profile" title={collapsed ? "פרופיל" : undefined}
+          className={`flex items-center ${collapsed ? "justify-center p-2" : "gap-3 p-3"} rounded-2xl hover:bg-[var(--foreground)]/5 transition-all group`}>
           <div className="relative shrink-0">
             {photoURL ? (
               <img 
@@ -175,32 +198,32 @@ export function DesktopSidebar() {
             )}
             <div className="absolute -bottom-0.5 -left-0.5 w-3 h-3 bg-emerald-500 border-2 border-[var(--sidebar-bg)] rounded-full" />
           </div>
-          <div className="flex-1 min-w-0">
+          {!collapsed && <div className="flex-1 min-w-0">
             <p className="text-xs font-bold text-[var(--foreground)] truncate leading-none mb-1">
               {user?.displayName || user?.email?.split('@')[0]}
             </p>
             <p className="text-[11px] text-[var(--foreground)]/40 font-bold uppercase tracking-[0.05em]">
               {ROLE_HE[displayRole] || displayRole}
             </p>
-          </div>
-          <Settings className="w-4 h-4 text-[var(--foreground)]/20 group-hover:text-[var(--foreground)]/60 transition-colors" />
+          </div>}
+          {!collapsed && <Settings className="w-4 h-4 text-[var(--foreground)]/20 group-hover:text-[var(--foreground)]/60 transition-colors" />}
         </Link>
-        <div className="mt-2 flex items-center justify-between gap-2">
+        <div className={`mt-2 flex items-center justify-between gap-2 ${collapsed ? "flex-col" : ""}`}>
           <button
             onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-            className="flex-1 py-2 px-3 bg-[var(--foreground)]/5 hover:bg-[var(--foreground)]/10 text-[var(--foreground)]/60 hover:text-[var(--foreground)] rounded-xl transition-all cursor-pointer flex items-center justify-center gap-2 text-xs font-bold"
+            className="flex-1 w-full py-2 px-3 bg-[var(--foreground)]/5 hover:bg-[var(--foreground)]/10 text-[var(--foreground)]/60 hover:text-[var(--foreground)] rounded-xl transition-all cursor-pointer flex items-center justify-center gap-2 text-xs font-bold"
             title={theme === 'dark' ? "מעבר למצב בהיר" : "מעבר למצב כהה"}
           >
             {theme === 'dark' ? <Sun className="w-4 h-4 text-amber-500" /> : <Moon className="w-4 h-4 text-indigo-500" />}
-            <span>{theme === 'dark' ? "בהיר" : "כהה"}</span>
+            {!collapsed && <span>{theme === 'dark' ? "בהיר" : "כהה"}</span>}
           </button>
           <button
             onClick={() => window.dispatchEvent(new CustomEvent("open-help-drawer"))}
-            className="flex-1 py-2 px-3 bg-[var(--foreground)]/5 hover:bg-[var(--foreground)]/10 text-[var(--foreground)]/60 hover:text-[var(--foreground)] rounded-xl transition-all cursor-pointer flex items-center justify-center gap-2 text-xs font-bold"
+            className="flex-1 w-full py-2 px-3 bg-[var(--foreground)]/5 hover:bg-[var(--foreground)]/10 text-[var(--foreground)]/60 hover:text-[var(--foreground)] rounded-xl transition-all cursor-pointer flex items-center justify-center gap-2 text-xs font-bold"
             title="מדריך עזרה"
           >
             <HelpCircle className="w-4 h-4 text-indigo-500" />
-            <span>עזרה</span>
+            {!collapsed && <span>עזרה</span>}
           </button>
         </div>
       </div>

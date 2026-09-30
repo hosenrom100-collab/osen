@@ -117,6 +117,54 @@ function Clustered({ list, mode, c }: { list: Session[]; mode: "program" | "staf
   );
 }
 
+const HOUR_PX = 96;
+const mins = (t: string) => { const [h, m] = t.split(":").map(Number); return h * 60 + (m || 0); };
+
+/** Shared vertical time scale for one row: only hours in which this row has a session are drawn, so the same time lines up across all days. */
+function timeAxis(list: Session[]) {
+  const hours = new Set<number>();
+  for (const s of list) for (let h = Math.floor(mins(s.start) / 60); h * 60 < mins(s.end); h++) hours.add(h);
+  const sorted = [...hours].sort((a, b) => a - b);
+  const y = (t: number) => {
+    const h = Math.floor(t / 60);
+    const before = sorted.filter(x => x < h).length;
+    return (before + (hours.has(h) ? (t - h * 60) / 60 : 0)) * HOUR_PX;
+  };
+  return { hours: sorted, y, height: sorted.length * HOUR_PX };
+}
+
+/** Sessions placed by clock time; overlapping ones share the width of their time window. */
+function Timeline({ list, axis, mode, c }: { list: Session[]; axis: ReturnType<typeof timeAxis>; mode: "program" | "staff" | "space"; c: Common }) {
+  return (
+    <>
+      {axis.hours.map(h => (
+        <div key={h}>
+          <div className="absolute inset-x-0 border-t border-[var(--border)] pointer-events-none" style={{ top: axis.y(h * 60) }} />
+          <div className="absolute inset-x-0 border-t border-dashed border-[var(--border-subtle)] pointer-events-none" style={{ top: axis.y(h * 60 + 30) }} />
+        </div>
+      ))}
+      {clusterByTime(list).flatMap(cl => {
+        const laneEnd: string[] = [];
+        const placed = cl.map(s => {
+          let lane = laneEnd.findIndex(e => e <= s.start);
+          if (lane < 0) lane = laneEnd.length;
+          laneEnd[lane] = s.end;
+          return { s, lane };
+        });
+        return placed.map(({ s, lane }) => {
+          const top = axis.y(mins(s.start));
+          return (
+            <div key={s.id} className="absolute overflow-hidden px-0.5 [&>button]:h-full [&>button]:mb-0 [&>button]:overflow-hidden"
+              style={{ top: top + 1, height: Math.max(axis.y(mins(s.end)) - top - 2, 28), insetInlineStart: `${(lane / laneEnd.length) * 100}%`, width: `${100 / laneEnd.length}%` }}>
+              <SessionButton s={s} mode={mode} c={c} />
+            </div>
+          );
+        });
+      })}
+    </>
+  );
+}
+
 export function WeekGrid({ dates, days, rows, mode, today, globalClosure, canEdit, onAdd, ...c }: Common & {
   dates: string[]; days: number[]; rows: Row[]; mode: "program" | "staff" | "space"; today: string;
   globalClosure: (date: string) => string | undefined; canEdit: boolean; onAdd: (date: string, rowId: string) => void;
@@ -124,12 +172,13 @@ export function WeekGrid({ dates, days, rows, mode, today, globalClosure, canEdi
   const cols = days.map(d => dates[d]);
   // A day column gets wider when some row has parallel sessions in it.
   const par = cols.map(date => rows.reduce((m, r) => Math.max(m, widest(c.sessions.filter(s => s.date === date && r.match(s)))), 1));
-  const template = { gridTemplateColumns: `8rem ${par.map(n => `minmax(${n === 1 ? 9 : n * 7.5}rem, ${n}fr)`).join(" ")}` };
+  const template = { gridTemplateColumns: `8rem 2.75rem ${par.map(n => `minmax(${n === 1 ? 9 : n * 7.5}rem, ${n}fr)`).join(" ")}` };
   return (
     <div className="hidden md:block overflow-x-auto border-y border-[var(--border)]">
      <div className="min-w-max lg:min-w-0">
       <div className="grid border-b border-[var(--border)] text-sm font-bold bg-[var(--background)]" style={template}>
         <div className="sticky right-0 bg-[var(--background)] z-10" />
+        <div />
         {cols.map(date => (
           <div key={date} className={`px-2 py-2 border-r border-[var(--border)] ${date === today ? "bg-[var(--accent-soft)]" : ""}`}>
             יום {DAY_FULL[dayOf(date)]} <span className="font-normal text-[var(--foreground)]/50 tabular-nums">{shortDate(date)}</span>
@@ -137,19 +186,26 @@ export function WeekGrid({ dates, days, rows, mode, today, globalClosure, canEdi
           </div>
         ))}
       </div>
-      {rows.map(row => (
+      {rows.map(row => {
+        const rowSessions = c.sessions.filter(s => cols.includes(s.date) && row.match(s));
+        const axis = timeAxis(rowSessions);
+        const height = Math.max(axis.height, 64);
+        return (
         <div key={row.id} className="grid border-b border-[var(--border)] last:border-b-0" style={template}>
           <div className="sticky right-0 z-10 bg-[var(--background)] px-2 py-2 text-sm font-bold">{row.label}</div>
+          <div className="relative text-[11px] font-medium tabular-nums text-[var(--foreground)]/55 border-r border-[var(--border)]" style={{ height }}>
+            {axis.hours.map(h => <span key={h} className="absolute inset-x-0 text-center leading-none bg-[var(--background)]" style={{ top: axis.y(h * 60) - 5 }}>{String(h).padStart(2, "0")}:00</span>)}
+          </div>
           {cols.map(date => {
-            const list = c.sessions.filter(s => s.date === date && row.match(s));
+            const list = rowSessions.filter(s => s.date === date);
             const closed = row.closedReason(date);
             return (
-              <div key={date} className={`group relative border-r border-[var(--border)] p-1 min-h-16 ${date === today ? "bg-[var(--accent-soft)]" : ""} ${closed && list.length === 0 ? "bg-[var(--foreground)]/[0.04]" : ""}`}>
-                <Clustered list={list} mode={mode} c={c} />
-                {closed && list.length === 0 && <p className="px-1 py-1 text-xs text-[var(--foreground)]/50">{closed}</p>}
+              <div key={date} style={{ height }} className={`group relative border-r border-[var(--border)] ${date === today ? "bg-[var(--accent-soft)]" : ""} ${closed && list.length === 0 ? "bg-[var(--foreground)]/[0.04]" : ""}`}>
+                <Timeline list={list} axis={axis} mode={mode} c={c} />
+                {closed && list.length === 0 && <p className="px-2 py-1 text-xs text-[var(--foreground)]/50">{closed}</p>}
                 {canEdit && mode === "program" && (
                   <button onClick={() => onAdd(date, row.id)} aria-label="הוסף מפגש חד-פעמי" title="הוסף מפגש חד-פעמי"
-                    className="absolute bottom-1 left-1 p-1 rounded text-[var(--foreground)]/40 hover:bg-[var(--foreground)]/10 opacity-0 group-hover:opacity-100 focus:opacity-100">
+                    className="absolute bottom-1 left-1 z-10 p-1 rounded text-[var(--foreground)]/40 hover:bg-[var(--foreground)]/10 opacity-0 group-hover:opacity-100 focus:opacity-100">
                     <Plus className="w-3.5 h-3.5" />
                   </button>
                 )}
@@ -157,7 +213,8 @@ export function WeekGrid({ dates, days, rows, mode, today, globalClosure, canEdi
             );
           })}
         </div>
-      ))}
+        );
+      })}
      </div>
     </div>
   );
