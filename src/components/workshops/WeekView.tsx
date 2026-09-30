@@ -341,7 +341,7 @@ export function TimeGrid({ columns, mode, groupName, laneMin, corner, drag: drag
         {/* Hour labels, centred on their line. */}
         {times.slice(0, -1).map((t, i) => labelAt.has(t) && (
           <div key={`t${t}`} className="relative" style={{ gridRow: HDR + 1 + i, gridColumn: 1 }}>
-            <span className={`absolute inset-x-0 top-0 -translate-y-1/2 text-center tabular-nums leading-none bg-[var(--cal-surface)] py-0.5 ${t % 60 === 0 ? "text-xs font-semibold text-[var(--cal-muted)]" : "text-[11px] font-medium text-[var(--cal-faint)]"}`}>{fmtMin(t)}</span>
+            <span className={`absolute inset-x-0 top-0 ${i === 0 ? "translate-y-0.5" : "-translate-y-1/2"} text-center tabular-nums leading-none bg-[var(--cal-surface)] py-0.5 ${t % 60 === 0 ? "text-xs font-semibold text-[var(--cal-muted)]" : "text-[11px] font-medium text-[var(--cal-faint)]"}`}>{fmtMin(t)}</span>
           </div>
         ))}
         {/* "Now" chip in the gutter, level with the red line. */}
