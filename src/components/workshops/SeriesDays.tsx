@@ -4,6 +4,7 @@ import { useState } from "react";
 import { db } from "@/lib/firebase/config";
 import { doc, updateDoc, serverTimestamp } from "firebase/firestore";
 import Link from "next/link";
+import { rememberBack } from "@/lib/workshops/back";
 import { Plus, Trash2 } from "lucide-react";
 import { Dialog, fieldCls, labelCls, btnPrimary, btnGhost } from "./Dialog";
 import { DAY_FULL, Group, Person, Program, Slot, Workshop } from "@/lib/workshops/types";
@@ -75,7 +76,7 @@ export function SeriesDays({ workshops, initialId, programs, groups, locations, 
       footer={<>
         <button onClick={save} disabled={saving || !w || invalid} className={btnPrimary}>שמור</button>
         <button onClick={onClose} className={btnGhost}>ביטול</button>
-        {w && <Link href={`/admin/workshops/${w.id}`} className="mr-auto text-sm font-semibold text-[var(--accent-text)] underline">לכל פרטי הסדנה ←</Link>}
+        {w && <Link href={`/admin/workshops/${w.id}`} onClick={rememberBack} className="mr-auto text-sm font-semibold text-[var(--accent-text)] underline">לכל פרטי הסדנה ←</Link>}
       </>}>
       {list.length === 0 ? <p className="text-sm text-[var(--foreground)]/60">אין סדנאות להגדרה.</p> : <>
         <div>
@@ -92,7 +93,7 @@ export function SeriesDays({ workshops, initialId, programs, groups, locations, 
           return (
             <section key={sec.key || "all"} className="border-t border-[var(--border)] pt-3 space-y-2">
               <h3 className="text-sm font-bold">{sec.label}</h3>
-              {rows.length === 0 && <p className="text-xs text-[var(--foreground)]/50">אין ימי פעילות.</p>}
+              {rows.length === 0 && <p className="text-xs text-[var(--foreground)]/55 leading-relaxed">{sec.groupIds.length ? "אין ימים ייעודיים לקבוצה הזו. היא משתתפת בימים של ״כל הקבוצות יחד״ שמתחת." : "אין ימי פעילות."}</p>}
               {rows.map(s => (
                 <div key={s.id} className="grid grid-cols-2 sm:grid-cols-[8rem_7rem_7rem_minmax(8rem,1fr)_auto] gap-2 items-center">
                   <select aria-label="יום" className={`${fieldCls} col-span-2 sm:col-span-1`} value={s.day} onChange={e => patch(s.id, { day: Number(e.target.value) })}>

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { rememberBack } from "@/lib/workshops/back";
 import { db } from "@/lib/firebase/config";
 import { collection, deleteDoc, doc, setDoc, serverTimestamp } from "firebase/firestore";
 import { Dialog, fieldCls, labelCls, btnPrimary, btnGhost } from "./Dialog";
@@ -41,7 +42,7 @@ function WholeWorkshop({ name, id, onEditSeries }: { name: string; id: string; o
       <p className="text-xs text-[var(--foreground)]/60 mt-0.5 leading-relaxed">הפעולות למעלה חלות על המפגש הזה בלבד. כאן משנים את כל המפגשים של הסדנה, בכל השבועות.</p>
       <div className="mt-2.5 flex flex-wrap gap-2">
         {onEditSeries && <button type="button" onClick={() => onEditSeries(id)} className={btnGhost}>ימים ושעות קבועים</button>}
-        <Link href={`/admin/workshops/${id}`} className={`${btnGhost} inline-flex items-center`}>כל פרטי הסדנה (שם, תאריכים, צוות, משתתפים) ←</Link>
+        <Link href={`/admin/workshops/${id}`} onClick={rememberBack} className={`${btnGhost} inline-flex items-center`}>כל פרטי הסדנה (שם, תאריכים, צוות, משתתפים) ←</Link>
       </div>
     </section>
   );

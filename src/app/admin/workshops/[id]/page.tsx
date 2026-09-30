@@ -13,6 +13,7 @@ import { loadRefs, Refs } from "@/lib/workshops/data";
 import { buildSessions } from "@/lib/workshops/buildWeek";
 import { rangeDates, shortDate, overlaps, dayOf } from "@/lib/workshops/dates";
 import { Closure, DAY_FULL, DAY_SHORT, SessionChange, Slot, Workshop } from "@/lib/workshops/types";
+import { readBack } from "@/lib/workshops/back";
 import { ActivityType, DEFAULT_TYPES, loadActivityTypes } from "@/lib/workshops/activityTypes";
 
 interface PatientLite { id: string; name: string; programIds: string[]; groupIds: string[] }
@@ -131,7 +132,7 @@ export default function WorkshopDetailPage() {
             סדנאות <ChevronRight className="w-4 h-4 rotate-180" />
           </Link>
           <h1 className="text-base font-bold flex-1 truncate">{form.name || "סדנה"}</h1>
-          <Link href="/schedule" className={btnGhost}>ליומן</Link>
+          <Link href={readBack(form.programId)} className={`${btnGhost} flex items-center gap-1`}>חזרה ליומן <ChevronRight className="w-4 h-4 rotate-180" /></Link>
         </header>
 
         <div className="px-4 md:px-6 max-w-3xl divide-y divide-[var(--border)]">
