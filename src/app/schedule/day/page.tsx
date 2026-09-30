@@ -31,6 +31,7 @@ export default function DaySharePage() {
   const [calOpen, setCalOpen] = useState(false);
   const [toast, setToast] = useState("");
   const cardRef = useRef<HTMLDivElement>(null);
+  const sharing = useRef(false); // one image per tap, even if the button is pressed twice
   // A day, or the Sunday-to-Saturday week that contains it.
   const dates = useMemo(() => (range === "day" ? [date] : weekDates(weekStartOf(parseISO(date)))), [date, range]);
   const { refs, workshops, changes, closures, patients, loading } = useScheduleData(dates);
