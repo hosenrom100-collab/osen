@@ -5,6 +5,7 @@ import { db } from "@/lib/firebase/config";
 import { collection, deleteDoc, doc, setDoc, serverTimestamp } from "firebase/firestore";
 import { Dialog, fieldCls, labelCls, btnPrimary, btnGhost } from "./Dialog";
 import { Person, Session, SessionChange, Workshop, DAY_FULL } from "@/lib/workshops/types";
+import { ActivityType, pastel } from "@/lib/workshops/activityTypes";
 import { dayOf, shortDate } from "@/lib/workshops/dates";
 
 interface Props {
@@ -13,6 +14,7 @@ interface Props {
   workshops: Workshop[];
   staff: Person[];
   locations: Person[];
+  types?: ActivityType[];
   canEdit: boolean;
   warnings: string[];
   participants?: string[]; // first names of the people attending
@@ -33,7 +35,7 @@ const Section = ({ label, children }: { label: string; children: React.ReactNode
 const quickCls = "rounded-lg border border-[var(--border)] px-3 py-2.5 text-sm font-semibold hover:bg-[var(--foreground)]/5 disabled:opacity-50 transition-colors";
 const sameSet = (a: string[], b: string[]) => [...a].sort().join() === [...b].sort().join();
 
-export function SessionEditor({ session, extra, workshops, staff, locations, canEdit, warnings, participants = [], groupNames = [], accent, busyFor, userId, onClose, onSaved, onEditSeries }: Props) {
+export function SessionEditor({ session, extra, workshops, staff, locations, types = [], canEdit, warnings, participants = [], groupNames = [], accent, busyFor, userId, onClose, onSaved, onEditSeries }: Props) {
   const isExtra = !session || session.kind === "extra";
   const ch = session?.change;
   const [workshopId, setWorkshopId] = useState(session?.workshopId || "");
@@ -47,6 +49,8 @@ export function SessionEditor({ session, extra, workshops, staff, locations, can
   const [staffIds, setStaffIds] = useState<string[]>(session?.staffIds || []);
   const [locationId, setLocationId] = useState(session?.locationId || "");
   const [note, setNote] = useState(session?.note || "");
+  const [kind, setKind] = useState(session?.activity || "workshop");
+  const defaultKind = workshops.find(w => w.id === workshopId)?.kind || "workshop";
   const [saving, setSaving] = useState(false);
   // Existing sessions open as a readable summary with one-tap actions; the full form is one step further.
   const [stage, setStage] = useState<"view" | "edit">(session ? "view" : "edit");
@@ -56,7 +60,7 @@ export function SessionEditor({ session, extra, workshops, staff, locations, can
   const pickWorkshop = (id: string) => {
     setWorkshopId(id);
     const w = workshops.find(x => x.id === id);
-    if (w && !session) setStaffIds(w.staffIds || []);
+    if (w && !session) { setStaffIds(w.staffIds || []); setKind(w.kind || "workshop"); }
   };
   const shiftBy = (d: number) => {
     const add = (t: string) => { const m = Math.min(1439, Math.max(0, Number(t.slice(0, 2)) * 60 + Number(t.slice(3)) + d)); return `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`; };
@@ -76,7 +80,7 @@ export function SessionEditor({ session, extra, workshops, staff, locations, can
         const ref = session?.changeId ? doc(db, "session_changes", session.changeId) : doc(collection(db, "session_changes"));
         await setDoc(ref, {
           workshopId, slotId: null, originalDate: null, newDate: date, newStart: st, newEnd: en,
-          staffIds, locationId, note: note.trim(), dates: [date], published: false,
+          staffIds, locationId, note: note.trim(), dates: [date], published: false, ...(kind !== defaultKind ? { kind } : {}),
           updatedAt: serverTimestamp(), updatedBy: userId || null,
         });
       } else if (session && session.changeId) {
@@ -88,6 +92,7 @@ export function SessionEditor({ session, extra, workshops, staff, locations, can
         if (!sameSet(staffIds, session.base.staffIds)) c.staffIds = staffIds;
         if (locationId !== (session.base.locationId || "")) c.locationId = locationId;
         if (note.trim()) c.note = note.trim();
+        if (kind !== defaultKind) c.kind = kind;
         const ref = doc(db, "session_changes", session.changeId);
         if (Object.keys(c).length === 0) await deleteDoc(ref).catch(() => {});
         else await setDoc(ref, {
@@ -203,6 +208,20 @@ export function SessionEditor({ session, extra, workshops, staff, locations, can
           <div><label className={labelCls}>התחלה</label><input type="time" className={fieldCls} value={start} onChange={e => setStart(e.target.value)} /></div>
           <div><label className={labelCls}>סיום</label><input type="time" className={fieldCls} value={end} onChange={e => setEnd(e.target.value)} /></div>
         </div>
+        {types.length > 0 && (
+          <div>
+            <label className={labelCls}>סוג פעילות</label>
+            <div className="flex flex-wrap gap-1.5">
+              {types.filter(t => !t.archived || t.id === kind).map(t => {
+                const on = t.id === kind; const c = pastel(t.hue);
+                return <button key={t.id} type="button" onClick={() => setKind(t.id)} aria-pressed={on}
+                  className={`px-2.5 py-1 rounded-full text-[13px] font-medium border-s-[3px] border ${on ? "font-bold" : "opacity-70 hover:opacity-100"}`}
+                  style={{ backgroundColor: c.fill, color: c.ink, borderColor: on ? c.bar : c.soft, borderInlineStartColor: c.bar }}>{t.label}</button>;
+              })}
+            </div>
+            {kind !== defaultKind && <p className="text-xs text-[var(--foreground)]/50 mt-1">חל על המפגש הזה בלבד. סוג הסדנה עצמה משתנה בעמוד הסדנה.</p>}
+          </div>
+        )}
         <div>
           <label className={labelCls}>מרחב</label>
           <select className={fieldCls} value={locationId} onChange={e => setLocationId(e.target.value)}>

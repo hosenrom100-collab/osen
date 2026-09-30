@@ -387,7 +387,7 @@ export default function SchedulePage() {
           <SessionEditor
             key={editing.session?.id ?? "new"}
             session={editing.session} extra={editing.extra} workshops={activeWorkshops}
-            staff={refs.staff} locations={refs.locations} canEdit={isManager}
+            staff={refs.staff} locations={refs.locations} types={types} canEdit={isManager}
             accent={editing.session ? sessionHue(editing.session, colorBy, types, refs.programs) : undefined}
             groupNames={editing.session ? editing.session.groupIds.map(groupName).filter(Boolean) : []}
             participants={editing.session ? firstNames(participantsOf(editing.session, workshopById.get(editing.session.workshopId), patients)) : []}
