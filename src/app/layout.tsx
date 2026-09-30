@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter, Assistant } from "next/font/google";
+import { Inter } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/context/AuthContext";
 import { BottomNav } from "@/components/navigation/BottomNav";
@@ -12,11 +12,6 @@ const inter = Inter({
   variable: "--font-inter",
 });
 
-const assistant = Assistant({
-  subsets: ["hebrew", "latin"],
-  variable: "--font-assistant",
-  weight: ["300", "400", "500", "600", "700", "800"],
-});
 
 export const metadata: Metadata = {
   title: "מרכז חוסן | חוות רום",
@@ -41,7 +36,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="he" dir="rtl" suppressHydrationWarning>
-      <body className={`${assistant.variable} ${inter.variable} font-sans antialiased`}>
+      <body className={`${inter.variable} font-sans antialiased`}>
         <AuthProvider>
           <SettingsProvider>
             <StaffOnboardingModal />
