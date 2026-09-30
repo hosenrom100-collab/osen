@@ -18,6 +18,7 @@ export interface Common {
   roomOf: (id?: string) => string | undefined;
   groupsOf: (ids: string[]) => string;
   hueOf: (s: Session) => number;   // colour of a session, by the viewer's "colour by" choice
+  typeLabel: (s: Session) => string | undefined; // name of the type when it is not a plain workshop
   dim: (s: Session) => boolean;    // faded while another legend item is highlighted
   countOf: (s: Session) => number | undefined; // headcount of a session, when known
   showGroups?: boolean; // show group names on sessions even in program mode
@@ -48,15 +49,19 @@ function Card({ s, mode, c, groups }: { s: Session; mode: Mode; c: Common; group
   const grp = groups || mode !== "program" || c.showGroups ? c.groupsOf(s.groupIds) : "";
   const meta = [staff, mode !== "space" ? room : "", grp].filter(Boolean).join(" · ");
   const count = dead ? undefined : c.countOf(s);
+  const special = dead ? undefined : c.typeLabel(s);          // events, therapy… stand out from plain workshops
+  const oneOff = s.kind === "extra" || s.kind === "moved-in";
 
   return (
     <button onClick={() => c.onOpen(s)}
       title={[`${s.start}–${s.end} ${s.workshopName}`, meta, count ? `${count} משתתפים` : "", note, s.note, warn?.join(" | ")].filter(Boolean).join("\n")}
-      style={dead ? undefined : { backgroundColor: t.fill, color: t.ink, borderInlineStartColor: t.bar }}
-      className={`block w-full h-full text-start rounded-md px-2.5 py-1.5 border-s-[3px] transition-opacity hover:brightness-[0.97] ${c.dim(s) ? "opacity-30" : ""} ${dead ? "border border-dashed border-[var(--border)] text-[var(--foreground)]/45" : "border-transparent"}`}>
+      style={dead ? undefined : { backgroundColor: t.fill, color: t.ink, borderColor: oneOff ? t.bar : undefined, borderInlineStartColor: t.bar, boxShadow: special ? `inset 0 0 0 1.5px ${t.bar}` : undefined }}
+      className={`block w-full h-full text-start rounded-md px-2.5 py-1.5 border-s-[3px] transition-opacity hover:brightness-[0.97] ${c.dim(s) ? "opacity-30" : ""} ${dead ? "border border-dashed border-[var(--border)] text-[var(--foreground)]/45" : "border-transparent"} ${oneOff && !dead ? "border border-dashed" : ""}`}>
       <span className="flex items-center gap-1.5 text-xs font-medium tabular-nums opacity-80">
         <span>{s.start}–{s.end}</span>
         {s.kind === "cancelled" && <span className="font-bold text-[#b42318] opacity-100">בוטל</span>}
+        {special && <span className="px-1.5 rounded font-bold opacity-100 bg-white/70 text-[11px]" style={{ color: t.ink }}>{special}</span>}
+        {oneOff && !dead && <span className="px-1.5 rounded font-bold opacity-100 bg-[#fff0c2] text-[#8a5a00] text-[11px]">{s.kind === "extra" ? "חד-פעמי" : "הוזז"}</span>}
         <span className="mr-auto flex items-center gap-1.5">
           {count ? <span className="px-1.5 rounded bg-black/[0.06] font-semibold" title={`${count} משתתפים`}>{count}</span> : null}
           {warn && !dead && <span className="w-2 h-2 rounded-full bg-[#d92d20]" title={warn.join("\n")} />}

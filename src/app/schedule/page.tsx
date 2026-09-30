@@ -208,6 +208,7 @@ export default function SchedulePage() {
   const common = {
     sessions, warnings, nameOf, roomOf, groupsOf, showGroups: programSel.length === 0,
     hueOf: (s: Session) => sessionHue(s, colorBy, types, refs.programs),
+    typeLabel: (s: Session) => (s.activity !== "workshop" && !s.band ? typeById(types, s.activity).label : undefined),
     dim: (s: Session) => focusKey !== null && legendKey(s) !== focusKey,
     countOf: (s: Session) => {
       if (s.fixedBlock || !s.hasParticipants) return undefined;
