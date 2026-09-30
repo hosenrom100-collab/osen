@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { db } from "@/lib/firebase/config";
 import { collection, deleteDoc, doc, setDoc, serverTimestamp } from "firebase/firestore";
 import { Dialog, fieldCls, labelCls, btnPrimary, btnGhost } from "./Dialog";
@@ -31,6 +32,20 @@ const Chip = ({ children }: { children: React.ReactNode }) => <span className="i
 const Section = ({ label, children }: { label: string; children: React.ReactNode }) => (
   <div><h3 className={labelCls}>{label}</h3><div className="flex flex-wrap gap-1.5 text-sm">{children}</div></div>
 );
+
+/** The way out of "this one session" into "the whole workshop": same place, clearly labelled. */
+function WholeWorkshop({ name, id, onEditSeries }: { name: string; id: string; onEditSeries?: (id: string) => void }) {
+  return (
+    <section className="rounded-xl border border-[var(--border)] bg-[var(--foreground)]/[0.025] p-3.5">
+      <h3 className="text-sm font-bold">כל הסדנה: {name}</h3>
+      <p className="text-xs text-[var(--foreground)]/60 mt-0.5 leading-relaxed">הפעולות למעלה חלות על המפגש הזה בלבד. כאן משנים את כל המפגשים של הסדנה, בכל השבועות.</p>
+      <div className="mt-2.5 flex flex-wrap gap-2">
+        {onEditSeries && <button type="button" onClick={() => onEditSeries(id)} className={btnGhost}>ימים ושעות קבועים</button>}
+        <Link href={`/admin/workshops/${id}`} className={`${btnGhost} inline-flex items-center`}>כל פרטי הסדנה (שם, תאריכים, צוות, משתתפים) ←</Link>
+      </div>
+    </section>
+  );
+}
 
 const quickCls = "rounded-lg border border-[var(--border)] px-3 py-2.5 text-sm font-semibold hover:bg-[var(--foreground)]/5 disabled:opacity-50 transition-colors";
 const sameSet = (a: string[], b: string[]) => [...a].sort().join() === [...b].sort().join();
@@ -129,7 +144,6 @@ export function SessionEditor({ session, extra, workshops, staff, locations, typ
         footer={canEdit ? <>
           <button onClick={() => setStage("edit")} className={btnPrimary}>עריכה מלאה</button>
           <button onClick={onClose} className={btnGhost}>סגור</button>
-          {!isExtra && onEditSeries && <button onClick={() => onEditSeries(session.workshopId)} className="text-sm text-[var(--foreground)]/60 underline mr-auto">ימי פעילות קבועים</button>}
         </> : <button onClick={onClose} className={btnGhost}>סגור</button>}>
         {dead && <p className="rounded-lg bg-[#fde2e2] text-[#b42318] text-sm font-bold px-3 py-2">המפגש בוטל</p>}
         {warnings.length > 0 && <ul className="rounded-lg bg-[#fff6dc] text-[#8a5a00] text-[13px] px-3 py-2 space-y-0.5">{warnings.map(w => <li key={w}>{w}</li>)}</ul>}
@@ -159,6 +173,7 @@ export function SessionEditor({ session, extra, workshops, staff, locations, typ
             {ch && <button onClick={revert} disabled={saving} className="mt-3 text-xs text-[var(--foreground)]/55 underline">החזר את כל השינויים למקור</button>}
           </div>
         )}
+        {canEdit && <WholeWorkshop name={session.workshopName} id={session.workshopId} onEditSeries={isExtra ? undefined : onEditSeries} />}
       </Dialog>
     );
   }
@@ -168,7 +183,6 @@ export function SessionEditor({ session, extra, workshops, staff, locations, typ
       footer={<>
         <button onClick={() => save()} disabled={saving || !valid} className={btnPrimary}>שמור</button>
         {session ? <button onClick={() => setStage("view")} className={btnGhost}>חזרה</button> : <button onClick={onClose} className={btnGhost}>ביטול</button>}
-        {!isExtra && onEditSeries && <button onClick={() => onEditSeries(session!.workshopId)} className="text-sm text-[var(--foreground)]/70 underline">ימי פעילות קבועים</button>}
         {!isExtra && ch && <button onClick={revert} disabled={saving} className="mr-auto text-sm text-[var(--foreground)]/60 underline">החזר למקור</button>}
         {isExtra && session && <button onClick={revert} disabled={saving} className="mr-auto text-sm text-rose-500 underline">מחק מפגש</button>}
       </>}>
@@ -258,6 +272,7 @@ export function SessionEditor({ session, extra, workshops, staff, locations, typ
         <label className={labelCls}>הערה (מוצגת ביומן)</label>
         <textarea rows={2} className={fieldCls} value={note} onChange={e => setNote(e.target.value)} />
       </div>
+      {canEdit && session && <WholeWorkshop name={session.workshopName} id={session.workshopId} onEditSeries={isExtra ? undefined : onEditSeries} />}
     </Dialog>
   );
 }

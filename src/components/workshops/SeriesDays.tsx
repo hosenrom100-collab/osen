@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { db } from "@/lib/firebase/config";
 import { doc, updateDoc, serverTimestamp } from "firebase/firestore";
+import Link from "next/link";
 import { Plus, Trash2 } from "lucide-react";
 import { Dialog, fieldCls, labelCls, btnPrimary, btnGhost } from "./Dialog";
 import { DAY_FULL, Group, Person, Program, Slot, Workshop } from "@/lib/workshops/types";
@@ -70,10 +71,11 @@ export function SeriesDays({ workshops, initialId, programs, groups, locations, 
   };
 
   return (
-    <Dialog title="ימי פעילות קבועים" onClose={onClose} wide
+    <Dialog title="ימים ושעות קבועים" subtitle={w ? <>עורכים את הסדנה <b>{w.name}</b>. השינוי חל על כל המפגשים שלה, בכל השבועות.</> : undefined} onClose={onClose} wide
       footer={<>
         <button onClick={save} disabled={saving || !w || invalid} className={btnPrimary}>שמור</button>
         <button onClick={onClose} className={btnGhost}>ביטול</button>
+        {w && <Link href={`/admin/workshops/${w.id}`} className="mr-auto text-sm font-semibold text-[var(--accent-text)] underline">לכל פרטי הסדנה ←</Link>}
       </>}>
       {list.length === 0 ? <p className="text-sm text-[var(--foreground)]/60">אין סדנאות להגדרה.</p> : <>
         <div>
@@ -82,8 +84,8 @@ export function SeriesDays({ workshops, initialId, programs, groups, locations, 
             {list.map(x => <option key={x.id} value={x.id}>{x.name}</option>)}
           </select>
         </div>
-        <p className="text-xs text-[var(--foreground)]/55">
-          הימים והשעות כאן חלים על כל שבועות הסדרה. שינוי חד-פעמי (ביטול, הזזה) עושים בלחיצה על המפגש ביומן.
+        <p className="text-xs text-[var(--foreground)]/60 rounded-lg bg-[var(--foreground)]/[0.04] px-3 py-2 leading-relaxed">
+          שינוי חד-פעמי (ביטול, הזזה, מחליף) עושים בלחיצה על המפגש ביומן. כאן משנים את המערכת הקבועה. לשם, תאריכים, צוות ומשתתפים, עוברים ל"כל פרטי הסדנה".
         </p>
         {sections.map(sec => {
           const rows = slots.filter(s => keyOf(s) === sec.key);
