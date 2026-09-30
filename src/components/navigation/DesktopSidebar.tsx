@@ -90,7 +90,7 @@ export function DesktopSidebar() {
   const displayRole = role || roles[0] || "";
 
   return (
-    <aside className={`hidden md:flex ${collapsed ? "w-[72px]" : "w-64"} shrink-0 h-screen sticky top-0 flex-col bg-[var(--sidebar-bg)] border-l border-[var(--border)] z-20 transition-[width] duration-200`}>
+    <aside className={`hidden md:flex ${collapsed ? "w-[72px]" : "w-64"} shrink-0 h-screen sticky top-0 flex-col nav-espresso border-l border-[var(--border)] z-20 transition-[width] duration-200`}>
 
       {/* App Brand */}
       <div className={`flex items-center gap-3 h-20 shrink-0 border-b border-[var(--border-subtle)] ${collapsed ? "justify-center px-0" : "px-6"}`}>

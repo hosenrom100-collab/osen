@@ -5,7 +5,7 @@ import { ArrowDown, ArrowUp, ChevronsUpDown } from "lucide-react";
 // Admin lists are always on white, like the calendar, whatever the app theme is.
 export const WHITE_VARS = {
   "--background": "#ffffff", "--card-bg": "#ffffff", "--foreground": "#1f2937",
-  "--border": "#E5E7E0", "--border-subtle": "#EEF0E9", "--accent": "#1f5c46", "--accent-soft": "rgba(31,92,70,0.07)",
+  "--border": "#D3CCC1", "--border-subtle": "#E7E2D9", "--accent": "#1f5c46", "--accent-soft": "rgba(31,92,70,0.07)",
   "--btn": "#3a2a21", "--btn-hover": "#2b1e17", "--btn-text": "#ffffff", "--btn-soft": "#f0e9e3", "--btn-soft-hover": "#e6dcd3", "--btn-soft-text": "#3a2a21",
 } as React.CSSProperties;
 

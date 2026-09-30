@@ -207,7 +207,7 @@ export function BottomNav() {
     <>
       {/* Bottom Nav Bar */}
       <div
-        className={`fixed bottom-0 inset-x-0 z-50 md:hidden bg-white/90 dark:bg-[#0b1120]/90 backdrop-blur-xl border-t border-slate-200/80 dark:border-white/10 shadow-[0_-4px_24px_rgba(0,0,0,0.06)] dark:shadow-[0_-8px_30px_rgba(0,0,0,0.45)] transition-transform duration-300 ${
+        className={`fixed bottom-0 inset-x-0 z-50 md:hidden nav-espresso border-t border-white/10 shadow-[0_-8px_30px_rgba(0,0,0,0.25)] transition-transform duration-300 ${
           isVisible ? 'translate-y-0' : 'translate-y-full'
         }`}
       >
@@ -240,7 +240,7 @@ export function BottomNav() {
                       className={`w-5 h-5 transition-all duration-200 ${
                         isActive
                           ? "text-[var(--primary)] scale-105"
-                          : "text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300"
+                          : "text-[#c9bcaf] group-hover:text-white"
                       }`}
                       strokeWidth={isActive ? 2.4 : 1.8}
                     />
@@ -248,7 +248,7 @@ export function BottomNav() {
                       className={`text-[11px] font-bold tracking-tight transition-colors duration-200 ${
                         isActive
                           ? "text-[var(--primary)]"
-                          : "text-slate-500 dark:text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-200"
+                          : "text-[#c9bcaf] group-hover:text-white"
                       }`}
                     >
                       {item.label}
