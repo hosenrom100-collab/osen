@@ -7,6 +7,8 @@ export interface Slot {
   end: string;
   locationId?: string;
   groupIds?: string[]; // groups this weekly meeting is for; empty/missing = all of the workshop's groups
+  every?: number;      // repeat every N weeks; missing = every week
+  anchorDate?: string; // a date in the first week it happens (needed when every > 1); missing = the workshop's start
 }
 
 /** Id of an activity type (see activityTypes.ts). Types are edited by managers, so this is a plain string. */
@@ -84,7 +86,14 @@ export interface Group {
 export interface Person {
   id: string;
   name: string;
+  roles?: string[];       // staff only
+  programIds?: string[];  // staff only: programs they are assigned to
+  groupIds?: string[];    // staff only: groups they are assigned to
 }
+
+export const ROLE_LABEL: Record<string, string> = {
+  admin: "אדמין", manager: "מנהל/ת", instructor: "מדריך/ה", social_worker: 'עו"ס', employee: "עובד/ת", logistics: "לוגיסטיקה",
+};
 
 export type SessionKind = "normal" | "cancelled" | "moved-away" | "moved-in" | "extra";
 
@@ -105,6 +114,7 @@ export interface Session {
   kind: SessionKind;
   activity: ActivityKind;
   hasParticipants: boolean;
+  audience: "participants" | "staff"; // "staff": only staff attend (a team meeting), so the staff are attendees, not leaders
   band: boolean;        // drawn as a quiet full-width band instead of a card
   fixedBlock?: boolean; // generated from a program's daily blocks; not editable as a session
   change?: SessionChange;

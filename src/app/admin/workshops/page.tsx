@@ -14,14 +14,14 @@ import { ActivityType, DEFAULT_TYPES, loadActivityTypes, pastel, typeById } from
 import { PageSkeleton } from "@/components/ui/Skeleton";
 import { loadRefs, Refs } from "@/lib/workshops/data";
 import { DAY_SHORT, Workshop } from "@/lib/workshops/types";
-import { toISO } from "@/lib/workshops/dates";
+import { OPEN_END, OPEN_START, isOpenEnd, isOpenStart, toISO } from "@/lib/workshops/dates";
 import { differenceInCalendarWeeks, parseISO, format } from "date-fns";
 
 type Filter = "current" | "upcoming" | "ended" | "all";
 const FILTERS: [Filter, string][] = [["current", "פעילות עכשיו"], ["upcoming", "עתידיות"], ["ended", "הסתיימו"], ["all", "הכול"]];
 type SortKey = "name" | "type" | "program" | "start" | "end" | "staff" | "participants";
 
-const fmt = (iso: string) => format(parseISO(iso), "d.M.yy");
+const fmt = (iso: string) => (isOpenStart(iso) || isOpenEnd(iso) ? "ללא" : format(parseISO(iso), "d.M.yy"));
 
 export default function WorkshopsPage() {
   const router = useRouter();
@@ -141,8 +141,9 @@ export default function WorkshopsPage() {
                   </thead>
                   <tbody className="divide-y divide-[var(--border-subtle)]">
                     {list.map(w => {
-                      const weeks = differenceInCalendarWeeks(parseISO(w.endDate), parseISO(w.startDate)) + 1;
-                      const cur = w.startDate <= today && w.endDate >= today ? `שבוע ${differenceInCalendarWeeks(parseISO(today), parseISO(w.startDate)) + 1}/${weeks}` : "";
+                      const bounded = !isOpenStart(w.startDate) && !isOpenEnd(w.endDate);
+                      const weeks = bounded ? differenceInCalendarWeeks(parseISO(w.endDate), parseISO(w.startDate)) + 1 : 0;
+                      const cur = bounded && w.startDate <= today && w.endDate >= today ? `שבוע ${differenceInCalendarWeeks(parseISO(today), parseISO(w.startDate)) + 1}/${weeks}` : "";
                       const t = typeOf(w); const c = pastel(t.hue);
                       return (
                         <tr key={w.id} onClick={() => router.push(`/admin/workshops/${w.id}`)} className={`cursor-pointer hover:bg-[var(--foreground)]/[0.025] ${w.status !== "active" ? "opacity-60" : ""}`}>
@@ -187,14 +188,16 @@ function NewWorkshopDialog({ refs, types, from, onClose, onCreated }: {
   const [kind, setKind] = useState(from?.kind || "workshop");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [noStart, setNoStart] = useState(false);
+  const [noEnd, setNoEnd] = useState(false);
   const [saving, setSaving] = useState(false);
-  const valid = name.trim() && programId && startDate && endDate && endDate >= startDate;
+  const valid = name.trim() && programId && (noStart || startDate) && (noEnd || endDate) && (noStart || noEnd || endDate >= startDate);
 
   const create = async () => {
     if (!valid) return;
     setSaving(true);
     const ref = await addDoc(collection(db, "workshops"), {
-      name: name.trim(), programId, startDate, endDate, kind,
+      name: name.trim(), programId, startDate: noStart ? OPEN_START : startDate, endDate: noEnd ? OPEN_END : endDate, kind,
       groupIds: from?.groupIds || [],
       slots: from?.slots || [],
       staffIds: from?.staffIds || [],
@@ -232,11 +235,13 @@ function NewWorkshopDialog({ refs, types, from, onClose, onCreated }: {
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
           <label className={labelCls}>תאריך התחלה</label>
-          <input type="date" className={fieldCls} value={startDate} onChange={e => setStartDate(e.target.value)} />
+          <input type="date" className={fieldCls} value={startDate} disabled={noStart} onChange={e => setStartDate(e.target.value)} />
+          <label className="flex items-center gap-1.5 mt-1.5 text-xs text-[var(--foreground)]/65 cursor-pointer"><input type="checkbox" checked={noStart} onChange={e => setNoStart(e.target.checked)} />ללא תאריך התחלה</label>
         </div>
         <div>
           <label className={labelCls}>תאריך סיום</label>
-          <input type="date" className={fieldCls} value={endDate} min={startDate} onChange={e => setEndDate(e.target.value)} />
+          <input type="date" className={fieldCls} value={endDate} min={startDate} disabled={noEnd} onChange={e => setEndDate(e.target.value)} />
+          <label className="flex items-center gap-1.5 mt-1.5 text-xs text-[var(--foreground)]/65 cursor-pointer"><input type="checkbox" checked={noEnd} onChange={e => setNoEnd(e.target.checked)} />ללא תאריך סיום</label>
         </div>
       </div>
       {from && <p className="text-xs text-[var(--foreground)]/50">המפגשים והצוות יועתקו. רשימת המשתתפים תתחיל ריקה.</p>}

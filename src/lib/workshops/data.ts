@@ -32,7 +32,14 @@ export async function loadRefs(): Promise<Refs> {
       const roles: string[] = u.roles || (u.role ? [u.role] : []);
       return roles.some(r => STAFF_ROLES.includes(r)) && u.status !== "rejected";
     })
-    .map(d => ({ id: d.id, name: d.data().displayName || d.data().email || "ללא שם" }))
+    .map(d => {
+      const u = d.data();
+      return {
+        id: d.id, name: u.displayName || u.email || "ללא שם",
+        roles: (u.roles || (u.role ? [u.role] : [])) as string[],
+        programIds: (u.assignedProgramIds || []) as string[], groupIds: (u.assignedGroupIds || []) as string[],
+      } as Person;
+    })
     .sort((a, b) => a.name.localeCompare(b.name, "he"));
   const locations: Person[] = locSnap.docs
     .filter(d => d.data().active !== false)

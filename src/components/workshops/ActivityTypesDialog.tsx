@@ -38,7 +38,7 @@ export function ActivityTypesDialog({ types, programs, onClose, onSaved }: {
   const add = () => {
     const used = list.map(t => t.hue);
     const id = newId();
-    setList(l => [...l, { id, label: "", hue: pastelCandidates(used)[0], band: false, hasStaff: true, hasParticipants: true, order: l.length }]);
+    setList(l => [...l, { id, label: "", hue: pastelCandidates(used)[0], band: false, hasStaff: true, hasParticipants: true, audience: "participants", order: l.length }]);
     setNotice("");
   };
   const anotherColor = (t: ActivityType) => {
@@ -98,6 +98,11 @@ export function ActivityTypesDialog({ types, programs, onClose, onSaved }: {
                 <label className="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" checked={t.band} onChange={e => patch(t.id, { band: e.target.checked, ...(e.target.checked ? { hasStaff: false, hasParticipants: false } : {}) })} />רצועה שקטה</label>
                 <label className="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" checked={t.hasStaff} disabled={t.band} onChange={e => patch(t.id, { hasStaff: e.target.checked })} />יש מדריך</label>
                 <label className="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" checked={t.hasParticipants} disabled={t.band} onChange={e => patch(t.id, { hasParticipants: e.target.checked })} />יש משתתפים</label>
+                <label className="flex items-center gap-1.5">קהל
+                  <select value={t.audience || "participants"} disabled={t.band} onChange={e => patch(t.id, { audience: e.target.value as "participants" | "staff" })} className="rounded-md border border-[var(--border)] bg-transparent px-1.5 py-0.5 text-xs">
+                    <option value="participants">משתתפים</option><option value="staff">צוות בלבד</option>
+                  </select>
+                </label>
                 <span className="mr-auto tabular-nums">{usage === null ? "" : n > 0 ? `בשימוש ב-${n}` : "לא בשימוש"}</span>
                 <button onClick={() => patch(t.id, { archived: !t.archived })} title={t.archived ? "החזר מהארכיון" : "העבר לארכיון"} className="p-1 rounded hover:bg-[var(--foreground)]/5"><Archive className="w-3.5 h-3.5" /></button>
                 <button onClick={() => remove(t)} disabled={usage === null} title={n > 0 ? "בשימוש — אי אפשר למחוק" : "מחק"} className={`p-1 rounded hover:bg-[var(--foreground)]/5 ${n > 0 ? "text-[var(--foreground)]/25" : "text-rose-500"}`}><Trash2 className="w-3.5 h-3.5" /></button>

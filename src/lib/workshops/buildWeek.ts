@@ -6,6 +6,17 @@ import { ActivityType, DEFAULT_TYPES, typeById } from "./activityTypes";
 export const slotGroups = (w: Workshop, slot: { groupIds?: string[] }) =>
   slot.groupIds?.length ? slot.groupIds : w.groupIds || [];
 
+const dayNo = (iso: string) => Math.round(new Date(`${iso}T12:00:00Z`).getTime() / 86400000);
+const weekIndex = (iso: string) => Math.floor((dayNo(iso) - dayNo("2000-01-02")) / 7); // weeks start on Sunday; 2000-01-02 was one
+
+/** A slot repeating every N weeks happens only in weeks that are a multiple of N away from its anchor week. */
+export function slotRunsInWeek(slot: { every?: number; anchorDate?: string }, w: { startDate: string }, date: string): boolean {
+  const n = slot.every || 1;
+  if (n <= 1) return true;
+  const diff = weekIndex(date) - weekIndex(slot.anchorDate || w.startDate);
+  return ((diff % n) + n) % n === 0;
+}
+
 export const changeIdFor = (workshopId: string, date: string, slotId: string) =>
   `${workshopId}_${date}_${slotId}`;
 
@@ -51,6 +62,7 @@ export function buildSessions(
     activity: change?.kind || w.kind || "workshop",
     band: typeById(types, change?.kind || w.kind).band,
     hasParticipants: typeById(types, change?.kind || w.kind).hasParticipants,
+    audience: typeById(types, change?.kind || w.kind).audience || "participants",
     change,
     note: change?.note,
     base,
@@ -69,6 +81,7 @@ export function buildSessions(
       if (isClosed(w.programId, date)) continue;
       for (const slot of w.slots) {
         if (slot.day !== day) continue;
+        if (!slotRunsInWeek(slot, w, date)) continue;
         const base = { start: slot.start, end: slot.end, staffIds: w.staffIds, locationId: slot.locationId, groupIds: slotGroups(w, slot) };
         const id = changeIdFor(w.id, date, slot.id);
         const ch = changeById.get(id);
@@ -108,7 +121,7 @@ export function buildSessions(
         out.push({
           id: `block_${prog.id}_${b.id}_${date}`, changeId: null, workshopId: `block:${b.id}`, workshopName: b.label,
           programId: prog.id, groupIds: b.groupIds || [], slotId: null, origDate: date, date,
-          start: b.start, end: b.end, staffIds: [], kind: "normal", activity: b.kind, band: typeById(types, b.kind).band, hasParticipants: false, fixedBlock: true,
+          start: b.start, end: b.end, staffIds: [], kind: "normal", activity: b.kind, band: typeById(types, b.kind).band, hasParticipants: false, audience: "participants", fixedBlock: true,
           base: { start: b.start, end: b.end, staffIds: [], groupIds: b.groupIds || [] },
         });
       }

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { rememberBack } from "@/lib/workshops/back";
+import { StaffPicker } from "./StaffPicker";
 import { db } from "@/lib/firebase/config";
 import { collection, deleteDoc, doc, setDoc, serverTimestamp } from "firebase/firestore";
 import { Dialog, fieldCls, labelCls, btnPrimary, btnGhost } from "./Dialog";
@@ -67,6 +68,7 @@ export function SessionEditor({ session, extra, workshops, staff, locations, typ
   const [note, setNote] = useState(session?.note || "");
   const [kind, setKind] = useState(session?.activity || "workshop");
   const defaultKind = workshops.find(w => w.id === workshopId)?.kind || "workshop";
+  const staffOnly = (types.find(t => t.id === kind)?.audience ?? "participants") === "staff";
   const [saving, setSaving] = useState(false);
   // Existing sessions open as a readable summary with one-tap actions; the full form is one step further.
   const [stage, setStage] = useState<"view" | "edit">(session ? "view" : "edit");
@@ -148,7 +150,7 @@ export function SessionEditor({ session, extra, workshops, staff, locations, typ
         </> : <button onClick={onClose} className={btnGhost}>סגור</button>}>
         {dead && <p className="rounded-lg bg-[#fde2e2] text-[#b42318] text-sm font-bold px-3 py-2">המפגש בוטל</p>}
         {warnings.length > 0 && <ul className="rounded-lg bg-[#fff6dc] text-[#8a5a00] text-[13px] px-3 py-2 space-y-0.5">{warnings.map(w => <li key={w}>{w}</li>)}</ul>}
-        <Section label="מעבירים">{session.staffIds.length ? session.staffIds.map(id => <Chip key={id}>{nameOf(id)}</Chip>) : <span className="text-[var(--foreground)]/50">—</span>}</Section>
+        <Section label={session.audience === "staff" ? "נוכחים" : "מעבירים"}>{session.staffIds.length ? session.staffIds.map(id => <Chip key={id}>{nameOf(id)}</Chip>) : <span className="text-[var(--foreground)]/50">—</span>}</Section>
         {groupNames.length > 0 && <Section label="קבוצות">{groupNames.map(g => <Chip key={g}>{g}</Chip>)}</Section>}
         {participants.length > 0 && (
           <Section label={`משתתפים (${participants.length})`}>
@@ -244,22 +246,9 @@ export function SessionEditor({ session, extra, workshops, staff, locations, typ
             {locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
           </select>
         </div>
-        <div>
-          <label className={labelCls}>מעבירים{!isExtra && session && <span className="font-normal"> — מקור: {session.base.staffIds.map(nameOf).join(", ") || "—"}</span>}</label>
-          <ul className="grid grid-cols-1 sm:grid-cols-2 gap-x-3 max-h-56 overflow-y-auto border border-[var(--border)] rounded-lg px-2.5 py-1">
-            {staffSorted.map(s => {
-              const busy = busyOf(s.id);
-              return (
-                <li key={s.id}>
-                  <label className={`flex items-center gap-2 py-1 text-sm cursor-pointer ${busy && !staffIds.includes(s.id) ? "text-[var(--foreground)]/45" : ""}`} title={busy ? `תפוס/ה: ${busy}` : undefined}>
-                    <input type="checkbox" checked={staffIds.includes(s.id)} onChange={() => toggleStaff(s.id)} /> {s.name}
-                    {busy && <span className="text-[11px] text-amber-600">· {busy}</span>}
-                  </label>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
+        <StaffPicker label={`${staffOnly ? "נוכחים" : "מעבירים"}${!isExtra && session ? ` (מקור: ${session.base.staffIds.map(nameOf).join(", ") || "—"})` : ""}`}
+          staff={staff} selected={staffIds} onChange={setStaffIds} programId={workshop?.programId}
+          groupIds={session?.groupIds?.length ? session.groupIds : workshop?.groupIds || []} busyOf={id => busyOf(id)} />
       </fieldset>
 
       {participants.length > 0 && (

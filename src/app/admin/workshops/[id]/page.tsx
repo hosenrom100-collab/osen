@@ -11,7 +11,7 @@ import { fieldCls, labelCls, btnPrimary, btnGhost } from "@/components/workshops
 import { PageSkeleton } from "@/components/ui/Skeleton";
 import { loadRefs, Refs } from "@/lib/workshops/data";
 import { buildSessions } from "@/lib/workshops/buildWeek";
-import { rangeDates, shortDate, overlaps, dayOf } from "@/lib/workshops/dates";
+import { rangeDates, shortDate, overlaps, dayOf, OPEN_START, OPEN_END, isOpenStart, isOpenEnd, effectiveRange, anchorFallback, toISO } from "@/lib/workshops/dates";
 import { Closure, DAY_FULL, DAY_SHORT, SessionChange, Slot, Workshop } from "@/lib/workshops/types";
 import { readBack } from "@/lib/workshops/back";
 import { ActivityType, DEFAULT_TYPES, loadActivityTypes } from "@/lib/workshops/activityTypes";
@@ -48,7 +48,8 @@ export default function WorkshopDetailPage() {
     if (!wSnap.exists()) { setLoading(false); return; }
     const w = { id: wSnap.id, ...wSnap.data() } as Workshop;
     w.slots ||= []; w.staffIds ||= []; w.participantIds ||= []; w.groupIds ||= [];
-    const clSnap = await getDocs(query(collection(db, "closures"), where("date", ">=", w.startDate), where("date", "<=", w.endDate)));
+    const [rf, rt] = effectiveRange(w.startDate, w.endDate);
+    const clSnap = await getDocs(query(collection(db, "closures"), where("date", ">=", rf), where("date", "<=", rt)));
     setRefs(r); setSaved(w); setForm(w);
     setOthers(allW.docs.map(d => ({ id: d.id, ...d.data() } as Workshop)).filter(x => x.id !== id && x.status === "active"));
     setPatients(pSnap.docs.map(d => {
@@ -66,7 +67,8 @@ export default function WorkshopDetailPage() {
 
   const sessions = useMemo(() => {
     if (!saved || !refs || saved.status !== "active") return [];
-    return buildSessions(rangeDates(saved.startDate, saved.endDate), [saved], refs.programs, changes, closures);
+    const [rf, rt] = effectiveRange(saved.startDate, saved.endDate);
+    return buildSessions(rangeDates(rf, rt), [saved], refs.programs, changes, closures);
   }, [saved, refs, changes, closures]);
 
   if (loading) return <PageSkeleton />;
@@ -96,7 +98,8 @@ export default function WorkshopDetailPage() {
     await updateDoc(doc(db, "workshops", id), { ...data, updatedAt: serverTimestamp() });
     setSaved(form);
     // Window changed? Reload closures for the new range.
-    const clSnap = await getDocs(query(collection(db, "closures"), where("date", ">=", form.startDate), where("date", "<=", form.endDate)));
+    const [rf, rt] = effectiveRange(form.startDate, form.endDate);
+    const clSnap = await getDocs(query(collection(db, "closures"), where("date", ">=", rf), where("date", "<=", rt)));
     setClosures(clSnap.docs.map(d => ({ id: d.id, ...d.data() } as Closure)));
     setSaving(false);
   };
@@ -147,9 +150,11 @@ export default function WorkshopDetailPage() {
                   {refs.programs.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                 </select></div>
               <div><label className={labelCls}>תאריך התחלה</label>
-                <input type="date" className={fieldCls} value={form.startDate} onChange={e => set({ startDate: e.target.value })} /></div>
+                <input type="date" className={fieldCls} value={isOpenStart(form.startDate) ? "" : form.startDate} disabled={isOpenStart(form.startDate)} onChange={e => set({ startDate: e.target.value })} />
+                <label className="flex items-center gap-1.5 mt-1.5 text-xs text-[var(--foreground)]/65 cursor-pointer"><input type="checkbox" checked={isOpenStart(form.startDate)} onChange={e => set({ startDate: e.target.checked ? OPEN_START : toISO(new Date()) })} />ללא תאריך התחלה</label></div>
               <div><label className={labelCls}>תאריך סיום</label>
-                <input type="date" className={fieldCls} value={form.endDate} min={form.startDate} onChange={e => set({ endDate: e.target.value })} /></div>
+                <input type="date" className={fieldCls} value={isOpenEnd(form.endDate) ? "" : form.endDate} min={isOpenStart(form.startDate) ? undefined : form.startDate} disabled={isOpenEnd(form.endDate)} onChange={e => set({ endDate: e.target.value })} />
+                <label className="flex items-center gap-1.5 mt-1.5 text-xs text-[var(--foreground)]/65 cursor-pointer"><input type="checkbox" checked={isOpenEnd(form.endDate)} onChange={e => set({ endDate: e.target.checked ? OPEN_END : toISO(new Date(Date.now() + 90 * 864e5)) })} />ללא תאריך סיום</label></div>
               <div><label className={labelCls}>סוג פעילות</label>
                 <select className={fieldCls} value={form.kind || "workshop"} onChange={e => set({ kind: e.target.value })}>
                   {types.filter(t => !t.band && (!t.archived || t.id === (form.kind || "workshop"))).map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
@@ -201,6 +206,15 @@ export default function WorkshopDetailPage() {
                   <option value="">ללא מרחב</option>
                   {refs.locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
                 </select>
+                <select aria-label="תדירות" className={`${fieldCls} !w-32`} value={s.every || 1}
+                  onChange={e => { const n = Number(e.target.value); setSlot(s.id, { every: n > 1 ? n : undefined, anchorDate: n > 1 ? s.anchorDate || anchorFallback(form.startDate) : undefined }); }}>
+                  {[[1, "כל שבוע"], [2, "כל שבועיים"], [3, "כל 3 שבועות"], [4, "כל 4 שבועות"]].map(([n, l]) => <option key={n} value={n}>{l}</option>)}
+                </select>
+                {(s.every || 1) > 1 && (
+                  <label className="w-full flex items-center gap-2 text-xs text-[var(--foreground)]/60">השבוע הראשון שבו זה מתקיים
+                    <input type="date" className={`${fieldCls} !w-auto`} value={s.anchorDate || anchorFallback(form.startDate)} onChange={e => setSlot(s.id, { anchorDate: e.target.value })} />
+                  </label>
+                )}
                 {s.end <= s.start && <span className="text-xs text-rose-500">שעת הסיום מוקדמת מההתחלה</span>}
                 {(form.groupIds?.length ?? 0) > 1 && (
                   <div className="w-full flex flex-wrap items-center gap-1.5 text-xs">

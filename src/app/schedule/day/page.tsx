@@ -26,6 +26,7 @@ export default function DaySharePage() {
   const [programId, setProgramId] = useState(() => readParam("program"));
   const [groupId, setGroupId] = useState(() => readParam("group"));
   const [withNames, setWithNames] = useState(true);
+  const [withStaffEvents, setWithStaffEvents] = useState(false); // team-only events stay out of what is shared with participants
   const [range, setRange] = useState<"day" | "week">(() => (readParam("range") === "week" ? "week" : "day"));
   const [calOpen, setCalOpen] = useState(false);
   const [toast, setToast] = useState("");
@@ -87,7 +88,7 @@ export default function DaySharePage() {
     byDay.forEach((day, i) => {
       if (range === "week") lines.push(`${i ? "\n" : ""}*${dayName(day.date)}*`);
       if (day.closure) lines.push(day.closure.reason || "אין פעילות");
-      day.list.forEach(s => {
+      day.list.filter(s => forStaff || withStaffEvents || s.audience !== "staff").forEach(s => {
         const extra = [forStaff && !s.fixedBlock ? staffOf(s) : "", roomOf(s.locationId), !group ? groupsOf(s) : ""].filter(Boolean).join(" · ");
         const ch = changeText(s);
         lines.push(`${s.start}–${s.end}  ${s.workshopName}${extra ? ` (${extra})` : ""}${ch ? ` — *${ch}*` : ""}`);
@@ -168,6 +169,7 @@ export default function DaySharePage() {
             )}
           </div>
           <label className="flex items-center gap-1.5 text-sm cursor-pointer"><input type="checkbox" checked={withNames} onChange={e => setWithNames(e.target.checked)} /> עם שמות משתתפים</label>
+          <label className="flex items-center gap-1.5 text-sm cursor-pointer"><input type="checkbox" checked={withStaffEvents} onChange={e => setWithStaffEvents(e.target.checked)} /> כולל אירועי צוות</label>
         </div>
 
         <div className="max-w-md mx-auto px-3 pt-4">
@@ -179,12 +181,12 @@ export default function DaySharePage() {
               <div style={{ fontSize: 16, fontWeight: 600, marginTop: 2 }}>{dayTitle}</div>
             </div>
             <div style={{ padding: "12px 14px" }}>
-              {byDay.every(d => d.list.length === 0 && !d.closure) && <div style={{ padding: "24px 0", textAlign: "center", color: SOFT }}>אין פעילות מתוכננת {range === "week" ? "בשבוע זה" : "ליום זה"}.</div>}
+              {byDay.every(d => d.list.filter(s => withStaffEvents || s.audience !== "staff").length === 0 && !d.closure) && <div style={{ padding: "24px 0", textAlign: "center", color: SOFT }}>אין פעילות מתוכננת {range === "week" ? "בשבוע זה" : "ליום זה"}.</div>}
               {byDay.map(day => (
                 <div key={day.date} style={{ marginBottom: range === "week" ? 10 : 0 }}>
                   {range === "week" && <div style={{ fontWeight: 800, fontSize: 14, padding: "6px 2px 2px", color: tint.ink }}>{dayName(day.date)}</div>}
                   {day.closure && <div style={{ padding: "10px 12px", marginBottom: 8, borderRadius: 8, background: "#f3f4f6", fontWeight: 700 }}>{day.closure.reason || "אין פעילות"}</div>}
-                  {day.list.map(s => {
+                  {day.list.filter(s => withStaffEvents || s.audience !== "staff").map(s => {
                   const cancelled = s.kind === "cancelled";
                   const ch = changeText(s);
                   const t = hueStyle(programHue(refs.programs.find(p => p.id === s.programId), s.programId));

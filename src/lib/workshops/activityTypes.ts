@@ -9,6 +9,7 @@ export interface ActivityType {
   band: boolean;          // drawn as a quiet band (meal, break…) instead of a card
   hasStaff: boolean;      // has a leader, checked for conflicts
   hasParticipants: boolean;
+  audience?: "participants" | "staff"; // "staff" = team meeting: staff attend, nothing is shared with participants
   order: number;
   archived?: boolean;     // hidden from pickers, still shown where already used
 }
@@ -16,7 +17,7 @@ export interface ActivityType {
 export const DEFAULT_TYPES: ActivityType[] = [
   { id: "workshop", label: "סדנה", hue: 212, band: false, hasStaff: true, hasParticipants: true, order: 0 },
   { id: "therapy", label: "טיפול / שיחה", hue: 152, band: false, hasStaff: true, hasParticipants: true, order: 1 },
-  { id: "staff_meeting", label: "ישיבת צוות", hue: 282, band: false, hasStaff: true, hasParticipants: false, order: 2 },
+  { id: "staff_meeting", label: "ישיבת צוות", hue: 282, band: false, hasStaff: true, hasParticipants: false, audience: "staff", order: 2 },
   { id: "event", label: "אירוע", hue: 28, band: false, hasStaff: true, hasParticipants: true, order: 3 },
   { id: "meal", label: "ארוחה", hue: 48, band: true, hasStaff: false, hasParticipants: false, order: 4 },
   { id: "break", label: "הפסקה", hue: 184, band: true, hasStaff: false, hasParticipants: false, order: 5 },

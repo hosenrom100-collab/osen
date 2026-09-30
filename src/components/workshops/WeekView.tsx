@@ -43,9 +43,10 @@ function changeNote(s: Session): string {
 function facts(s: Session, mode: Mode, c: Common, groups?: boolean) {
   const dead = s.kind === "cancelled" || s.kind === "moved-away";
   const room = c.roomOf(s.locationId);
+  const staffOnly = s.audience === "staff";
   const staff = mode !== "staff" && !s.fixedBlock ? s.staffIds.map(c.nameOf).join(", ") : "";
   const grp = groups || mode !== "program" || c.showGroups ? c.groupsOf(s.groupIds) : "";
-  return { dead, room, staff, grp, count: dead ? undefined : c.countOf(s), special: dead ? undefined : c.typeLabel(s), note: changeNote(s), warn: c.warnings.get(s.id) };
+  return { dead, room, staff, staffOnly, grp, count: dead ? undefined : c.countOf(s), special: dead ? undefined : c.typeLabel(s), note: changeNote(s), warn: c.warnings.get(s.id) };
 }
 
 /**
@@ -57,7 +58,7 @@ function Card({ s, mode, c, groups }: { s: Session; mode: Mode; c: Common; group
   const f = facts(s, mode, c, groups);
   const oneOff = s.kind === "extra" || s.kind === "moved-in";
   const showRoom = !!f.room && !f.dead && mode !== "space";
-  const meta = [f.staff, f.grp].filter(Boolean).join(" · ");
+  const meta = [f.staff ? (f.staffOnly ? `נוכחים: ${f.staff}` : f.staff) : "", f.grp].filter(Boolean).join(" · ");
   const hover = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [peek, setPeek] = useState<DOMRect | null>(null);
   const enter = (e: React.MouseEvent<HTMLElement>) => {
@@ -96,7 +97,7 @@ function Card({ s, mode, c, groups }: { s: Session; mode: Mode; c: Common; group
           <span className="mt-1 flex flex-wrap items-center gap-1 text-[11px] font-semibold">
             {f.special && <span className="px-1.5 rounded bg-white/80" style={{ color: t.ink }}>{f.special}</span>}
             {oneOff && <span className="px-1.5 rounded bg-[#fff0c2] text-[#6b4700]">{s.kind === "extra" ? "חד-פעמי" : "הוזז"}</span>}
-            {f.count ? <span className="px-1.5 rounded bg-black/[0.06] tabular-nums text-[var(--cal-muted)]" title={`${f.count} משתתפים`}>{f.count} משתתפים</span> : null}
+            {f.count ? <span className="px-1.5 rounded bg-black/[0.06] tabular-nums text-[var(--cal-muted)]" title={`${f.count} ${f.staffOnly ? "בצוות" : "משתתפים"}`}>{f.count} {f.staffOnly ? "בצוות" : "משתתפים"}</span> : null}
             {f.warn && !f.dead && <span className="text-[#b42318] font-bold">{f.warn[0]}{f.warn.length > 1 ? ` (+${f.warn.length - 1})` : ""}</span>}
           </span>
         )}
@@ -113,7 +114,7 @@ function Peek({ s, f, rect, c, accent }: { s: Session; f: ReturnType<typeof fact
   const top = Math.min(Math.max(rect.top - 4, 8), window.innerHeight - 260);
   const names = c.peekNames(s);
   const rows: [string, string][] = [
-    ["מדריכים", s.staffIds.map(c.nameOf).join(", ")],
+    [f.staffOnly ? "נוכחים" : "מדריכים", s.staffIds.map(c.nameOf).join(", ")],
     ["קבוצות", c.groupsOf(s.groupIds)],
     ["מרחב", f.room || ""],
   ].filter(([, v]) => v) as [string, string][];
@@ -124,7 +125,7 @@ function Peek({ s, f, rect, c, accent }: { s: Session; f: ReturnType<typeof fact
       <div className="text-xs text-[var(--cal-muted)] tabular-nums mt-0.5">{s.date.split("-").reverse().slice(0, 2).join(".")} · {s.start}–{s.end}{f.special ? ` · ${f.special}` : ""}</div>
       <dl className="mt-2 space-y-1 text-[13px]">
         {rows.map(([k, v]) => <div key={k} className="flex gap-2"><dt className="w-14 shrink-0 text-[var(--cal-faint)]">{k}</dt><dd className="min-w-0 break-words">{v}</dd></div>)}
-        {f.count ? <div className="flex gap-2"><dt className="w-14 shrink-0 text-[var(--cal-faint)]">משתתפים</dt><dd className="min-w-0 break-words">{f.count}{names.length ? ` · ${names.slice(0, 24).join(", ")}${names.length > 24 ? ` ועוד ${names.length - 24}` : ""}` : ""}</dd></div> : null}
+        {f.count ? <div className="flex gap-2"><dt className="w-14 shrink-0 text-[var(--cal-faint)]">{f.staffOnly ? "בצוות" : "משתתפים"}</dt><dd className="min-w-0 break-words">{f.count}{names.length ? ` · ${names.slice(0, 24).join(", ")}${names.length > 24 ? ` ועוד ${names.length - 24}` : ""}` : ""}</dd></div> : null}
         {s.note && <div className="flex gap-2"><dt className="w-14 shrink-0 text-[var(--cal-faint)]">הערה</dt><dd className="min-w-0 break-words">{s.note}</dd></div>}
         {f.note && <div className="flex gap-2"><dt className="w-14 shrink-0 text-[var(--cal-faint)]">שינוי</dt><dd>{f.note}</dd></div>}
       </dl>

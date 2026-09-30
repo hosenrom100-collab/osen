@@ -26,6 +26,7 @@ import { typeById } from "@/lib/workshops/activityTypes";
 import { groupsRunInParallel } from "@/lib/workshops/lanes";
 import { moveSession } from "@/lib/workshops/moveSession";
 import { ActivityTypesDialog } from "@/components/workshops/ActivityTypesDialog";
+import { NewEventDialog } from "@/components/workshops/NewEventDialog";
 import { toISO, weekDates, weekStartOf, shortDate, dayOf } from "@/lib/workshops/dates";
 import { Closure, DAY_FULL, DAY_SHORT, Session } from "@/lib/workshops/types";
 
@@ -64,6 +65,7 @@ export default function SchedulePage() {
   const [colorBy, setColorBy] = useState<ColorBy>(() => readSaved<ColorBy>("colorBy", "type"));
   const [focus, setFocus] = useState<string | null>(null);
   const [showTypes, setShowTypes] = useState(false);
+  const [creating, setCreating] = useState<{ date: string; programId?: string } | null>(null);
   const [toast, setToast] = useState<{ text: string; undo?: () => Promise<void> } | null>(null);
   useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(null), 8000); return () => clearTimeout(t); }, [toast]);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -238,7 +240,9 @@ export default function SchedulePage() {
     dim: (s: Session) => focusKey !== null && legendKey(s) !== focusKey,
     peekNames: (s: Session) => (s.fixedBlock || !s.hasParticipants ? [] : firstNames(participantsOf(s, workshopById.get(s.workshopId), patients))),
     countOf: (s: Session) => {
-      if (s.fixedBlock || !s.hasParticipants) return undefined;
+      if (s.fixedBlock) return undefined;
+      if (s.audience === "staff") return s.staffIds.length || undefined;
+      if (!s.hasParticipants) return undefined;
       const n = participantsOf(s, workshopById.get(s.workshopId), patients).length;
       return n || undefined;
     },
@@ -278,7 +282,7 @@ export default function SchedulePage() {
       } catch { setToast({ text: "השינוי לא נשמר. נסה שוב." }); }
     },
   } : undefined;
-  const addFor = (date: string, programId?: string) => (isManager && mode === "program" ? () => setEditing({ session: null, extra: { date, programId } }) : undefined);
+  const addFor = (date: string, programId?: string) => (isManager && mode === "program" ? () => setCreating({ date, programId }) : undefined);
   const laneGroups = programSel[0] && !groupSel[0] ? refs.groups.filter(g => g.programId === programSel[0]) : [];
   const weekLanes: "groups" | "stable" = (() => {
     const p = programOf(programSel[0]);
@@ -373,9 +377,9 @@ export default function SchedulePage() {
                 ))}
               </div>
               {isManager && (
-                <button onClick={() => setEditing({ session: null, extra: { date: view === "day" ? selectedDay : dates.includes(today) ? today : dates[0], programId: programSel[0] } })}
-                  aria-label="מפגש חד-פעמי" className={`${btnPrimary} flex items-center gap-1.5 !px-3 !py-0 h-8`}>
-                  <Plus className="w-4 h-4" /><span className="hidden sm:inline">מפגש</span>
+                <button onClick={() => setCreating({ date: view === "day" ? selectedDay : dates.includes(today) ? today : dates[0], programId: programSel[0] })}
+                  aria-label="אירוע חדש" className={`${btnPrimary} flex items-center gap-1.5 !px-3 !py-0 h-8`}>
+                  <Plus className="w-4 h-4" /><span className="hidden sm:inline">אירוע</span>
                 </button>
               )}
               <button onClick={() => setMenuOpen(o => !o)} aria-label="עוד פעולות" aria-expanded={menuOpen} className="w-8 h-8 flex items-center justify-center rounded-lg border border-[var(--cal-frame)] hover:bg-[var(--foreground)]/5"><MoreHorizontal className="w-4 h-4" /></button>
@@ -449,7 +453,7 @@ export default function SchedulePage() {
             <TimeGrid {...common} columns={columns} mode={mode} groupName={groupName} laneMin={view === "day" ? 8.5 : 6.5} drag={dragApi} corner={view === "week" ? `שבוע ${getWeek(weekStart, { weekStartsOn: 0 })}` : undefined} />
             <DayAgenda {...common} dates={dates} days={days} rows={rows} mode={mode} today={today} globalClosure={globalClosure}
               selected={selectedDay} setSelected={setSelectedDay} canEdit={isManager}
-              onAdd={date => setEditing({ session: null, extra: { date, programId: programSel.length === 1 ? programSel[0] : undefined } })} />
+              onAdd={date => setCreating({ date, programId: programSel.length === 1 ? programSel[0] : undefined })} />
           </div>
         )}
 
@@ -507,6 +511,11 @@ export default function SchedulePage() {
             <span>{toast.text}</span>
             {toast.undo && <button onClick={async () => { await toast.undo!(); setToast(null); }} className="font-bold underline text-[#8fd3b4]">בטל</button>}
           </div>
+        )}
+        {creating && (
+          <NewEventDialog refs={refs} types={types} initial={creating} userId={user?.uid} onClose={() => setCreating(null)}
+            onSaved={() => { setCreating(null); load(); }}
+            onExisting={() => { setEditing({ session: null, extra: creating }); setCreating(null); }} />
         )}
         {showTypes && <ActivityTypesDialog types={types} programs={refs.programs} onClose={() => setShowTypes(false)} onSaved={() => { setShowTypes(false); load(); }} />}
         {showClosures && <ClosuresDialog dates={dates} closures={closures} refs={refs} onClose={() => setShowClosures(false)} onChanged={load} />}

@@ -5,6 +5,7 @@ import { db } from "@/lib/firebase/config";
 import { doc, updateDoc, serverTimestamp } from "firebase/firestore";
 import Link from "next/link";
 import { rememberBack } from "@/lib/workshops/back";
+import { anchorFallback } from "@/lib/workshops/dates";
 import { Plus, Trash2 } from "lucide-react";
 import { Dialog, fieldCls, labelCls, btnPrimary, btnGhost } from "./Dialog";
 import { DAY_FULL, Group, Person, Program, Slot, Workshop } from "@/lib/workshops/types";
@@ -100,7 +101,7 @@ export function SeriesDays({ workshops, initialId, programs, groups, locations, 
               <h3 className="text-sm font-bold">{sec.label}</h3>
               {rows.length === 0 && <p className="text-xs text-[var(--foreground)]/55 leading-relaxed">{wGroups.length > 1 && sec.groupIds.length ? "אין ימים ייעודיים לקבוצה הזו. היא משתתפת בימים של ״כל קבוצות הסדנה יחד״ שמתחת." : "אין ימי פעילות."}</p>}
               {rows.map(s => (
-                <div key={s.id} className="grid grid-cols-2 sm:grid-cols-[8rem_7rem_7rem_minmax(8rem,1fr)_auto] gap-2 items-center">
+                <div key={s.id} className="grid grid-cols-2 sm:grid-cols-[8rem_7rem_7rem_minmax(8rem,1fr)_8.5rem_auto] gap-2 items-center">
                   <select aria-label="יום" className={`${fieldCls} col-span-2 sm:col-span-1`} value={s.day} onChange={e => patch(s.id, { day: Number(e.target.value) })}>
                     {days.map(d => <option key={d} value={d}>{DAY_FULL[d]}</option>)}
                     {!days.includes(s.day) && <option value={s.day}>{DAY_FULL[s.day]} (לא פעיל)</option>}
@@ -111,7 +112,16 @@ export function SeriesDays({ workshops, initialId, programs, groups, locations, 
                     <option value="">ללא מרחב</option>
                     {locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
                   </select>
+                  <select aria-label="תדירות" className={`${fieldCls} col-span-2 sm:col-span-1`} value={s.every || 1}
+                    onChange={e => { const n = Number(e.target.value); patch(s.id, { every: n > 1 ? n : undefined, anchorDate: n > 1 ? s.anchorDate || anchorFallback(w?.startDate || "") : undefined }); }}>
+                    {[[1, "כל שבוע"], [2, "כל שבועיים"], [3, "כל 3 שבועות"], [4, "כל 4 שבועות"]].map(([n, l]) => <option key={n} value={n}>{l}</option>)}
+                  </select>
                   <button onClick={() => setSlots(slots.filter(x => x.id !== s.id))} aria-label="הסר" className="p-1.5 justify-self-end col-span-2 sm:col-span-1 text-[var(--foreground)]/50 hover:text-rose-500"><Trash2 className="w-4 h-4" /></button>
+                  {(s.every || 1) > 1 && (
+                    <label className="col-span-full flex items-center gap-2 text-xs text-[var(--foreground)]/60">השבוע הראשון שבו זה מתקיים
+                      <input type="date" className={`${fieldCls} !w-auto`} value={s.anchorDate || anchorFallback(w?.startDate || "")} onChange={e => patch(s.id, { anchorDate: e.target.value })} />
+                    </label>
+                  )}
                   {s.end <= s.start && <span className="text-xs text-rose-500 col-span-full">שעת הסיום מוקדמת מההתחלה</span>}
                 </div>
               ))}
