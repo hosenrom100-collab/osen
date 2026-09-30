@@ -275,20 +275,20 @@ export function TimeGrid({ columns, mode, groupName, laneMin, drag: dragApi, ...
             style={{ gridRow: HDR + 1 + i, gridColumn: 1 }}>{String(Math.floor(t / 60)).padStart(2, "0")}:{String(t % 60).padStart(2, "0")}</div>
         ))}
 
-        <div className="bg-[#f3eee8] border-b border-[var(--border)]" style={{ gridRow: `1 / ${HDR + 1}`, gridColumn: 1 }} />
+        <div className="bg-white border-b border-[var(--border)]" style={{ gridRow: `1 / ${HDR + 1}`, gridColumn: 1 }} />
         {columns.map((col, k) => {
           const l = laid[k];
           const c1 = starts[k];
           return (
             <div key={col.id} className="contents">
               {/* Day header, lane labels, separator, empty-cell add button. */}
-              <div data-col={k} className={`px-2 py-2 text-sm font-bold border-b border-[var(--border)] text-[#3a2a21] ${col.today ? "bg-[var(--accent-soft)] border-b-2 !border-b-[var(--accent)]" : "bg-[#f3eee8]"}`}
+              <div data-col={k} className={`px-2 py-2 text-sm font-bold text-center border-b border-[var(--border)] text-[#3a2a21] ${col.today ? "bg-[var(--accent-soft)] border-b-2 !border-b-[var(--accent)]" : "bg-white"}`}
                 style={{ gridRow: 1, gridColumn: `${c1} / span ${l.lanes}` }}>
                 {col.header}
                 {col.sub && <div className="text-xs font-normal text-[var(--foreground)]/60">{col.sub}</div>}
               </div>
               {l.laneLabels && l.laneLabels.map((name, i) => (
-                <div key={i} className="px-2 pb-1 text-xs font-semibold text-[#3a2a21]/70 truncate border-b border-[var(--border)] bg-[#f3eee8]"
+                <div key={i} className="px-2 pb-1 text-xs font-semibold text-center text-[#3a2a21]/70 truncate border-b border-[var(--border)] bg-white"
                   style={{ gridRow: 2, gridColumn: c1 + i }}>{name}</div>
               ))}
               <div className="pointer-events-none border-s border-[var(--border)]" style={{ gridRow: `${HDR + 1} / -1`, gridColumn: c1 }} />

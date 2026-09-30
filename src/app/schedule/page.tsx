@@ -269,7 +269,7 @@ export default function SchedulePage() {
         return {
           id: date, date, today: date === today, sessions: sessions.filter(s => s.date === date), laneMode: weekLanes, groupIds: laneGroups.map(g => g.id),
           showGroups: weekLanes === "stable" && !groupSel[0],
-          header: <>{DAY_FULL[dayOf(date)]} <span className={`font-normal tabular-nums ${date === today ? "text-[var(--accent)] font-bold" : "text-[var(--foreground)]/50"}`}>{shortDate(date)}</span></>,
+          header: <span className="flex flex-col items-center leading-tight"><span className="text-[15px]">יום {DAY_FULL[dayOf(date)]}</span><span className={`text-xs font-semibold tabular-nums mt-0.5 ${date === today ? "text-[var(--accent)]" : "text-[var(--foreground)]/55"}`}>{shortDate(date)}</span></span>,
           sub, onAdd: addFor(date, programSel[0]),
         };
       })
