@@ -137,12 +137,13 @@ function Peek({ s, f, rect, c, accent }: { s: Session; f: ReturnType<typeof fact
 /** Fixed daily entries (lunch, break, transport): a quiet hatched band, not a card. */
 function BandCard({ s, c, groups }: { s: Session; c: Common; groups?: boolean }) {
   const g = groups || c.showGroups || s.groupIds.length ? c.groupsOf(s.groupIds) : "";
+  const room = c.roomOf(s.locationId);
   return (
-    <button onClick={() => c.onOpen(s)} title={`${s.start}–${s.end} ${s.workshopName}${g ? ` · ${g}` : ""}`}
+    <button onClick={() => c.onOpen(s)} title={`${s.start}–${s.end} ${s.workshopName}${g ? ` · ${g}` : ""}${room ? ` · ${room}` : ""}`}
       style={{ backgroundImage: "repeating-linear-gradient(135deg, rgba(43,33,27,0.04) 0 6px, transparent 6px 12px)" }}
       className={`block w-full h-full text-start rounded-md px-2.5 py-0.5 md:px-2 bg-[var(--cal-ink)]/[0.04] text-[var(--cal-muted)] text-xs md:text-[11.5px] ${c.dim(s) ? "opacity-30" : ""}`}>
       <span className="font-semibold tabular-nums">{s.start}–{s.end}</span>{" "}
-      <span className="font-semibold line-clamp-2">{s.workshopName}{g ? ` · ${g}` : ""}</span>
+      <span className="font-semibold line-clamp-2">{s.workshopName}{g ? ` · ${g}` : ""}{room ? ` · ${room}` : ""}</span>
     </button>
   );
 }
