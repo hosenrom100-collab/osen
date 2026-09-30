@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { DAY_SHORT, Session } from "@/lib/workshops/types";
 import { dayOf, shortDate } from "@/lib/workshops/dates";
-import { Plus } from "lucide-react";
+import { MapPin, Plus } from "lucide-react";
 import { hueStyle } from "@/lib/workshops/colors";
 import { DayLanes, laneByGroup, laneStable, timeRows } from "@/lib/workshops/lanes";
 
@@ -47,14 +47,15 @@ function Card({ s, mode, c, groups }: { s: Session; mode: Mode; c: Common; group
   const room = c.roomOf(s.locationId);
   const staff = mode !== "staff" && !s.fixedBlock ? s.staffIds.map(c.nameOf).join(", ") : "";
   const grp = groups || mode !== "program" || c.showGroups ? c.groupsOf(s.groupIds) : "";
-  const meta = [staff, mode !== "space" ? room : "", grp].filter(Boolean).join(" · ");
+  const meta = [staff, grp].filter(Boolean).join(" · ");
+  const showRoom = !!room && !dead && mode !== "space";
   const count = dead ? undefined : c.countOf(s);
   const special = dead ? undefined : c.typeLabel(s);          // events, therapy… stand out from plain workshops
   const oneOff = s.kind === "extra" || s.kind === "moved-in";
 
   return (
     <button onClick={() => c.onOpen(s)}
-      title={[`${s.start}–${s.end} ${s.workshopName}`, meta, count ? `${count} משתתפים` : "", note, s.note, warn?.join(" | ")].filter(Boolean).join("\n")}
+      title={[`${s.start}–${s.end} ${s.workshopName}`, meta, room ? `מרחב: ${room}` : "", count ? `${count} משתתפים` : "", note, s.note, warn?.join(" | ")].filter(Boolean).join("\n")}
       style={dead ? undefined : { backgroundColor: t.fill, color: t.ink, borderColor: oneOff ? t.bar : undefined, borderInlineStartColor: t.bar, boxShadow: special ? `inset 0 0 0 1.5px ${t.bar}` : undefined }}
       className={`block w-full h-full text-start rounded-md px-2.5 py-1.5 border-s-[3px] transition-opacity hover:brightness-[0.97] ${c.dim(s) ? "opacity-30" : ""} ${dead ? "border border-dashed border-[var(--border)] text-[var(--foreground)]/45" : "border-transparent"} ${oneOff && !dead ? "border border-dashed" : ""}`}>
       <span className="flex items-center gap-1.5 text-xs font-medium tabular-nums opacity-80">
@@ -71,6 +72,11 @@ function Card({ s, mode, c, groups }: { s: Session; mode: Mode; c: Common; group
       </span>
       <span className={`block text-[15px] font-bold leading-snug mt-0.5 line-clamp-2 ${s.kind === "cancelled" ? "line-through" : ""}`}>{s.workshopName}</span>
       {meta && !dead && <span className="block text-xs leading-snug mt-0.5 line-clamp-2 text-[var(--foreground)]/65">{meta}</span>}
+      {showRoom && (
+        <span className="inline-flex items-center gap-1 max-w-full mt-1 px-2 py-0.5 rounded-md bg-white/75 text-xs font-bold" style={{ color: t.ink }} title={`מרחב: ${room}`}>
+          <MapPin className="w-3 h-3 shrink-0" /><span className="truncate">{room}</span>
+        </span>
+      )}
       {s.note && !dead && <span className="block text-xs leading-snug mt-0.5 line-clamp-2 text-[var(--foreground)]/75">{s.note}</span>}
     </button>
   );
