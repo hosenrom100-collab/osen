@@ -1,18 +1,20 @@
 import { db } from "@/lib/firebase/config";
 import { collection, getDocs, query, where } from "firebase/firestore";
-import { Person, Program, STAFF_ROLES } from "./types";
+import { Group, Person, Program, STAFF_ROLES } from "./types";
 
 export interface Refs {
   programs: Program[];
   staff: Person[];
   locations: Person[];
+  groups: Group[];
 }
 
 export async function loadRefs(): Promise<Refs> {
-  const [progSnap, userSnap, locSnap] = await Promise.all([
+  const [progSnap, userSnap, locSnap, groupSnap] = await Promise.all([
     getDocs(collection(db, "programs")),
     getDocs(collection(db, "users")),
     getDocs(collection(db, "locations")),
+    getDocs(collection(db, "groups")),
   ]);
   const programs: Program[] = progSnap.docs
     .filter(d => (d.data().status || "active") === "active")
@@ -30,7 +32,10 @@ export async function loadRefs(): Promise<Refs> {
     .filter(d => d.data().active !== false)
     .map(d => ({ id: d.id, name: d.data().name }))
     .sort((a, b) => a.name.localeCompare(b.name, "he"));
-  return { programs, staff, locations };
+  const groups: Group[] = groupSnap.docs
+    .map(d => ({ id: d.id, name: d.data().name, programId: d.data().programId }))
+    .sort((a, b) => a.name.localeCompare(b.name, "he"));
+  return { programs, staff, locations, groups };
 }
 
 /** Approved absence requests for a set of dates. */

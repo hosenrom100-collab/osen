@@ -1,6 +1,10 @@
 import { Closure, Program, Session, SessionChange, Workshop } from "./types";
 import { dayOf } from "./dates";
 
+/** Groups a weekly meeting is for: its own list, otherwise the workshop's. */
+export const slotGroups = (w: Workshop, slot: { groupIds?: string[] }) =>
+  slot.groupIds?.length ? slot.groupIds : w.groupIds || [];
+
 export const changeIdFor = (workshopId: string, date: string, slotId: string) =>
   `${workshopId}_${date}_${slotId}`;
 
@@ -33,6 +37,7 @@ export function buildSessions(
     workshopId: w.id,
     workshopName: w.name,
     programId: w.programId,
+    groupIds: base.groupIds ?? w.groupIds ?? [],
     slotId,
     origDate,
     date,
@@ -59,7 +64,7 @@ export function buildSessions(
       if (isClosed(w.programId, date)) continue;
       for (const slot of w.slots) {
         if (slot.day !== day) continue;
-        const base = { start: slot.start, end: slot.end, staffIds: w.staffIds, locationId: slot.locationId };
+        const base = { start: slot.start, end: slot.end, staffIds: w.staffIds, locationId: slot.locationId, groupIds: slotGroups(w, slot) };
         const id = changeIdFor(w.id, date, slot.id);
         const ch = changeById.get(id);
         if (!ch) { out.push(make(w, date, slot.id, date, base, "normal", undefined, id)); continue; }
@@ -84,7 +89,7 @@ export function buildSessions(
     if (ch.cancelled || !ch.newDate || ch.newDate === ch.originalDate || !dateSet.has(ch.newDate)) continue;
     const slot = w.slots.find(s => s.id === ch.slotId);
     if (!slot) continue;
-    const base = { start: slot.start, end: slot.end, staffIds: w.staffIds, locationId: slot.locationId };
+    const base = { start: slot.start, end: slot.end, staffIds: w.staffIds, locationId: slot.locationId, groupIds: slotGroups(w, slot) };
     out.push(make(w, ch.newDate, slot.id, ch.originalDate, base, "moved-in", ch, ch.id));
   }
 

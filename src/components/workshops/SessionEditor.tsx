@@ -18,11 +18,12 @@ interface Props {
   userId?: string;
   onClose: () => void;
   onSaved: () => void;
+  onEditSeries?: (workshopId: string) => void;
 }
 
 const sameSet = (a: string[], b: string[]) => [...a].sort().join() === [...b].sort().join();
 
-export function SessionEditor({ session, extra, workshops, staff, locations, canEdit, warnings, userId, onClose, onSaved }: Props) {
+export function SessionEditor({ session, extra, workshops, staff, locations, canEdit, warnings, userId, onClose, onSaved, onEditSeries }: Props) {
   const isExtra = !session || session.kind === "extra";
   const ch = session?.change;
   const [workshopId, setWorkshopId] = useState(session?.workshopId || "");
@@ -108,6 +109,7 @@ export function SessionEditor({ session, extra, workshops, staff, locations, can
       footer={<>
         <button onClick={save} disabled={saving || !valid} className={btnPrimary}>שמור</button>
         <button onClick={onClose} className={btnGhost}>סגור</button>
+        {!isExtra && onEditSeries && <button onClick={() => onEditSeries(session!.workshopId)} className="text-sm text-[var(--foreground)]/70 underline">ימי פעילות קבועים</button>}
         {!isExtra && ch && <button onClick={revert} disabled={saving} className="mr-auto text-sm text-[var(--foreground)]/60 underline">החזר למקור</button>}
         {isExtra && session && <button onClick={revert} disabled={saving} className="mr-auto text-sm text-rose-500 underline">מחק מפגש</button>}
       </>}>

@@ -40,6 +40,7 @@ export default function WorkshopsPage() {
   const today = toISO(new Date());
   const progName = (id: string) => refs?.programs.find(p => p.id === id)?.name || "ללא תוכנית";
   const staffName = (id: string) => refs?.staff.find(s => s.id === id)?.name || "—";
+  const groupNames = (w: Workshop) => (w.groupIds || []).map(id => refs?.groups.find(g => g.id === id)?.name).filter(Boolean).join(", ");
 
   const rows = useMemo(() => workshops
     .filter(w => {
@@ -111,7 +112,7 @@ export default function WorkshopsPage() {
                       return (
                         <tr key={w.id} onClick={() => router.push(`/admin/workshops/${w.id}`)} className="cursor-pointer hover:bg-[var(--foreground)]/[0.03]">
                           <td className="py-2.5 font-bold">
-                            {w.name}
+                            {w.name}{groupNames(w) && <span className="font-normal text-xs text-[var(--foreground)]/60"> · {groupNames(w)}</span>}
                             {w.status !== "active" && <span className="font-normal text-xs text-[var(--foreground)]/50"> · {w.status === "draft" ? "טיוטה" : "מבוטלת"}</span>}
                           </td>
                           <td className="tabular-nums whitespace-nowrap">{fmt(w.startDate)} – {fmt(w.endDate)}<span className="text-[var(--foreground)]/50">{cur}</span></td>
@@ -154,6 +155,7 @@ function NewWorkshopDialog({ refs, from, onClose, onCreated }: {
     setSaving(true);
     const ref = await addDoc(collection(db, "workshops"), {
       name: name.trim(), programId, startDate, endDate,
+      groupIds: from?.groupIds || [],
       slots: from?.slots || [],
       staffIds: from?.staffIds || [],
       participantIds: [], // a new cycle starts with a fresh participant list

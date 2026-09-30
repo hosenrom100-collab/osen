@@ -15,7 +15,6 @@ import { rangeDates, shortDate, overlaps, dayOf } from "@/lib/workshops/dates";
 import { Closure, DAY_FULL, DAY_SHORT, SessionChange, Slot, Workshop } from "@/lib/workshops/types";
 
 interface PatientLite { id: string; name: string; programIds: string[]; groupIds: string[] }
-interface GroupLite { id: string; name: string; programId: string }
 
 const newSlot = (day: number): Slot => ({ id: Math.random().toString(36).slice(2, 9), day, start: "09:00", end: "10:30" });
 
@@ -27,7 +26,6 @@ export default function WorkshopDetailPage() {
   const [form, setForm] = useState<Workshop | null>(null);
   const [others, setOthers] = useState<Workshop[]>([]);
   const [patients, setPatients] = useState<PatientLite[]>([]);
-  const [groups, setGroups] = useState<GroupLite[]>([]);
   const [changes, setChanges] = useState<SessionChange[]>([]);
   const [closures, setClosures] = useState<Closure[]>([]);
   const [loading, setLoading] = useState(true);
@@ -36,17 +34,16 @@ export default function WorkshopDetailPage() {
   const [allPrograms, setAllPrograms] = useState(false);
 
   const load = useCallback(async () => {
-    const [r, wSnap, allW, pSnap, gSnap, cSnap] = await Promise.all([
+    const [r, wSnap, allW, pSnap, cSnap] = await Promise.all([
       loadRefs(),
       getDoc(doc(db, "workshops", id)),
       getDocs(collection(db, "workshops")),
       getDocs(query(collection(db, "patients"), where("status", "==", "active"))),
-      getDocs(collection(db, "groups")),
       getDocs(query(collection(db, "session_changes"), where("workshopId", "==", id))),
     ]);
     if (!wSnap.exists()) { setLoading(false); return; }
     const w = { id: wSnap.id, ...wSnap.data() } as Workshop;
-    w.slots ||= []; w.staffIds ||= []; w.participantIds ||= [];
+    w.slots ||= []; w.staffIds ||= []; w.participantIds ||= []; w.groupIds ||= [];
     const clSnap = await getDocs(query(collection(db, "closures"), where("date", ">=", w.startDate), where("date", "<=", w.endDate)));
     setRefs(r); setSaved(w); setForm(w);
     setOthers(allW.docs.map(d => ({ id: d.id, ...d.data() } as Workshop)).filter(x => x.id !== id && x.status === "active"));
@@ -54,7 +51,6 @@ export default function WorkshopDetailPage() {
       const p = d.data();
       return { id: d.id, name: `${p.firstName || ""} ${p.lastName || ""}`.trim(), programIds: p.programIds || (p.programId ? [p.programId] : []), groupIds: p.groupIds || (p.hosenType ? [p.hosenType] : []) };
     }).sort((a, b) => a.name.localeCompare(b.name, "he")));
-    setGroups(gSnap.docs.map(d => ({ id: d.id, name: d.data().name, programId: d.data().programId })));
     setChanges(cSnap.docs.map(d => ({ id: d.id, ...d.data() } as SessionChange)));
     setClosures(clSnap.docs.map(d => ({ id: d.id, ...d.data() } as Closure)));
     setLoading(false);
@@ -90,7 +86,8 @@ export default function WorkshopDetailPage() {
 
   const save = async () => {
     setSaving(true);
-    const data: Partial<Workshop> = { ...form };
+    // JSON round-trip drops undefined fields, which Firestore rejects.
+    const data: Partial<Workshop> = JSON.parse(JSON.stringify(form));
     delete data.id;
     await updateDoc(doc(db, "workshops", id), { ...data, updatedAt: serverTimestamp() });
     setSaved(form);
@@ -114,9 +111,10 @@ export default function WorkshopDetailPage() {
   const days = program?.activeDays.length ? program.activeDays : [0, 1, 2, 3, 4];
   const setSlot = (sid: string, patch: Partial<Slot>) => set({ slots: form.slots.map(s => (s.id === sid ? { ...s, ...patch } : s)) });
 
+  const progGroups = refs.groups.filter(g => g.programId === form.programId);
+  const inSelectedGroups = (p: PatientLite) => !form.groupIds?.length || p.groupIds.some(g => form.groupIds!.includes(g));
   const eligible = patients.filter(p =>
-    (allPrograms || p.programIds.includes(form.programId) || form.participantIds.includes(p.id)) && (!search || p.name.includes(search)));
-  const progGroups = groups.filter(g => g.programId === form.programId);
+    (allPrograms || (p.programIds.includes(form.programId) && inSelectedGroups(p)) || form.participantIds.includes(p.id)) && (!search || p.name.includes(search)));
   const addGroup = (gid: string) => {
     const ids = patients.filter(p => p.groupIds.includes(gid)).map(p => p.id);
     set({ participantIds: [...new Set([...form.participantIds, ...ids])] });
@@ -141,7 +139,7 @@ export default function WorkshopDetailPage() {
               <div><label className={labelCls}>שם הסדנה</label>
                 <input className={fieldCls} value={form.name} onChange={e => set({ name: e.target.value })} /></div>
               <div><label className={labelCls}>תוכנית</label>
-                <select className={fieldCls} value={form.programId} onChange={e => set({ programId: e.target.value })}>
+                <select className={fieldCls} value={form.programId} onChange={e => set({ programId: e.target.value, groupIds: [] })}>
                   {refs.programs.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                 </select></div>
               <div><label className={labelCls}>תאריך התחלה</label>
@@ -154,6 +152,27 @@ export default function WorkshopDetailPage() {
                 </select></div>
               <div><label className={labelCls}>הערות</label>
                 <input className={fieldCls} value={form.notes || ""} onChange={e => set({ notes: e.target.value })} /></div>
+            </div>
+            <div>
+              <label className={labelCls}>קבוצות בתוכנית</label>
+              {progGroups.length === 0 ? (
+                <p className="text-sm text-[var(--foreground)]/50">לתוכנית אין קבוצות — הסדנה מיועדת לכל התוכנית.</p>
+              ) : (
+                <>
+                  <div className="flex flex-wrap gap-x-4">
+                    {progGroups.map(g => (
+                      <label key={g.id} className="flex items-center gap-2 py-1.5 text-sm cursor-pointer">
+                        <input type="checkbox" checked={!!form.groupIds?.includes(g.id)}
+                          onChange={() => set({ groupIds: form.groupIds?.includes(g.id) ? form.groupIds.filter(x => x !== g.id) : [...(form.groupIds || []), g.id] })} />
+                        {g.name}
+                      </label>
+                    ))}
+                  </div>
+                  <p className="text-xs text-[var(--foreground)]/50">
+                    {form.groupIds?.length ? "הסדנה תופיע ביומן בשורה של כל קבוצה שנבחרה." : "לא נבחרה קבוצה — הסדנה מיועדת לכל התוכנית. כל קבוצה עם לוז שונה צריכה סדנה משלה."}
+                  </p>
+                </>
+              )}
             </div>
           </section>
 
@@ -175,6 +194,25 @@ export default function WorkshopDetailPage() {
                   {refs.locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
                 </select>
                 {s.end <= s.start && <span className="text-xs text-rose-500">שעת הסיום מוקדמת מההתחלה</span>}
+                {(form.groupIds?.length ?? 0) > 1 && (
+                  <div className="w-full flex flex-wrap items-center gap-1.5 text-xs">
+                    <span className="text-[var(--foreground)]/50">לקבוצות:</span>
+                    {form.groupIds!.map(gid => {
+                      const on = !s.groupIds?.length || s.groupIds.includes(gid);
+                      return (
+                        <button key={gid} type="button"
+                          onClick={() => {
+                            const cur = s.groupIds?.length ? s.groupIds : form.groupIds!;
+                            const next = cur.includes(gid) ? cur.filter(x => x !== gid) : [...cur, gid];
+                            setSlot(s.id, { groupIds: next.length === 0 || next.length === form.groupIds!.length ? undefined : next });
+                          }}
+                          className={`px-2 py-0.5 rounded-md border ${on ? "border-[var(--accent)] text-[var(--accent)] font-bold" : "border-[var(--border)] text-[var(--foreground)]/50"}`}>
+                          {refs.groups.find(g => g.id === gid)?.name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
                 <button onClick={() => set({ slots: form.slots.filter(x => x.id !== s.id) })} aria-label="הסר מפגש"
                   className="p-2 text-[var(--foreground)]/50 hover:text-rose-500"><Trash2 className="w-4 h-4" /></button>
               </div>

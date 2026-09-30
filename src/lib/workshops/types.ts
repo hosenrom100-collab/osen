@@ -6,12 +6,14 @@ export interface Slot {
   start: string;
   end: string;
   locationId?: string;
+  groupIds?: string[]; // groups this weekly meeting is for; empty/missing = all of the workshop's groups
 }
 
 export interface Workshop {
   id: string;
   name: string;
   programId: string;
+  groupIds?: string[]; // groups within the program taking part; empty/missing = whole program
   startDate: string;
   endDate: string;
   slots: Slot[];
@@ -52,6 +54,12 @@ export interface Program {
   activeDays: number[];
 }
 
+export interface Group {
+  id: string;
+  name: string;
+  programId: string;
+}
+
 export interface Person {
   id: string;
   name: string;
@@ -65,6 +73,7 @@ export interface Session {
   workshopId: string;
   workshopName: string;
   programId: string;
+  groupIds: string[];
   slotId: string | null;
   origDate: string | null;
   date: string;
@@ -75,7 +84,7 @@ export interface Session {
   kind: SessionKind;
   change?: SessionChange;
   note?: string;
-  base: { start: string; end: string; staffIds: string[]; locationId?: string };
+  base: { start: string; end: string; staffIds: string[]; locationId?: string; groupIds?: string[] };
 }
 
 export const DAY_SHORT = ["א׳", "ב׳", "ג׳", "ד׳", "ה׳", "ו׳", "ש׳"];

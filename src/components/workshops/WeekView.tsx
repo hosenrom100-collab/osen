@@ -11,6 +11,7 @@ interface Common {
   warnings: Map<string, string[]>;
   nameOf: (id: string) => string;
   roomOf: (id?: string) => string | undefined;
+  groupsOf: (ids: string[]) => string;
   onOpen: (s: Session) => void;
 }
 
@@ -24,6 +25,7 @@ function SessionButton({ s, mode, c }: { s: Session; mode: "program" | "staff" |
   const meta = [
     mode !== "staff" ? s.staffIds.map(c.nameOf).join(", ") : "",
     mode !== "space" ? room : "",
+    mode !== "program" ? c.groupsOf(s.groupIds) : "",
   ].filter(Boolean).join(" · ");
 
   const tag =

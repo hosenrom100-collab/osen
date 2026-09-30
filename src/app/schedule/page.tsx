@@ -11,6 +11,7 @@ import Link from "next/link";
 import { PageSkeleton } from "@/components/ui/Skeleton";
 import { Dialog, fieldCls, labelCls, btnPrimary, btnGhost } from "@/components/workshops/Dialog";
 import { SessionEditor } from "@/components/workshops/SessionEditor";
+import { SeriesDays } from "@/components/workshops/SeriesDays";
 import { DayAgenda, Row, WeekGrid } from "@/components/workshops/WeekView";
 import { AbsenceLite, findConflicts } from "@/lib/workshops/conflicts";
 import { buildSessions } from "@/lib/workshops/buildWeek";
@@ -33,10 +34,12 @@ export default function SchedulePage() {
   const [loading, setLoading] = useState(true);
   const [mode, setMode] = useState<Mode>("program");
   const [onlyMine, setOnlyMine] = useState(false);
+  const [groupFilter, setGroupFilter] = useState("");
   const [pickedDay, setSelectedDay] = useState(today);
   const [editing, setEditing] = useState<{ session: Session | null; extra?: { date: string; programId?: string } } | null>(null);
   const [showChanges, setShowChanges] = useState(false);
   const [showClosures, setShowClosures] = useState(false);
+  const [series, setSeries] = useState<{ id?: string } | null>(null);
   const [publishing, setPublishing] = useState(false);
 
   const dates = useMemo(() => weekDates(weekStart), [weekStart]);
@@ -65,7 +68,18 @@ export default function SchedulePage() {
   const roomOf = useCallback((id?: string) => refs?.locations.find(l => l.id === id)?.name, [refs]);
 
   const all = useMemo(() => refs ? buildSessions(dates, workshops, refs.programs, changes, closures) : [], [dates, workshops, refs, changes, closures]);
-  const sessions = useMemo(() => onlyMine && user ? all.filter(s => s.staffIds.includes(user.uid)) : all, [all, onlyMine, user]);
+  const groupName = useCallback((id: string) => refs?.groups.find(g => g.id === id)?.name || "", [refs]);
+  const groupsOf = useCallback((ids: string[]) => ids.map(groupName).filter(Boolean).join(", "), [groupName]);
+  const sessions = useMemo(() => {
+    let list = all;
+    if (onlyMine && user) list = list.filter(s => s.staffIds.includes(user.uid));
+    if (groupFilter) {
+      const g = refs?.groups.find(x => x.id === groupFilter);
+      // A group sees its own sessions plus whole-program ones for its program.
+      list = list.filter(s => s.groupIds.includes(groupFilter) || (s.groupIds.length === 0 && s.programId === g?.programId));
+    }
+    return list;
+  }, [all, onlyMine, user, groupFilter, refs]);
   const warnings = useMemo(() => refs ? findConflicts(all, refs.programs, absences, nameOf, id => roomOf(id) || "המרחב") : new Map<string, string[]>(), [all, refs, absences, nameOf, roomOf]);
 
   const closedFor = useCallback((programId: string | null, date: string) => {
@@ -76,11 +90,25 @@ export default function SchedulePage() {
   const rows: Row[] = useMemo(() => {
     if (!refs) return [];
     if (mode === "program") {
-      const ids = new Set(sessions.map(s => s.programId));
-      return refs.programs.filter(p => ids.has(p.id)).map(p => ({
-        id: p.id, label: p.name, match: (s: Session) => s.programId === p.id,
-        closedReason: (d: string) => closedFor(p.id, d) ?? (p.activeDays.includes(dayOf(d)) ? undefined : ""),
-      })).map(r => ({ ...r, closedReason: (d: string) => r.closedReason(d) || undefined }));
+      // One row per program; programs whose workshops are split by group get a row per group.
+      const out: Row[] = [];
+      for (const p of refs.programs) {
+        const ps = sessions.filter(s => s.programId === p.id);
+        if (ps.length === 0) continue;
+        const closedReason = (d: string) => closedFor(p.id, d) || undefined;
+        const groupIds = [...new Set(ps.flatMap(s => s.groupIds))];
+        if (groupIds.length === 0) {
+          out.push({ id: p.id, label: p.name, match: (s: Session) => s.programId === p.id, closedReason });
+          continue;
+        }
+        for (const g of refs.groups.filter(x => groupIds.includes(x.id))) {
+          out.push({ id: `${p.id}:${g.id}`, label: `${p.name} · ${g.name}`, match: (s: Session) => s.programId === p.id && s.groupIds.includes(g.id), closedReason });
+        }
+        if (ps.some(s => s.groupIds.length === 0)) {
+          out.push({ id: `${p.id}:all`, label: `${p.name} · כל התוכנית`, match: (s: Session) => s.programId === p.id && s.groupIds.length === 0, closedReason });
+        }
+      }
+      return out;
     }
     if (mode === "staff") {
       const ids = [...new Set(sessions.flatMap(s => s.staffIds))];
@@ -128,7 +156,7 @@ export default function SchedulePage() {
   if (loading || !refs) return <PageSkeleton />;
 
   const rangeLabel = `${format(weekStart, "d.M")} – ${format(addDays(weekStart, 6), "d.M.yyyy")}`;
-  const common = { sessions, warnings, nameOf, roomOf, onOpen: (s: Session) => setEditing({ session: s }) };
+  const common = { sessions, warnings, nameOf, roomOf, groupsOf, onOpen: (s: Session) => setEditing({ session: s }) };
   const activeWorkshops = workshops.filter(w => w.status === "active");
 
   return (
@@ -148,12 +176,17 @@ export default function SchedulePage() {
               <button key={k} onClick={() => setMode(k)} className={`px-3 py-1.5 text-sm ${mode === k ? "bg-[var(--accent)] text-white font-bold" : "text-[var(--foreground)]/70 hover:bg-[var(--foreground)]/5"}`}>{l}</button>
             ))}
           </div>
+          <select aria-label="סינון לפי קבוצה" className="border border-[var(--border)] rounded-md bg-transparent px-2 py-1.5 text-sm" value={groupFilter} onChange={e => setGroupFilter(e.target.value)}>
+            <option value="">כל הקבוצות</option>
+            {refs.groups.map(g => <option key={g.id} value={g.id}>{refs.programs.find(p => p.id === g.programId)?.name} · {g.name}</option>)}
+          </select>
           <label className="flex items-center gap-1.5 text-sm text-[var(--foreground)]/70">
             <input type="checkbox" checked={onlyMine} onChange={e => setOnlyMine(e.target.checked)} /> רק המפגשים שלי
           </label>
           <div className="mr-auto flex items-center gap-2">
             {isManager && <>
               <button onClick={() => setEditing({ session: null, extra: { date: dates.includes(today) ? today : dates[0] } })} className={`${btnGhost} flex items-center gap-1.5`}><Plus className="w-4 h-4" /> מפגש חד-פעמי</button>
+              <button onClick={() => setSeries({})} className={btnGhost}>ימי פעילות קבועים</button>
               <button onClick={() => setShowClosures(true)} className={btnGhost}>ימים ללא פעילות</button>
               <Link href="/admin/workshops" className={btnGhost}>סדנאות</Link>
               <Link href="/admin/spaces" className={btnGhost}>מרחבים</Link>
@@ -183,7 +216,7 @@ export default function SchedulePage() {
         ) : (
           <div className="md:px-6 md:pt-4">
             <WeekGrid {...common} dates={dates} days={days} rows={rows} mode={mode} today={today} globalClosure={globalClosure}
-              canEdit={isManager} onAdd={(date, programId) => setEditing({ session: null, extra: { date, programId } })} />
+              canEdit={isManager} onAdd={(date, rowId) => setEditing({ session: null, extra: { date, programId: rowId.split(":")[0] } })} />
             <DayAgenda {...common} dates={dates} days={days} rows={rows} mode={mode} today={today} globalClosure={globalClosure}
               selected={selectedDay} setSelected={setSelectedDay} />
           </div>
@@ -196,6 +229,7 @@ export default function SchedulePage() {
             staff={refs.staff} locations={refs.locations} canEdit={isManager}
             warnings={editing.session ? warnings.get(editing.session.id) || [] : []}
             userId={user?.uid} onClose={() => setEditing(null)}
+            onEditSeries={id => { setEditing(null); setSeries({ id }); }}
             onSaved={() => { setEditing(null); load(); }}
           />
         )}
@@ -218,6 +252,11 @@ export default function SchedulePage() {
               ))}
             </ul>
           </Dialog>
+        )}
+
+        {series && (
+          <SeriesDays workshops={workshops} initialId={series.id} programs={refs.programs} groups={refs.groups} locations={refs.locations}
+            onClose={() => setSeries(null)} onSaved={() => { setSeries(null); load(); }} />
         )}
 
         {showClosures && <ClosuresDialog dates={dates} closures={closures} refs={refs} onClose={() => setShowClosures(false)} onChanged={load} />}
