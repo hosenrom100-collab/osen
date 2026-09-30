@@ -441,27 +441,45 @@ export function DayAgenda({ dates, days, mode, today, selected, setSelected, glo
   };
   const list = c.sessions.filter(s => s.date === selected).sort((a, b) => a.start.localeCompare(b.start) || a.end.localeCompare(b.end));
   const closure = globalClosure(selected);
+  const now = useNowMinutes();
+  const isToday = selected === today;
+  const toM = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3));
+  const period = (t: string) => (toM(t) < 720 ? "בוקר" : toM(t) < 900 ? "צהריים" : "אחר הצהריים");
   return (
     <div className="md:hidden" onTouchStart={e => setTouchX(e.touches[0].clientX)} onTouchEnd={e => onTouchEnd(e.changedTouches[0].clientX)}>
-      <div className="flex border-b border-[var(--border)] overflow-x-auto">
-        {cols.map(date => (
-          <button key={date} onClick={() => setSelected(date)}
-            className={`flex-1 min-w-14 py-2 text-center border-b-2 ${selected === date ? "border-[var(--accent)] font-bold" : "border-transparent text-[var(--foreground)]/60"}`}>
-            <div className="text-sm">{DAY_SHORT[dayOf(date)]}</div>
-            <div className={`text-xs tabular-nums ${date === today ? "text-[var(--accent)] font-bold" : "text-[var(--foreground)]/50"}`}>{shortDate(date)}</div>
-          </button>
-        ))}
+      {/* Day strip: weekday over a big date; today in a filled circle, the picked day in a soft pill. */}
+      <div className="flex border-b border-[var(--cal-frame)] overflow-x-auto bg-white">
+        {cols.map(date => {
+          const on = selected === date, td = date === today;
+          return (
+            <button key={date} onClick={() => setSelected(date)} aria-pressed={on} aria-label={`יום ${DAY_SHORT[dayOf(date)]} ${shortDate(date)}`}
+              className="flex-1 min-w-14 py-2 flex flex-col items-center gap-1">
+              <span className={`text-xs font-medium ${on ? "text-[var(--cal-ink)]" : "text-[var(--cal-muted)]"}`}>{DAY_SHORT[dayOf(date)]}</span>
+              <span className={`inline-flex items-center justify-center w-9 h-9 rounded-full text-base font-bold tabular-nums ${td ? "bg-[var(--accent)] text-white" : on ? "bg-[var(--cal-ink)]/[0.09] text-[var(--cal-ink)]" : "text-[var(--cal-ink)]"}`}>{date.slice(8).replace(/^0/, "")}</span>
+            </button>
+          );
+        })}
       </div>
-      {closure && <p className="px-4 py-3 text-sm text-[var(--foreground)]/60 bg-[var(--foreground)]/[0.04]">{closure}</p>}
-      <ul className="px-3 py-2 space-y-1.5">
-        {list.map(s => (
-          <li key={s.id} className="flex gap-2 items-stretch">
-            <span dir="ltr" className="w-11 shrink-0 pt-2 text-center text-[13px] font-bold tabular-nums leading-tight">
-              {s.start}<span className="block text-[11px] font-normal text-[var(--foreground)]/50">{s.end}</span>
-            </span>
-            <div className="flex-1 min-w-0"><SessionCard s={s} mode={mode} c={c} groups /></div>
-          </li>
-        ))}
+      {closure && <p className="mx-3 mt-3 px-3 py-2.5 text-sm font-medium text-[var(--cal-muted)] bg-[var(--cal-ink)]/[0.05] rounded-lg">{closure}</p>}
+      <ul className="px-3 py-2">
+        {list.map((s, i) => {
+          const done = isToday && now !== null && now >= toM(s.end);
+          const live = isToday && now !== null && now >= toM(s.start) && now < toM(s.end);
+          const head = i === 0 || period(list[i - 1].start) !== period(s.start);
+          return (
+            <li key={s.id}>
+              {head && <div className="text-[11px] font-semibold text-[var(--cal-faint)] pt-3 pb-1.5 px-1">{period(s.start)}</div>}
+              <div className="flex gap-2 items-stretch mb-1.5">
+                <span dir="ltr" className={`w-12 shrink-0 pt-1.5 text-center tabular-nums leading-tight ${done ? "text-[var(--cal-faint)]" : "text-[var(--cal-ink)]"}`}>
+                  <span className="block text-sm font-bold">{s.start}</span>
+                  <span className="block text-xs font-medium text-[var(--cal-faint)]">{s.end}</span>
+                  {live && <span className="mt-1 inline-block rounded bg-[var(--cal-now)] px-1 text-[10px] font-bold text-white">עכשיו</span>}
+                </span>
+                <div className={`flex-1 min-w-0 ${live ? "rounded-md ring-2 ring-[var(--cal-now)]/60" : ""}`}><SessionCard s={s} mode={mode} c={c} groups /></div>
+              </div>
+            </li>
+          );
+        })}
       </ul>
       {list.length === 0 && !closure && <p className="px-4 py-10 text-sm text-center text-[var(--foreground)]/50">אין מפגשים ביום זה.</p>}
       {canEdit && (
