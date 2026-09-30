@@ -18,6 +18,7 @@ type OnUpdateQuantity = (id: string, currentQtyStr: string, increment: number) =
 type OnMoveList = (id: string) => void;
 
 interface ShoppingListViewProps {
+  weekLabel?: string;
   requests: ShoppingRequest[];
   pool?: Product[];
   categories: string[];
@@ -44,6 +45,7 @@ interface ShoppingListViewProps {
 const UNDO_TIMEOUT_MS = 5000;
 
 export function ShoppingListView({
+  weekLabel,
   requests,
   categories,
   listType,
@@ -234,6 +236,10 @@ export function ShoppingListView({
         </div>
       </div>
 
+      {weekLabel && (
+        <div className="mt-1 mb-2 text-center text-[13px] font-bold text-[var(--muted)]">{weekLabel}</div>
+      )}
+
       {/* ── Active items, grouped into one card per category ── */}
       {allDone ? (
         <div className="mt-2 py-12 px-6 text-center bg-emerald-500/[0.06] border border-emerald-500/20 rounded-2xl my-2">
@@ -268,7 +274,10 @@ export function ShoppingListView({
           )}
         </div>
       ) : (
-        categories.map((cat) => {
+        // Aisles with nothing left to buy sink to the bottom; the sort is stable so the rest keep their order.
+        [...categories]
+          .sort((a, b) => Number(!activeRequests.some((r) => r.category === a)) - Number(!activeRequests.some((r) => r.category === b)))
+          .map((cat) => {
           if (activeCategory !== null && activeCategory !== cat) return null;
           const catItems = activeRequests.filter(
             (r) => r.category === cat && (!urgentFilterActive || r.priority === "urgent")

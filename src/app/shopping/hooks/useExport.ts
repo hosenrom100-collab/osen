@@ -10,13 +10,15 @@ import { generateShoppingListWord, generateDocxWithLetterhead } from "@/lib/word
 export function useExport(
   requests: ShoppingRequest[],
   pool: Product[],
-  showToast: (message: string, type: "success" | "warning") => void
+  showToast: (message: string, type: "success" | "warning") => void,
+  weekLabels: { supermarket: string; large: string }
 ) {
   const exportItemsToWord = async (
     items: ShoppingRequest[],
     options: {
       title: string;
       subtitle?: string;
+      weekLabel?: string;
       filename: string;
       successMsg: string;
       includeFrameworkName?: boolean;
@@ -42,6 +44,7 @@ export function useExport(
         date: dateStr,
         title: options.title,
         subtitle: options.subtitle,
+        weekLabel: options.weekLabel,
       });
       await generateDocxWithLetterhead(docx, `${options.filename}_${format(new Date(), "yyyy-MM-dd")}.docx`);
       showToast(options.successMsg, "success");
@@ -53,7 +56,7 @@ export function useExport(
 
   const exportOngoingList = async (framework: "all" | TargetFramework = "all") => {
     const active = requests.filter(
-      (r) => (r.status === "approved" || r.status === "pending" || r.status === "purchased") && r.listType !== "large"
+      (r) => (r.status === "approved" || r.status === "pending") && r.listType !== "large"
     );
     const filtered = framework === "all" ? active : active.filter((r) => (r.targetFramework || "main") === framework);
 
@@ -69,6 +72,7 @@ export function useExport(
     await exportItemsToWord(filtered, {
       title: frameworkTitle,
       subtitle: "מרכז חוסן - חרבות ברזל",
+      weekLabel: weekLabels.supermarket,
       filename,
       successMsg: `הופקה ${frameworkTitle} והורדה בהצלחה!`,
       includeFrameworkName: framework === "all",
@@ -77,7 +81,7 @@ export function useExport(
 
   const exportProcurementList = async (framework: "all" | TargetFramework = "all") => {
     const active = requests.filter(
-      (r) => (r.status === "approved" || r.status === "pending" || r.status === "purchased") && r.listType === "large"
+      (r) => (r.status === "approved" || r.status === "pending") && r.listType === "large"
     );
     const filtered = framework === "all" ? active : active.filter((r) => (r.targetFramework || "main") === framework);
 
@@ -93,6 +97,7 @@ export function useExport(
     await exportItemsToWord(filtered, {
       title: frameworkTitle,
       subtitle: "מרכז חוסן - חרבות ברזל",
+      weekLabel: weekLabels.large,
       filename,
       successMsg: `הופקה ${frameworkTitle} והורדה בהצלחה!`,
       includeFrameworkName: framework === "all",
@@ -101,7 +106,7 @@ export function useExport(
 
   const exportSplitOngoingLists = async () => {
     const active = requests.filter(
-      (r) => (r.status === "approved" || r.status === "pending" || r.status === "purchased") && r.listType !== "large"
+      (r) => (r.status === "approved" || r.status === "pending") && r.listType !== "large"
     );
     const frameworksWithItems = TARGET_FRAMEWORKS.filter((fw) =>
       active.some((r) => (r.targetFramework || "main") === fw.id)
@@ -126,7 +131,7 @@ export function useExport(
 
   const exportSplitProcurementLists = async () => {
     const active = requests.filter(
-      (r) => (r.status === "approved" || r.status === "pending" || r.status === "purchased") && r.listType === "large"
+      (r) => (r.status === "approved" || r.status === "pending") && r.listType === "large"
     );
     const frameworksWithItems = TARGET_FRAMEWORKS.filter((fw) =>
       active.some((r) => (r.targetFramework || "main") === fw.id)

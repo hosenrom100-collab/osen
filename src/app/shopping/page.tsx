@@ -29,6 +29,7 @@ import { CycleHistorySheet } from "./components/CycleHistorySheet";
 import { useShoppingData } from "./hooks/useShoppingData";
 import { useLastCycleItems } from "./hooks/useLastCycle";
 import { useExport } from "./hooks/useExport";
+import { useCycleWeeks } from "./hooks/useCycleWeek";
 import { useShoppingActions } from "./hooks/useShoppingActions";
 import { usePullToRefresh } from "./hooks/usePullToRefresh";
 import { useAdminPasswordGate } from "./hooks/useAdminPasswordGate";
@@ -111,6 +112,7 @@ export default function ShoppingPage() {
     refetchSettings,
   } = useShoppingData(user, isAdmin, listType);
 
+  const { weekLabels, refreshWeeks } = useCycleWeeks(requests, cutoffConfig);
   const lastCycleItems = useLastCycleItems(listType, overlayOpen);
 
   const { pullDistance, isRefreshing, handlers: pullToRefreshHandlers } = usePullToRefresh(refetchSettings);
@@ -180,7 +182,7 @@ export default function ShoppingPage() {
     exportOngoingList,
     exportSplitOngoingLists,
     exportSplitProcurementLists,
-  } = useExport(requests, pool, showToast);
+  } = useExport(requests, pool, showToast, weekLabels);
 
   // Purchased vs total for what the list shows (list type + framework filter) — feeds the header line and the desktop rail.
   const progress = useMemo(() => {
@@ -314,6 +316,7 @@ export default function ShoppingPage() {
                 </div>
               ) : (
                 <ShoppingListView
+                  weekLabel={weekLabels[listType]}
                   requests={requests}
                   categories={categories}
                   listType={listType}
@@ -449,8 +452,8 @@ export default function ShoppingPage() {
               { merge: true }
             );
           }}
-          onAddToShoppingList={async (name, cat, priority, qty, notes, requestedByOverride) => {
-            await addProduct(name, cat, priority, qty, notes, requestedByOverride, orderingFramework);
+          onAddToShoppingList={async (name, cat, priority, qty, notes, requestedByOverride, targetFramework) => {
+            await addProduct(name, cat, priority, qty, notes, requestedByOverride, targetFramework ?? orderingFramework);
           }}
         />
 
@@ -475,6 +478,7 @@ export default function ShoppingPage() {
           }}
           onCloseCycle={async ({ carryOver }) => {
             const { purchased, carriedOver, dropped } = await closeCycle({ listType, carryOver, user });
+            refreshWeeks();
             showToast(
               carriedOver > 0
                 ? `הסבב נסגר ונשמר בהיסטוריה (${purchased} נרכשו). ${carriedOver} מוצרים הועברו לסבב הבא.`

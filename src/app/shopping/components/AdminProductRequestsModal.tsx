@@ -3,7 +3,8 @@
 import { useState, useEffect } from "react";
 import { collection, query, where, onSnapshot, doc, updateDoc, setDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase/config";
-import { NewProductRequest, Product } from "../types";
+import { NewProductRequest, Product, TargetFramework } from "../types";
+import { TARGET_FRAMEWORKS } from "../lib/constants";
 import { toDateOrNull } from "../lib/dateUtils";
 import { useConfirm } from "@/hooks/useConfirm";
 import { useAlert } from "@/hooks/useAlert";
@@ -16,7 +17,7 @@ interface AdminProductRequestsModalProps {
   pool: Product[];
   categories?: string[];
   onAddProduct: (name: string, category: string, defaultUnit?: string, defaultNotes?: string) => Promise<void>;
-  onAddToShoppingList?: (name: string, category: string, priority?: "normal" | "urgent", quantity?: string, notes?: string, requestedByOverride?: { uid: string; name: string }) => Promise<void>;
+  onAddToShoppingList?: (name: string, category: string, priority?: "normal" | "urgent", quantity?: string, notes?: string, requestedByOverride?: { uid: string; name: string }, targetFramework?: TargetFramework) => Promise<void>;
 }
 
 export function AdminProductRequestsModal({
@@ -32,7 +33,7 @@ export function AdminProductRequestsModal({
   const [processing, setProcessing] = useState<string | null>(null);
 
   // Editable fields per request
-  const [editForms, setEditForms] = useState<Record<string, { name: string; category: string; defaultNotes: string; addToShoppingList: boolean }>>({});
+  const [editForms, setEditForms] = useState<Record<string, { name: string; category: string; defaultNotes: string; addToShoppingList: boolean; targetFramework: TargetFramework }>>({});
   const [editingId, setEditingId] = useState<string | null>(null);
   const { confirm, ConfirmDialog } = useConfirm();
   const { alert, AlertDialog } = useAlert();
@@ -43,7 +44,7 @@ export function AdminProductRequestsModal({
     const q = query(collection(db, "product_requests_queue"), where("status", "==", "pending"));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const list: NewProductRequest[] = [];
-      const forms: Record<string, { name: string; category: string; defaultNotes: string; addToShoppingList: boolean }> = {};
+      const forms: Record<string, { name: string; category: string; defaultNotes: string; addToShoppingList: boolean; targetFramework: TargetFramework }> = {};
 
       snapshot.forEach((docSnap) => {
         const data = docSnap.data() as Omit<NewProductRequest, "id">;
@@ -54,6 +55,7 @@ export function AdminProductRequestsModal({
           category: data.category || "כללי",
           defaultNotes: data.notes || "",
           addToShoppingList: true,
+          targetFramework: data.targetFramework || "main",
         };
       });
 
@@ -93,7 +95,7 @@ export function AdminProductRequestsModal({
   };
 
   const handleApprove = async (req: NewProductRequest) => {
-    const form = editForms[req.id] || { name: req.name, category: req.category, defaultNotes: "", addToShoppingList: true };
+    const form = editForms[req.id] || { name: req.name, category: req.category, defaultNotes: "", addToShoppingList: true, targetFramework: req.targetFramework || "main" };
     const finalName = form.name.trim() || req.name;
     const finalCategory = form.category || req.category || "כללי";
     const finalNotes = form.defaultNotes.trim();
@@ -105,7 +107,7 @@ export function AdminProductRequestsModal({
 
       // 2. Add to active shopping list if selected
       if (form.addToShoppingList && onAddToShoppingList) {
-        await onAddToShoppingList(finalName, finalCategory, req.priority || "normal", req.quantity || "1", finalNotes, { uid: req.requestedBy, name: req.requestedByName });
+        await onAddToShoppingList(finalName, finalCategory, req.priority || "normal", req.quantity || "1", finalNotes, { uid: req.requestedBy, name: req.requestedByName }, form.targetFramework);
       }
 
       // 3. Mark request in queue as approved
@@ -139,11 +141,12 @@ export function AdminProductRequestsModal({
 
   const handleSendExistingAlternative = async (reqId: string, existingProduct: Product) => {
     const req = requests.find(r => r.id === reqId);
+    const targetFramework = editForms[reqId]?.targetFramework ?? req?.targetFramework ?? "main";
     setProcessing(reqId);
     try {
       // Add existing product to shopping list
       if (onAddToShoppingList && req) {
-        await onAddToShoppingList(existingProduct.name, existingProduct.category, req.priority || "normal", req.quantity || "1", existingProduct.defaultNotes || "", { uid: req.requestedBy, name: req.requestedByName });
+        await onAddToShoppingList(existingProduct.name, existingProduct.category, req.priority || "normal", req.quantity || "1", existingProduct.defaultNotes || "", { uid: req.requestedBy, name: req.requestedByName }, targetFramework);
       }
       // Resolve/reject the new product request
       await updateDoc(doc(db, "product_requests_queue", reqId), {
@@ -222,7 +225,7 @@ export function AdminProductRequestsModal({
               </div>
             ) : (
               filtered.map((req) => {
-                const form = editForms[req.id] || { name: req.name, category: req.category, defaultNotes: "", addToShoppingList: true };
+                const form = editForms[req.id] || { name: req.name, category: req.category, defaultNotes: "", addToShoppingList: true, targetFramework: req.targetFramework || "main" };
                 const similarProducts = getSimilarProducts(form.name);
                 const isEditing = editingId === req.id;
 
@@ -355,6 +358,20 @@ export function AdminProductRequestsModal({
                         />
                         <span>הוסף מוצר זה גם לרשימת הקניות העכשווית</span>
                       </label>
+
+                      <div className="flex items-center gap-1.5 flex-wrap text-xs font-bold text-[var(--foreground)]/80">
+                        <span>שלח לרשימה:</span>
+                        {TARGET_FRAMEWORKS.map((fw) => (
+                          <button
+                            key={fw.id}
+                            type="button"
+                            onClick={() => handleFieldChange(req.id, "targetFramework", fw.id)}
+                            className={`h-8 px-3 rounded-full border text-xs font-bold cursor-pointer transition-colors ${form.targetFramework === fw.id ? fw.activeBg + " text-white border-transparent" : fw.pillInactive}`}
+                          >
+                            {fw.shortName}
+                          </button>
+                        ))}
+                      </div>
 
                       <div className="flex items-center justify-end gap-2 shrink-0">
                         <button

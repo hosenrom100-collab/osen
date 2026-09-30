@@ -52,7 +52,7 @@ service cloud.firestore {
     // PRIVATE MESSAGES and their alerts, and the server-only admin-password rate-limit
     // store, are excluded from this override.
     match /{document=**} {
-      allow read, write: if isAdmin() && !(request.path[3] in ['messages', 'notifications', 'admin_password_attempts']);
+      allow read, write: if isAdmin() && !(request.path[3] in ['messages', 'notifications', 'admin_password_attempts', 'admin_secrets']);
     }
 
     // Users collection

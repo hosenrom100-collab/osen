@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { FieldValue } from "firebase-admin/firestore";
 import { adminAuth, adminDb } from "@/lib/firebase/admin";
+import { checkAdminPassword } from "@/lib/server/adminPassword";
 
 const ALLOWED_ROLES = ["admin", "manager", "logistics"];
 const MAX_ATTEMPTS = 5;
@@ -81,13 +82,12 @@ export async function POST(req: Request) {
       );
     }
 
-    // No built-in default: an unset variable must fail closed, not fall back to a guessable password.
-    const expectedPassword = process.env.ADMIN_ACTIONS_PASSWORD;
-    if (!expectedPassword) {
-      console.error("verify-password: ADMIN_ACTIONS_PASSWORD is not configured");
-      return NextResponse.json({ success: false, error: "סיסמת מנהל לא הוגדרה בשרת" }, { status: 500 });
+    // No built-in default: with nothing configured this must fail closed.
+    const ok = await checkAdminPassword(password.trim());
+    if (ok === null) {
+      return NextResponse.json({ success: false, error: "סיסמת מנהל לא הוגדרה. הגדר אותה במסך ההגדרות" }, { status: 500 });
     }
-    if (password.trim() !== expectedPassword) {
+    if (!ok) {
       return NextResponse.json({ success: false, error: "סיסמת מנהל שגויה" }, { status: 401 });
     }
 

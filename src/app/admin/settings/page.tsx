@@ -9,6 +9,8 @@ import {
   Upload, Image as ImageIcon, Check, AlertCircle 
 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { AdminPasswordSection } from "@/components/admin/AdminPasswordSection";
+import { useAuth } from "@/context/AuthContext";
 
 import { PageSkeleton } from "@/components/ui/Skeleton";
 interface ReportSettings {
@@ -30,6 +32,8 @@ const DEFAULT_ACTIVITY_DETAIL = "הפעילויות השונות המתקיימ�
 
 export default function AdminSettingsPage() {
   const router = useRouter();
+  const { role, roles } = useAuth();
+  const isFullAdmin = role === "admin" || roles.includes("admin");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -497,7 +501,7 @@ export default function AdminSettingsPage() {
             </div>
           </section>
 
-
+          {isFullAdmin && <AdminPasswordSection />}
         </main>
       </div>
     </RoleGuard>
