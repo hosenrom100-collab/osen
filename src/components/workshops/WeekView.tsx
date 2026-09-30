@@ -82,12 +82,49 @@ function SessionButton({ s, mode, c }: { s: Session; mode: "program" | "staff" |
   );
 }
 
+/** Splits time-sorted sessions into clusters; sessions in a cluster overlap in time (directly or through a chain). */
+function clusterByTime(list: Session[]): Session[][] {
+  const sorted = [...list].sort((a, b) => a.start.localeCompare(b.start) || a.end.localeCompare(b.end));
+  const out: Session[][] = [];
+  let end = "";
+  for (const s of sorted) {
+    if (out.length && s.start < end) { out[out.length - 1].push(s); if (s.end > end) end = s.end; }
+    else { out.push([s]); end = s.end; }
+  }
+  return out;
+}
+
+const widest = (list: Session[]) => clusterByTime(list).reduce((m, cl) => Math.max(m, cl.length), 1);
+
+/** Sessions that run at the same time sit side by side; the rest stack top to bottom. */
+function Clustered({ list, mode, c }: { list: Session[]; mode: "program" | "staff" | "space"; c: Common }) {
+  return (
+    <>
+      {clusterByTime(list).map((cl, i) =>
+        cl.length === 1 ? (
+          <SessionButton key={cl[0].id} s={cl[0]} mode={mode} c={c} />
+        ) : (
+          <div key={i} className="flex gap-1 mb-1 last:mb-0 items-stretch">
+            {cl.map(s => (
+              <div key={s.id} className="flex-1 min-w-0 [&>button]:h-full [&>button]:mb-0">
+                <SessionButton s={s} mode={mode} c={c} />
+              </div>
+            ))}
+          </div>
+        )
+      )}
+    </>
+  );
+}
+
 export function WeekGrid({ dates, days, rows, mode, today, globalClosure, canEdit, onAdd, ...c }: Common & {
   dates: string[]; days: number[]; rows: Row[]; mode: "program" | "staff" | "space"; today: string;
   globalClosure: (date: string) => string | undefined; canEdit: boolean; onAdd: (date: string, rowId: string) => void;
 }) {
   const cols = days.map(d => dates[d]);
-  const template = { gridTemplateColumns: `8rem repeat(${cols.length}, minmax(9rem, 1fr))` };
+  // A day column gets wider when some row has parallel sessions in it.
+  const par = cols.map(date => rows.reduce((m, r) => Math.max(m, widest(c.sessions.filter(s => s.date === date && r.match(s)))), 1));
+  const template = { gridTemplateColumns: `8rem ${par.map(n => `minmax(${n === 1 ? 9 : n * 7.5}rem, ${n}fr)`).join(" ")}` };
   return (
     <div className="hidden md:block overflow-x-auto border-y border-[var(--border)]">
      <div className="min-w-max lg:min-w-0">
@@ -108,7 +145,7 @@ export function WeekGrid({ dates, days, rows, mode, today, globalClosure, canEdi
             const closed = row.closedReason(date);
             return (
               <div key={date} className={`group relative border-r border-[var(--border)] p-1 min-h-16 ${date === today ? "bg-[var(--accent-soft)]" : ""} ${closed && list.length === 0 ? "bg-[var(--foreground)]/[0.04]" : ""}`}>
-                {list.map(s => <SessionButton key={s.id} s={s} mode={mode} c={c} />)}
+                <Clustered list={list} mode={mode} c={c} />
                 {closed && list.length === 0 && <p className="px-1 py-1 text-xs text-[var(--foreground)]/50">{closed}</p>}
                 {canEdit && mode === "program" && (
                   <button onClick={() => onAdd(date, row.id)} aria-label="הוסף מפגש חד-פעמי" title="הוסף מפגש חד-פעמי"
@@ -161,7 +198,7 @@ export function DayAgenda({ dates, days, mode, today, selected, setSelected, row
         return (
           <section key={row.id} className="px-2 py-2 border-b border-[var(--border)]">
             <h3 className="px-2 text-xs font-bold text-[var(--foreground)]/50 mb-1">{row.label}</h3>
-            {list.map(s => <SessionButton key={s.id} s={s} mode={mode} c={c} />)}
+            <Clustered list={list} mode={mode} c={c} />
             {closed && list.length === 0 && <p className="px-2 text-sm text-[var(--foreground)]/50">{closed}</p>}
           </section>
         );
