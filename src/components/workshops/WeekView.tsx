@@ -57,8 +57,8 @@ function Card({ s, mode, c, groups }: { s: Session; mode: Mode; c: Common; group
     <button onClick={() => c.onOpen(s)}
       title={[`${s.start}–${s.end} ${s.workshopName}`, meta, room ? `מרחב: ${room}` : "", count ? `${count} משתתפים` : "", note, s.note, warn?.join(" | ")].filter(Boolean).join("\n")}
       style={dead ? undefined : { backgroundColor: t.fill, color: t.ink, borderColor: oneOff ? t.bar : undefined, borderInlineStartColor: t.bar, boxShadow: special ? `inset 0 0 0 1.5px ${t.bar}` : undefined }}
-      className={`block w-full h-full text-start rounded-md px-2.5 py-1.5 border-s-[3px] transition-opacity hover:brightness-[0.97] ${c.dim(s) ? "opacity-30" : ""} ${dead ? "border border-dashed border-[var(--border)] text-[var(--foreground)]/45" : "border-transparent"} ${oneOff && !dead ? "border border-dashed" : ""}`}>
-      <span className="flex items-center gap-1.5 text-xs font-medium tabular-nums opacity-80">
+      className={`block w-full h-full text-start rounded-md px-2.5 py-1.5 md:px-2 md:py-1 border-s-[3px] transition-opacity hover:brightness-[0.97] ${c.dim(s) ? "opacity-30" : ""} ${dead ? "border border-dashed border-[var(--border)] text-[var(--foreground)]/45" : "border-transparent"} ${oneOff && !dead ? "border border-dashed" : ""}`}>
+      <span className="flex items-center gap-1.5 text-xs md:text-[11px] font-medium tabular-nums opacity-80">
         <span>{s.start}–{s.end}</span>
         {s.kind === "cancelled" && <span className="font-bold text-[#b42318] opacity-100">בוטל</span>}
         {special && <span className="px-1.5 rounded font-bold opacity-100 bg-white/70 text-[11px]" style={{ color: t.ink }}>{special}</span>}
@@ -70,10 +70,10 @@ function Card({ s, mode, c, groups }: { s: Session; mode: Mode; c: Common; group
           {s.change && !s.change.published && <span className="w-1.5 h-1.5 rounded-full bg-amber-500" title="טרם פורסם לצוות" />}
         </span>
       </span>
-      <span className={`block text-[15px] font-bold leading-snug mt-0.5 line-clamp-2 ${s.kind === "cancelled" ? "line-through" : ""}`}>{s.workshopName}</span>
-      {meta && !dead && <span className="block text-xs leading-snug mt-0.5 line-clamp-2 text-[var(--foreground)]/65">{meta}</span>}
+      <span className={`block text-[15px] md:text-[13.5px] font-bold leading-snug mt-0.5 line-clamp-2 ${s.kind === "cancelled" ? "line-through" : ""}`}>{s.workshopName}</span>
+      {meta && !dead && <span className="block text-xs md:text-[11.5px] leading-snug mt-0.5 line-clamp-2 text-[var(--foreground)]/65">{meta}</span>}
       {showRoom && (
-        <span className="inline-flex items-center gap-1 max-w-full mt-1 px-2 py-0.5 rounded-md bg-white/75 text-xs font-bold" style={{ color: t.ink }} title={`מרחב: ${room}`}>
+        <span className="inline-flex items-center gap-1 max-w-full mt-1 px-2 py-0.5 md:px-1.5 md:py-px rounded-md bg-white/75 text-xs md:text-[11px] font-bold" style={{ color: t.ink }} title={`מרחב: ${room}`}>
           <MapPin className="w-3 h-3 shrink-0" /><span className="truncate">{room}</span>
         </span>
       )}
@@ -87,7 +87,7 @@ function BandCard({ s, c, groups }: { s: Session; c: Common; groups?: boolean })
   const g = groups || c.showGroups || s.groupIds.length ? c.groupsOf(s.groupIds) : "";
   return (
     <button onClick={() => c.onOpen(s)} title={`${s.start}–${s.end} ${s.workshopName}${g ? ` · ${g}` : ""}`}
-      className={`block w-full h-full text-start rounded-md px-2.5 py-1 bg-[var(--foreground)]/[0.05] text-[var(--foreground)]/60 text-xs ${c.dim(s) ? "opacity-30" : ""}`}>
+      className={`block w-full h-full text-start rounded-md px-2.5 py-0.5 bg-[var(--foreground)]/[0.05] text-[var(--foreground)]/60 text-xs md:text-[11px] ${c.dim(s) ? "opacity-30" : ""}`}>
       <span className="font-medium tabular-nums">{s.start}–{s.end}</span>{" "}
       <span className="font-semibold line-clamp-2">{s.workshopName}{g ? ` · ${g}` : ""}</span>
     </button>
@@ -135,7 +135,7 @@ export interface DragApi {
 
 const fmtMin = (m: number) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
 const STEP = 15;
-const PX_PER_MIN = 1.1;
+const PX_PER_MIN = 0.8; // desktop density: ~48px per hour, rows still grow to fit their text
 
 interface DragState {
   s: Session; mode: "move" | "resize"; x0: number; y0: number; started: boolean;
@@ -164,12 +164,12 @@ export function TimeGrid({ columns, mode, groupName, laneMin, drag: dragApi, ...
   const starts: number[] = [];
   let cursor = 2;
   laid.forEach(l => { starts.push(cursor); cursor += l.lanes; });
-  const cols = `3.25rem ${laid.map(l => `repeat(${l.lanes}, minmax(${l.placed.length ? laneMin : 4.5}rem, 1fr))`).join(" ")}`;
+  const cols = `2.75rem ${laid.map(l => `repeat(${l.lanes}, minmax(${l.placed.length ? laneMin : 4.5}rem, 1fr))`).join(" ")}`;
   const rows = [
     "auto", ...(hasLabels ? ["auto"] : []),
     ...(times.length < 2 ? ["minmax(96px, auto)"] : times.slice(0, -1).map((t, i) => {
       const dur = times[i + 1] - t;
-      return covered[i] ? `minmax(${Math.max(Math.round(dur * 1.1), 44)}px, auto)` : "18px";
+      return covered[i] ? `minmax(${Math.max(Math.round(dur * PX_PER_MIN), 34)}px, auto)` : "18px";
     })),
   ].join(" ");
 
@@ -282,7 +282,7 @@ export function TimeGrid({ columns, mode, groupName, laneMin, drag: dragApi, ...
           return (
             <div key={col.id} className="contents">
               {/* Day header, lane labels, separator, empty-cell add button. */}
-              <div data-col={k} className={`px-2 py-2 text-sm font-bold text-center border-b border-[var(--border)] text-[#3a2a21] ${col.today ? "bg-[var(--accent-soft)] border-b-2 !border-b-[var(--accent)]" : "bg-white"}`}
+              <div data-col={k} className={`px-2 py-1.5 text-sm font-bold text-center border-b border-[var(--border)] text-[#3a2a21] ${col.today ? "bg-[var(--accent-soft)] border-b-2 !border-b-[var(--accent)]" : "bg-white"}`}
                 style={{ gridRow: 1, gridColumn: `${c1} / span ${l.lanes}` }}>
                 {col.header}
                 {col.sub && <div className="text-xs font-normal text-[var(--foreground)]/60">{col.sub}</div>}

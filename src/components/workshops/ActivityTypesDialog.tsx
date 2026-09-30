@@ -64,7 +64,7 @@ export function ActivityTypesDialog({ types, programs, onClose, onSaved }: {
   };
 
   return (
-    <Dialog title="סוגי פעילות" subtitle="הצבעים והתצוגה של כל סוג ביומן" onClose={onClose}
+    <Dialog title="סוגי פעילות" subtitle="הצבעים והתצוגה של כל סוג ביומן" onClose={onClose} wide
       footer={<>
         <button onClick={save} disabled={saving || empty || dup} className={btnPrimary}>שמור</button>
         <button onClick={onClose} className={btnGhost}>ביטול</button>

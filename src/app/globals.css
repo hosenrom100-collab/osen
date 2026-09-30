@@ -492,3 +492,16 @@ button[class*="border-[var(--border)]"]:not([class*=" bg-"]):not([class^="bg-"])
   background-color: #2b1e17;
   color: #f4ede6;
 }
+
+/* ════════════════════════════════════════════════════════════════════
+   MODAL FIELDS — always show their whole value, at every screen size.
+   Fields may shrink inside grids without clipping their text, date/time controls keep a usable
+   height on phones, and long text wraps instead of running out of the box.
+   ════════════════════════════════════════════════════════════════════ */
+[role="dialog"] :is(input, select, textarea),
+.fixed.inset-0.z-50 :is(input, select, textarea) { min-width: 0; max-width: 100%; }
+[role="dialog"] input:is([type="date"], [type="time"], [type="number"]),
+.fixed.inset-0.z-50 input:is([type="date"], [type="time"], [type="number"]) { min-height: 2.5rem; font-variant-numeric: tabular-nums; }
+[role="dialog"] textarea, .fixed.inset-0.z-50 textarea { resize: vertical; line-height: 1.5; }
+[role="dialog"] :is(h2, h3, p, li, label, dd, dt, span), .fixed.inset-0.z-50 :is(h2, h3, p, li, label) { overflow-wrap: anywhere; }
+[role="dialog"] select { text-overflow: ellipsis; }

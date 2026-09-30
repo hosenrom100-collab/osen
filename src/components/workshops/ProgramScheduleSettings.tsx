@@ -47,7 +47,7 @@ export function ProgramScheduleSettings({ program, groups, types, onClose, onSav
   };
 
   return (
-    <Dialog title={`הגדרות לוז · ${program.name}`} onClose={onClose}
+    <Dialog title={`הגדרות לוז · ${program.name}`} onClose={onClose} wide
       footer={<>
         <button onClick={save} disabled={saving || invalid} className={btnPrimary}>שמור</button>
         <button onClick={onClose} className={btnGhost}>ביטול</button>
@@ -84,8 +84,8 @@ export function ProgramScheduleSettings({ program, groups, types, onClose, onSav
                 <input className={fieldCls} value={b.label} placeholder="שם, למשל ארוחת צהריים" onChange={e => patch(b.id, { label: e.target.value })} />
                 <button onClick={() => setBlocks(bs => bs.filter(x => x.id !== b.id))} aria-label="הסר" className="p-2 text-rose-500"><Trash2 className="w-4 h-4" /></button>
               </div>
-              <div className="grid grid-cols-3 gap-2">
-                <select className={fieldCls} value={b.kind} onChange={e => patch(b.id, { kind: e.target.value as ActivityKind })}>
+              <div className="grid grid-cols-2 gap-2">
+                <select className={`${fieldCls} col-span-2`} value={b.kind} onChange={e => patch(b.id, { kind: e.target.value as ActivityKind })}>
                   {blockTypes.concat(types.filter(t => t.band && t.archived && t.id === b.kind)).map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
                 </select>
                 <input type="time" className={fieldCls} value={b.start} onChange={e => patch(b.id, { start: e.target.value })} />

@@ -108,13 +108,13 @@ export function BottomNav() {
       href: "/shopping",
       isActive: pathname.startsWith("/shopping")
     },
-    ...(role !== "instructor" ? [{
-      key: "patients",
-      label: "משתתפים",
-      icon: User,
-      href: "/patients",
-      isActive: pathname.startsWith("/patients")
-    }] : []),
+    {
+      key: "schedule",
+      label: "יומן",
+      icon: Calendar,
+      href: "/schedule",
+      isActive: pathname.startsWith("/schedule")
+    },
     {
       key: "menu",
       label: "תפריט",
@@ -140,6 +140,15 @@ export function BottomNav() {
       icon: User, 
       onClick: () => go("/profile"), 
       show: true,
+      iconColor: "text-[var(--primary)]",
+      iconBg: "bg-[var(--accent-soft)]"
+    },
+    {
+      key: "patients",
+      label: "משתתפים",
+      icon: User,
+      onClick: () => go("/patients"),
+      show: role !== "instructor",
       iconColor: "text-[var(--primary)]",
       iconBg: "bg-[var(--accent-soft)]"
     },

@@ -229,7 +229,7 @@ function NewWorkshopDialog({ refs, types, from, onClose, onCreated }: {
           {refs.programs.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
         </select>
       </div>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
           <label className={labelCls}>תאריך התחלה</label>
           <input type="date" className={fieldCls} value={startDate} onChange={e => setStartDate(e.target.value)} />

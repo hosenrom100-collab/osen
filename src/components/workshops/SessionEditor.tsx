@@ -231,7 +231,7 @@ export function SessionEditor({ session, extra, workshops, staff, locations, typ
         </div>
         <div>
           <label className={labelCls}>מעבירים{!isExtra && session && <span className="font-normal"> — מקור: {session.base.staffIds.map(nameOf).join(", ") || "—"}</span>}</label>
-          <ul className="grid grid-cols-2 gap-x-3 max-h-40 overflow-y-auto border border-[var(--border)] rounded-md px-2.5 py-1">
+          <ul className="grid grid-cols-1 sm:grid-cols-2 gap-x-3 max-h-56 overflow-y-auto border border-[var(--border)] rounded-lg px-2.5 py-1">
             {staffSorted.map(s => {
               const busy = busyOf(s.id);
               return (
@@ -256,7 +256,7 @@ export function SessionEditor({ session, extra, workshops, staff, locations, typ
 
       <div>
         <label className={labelCls}>הערה (מוצגת ביומן)</label>
-        <input className={fieldCls} value={note} onChange={e => setNote(e.target.value)} />
+        <textarea rows={2} className={fieldCls} value={note} onChange={e => setNote(e.target.value)} />
       </div>
     </Dialog>
   );

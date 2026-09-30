@@ -70,7 +70,7 @@ export function SeriesDays({ workshops, initialId, programs, groups, locations, 
   };
 
   return (
-    <Dialog title="ימי פעילות קבועים" onClose={onClose}
+    <Dialog title="ימי פעילות קבועים" onClose={onClose} wide
       footer={<>
         <button onClick={save} disabled={saving || !w || invalid} className={btnPrimary}>שמור</button>
         <button onClick={onClose} className={btnGhost}>ביטול</button>
@@ -92,20 +92,19 @@ export function SeriesDays({ workshops, initialId, programs, groups, locations, 
               <h3 className="text-sm font-bold">{sec.label}</h3>
               {rows.length === 0 && <p className="text-xs text-[var(--foreground)]/50">אין ימי פעילות.</p>}
               {rows.map(s => (
-                <div key={s.id} className="flex flex-wrap items-center gap-1.5">
-                  <select aria-label="יום" className={`${fieldCls} !w-24`} value={s.day} onChange={e => patch(s.id, { day: Number(e.target.value) })}>
+                <div key={s.id} className="grid grid-cols-2 sm:grid-cols-[8rem_7rem_7rem_minmax(8rem,1fr)_auto] gap-2 items-center">
+                  <select aria-label="יום" className={`${fieldCls} col-span-2 sm:col-span-1`} value={s.day} onChange={e => patch(s.id, { day: Number(e.target.value) })}>
                     {days.map(d => <option key={d} value={d}>{DAY_FULL[d]}</option>)}
                     {!days.includes(s.day) && <option value={s.day}>{DAY_FULL[s.day]} (לא פעיל)</option>}
                   </select>
-                  <input aria-label="התחלה" type="time" className={`${fieldCls} !w-[6.5rem]`} value={s.start} onChange={e => patch(s.id, { start: e.target.value })} />
-                  <span className="text-[var(--foreground)]/40">–</span>
-                  <input aria-label="סיום" type="time" className={`${fieldCls} !w-[6.5rem]`} value={s.end} onChange={e => patch(s.id, { end: e.target.value })} />
-                  <select aria-label="מרחב" className={`${fieldCls} !w-28`} value={s.locationId || ""} onChange={e => patch(s.id, { locationId: e.target.value || undefined })}>
+                  <input aria-label="התחלה" type="time" className={fieldCls} value={s.start} onChange={e => patch(s.id, { start: e.target.value })} />
+                  <input aria-label="סיום" type="time" className={fieldCls} value={s.end} onChange={e => patch(s.id, { end: e.target.value })} />
+                  <select aria-label="מרחב" className={`${fieldCls} col-span-2 sm:col-span-1`} value={s.locationId || ""} onChange={e => patch(s.id, { locationId: e.target.value || undefined })}>
                     <option value="">ללא מרחב</option>
                     {locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
                   </select>
-                  <button onClick={() => setSlots(slots.filter(x => x.id !== s.id))} aria-label="הסר" className="p-1.5 text-[var(--foreground)]/50 hover:text-rose-500"><Trash2 className="w-4 h-4" /></button>
-                  {s.end <= s.start && <span className="text-xs text-rose-500 w-full">שעת הסיום מוקדמת מההתחלה</span>}
+                  <button onClick={() => setSlots(slots.filter(x => x.id !== s.id))} aria-label="הסר" className="p-1.5 justify-self-end col-span-2 sm:col-span-1 text-[var(--foreground)]/50 hover:text-rose-500"><Trash2 className="w-4 h-4" /></button>
+                  {s.end <= s.start && <span className="text-xs text-rose-500 col-span-full">שעת הסיום מוקדמת מההתחלה</span>}
                 </div>
               ))}
               <button onClick={() => add(sec.groupIds)} className="flex items-center gap-1 text-sm text-[var(--accent)] font-bold"><Plus className="w-4 h-4" /> הוסף יום</button>

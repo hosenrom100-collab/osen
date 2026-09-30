@@ -66,6 +66,14 @@ export default function SchedulePage() {
   const [toast, setToast] = useState<{ text: string; undo?: () => Promise<void> } | null>(null);
   useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(null), 8000); return () => clearTimeout(t); }, [toast]);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 767px)");
+    const on = () => setIsMobile(mq.matches);
+    on();
+    mq.addEventListener("change", on);
+    return () => mq.removeEventListener("change", on);
+  }, []);
   const [settingsFor, setSettingsFor] = useState<string | null>(null);
   const [showShift, setShowShift] = useState(false);
   useEffect(() => {
@@ -92,8 +100,6 @@ export default function SchedulePage() {
     setGroupSel(sel => sel.filter(id => refs.groups.some(g => g.id === id)));
   }, [refs]);
 
-  // Mobile day selection: fall back to today / first day when the picked day is outside this week.
-  const selectedDay = dates.includes(pickedDay) ? pickedDay : dates.includes(today) ? today : dates[0];
 
   const nameOf = useCallback((id: string) => refs?.staff.find(s => s.id === id)?.name || "—", [refs]);
   const roomOf = useCallback((id?: string) => refs?.locations.find(l => l.id === id)?.name, [refs]);
@@ -184,6 +190,21 @@ export default function SchedulePage() {
 
   const globalClosure = (d: string) => closedFor(null, d);
 
+  // Weekdays the program(s) on screen are active on — what phone navigation steps through.
+  const navDays = useMemo(() => {
+    const set = new Set<number>();
+    (programSel[0] ? refs?.programs.filter(p => p.id === programSel[0]) || [] : refs?.programs || []).forEach(p => p.activeDays.forEach(d => set.add(d)));
+    return set.size ? [...set].sort() : [0, 1, 2, 3, 4];
+  }, [refs, programSel]);
+
+  // The day shown in day view / on phones. On a phone it is always an activity day; elsewhere any day of the week.
+  const selectedDay = (() => {
+    const ok = (d: string) => dates.includes(d) && (!isMobile || days.includes(dayOf(d)));
+    if (ok(pickedDay)) return pickedDay;
+    if (ok(today)) return today;
+    return dates.find(ok) ?? dates[0];
+  })();
+
   const weekChanges = changes.filter(c => c.dates.some(d => dates.includes(d)));
   const unpublished = weekChanges.filter(c => !c.published);
 
@@ -269,7 +290,7 @@ export default function SchedulePage() {
         return {
           id: date, date, today: date === today, sessions: sessions.filter(s => s.date === date), laneMode: weekLanes, groupIds: laneGroups.map(g => g.id),
           showGroups: weekLanes === "stable" && !groupSel[0],
-          header: <span className="flex flex-col items-center leading-tight"><span className="text-[15px]">יום {DAY_FULL[dayOf(date)]}</span><span className={`text-xs font-semibold tabular-nums mt-0.5 ${date === today ? "text-[var(--accent)]" : "text-[var(--foreground)]/55"}`}>{shortDate(date)}</span></span>,
+          header: <span className="flex flex-col items-center leading-tight"><span className="text-sm">יום {DAY_FULL[dayOf(date)]}</span><span className={`text-xs font-semibold tabular-nums mt-0.5 ${date === today ? "text-[var(--accent)]" : "text-[var(--foreground)]/55"}`}>{shortDate(date)}</span></span>,
           sub, onAdd: addFor(date, programSel[0]),
         };
       })
@@ -284,9 +305,28 @@ export default function SchedulePage() {
     setSelectedDay(toISO(d));
     setWeekStart(weekStartOf(d));
   };
-  const step = (dir: 1 | -1) => (view === "day" ? moveDay(dir) : setWeekStart(addDays(weekStart, 7 * dir)));
+  // Phones skip days the program does not run on, so there are never empty days to swipe through.
+  const nextActive = (from: Date, dir: 1 | -1) => {
+    let d = from;
+    for (let i = 0; i < 14; i++) { d = addDays(d, dir); if (navDays.includes(d.getDay())) return d; }
+    return addDays(from, dir);
+  };
+  const jumpTo = (d: Date) => { setSelectedDay(toISO(d)); setWeekStart(weekStartOf(d)); };
+  const step = (dir: 1 | -1) => {
+    if (!isMobile) return view === "day" ? moveDay(dir) : setWeekStart(addDays(weekStart, 7 * dir));
+    const cur = new Date(`${selectedDay}T12:00:00`);
+    if (view === "day") return jumpTo(nextActive(cur, dir));
+    // Week: the same weekday next/previous week, or the closest activity day of that week.
+    const target = addDays(cur, 7 * dir);
+    if (navDays.includes(target.getDay())) return jumpTo(target);
+    const fwd = nextActive(target, 1);
+    jumpTo(weekStartOf(fwd).getTime() === weekStartOf(target).getTime() ? fwd : nextActive(target, -1));
+  };
   const atCurrent = view === "day" ? selectedDay === today : dates.includes(today);
-  const goToday = () => { setSelectedDay(today); setWeekStart(weekStartOf(new Date())); };
+  const goToday = () => {
+    const t = new Date();
+    jumpTo(!isMobile || navDays.includes(t.getDay()) ? t : nextActive(t, 1));
+  };
   const dayLabel = `${DAY_FULL[dayOf(selectedDay)]} ${shortDate(selectedDay)}`;
   const dayUrl = `/schedule/day?date=${selectedDay}${programSel[0] ? `&program=${programSel[0]}` : ""}${groupSel[0] ? `&group=${groupSel[0]}` : ""}`;
   const activeWorkshops = workshops.filter(w => w.status === "active");
@@ -404,7 +444,7 @@ export default function SchedulePage() {
           </p>
         ) : (
           <div className="md:px-2 md:pt-2">
-            <TimeGrid {...common} columns={columns} mode={mode} groupName={groupName} laneMin={view === "day" ? 10 : 7.5} drag={dragApi} />
+            <TimeGrid {...common} columns={columns} mode={mode} groupName={groupName} laneMin={view === "day" ? 8.5 : 6.5} drag={dragApi} />
             <DayAgenda {...common} dates={dates} days={days} rows={rows} mode={mode} today={today} globalClosure={globalClosure}
               selected={selectedDay} setSelected={setSelectedDay} canEdit={isManager}
               onAdd={date => setEditing({ session: null, extra: { date, programId: programSel.length === 1 ? programSel[0] : undefined } })} />
@@ -497,13 +537,13 @@ function ClosuresDialog({ dates, closures, refs, onClose, onChanged }: {
         ))}
         {closures.length === 0 && <li className="py-2 text-[var(--foreground)]/50">אין ימים כאלה בשבוע הזה.</li>}
       </ul>
-      <div className="grid grid-cols-2 gap-3 pt-2">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
         <div><label className={labelCls}>תאריך</label><input type="date" className={fieldCls} value={date} onChange={e => setDate(e.target.value)} /></div>
         <div><label className={labelCls}>תוכנית</label>
           <select className={fieldCls} value={programId} onChange={e => setProgramId(e.target.value)}>
             <option value="">כל התוכניות</option>{refs.programs.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
           </select></div>
-        <div className="col-span-2"><label className={labelCls}>סיבה</label><input className={fieldCls} value={reason} placeholder="סוכות, יום כיף…" onChange={e => setReason(e.target.value)} /></div>
+        <div className="sm:col-span-2"><label className={labelCls}>סיבה</label><textarea rows={2} className={fieldCls} value={reason} placeholder="סוכות, יום כיף…" onChange={e => setReason(e.target.value)} /></div>
       </div>
       <button onClick={add} disabled={!date} className={btnPrimary}>הוסף</button>
     </Dialog>
