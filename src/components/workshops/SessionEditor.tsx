@@ -5,7 +5,7 @@ import Link from "next/link";
 import { rememberBack } from "@/lib/workshops/back";
 import { StaffPicker } from "./StaffPicker";
 import { db } from "@/lib/firebase/config";
-import { collection, deleteDoc, doc, setDoc, serverTimestamp } from "firebase/firestore";
+import { collection, deleteDoc, doc, getDocs, query, setDoc, serverTimestamp, where } from "firebase/firestore";
 import { Dialog, fieldCls, labelCls, btnPrimary, btnGhost } from "./Dialog";
 import { Person, Session, SessionChange, Workshop, DAY_FULL } from "@/lib/workshops/types";
 import { ActivityType, pastel } from "@/lib/workshops/activityTypes";
@@ -130,6 +130,26 @@ export function SessionEditor({ session, extra, workshops, staff, locations, typ
     onSaved();
   };
 
+  // Wrong one-off? Remove it for good instead of leaving a cancelled entry on the calendar.
+  // An extra session is just a change record; a one-time event is a whole workshop on a single date.
+  const oneTimeEvent = !!session && !isExtra && !!workshop && workshop.startDate === workshop.endDate && workshop.slots.length === 1;
+  const canDeleteForGood = !!session && (isExtra || oneTimeEvent);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const deleteForGood = async () => {
+    if (!session) return;
+    setSaving(true);
+    try {
+      if (oneTimeEvent && workshop) {
+        const rel = await getDocs(query(collection(db, "session_changes"), where("workshopId", "==", workshop.id)));
+        await Promise.all(rel.docs.map(d => deleteDoc(d.ref)));
+        await deleteDoc(doc(db, "workshops", workshop.id));
+      } else if (session.changeId) {
+        await deleteDoc(doc(db, "session_changes", session.changeId));
+      }
+      onSaved();
+    } finally { setSaving(false); }
+  };
+
   const title = isExtra ? (session ? "מפגש נוסף" : "מפגש חד-פעמי") : session!.workshopName;
   const valid = isExtra ? !!(workshop && date && end > start) : (cancelled || end > start);
 
@@ -173,7 +193,12 @@ export function SessionEditor({ session, extra, workshops, staff, locations, typ
                   ? <span className="flex gap-1.5"><button disabled={saving} onClick={() => save({ cancelled: true })} className="flex-1 rounded-lg bg-[#b42318] text-white text-sm font-bold px-2 py-2.5">כן, בטל</button><button onClick={() => setConfirmCancel(false)} className="rounded-lg border border-[var(--border)] text-sm px-3">לא</button></span>
                   : <button onClick={() => setConfirmCancel(true)} className={`${quickCls} text-[#b42318]`}>בטל מפגש…</button>}
             </div>
-            {ch && <button onClick={revert} disabled={saving} className="mt-3 text-xs text-[var(--foreground)]/55 underline">החזר את כל השינויים למקור</button>}
+            {ch && !isExtra && <button onClick={revert} disabled={saving} className="mt-3 text-xs text-[var(--foreground)]/55 underline">החזר את כל השינויים למקור</button>}
+            {canDeleteForGood && (confirmDelete
+              ? <div className="mt-3 flex items-center gap-2 text-sm"><span className="text-[#b42318] font-semibold">{oneTimeEvent ? "למחוק את האירוע לגמרי?" : "למחוק את המפגש לגמרי?"}</span>
+                  <button disabled={saving} onClick={deleteForGood} className="rounded-lg bg-[#b42318] text-white font-bold px-3 py-1.5">כן, מחק</button>
+                  <button onClick={() => setConfirmDelete(false)} className="rounded-lg border border-[var(--border)] px-3 py-1.5">לא</button></div>
+              : <button onClick={() => setConfirmDelete(true)} className="mt-3 block text-sm text-[#b42318] underline">{oneTimeEvent ? "מחק את האירוע לגמרי" : "מחק את המפגש לגמרי"}</button>)}
           </div>
         )}
         {canEdit && <WholeWorkshop name={session.workshopName} id={session.workshopId} onEditSeries={isExtra ? undefined : onEditSeries} />}

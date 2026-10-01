@@ -111,7 +111,8 @@ export default function SchedulePage() {
   const groupName = useCallback((id: string) => refs?.groups.find(g => g.id === id)?.name || "", [refs]);
   const groupsOf = useCallback((ids: string[]) => ids.map(groupName).filter(Boolean).join(", "), [groupName]);
   const sessions = useMemo(() => {
-    let list = all;
+    // A moved session shows only where it now is (tagged "moved from…"), not also as a ghost at its old place.
+    let list = all.filter(s => s.kind !== "moved-away");
     if (mode !== "program") list = list.filter(s => !s.fixedBlock);
     if (onlyMine && user) list = list.filter(s => s.fixedBlock || s.staffIds.includes(user.uid));
     if (programSel.length) list = list.filter(s => programSel.includes(s.programId));
