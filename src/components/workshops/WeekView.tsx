@@ -53,7 +53,7 @@ function facts(s: Session, mode: Mode, c: Common, groups?: boolean) {
  * A session card. Its height follows its content (the grid row grows), so nothing is ever cut off.
  * Order of importance: name, then when/where, then who, then the note; small tags at the bottom.
  */
-function Card({ s, mode, c, groups }: { s: Session; mode: Mode; c: Common; groups?: boolean }) {
+function Card({ s, mode, c, groups, compact }: { s: Session; mode: Mode; c: Common; groups?: boolean; compact?: boolean }) {
   const t = hueStyle(c.hueOf(s));
   const f = facts(s, mode, c, groups);
   const oneOff = s.kind === "extra" || s.kind === "moved-in";
@@ -67,6 +67,32 @@ function Card({ s, mode, c, groups }: { s: Session; mode: Mode; c: Common; group
     hover.current = setTimeout(() => setPeek(el.getBoundingClientRect()), 280);
   };
   const leave = () => { if (hover.current) clearTimeout(hover.current); setPeek(null); };
+
+  // Phone: every card the same shape (name, then one line of room / people / count). The rest is one tap away in the details.
+  if (compact) {
+    const flag = s.kind === "extra" ? "חד-פעמי" : s.kind === "moved-in" ? "הוזז" : "";
+    return (
+      <button onClick={() => c.onOpen(s)}
+        aria-label={[`${s.start}–${s.end}`, s.workshopName, f.room && `מרחב ${f.room}`, f.staff, f.grp, f.count ? `${f.count} משתתפים` : "", f.note, f.warn?.join(", ")].filter(Boolean).join(", ")}
+        style={f.dead ? undefined : { backgroundColor: t.fill, color: t.ink, borderInlineStartColor: t.bar, borderInlineStartStyle: oneOff ? "dashed" : "solid" }}
+        className={`flex flex-col justify-center w-full h-full min-h-[3.75rem] text-start rounded-md px-2.5 py-1.5 border-s-[3px] ${c.dim(s) ? "opacity-30" : ""} ${f.dead ? "bg-[var(--cal-ink)]/[0.04] text-[var(--cal-faint)] border-[var(--cal-line-day)]" : ""}`}>
+        <span className="flex items-center gap-1.5 min-w-0">
+          <span className={`flex-1 min-w-0 truncate text-[15px] font-bold leading-snug ${s.kind === "cancelled" ? "line-through" : ""}`}>{s.workshopName}</span>
+          {f.warn && !f.dead && <span className="w-2 h-2 shrink-0 rounded-full bg-[var(--cal-now)]" aria-hidden />}
+          {s.kind === "cancelled" && <span className="shrink-0 text-xs font-bold text-[#b42318]">בוטל</span>}
+          {flag && !f.dead && <span className="shrink-0 px-1.5 rounded bg-[#fff0c2] text-[11px] font-semibold text-[#6b4700]">{flag}</span>}
+        </span>
+        {!f.dead && (
+          <span className="mt-0.5 flex items-center gap-1.5 min-w-0 text-xs">
+            {showRoom && <span className="inline-flex items-center gap-1 shrink-0 max-w-[45%] px-1.5 rounded bg-white/80 font-bold" style={{ color: t.ink }}><MapPin className="w-3 h-3 shrink-0" /><span className="truncate">{f.room}</span></span>}
+            {meta && <span className="flex-1 min-w-0 truncate text-[var(--cal-muted)]">{meta}</span>}
+            {!meta && <span className="flex-1" />}
+            {f.count ? <span className="shrink-0 px-1.5 rounded bg-black/[0.06] tabular-nums font-semibold text-[var(--cal-muted)]">{f.count}</span> : null}
+          </span>
+        )}
+      </button>
+    );
+  }
 
   return (
     <>
@@ -148,8 +174,8 @@ function BandCard({ s, c, groups }: { s: Session; c: Common; groups?: boolean })
   );
 }
 
-function SessionCard({ s, mode, c, groups }: { s: Session; mode: Mode; c: Common; groups?: boolean }) {
-  return s.band ? <BandCard s={s} c={c} groups={groups} /> : <Card s={s} mode={mode} c={c} groups={groups} />;
+function SessionCard({ s, mode, c, groups, compact }: { s: Session; mode: Mode; c: Common; groups?: boolean; compact?: boolean }) {
+  return s.band ? <BandCard s={s} c={c} groups={groups} /> : <Card s={s} mode={mode} c={c} groups={groups} compact={compact} />;
 }
 
 function useNowMinutes() {
@@ -493,7 +519,7 @@ export function DayAgenda({ dates, days, mode, today, selected, setSelected, glo
                   <span className="block text-xs font-medium text-[var(--cal-faint)]">{s.end}</span>
                   {live && <span className="mt-1 inline-block rounded bg-[var(--cal-now)] px-1 text-[10px] font-bold text-white">עכשיו</span>}
                 </span>
-                <div className={`flex-1 min-w-0 ${live ? "rounded-md ring-2 ring-[var(--cal-now)]/60" : ""}`}><SessionCard s={s} mode={mode} c={c} groups /></div>
+                <div className={`flex-1 min-w-0 ${live ? "rounded-md ring-2 ring-[var(--cal-now)]/60" : ""}`}><SessionCard s={s} mode={mode} c={c} groups compact /></div>
               </div>
             </li>
           );
