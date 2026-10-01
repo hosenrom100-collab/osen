@@ -24,6 +24,9 @@ export interface Common {
   peekNames: (s: Session) => string[];          // first names of the people attending, for the hover peek
   showGroups?: boolean; // show group names on sessions even in program mode
   onOpen: (s: Session) => void;
+  groupHue?: (groupId: string) => number | undefined; // a group's own colour (lane headers, tags)
+  jointOf?: (s: Session) => boolean;                  // a session shared by several groups of a program
+  soft?: Map<string, string[]>;                       // soft warnings: worth a look, not an error
 }
 
 const sameSet = (a: string[], b: string[]) => [...a].sort().join() === [...b].sort().join();
@@ -46,7 +49,7 @@ function facts(s: Session, mode: Mode, c: Common, groups?: boolean) {
   const staffOnly = s.audience === "staff";
   const staff = mode !== "staff" && !s.fixedBlock ? s.staffIds.map(c.nameOf).join(", ") : "";
   const grp = groups || mode !== "program" || c.showGroups ? c.groupsOf(s.groupIds) : "";
-  return { dead, room, staff, staffOnly, grp, count: dead ? undefined : c.countOf(s), special: dead ? undefined : c.typeLabel(s), note: changeNote(s), warn: c.warnings.get(s.id) };
+  return { dead, room, staff, staffOnly, grp, count: dead ? undefined : c.countOf(s), special: dead ? undefined : c.typeLabel(s), note: changeNote(s), warn: c.warnings.get(s.id), soft: dead ? undefined : c.soft?.get(s.id), joint: !dead && !!c.jointOf?.(s) };
 }
 
 /**
@@ -71,6 +74,8 @@ function Card({ s, mode, c, groups, compact }: { s: Session; mode: Mode; c: Comm
   // Phone: every card the same shape (name, then one line of room / people / count). The rest is one tap away in the details.
   if (compact) {
     const flag = s.kind === "extra" ? "חד-פעמי" : s.kind === "moved-in" ? "הוזז" : "";
+    const tagged = !f.joint && !f.dead && !!groups && s.groupIds.length === 1 && c.groupHue?.(s.groupIds[0]) !== undefined;
+    const line = tagged || f.joint ? (f.staff ? (f.staffOnly ? `נוכחים: ${f.staff}` : f.staff) : "") : meta;
     return (
       <button onClick={() => c.onOpen(s)}
         aria-label={[`${s.start}–${s.end}`, s.workshopName, f.room && `מרחב ${f.room}`, f.staff, f.grp, f.count ? `${f.count} משתתפים` : "", f.note, f.warn?.join(", ")].filter(Boolean).join(", ")}
@@ -79,14 +84,21 @@ function Card({ s, mode, c, groups, compact }: { s: Session; mode: Mode; c: Comm
         <span className="flex items-center gap-1.5 min-w-0">
           <span className={`flex-1 min-w-0 truncate text-[15px] font-bold leading-snug ${s.kind === "cancelled" ? "line-through" : ""}`}>{s.workshopName}</span>
           {f.warn && !f.dead && <span className="w-2 h-2 shrink-0 rounded-full bg-[var(--cal-now)]" aria-hidden />}
+          {f.soft && !f.warn && <span className="w-2 h-2 shrink-0 rounded-full bg-[#e08a00]" aria-hidden />}
+          {f.joint && <span className="shrink-0 px-1.5 rounded bg-white/90 text-[11px] font-semibold" style={{ color: t.ink }}>משותף</span>}
+          {tagged && (
+            <span className="shrink-0 inline-flex items-center gap-1 px-1.5 rounded bg-white/90 text-[11px] font-semibold text-[var(--cal-ink)]">
+              <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: hueStyle(c.groupHue!(s.groupIds[0])!).bar }} />{c.groupsOf(s.groupIds)}
+            </span>
+          )}
           {s.kind === "cancelled" && <span className="shrink-0 text-xs font-bold text-[#b42318]">בוטל</span>}
           {flag && !f.dead && <span className="shrink-0 px-1.5 rounded bg-[#fff0c2] text-[11px] font-semibold text-[#6b4700]">{flag}</span>}
         </span>
         {!f.dead && (
           <span className="mt-0.5 flex items-center gap-1.5 min-w-0 text-xs">
             {showRoom && <span className="inline-flex items-center gap-1 shrink-0 max-w-[45%] px-1.5 rounded bg-white/80 font-bold" style={{ color: t.ink }}><MapPin className="w-3 h-3 shrink-0" /><span className="truncate">{f.room}</span></span>}
-            {meta && <span className="flex-1 min-w-0 truncate text-[var(--cal-muted)]">{meta}</span>}
-            {!meta && <span className="flex-1" />}
+            {line && <span className="flex-1 min-w-0 truncate text-[var(--cal-muted)]">{line}</span>}
+            {!line && <span className="flex-1" />}
             {f.count ? <span className="shrink-0 px-1.5 rounded bg-black/[0.06] tabular-nums font-semibold text-[var(--cal-muted)]">{f.count}</span> : null}
           </span>
         )}
@@ -98,12 +110,13 @@ function Card({ s, mode, c, groups, compact }: { s: Session; mode: Mode; c: Comm
     <>
       <button onClick={() => { leave(); c.onOpen(s); }} onMouseEnter={enter} onMouseLeave={leave} onPointerDown={leave}
         aria-label={[`${s.start}–${s.end}`, s.workshopName, f.room && `מרחב ${f.room}`, f.staff, f.grp, f.count ? `${f.count} משתתפים` : "", f.note, f.warn?.join(", ")].filter(Boolean).join(", ")}
-        style={f.dead ? undefined : { backgroundColor: t.fill, color: t.ink, borderInlineStartColor: t.bar, borderInlineStartStyle: oneOff ? "dashed" : "solid" }}
+        style={f.dead ? undefined : { backgroundColor: t.fill, color: t.ink, borderInlineStartColor: t.bar, borderInlineStartStyle: oneOff ? "dashed" : "solid", boxShadow: f.joint ? `inset 0 0 0 1px ${t.bar}, inset 0 0 0 3px ${t.fill}, inset 0 0 0 4px ${t.soft}` : undefined }}
         className={`block w-full h-full text-start rounded-md px-2.5 py-1.5 md:px-2 md:py-1 border-s-[3px] transition-[filter,opacity] hover:brightness-[0.97] focus-visible:outline-2 focus-visible:outline-[var(--accent)] ${c.dim(s) ? "opacity-30" : ""} ${f.dead ? "border border-dashed border-[var(--cal-frame)] text-[var(--cal-muted)]" : "border-transparent"}`}>
         <span className="flex items-start gap-1.5">
           <span className={`flex-1 min-w-0 text-[15px] md:text-[13.5px] font-bold leading-snug line-clamp-2 ${s.kind === "cancelled" ? "line-through" : ""}`}>{s.workshopName}</span>
           <span className="flex items-center gap-1.5 pt-1 shrink-0">
             {f.warn && !f.dead && <span className="w-2 h-2 rounded-full bg-[var(--cal-now)]" />}
+            {f.soft && !f.warn && <span className="w-2 h-2 rounded-full bg-[#e08a00]" title={f.soft.join(", ")} />}
             {f.note && !f.dead && <span className="text-[10px] leading-none text-[var(--cal-muted)]">◆</span>}
             {s.change && !s.change.published && <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />}
           </span>
@@ -119,8 +132,9 @@ function Card({ s, mode, c, groups, compact }: { s: Session; mode: Mode; c: Comm
         </span>
         {meta && !f.dead && <span className="block mt-0.5 text-xs md:text-[11.5px] leading-snug line-clamp-2 text-[var(--cal-muted)]">{meta}</span>}
         {s.note && !f.dead && <span className="block mt-0.5 text-xs md:text-[11.5px] leading-snug line-clamp-2 italic text-[var(--cal-ink)]/80">{s.note}</span>}
-        {(f.special || oneOff || f.count) && !f.dead && (
+        {(f.special || oneOff || f.count || f.joint) && !f.dead && (
           <span className="mt-1 flex flex-wrap items-center gap-1 text-[11px] font-semibold">
+            {f.joint && <span className="px-1.5 rounded bg-white text-[var(--cal-ink)] ring-1 ring-current/30" style={{ color: t.ink }}>משותף</span>}
             {f.special && <span className="px-1.5 rounded bg-white/80" style={{ color: t.ink }}>{f.special}</span>}
             {oneOff && <span className="px-1.5 rounded bg-[#fff0c2] text-[#6b4700]">{s.kind === "extra" ? "חד-פעמי" : "הוזז"}</span>}
             {f.count ? <span className="px-1.5 rounded bg-black/[0.06] tabular-nums text-[var(--cal-muted)]" title={`${f.count} ${f.staffOnly ? "בצוות" : "משתתפים"}`}>{f.count} {f.staffOnly ? "בצוות" : "משתתפים"}</span> : null}
@@ -155,6 +169,7 @@ function Peek({ s, f, rect, c, accent }: { s: Session; f: ReturnType<typeof fact
         {s.note && <div className="flex gap-2"><dt className="w-14 shrink-0 text-[var(--cal-faint)]">הערה</dt><dd className="min-w-0 break-words">{s.note}</dd></div>}
         {f.note && <div className="flex gap-2"><dt className="w-14 shrink-0 text-[var(--cal-faint)]">שינוי</dt><dd>{f.note}</dd></div>}
       </dl>
+      {f.soft && <ul className="mt-2 rounded-md bg-[#fff3dc] text-[#8a5a00] text-xs px-2 py-1.5 space-y-0.5">{f.soft.map(w => <li key={w}>{w}</li>)}</ul>}
       {f.warn && <ul className="mt-2 rounded-md bg-[#fde8e5] text-[#9b1c12] text-xs px-2 py-1.5 space-y-0.5">{f.warn.map(w => <li key={w}>{w}</li>)}</ul>}
     </div>
   );
@@ -407,17 +422,33 @@ export function TimeGrid({ columns, mode, groupName, laneMin, corner, drag: drag
               {/* One continuous day separator, header to bottom, so header and body always line up. */}
               <div className="pointer-events-none border-s border-[var(--cal-line-day)]" style={{ gridRow: `1 / -1`, gridColumn: c1 }} />
               {l.laneLabels && l.laneLabels.slice(1).map((_, i) => (
-                <div key={`d${i}`} className="pointer-events-none border-s border-dashed border-[var(--cal-line-lane)]" style={{ gridRow: `2 / -1`, gridColumn: c1 + i + 1 }} />
+                <div key={`d${i}`} className="pointer-events-none border-s border-dashed border-[var(--cal-line-lane)]" style={{ gridRow: `2 / -1`, gridColumn: c1 + (i + 1) * (l.unit ?? 1) }} />
               ))}
+              {/* A group with nothing of its own that day keeps its place, shaded, so every group stays where it always is. */}
+              {l.laneLabels && l.placed.length > 0 && l.laneLabels.map((_, g) => {
+                const u = l.unit ?? 1;
+                const used = l.placed.some(p => p.lane < (g + 1) * u && p.lane + p.span > g * u);
+                return !used && (
+                  <div key={`e${g}`} className="pointer-events-none flex justify-center pt-3 text-[11px] font-medium text-[var(--cal-faint)]"
+                    style={{ gridRow: `${HDR + 1} / -1`, gridColumn: `${c1 + g * u} / span ${u}`, backgroundImage: "repeating-linear-gradient(135deg, rgba(43,33,27,0.03) 0 6px, transparent 6px 12px)" }}>
+                    <span className="bg-white px-1.5 rounded h-fit">אין פעילות לקבוצה</span>
+                  </div>
+                );
+              })}
               <div data-col={k} className={`sticky top-[3.25rem] z-20 bg-[var(--cal-surface)] px-2 pt-2 text-center text-[var(--cal-ink)] ${l.laneLabels ? "" : "border-b border-[var(--cal-frame)] pb-2"}`}
                 style={{ gridRow: 1, gridColumn: `${c1} / span ${l.lanes}` }}>
                 {col.header}
                 {hasSub && <div className="mt-1 min-h-[1.25rem]">{col.sub && <span className="inline-block max-w-full truncate px-2 rounded-full bg-[var(--cal-ink)]/[0.06] text-[11px] font-medium text-[var(--cal-muted)]">{col.sub}</span>}</div>}
               </div>
-              {l.laneLabels && l.laneLabels.map((name, i) => (
-                <div key={i} className="sticky top-[7.25rem] z-20 bg-[var(--cal-surface)] px-2 pb-1.5 pt-0.5 text-[11px] font-semibold text-center text-[var(--cal-muted)] truncate border-b border-[var(--cal-frame)]"
-                  style={{ gridRow: 2, gridColumn: c1 + i }} title={name}>{name}</div>
-              ))}
+              {l.laneLabels && l.laneLabels.map((name, i) => {
+                const h = col.groupIds?.[i] ? c.groupHue?.(col.groupIds[i]) : undefined;
+                return (
+                  <div key={i} className="sticky top-[7.25rem] z-20 bg-[var(--cal-surface)] px-2 pb-1.5 pt-0.5 text-[11px] font-semibold text-center text-[var(--cal-muted)] truncate border-b border-[var(--cal-frame)]"
+                    style={{ gridRow: 2, gridColumn: `${c1 + i * (l.unit ?? 1)} / span ${l.unit ?? 1}`, boxShadow: h !== undefined ? `inset 0 -2px 0 ${hueStyle(h).bar}` : undefined }} title={name}>
+                    {h !== undefined && <span className="inline-block w-1.5 h-1.5 rounded-full me-1 align-middle" style={{ backgroundColor: hueStyle(h).bar }} />}{name}
+                  </div>
+                );
+              })}
               {col.onAdd && (
                 <button onClick={col.onAdd} aria-label="הוסף מפגש חד-פעמי" title="הוסף מפגש חד-פעמי"
                   className="group flex items-end justify-center pb-1 text-xs font-semibold text-transparent hover:text-[var(--cal-muted)] hover:bg-[var(--cal-ink)]/[0.025] focus-visible:text-[var(--cal-muted)]"

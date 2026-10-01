@@ -21,7 +21,7 @@ export async function loadRefs(): Promise<Refs> {
     .map(d => {
       const x = d.data();
       return {
-        id: d.id, name: x.name, activeDays: x.activeDays || [], color: x.scheduleColor, laneMode: x.laneMode || "stable",
+        id: d.id, name: x.name, activeDays: x.activeDays || [], color: x.scheduleColor, laneMode: x.laneMode || "groups",
         dailyBlocks: x.dailyBlocks || [], staffGroupUrl: x.staffGroupUrl || "", participantsGroupUrl: x.participantsGroupUrl || "",
       } as Program;
     })
@@ -46,7 +46,7 @@ export async function loadRefs(): Promise<Refs> {
     .map(d => ({ id: d.id, name: d.data().name }))
     .sort((a, b) => a.name.localeCompare(b.name, "he"));
   const groups: Group[] = groupSnap.docs
-    .map(d => ({ id: d.id, name: d.data().name, programId: d.data().programId }))
+    .map(d => ({ id: d.id, name: d.data().name, programId: d.data().programId, color: d.data().scheduleColor }))
     .sort((a, b) => a.name.localeCompare(b.name, "he"));
   return { programs, staff, locations, groups };
 }

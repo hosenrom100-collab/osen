@@ -74,7 +74,7 @@ export interface Program {
   name: string;
   activeDays: number[];
   color?: number;              // hue 0-359; missing = derived from the id
-  laneMode?: "groups" | "stable" | "auto"; // how parallel activities are laid out side by side
+  laneMode?: "groups" | "stable" | "auto"; // groups: a fixed lane per group; auto: lanes only in weeks the groups overlap ("stable" is legacy = groups)
   dailyBlocks?: DailyBlock[];
   staffGroupUrl?: string;        // community group of the program's staff
   participantsGroupUrl?: string; // community group of the program's participants
@@ -84,6 +84,7 @@ export interface Group {
   id: string;
   name: string;
   programId: string;
+  color?: number; // hue for the group's lane and tags; else a shade of the program's colour
 }
 
 export interface Person {

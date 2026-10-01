@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { RoleGuard } from "@/components/auth/RoleGuard";
 import { useAuth } from "@/context/AuthContext";
 import { db } from "@/lib/firebase/config";
@@ -21,7 +21,7 @@ import { buildSessions } from "@/lib/workshops/buildWeek";
 import { notifyStaff, Refs } from "@/lib/workshops/data";
 import { useScheduleData } from "@/lib/workshops/useScheduleData";
 import { firstNames, participantsOf } from "@/lib/workshops/people";
-import { ColorBy, hueStyle, sessionHue } from "@/lib/workshops/colors";
+import { ColorBy, groupHue, hueStyle, sessionHue } from "@/lib/workshops/colors";
 import { typeById } from "@/lib/workshops/activityTypes";
 import { groupsRunInParallel } from "@/lib/workshops/lanes";
 import { moveSession } from "@/lib/workshops/moveSession";
@@ -41,6 +41,10 @@ const LIGHT_VARS = {
 const readSaved = <T,>(key: string, fallback: T): T => {
   try { const v = localStorage.getItem(`schedule.${key}`); return v ? (JSON.parse(v) as T) : fallback; } catch { return fallback; }
 };
+// First visit in this browser: start from the program/group the person chose for the home screen.
+const homePref = (): { programId?: string; groupId?: string } => {
+  try { return JSON.parse(localStorage.getItem("home.schedulePref") || "{}"); } catch { return {}; }
+};
 const save = (key: string, value: unknown) => { try { localStorage.setItem(`schedule.${key}`, JSON.stringify(value)); } catch { /* ignore */ } };
 
 type Mode = "program" | "staff" | "space";
@@ -59,8 +63,18 @@ export default function SchedulePage() {
   const [onlyMine, setOnlyMine] = useState(false);
   // A link (?program=…&group=…&view=day) wins over what this browser remembered.
   const fromUrl = (k: string) => { try { return new URLSearchParams(window.location.search).get(k); } catch { return null; } };
-  const [programSel, setProgramSel] = useState<string[]>(() => { const u = fromUrl("program"); return u ? [u] : readSaved<string[]>("programs", []).slice(0, 1); });
-  const [groupSel, setGroupSel] = useState<string[]>(() => { const u = fromUrl("group"); return u ? [u] : readSaved<string[]>("groups", []).slice(0, 1); });
+  const firstVisit = useRef<boolean>(readSaved<string[] | null>("programs", null) === null && !fromUrl("program"));
+  const [programSel, setProgramSel] = useState<string[]>(() => {
+    const u = fromUrl("program"); if (u) return [u];
+    const saved = readSaved<string[] | null>("programs", null); if (saved) return saved.slice(0, 1);
+    const p = homePref().programId; return p ? [p] : [];
+  });
+  const [groupSel, setGroupSel] = useState<string[]>(() => {
+    const u = fromUrl("group"); if (u) return [u];
+    if (fromUrl("program")) return [];
+    const saved = readSaved<string[] | null>("groups", null); if (saved) return saved.slice(0, 1);
+    const g = homePref().groupId; return g ? [g] : [];
+  });
   const [view, setView] = useState<View>(() => (fromUrl("view") === "day" ? "day" : readSaved<View>("view", "week")));
   const [colorBy, setColorBy] = useState<ColorBy>(() => readSaved<ColorBy>("colorBy", "type"));
   const [focus, setFocus] = useState<string | null>(null);
@@ -101,7 +115,17 @@ export default function SchedulePage() {
     if (!refs) return;
     setProgramSel(sel => sel.filter(id => refs.programs.some(p => p.id === id)));
     setGroupSel(sel => sel.filter(id => refs.groups.some(g => g.id === id)));
-  }, [refs]);
+    // Still nothing picked on a first visit: the program (and group) this person is assigned to, when there is just one.
+    if (firstVisit.current && user) {
+      firstVisit.current = false;
+      const me = refs.staff.find(p => p.id === user.uid);
+      if (me?.programIds?.length === 1) {
+        setProgramSel(sel => (sel.length ? sel : [me.programIds![0]]));
+        const gs = (me.groupIds || []).filter(id => refs.groups.some(g => g.id === id && g.programId === me.programIds![0]));
+        if (gs.length === 1) setGroupSel(sel => (sel.length ? sel : gs));
+      }
+    }
+  }, [refs, user]);
 
 
   const nameOf = useCallback((id: string) => refs?.staff.find(s => s.id === id)?.name || "—", [refs]);
@@ -235,8 +259,23 @@ export default function SchedulePage() {
   const programOf = (id: string) => refs.programs.find(p => p.id === id);
   const workshopById = new Map(workshops.map(w => [w.id, w]));
   const laneHints = Object.fromEntries(workshops.filter(w => w.laneHint !== undefined).map(w => [w.id, w.laneHint!]));
+  // Programs with several groups: what is shared by groups, and shared activities that run into a group's own one (rarely meant).
+  const multiGroup = (programId: string) => refs.groups.filter(g => g.programId === programId).length > 1;
+  const jointOf = (s: Session) => !s.fixedBlock && !s.band && multiGroup(s.programId) && s.groupIds.length !== 1;
+  const soft = new Map<string, string[]>();
+  for (const j of sessions) {
+    if (!jointOf(j) || j.kind === "cancelled") continue;
+    for (const o of sessions) {
+      if (o.id === j.id || o.date !== j.date || o.programId !== j.programId || o.groupIds.length !== 1 || o.fixedBlock || o.band || o.kind === "cancelled") continue;
+      if (j.groupIds.length && !j.groupIds.includes(o.groupIds[0])) continue;
+      if (!(o.start < j.end && j.start < o.end)) continue;
+      soft.set(j.id, [...(soft.get(j.id) || []), `חופף לפעילות של ${groupName(o.groupIds[0])}: ${o.workshopName}`]);
+      soft.set(o.id, [...(soft.get(o.id) || []), `חופף לפעילות משותפת: ${j.workshopName}`]);
+    }
+  }
   const common = {
-    sessions, warnings, nameOf, roomOf, groupsOf, showGroups: programSel.length === 0,
+    sessions, warnings, soft, jointOf,
+    groupHue: (id: string) => groupHue(id, refs.groups, refs.programs), nameOf, roomOf, groupsOf, showGroups: programSel.length === 0,
     hueOf: (s: Session) => sessionHue(s, colorBy, types, refs.programs),
     typeLabel: (s: Session) => (s.activity !== "workshop" && !s.band ? typeById(types, s.activity).label : undefined),
     dim: (s: Session) => focusKey !== null && legendKey(s) !== focusKey,
@@ -298,7 +337,7 @@ export default function SchedulePage() {
   const weekLanes: "groups" | "stable" = (() => {
     const p = programOf(programSel[0]);
     if (!p || laneGroups.length < 2) return "stable";
-    return p.laneMode === "groups" || (p.laneMode === "auto" && groupsRunInParallel(sessions)) ? "groups" : "stable";
+    return p.laneMode !== "auto" || groupsRunInParallel(sessions) ? "groups" : "stable";
   })();
   const columns: Column[] = view === "week"
     ? days.map(d => {

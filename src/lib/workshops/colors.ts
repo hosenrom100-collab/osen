@@ -24,3 +24,14 @@ export function sessionHue(s: Session, by: ColorBy, types: ActivityType[], progr
 }
 
 export const hueStyle = pastel;
+
+/** A group's hue: its own when set, else a shade of its program's hue, so groups of one program look related but distinct. */
+export function groupHue(groupId: string, groups: { id: string; programId: string; color?: number }[], programs: Pick<Program, "id" | "color">[]): number | undefined {
+  const g = groups.find(x => x.id === groupId);
+  if (!g) return undefined;
+  if (g.color !== undefined) return g.color;
+  const siblings = groups.filter(x => x.programId === g.programId).sort((a, b) => a.id.localeCompare(b.id));
+  const i = siblings.findIndex(x => x.id === g.id);
+  const step = [-28, 28, -56, 56, -84, 84][i % 6];
+  return (programHue(programs.find(p => p.id === g.programId), g.programId) + step + 360) % 360;
+}

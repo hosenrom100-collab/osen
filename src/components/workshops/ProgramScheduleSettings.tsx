@@ -2,12 +2,12 @@
 
 import { useState } from "react";
 import { db } from "@/lib/firebase/config";
-import { doc, updateDoc } from "firebase/firestore";
+import { deleteField, doc, updateDoc } from "firebase/firestore";
 import { Plus, Trash2 } from "lucide-react";
 import { Dialog, fieldCls, labelCls, btnPrimary, btnGhost } from "./Dialog";
 import { ActivityKind, DAY_SHORT, DailyBlock, Group, Program } from "@/lib/workshops/types";
 import { ActivityType } from "@/lib/workshops/activityTypes";
-import { PROGRAM_HUES, programHue } from "@/lib/workshops/colors";
+import { PROGRAM_HUES, groupHue, programHue } from "@/lib/workshops/colors";
 
 const newId = () => Math.random().toString(36).slice(2, 9);
 const validUrl = (u: string) => !u || /^https?:\/\/\S+$/.test(u);
@@ -17,13 +17,16 @@ export function ProgramScheduleSettings({ program, groups, locations, types, onC
   program: Program; groups: Group[]; locations: { id: string; name: string }[]; types: ActivityType[]; onClose: () => void; onSaved: () => void;
 }) {
   const blockTypes = types.filter(t => t.band && !t.archived);
-  const [laneMode, setLaneMode] = useState<NonNullable<Program["laneMode"]>>(program.laneMode || "stable");
+  const [laneMode, setLaneMode] = useState<"groups" | "auto">(program.laneMode === "auto" ? "auto" : "groups");
   const [hue, setHue] = useState(programHue(program));
   const [blocks, setBlocks] = useState<DailyBlock[]>((program.dailyBlocks || []).map(b => ({ ...b })));
   const [staffUrl, setStaffUrl] = useState(program.staffGroupUrl || "");
   const [partUrl, setPartUrl] = useState(program.participantsGroupUrl || "");
   const [saving, setSaving] = useState(false);
   const progGroups = groups.filter(g => g.programId === program.id);
+  // Each group's colour: its own, or (undefined) a shade of the program's colour.
+  const [groupColors, setGroupColors] = useState<Record<string, number | undefined>>(() => Object.fromEntries(progGroups.map(g => [g.id, g.color])));
+  const autoHue = (id: string) => groupHue(id, progGroups.map(g => ({ ...g, color: undefined })), [{ ...program, color: hue }])!;
 
   const patch = (id: string, p: Partial<DailyBlock>) => setBlocks(bs => bs.map(b => (b.id === id ? { ...b, ...p } : b)));
   const toggle = (list: number[] | string[] | undefined, v: number | string) => {
@@ -46,6 +49,8 @@ export function ProgramScheduleSettings({ program, groups, locations, types, onC
         dailyBlocks: blocks.map(b => ({ ...b, label: b.label.trim(), days: b.days || [], groupIds: b.groupIds || [], locationId: b.locationId || "" })),
         staffGroupUrl: staffUrl.trim(), participantsGroupUrl: partUrl.trim(),
       });
+      await Promise.all(progGroups.filter(g => groupColors[g.id] !== g.color).map(g =>
+        updateDoc(doc(db, "groups", g.id), { scheduleColor: groupColors[g.id] ?? deleteField() })));
       onSaved();
     } finally { setSaving(false); }
   };
@@ -69,12 +74,37 @@ export function ProgramScheduleSettings({ program, groups, locations, types, onC
 
       {progGroups.length > 1 && (
         <div>
-          <label className={labelCls}>קבוצות באותה שעה</label>
+          <label className={labelCls}>תצוגת הקבוצות ביומן</label>
           <select className={fieldCls} value={laneMode} onChange={e => setLaneMode(e.target.value as typeof laneMode)}>
-            <option value="stable">מתחלפות: כל סדנה נשארת באותו צד (ברירת מחדל)</option>
-            <option value="groups">במקביל: עמודה קבועה לכל קבוצה</option>
-            <option value="auto">אוטומטי: עמודות לקבוצות רק בשבוע שבו הן פועלות במקביל</option>
+            <option value="groups">עמודה קבועה לכל קבוצה (ברירת מחדל)</option>
+            <option value="auto">עמודות לקבוצות רק בשבוע שבו הן פועלות באותן שעות</option>
           </select>
+        </div>
+      )}
+
+      {progGroups.length > 1 && (
+        <div>
+          <label className={labelCls}>צבע לכל קבוצה</label>
+          <ul className="space-y-2">
+            {progGroups.map(g => {
+              const own = groupColors[g.id];
+              return (
+                <li key={g.id} className="flex items-center gap-2 flex-wrap">
+                  <span className="w-24 text-sm font-semibold truncate">{g.name}</span>
+                  <button onClick={() => setGroupColors(c => ({ ...c, [g.id]: undefined }))} aria-pressed={own === undefined}
+                    className={`h-7 px-2 rounded-md border-2 text-xs font-semibold flex items-center gap-1 ${own === undefined ? "border-[var(--foreground)]" : "border-[var(--border)]"}`}>
+                    <span className="w-3 h-3 rounded-sm" style={{ backgroundColor: `hsl(${autoHue(g.id)} 55% 55%)` }} />אוטומטי
+                  </button>
+                  {PROGRAM_HUES.map(h => (
+                    <button key={h} onClick={() => setGroupColors(c => ({ ...c, [g.id]: h }))} aria-label={`גוון ${h}`} aria-pressed={own === h}
+                      className={`w-6 h-6 rounded-md border-2 ${own === h ? "border-[var(--foreground)]" : "border-transparent"}`}
+                      style={{ backgroundColor: `hsl(${h} 55% 55%)` }} />
+                  ))}
+                </li>
+              );
+            })}
+          </ul>
+          <p className="text-xs text-[var(--foreground)]/50 mt-1.5">אוטומטי: גוון של צבע התוכנית, שונה לכל קבוצה.</p>
         </div>
       )}
 
