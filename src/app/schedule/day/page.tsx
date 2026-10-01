@@ -8,7 +8,7 @@ import { MiniCalendar } from "@/components/workshops/MiniCalendar";
 import { RoleGuard } from "@/components/auth/RoleGuard";
 import { PageSkeleton } from "@/components/ui/Skeleton";
 import { buildSessions } from "@/lib/workshops/buildWeek";
-import { hueStyle, programHue } from "@/lib/workshops/colors";
+import { groupHue, hueStyle, programHue } from "@/lib/workshops/colors";
 import { firstNames, participantsOf } from "@/lib/workshops/people";
 import { dayOf, shortDate, toISO, weekDates, weekStartOf } from "@/lib/workshops/dates";
 import { DAY_FULL, Session } from "@/lib/workshops/types";
@@ -88,18 +88,30 @@ export default function DaySharePage() {
     s.kind === "extra" ? "מפגש נוסף" : s.change?.newStart || s.change?.newEnd ? "שעה שונתה" : s.change?.staffIds ? "מחליף" : "";
 
   // One text per audience: participants get what/when/where, staff also see who leads it.
+  const byGroup = !group && programGroups.length > 1;
   const buildText = (forStaff: boolean) => {
     const lines = [`*${title}*`, dayTitle, ""];
     byDay.forEach((day, i) => {
       if (range === "week") lines.push(`${i ? "\n" : ""}*${dayName(day.date)}*`);
       if (day.closure) lines.push(day.closure.reason || "אין פעילות");
-      day.list.filter(s => forStaff || withStaffEvents || s.audience !== "staff").forEach(s => {
-        const extra = [forStaff && !s.fixedBlock ? staffOf(s) : "", roomOf(s.locationId), !group ? groupsOf(s) : ""].filter(Boolean).join(" · ");
+      const shown = day.list.filter(s => forStaff || withStaffEvents || s.audience !== "staff");
+      const line = (s: Session, perGroup: boolean) => {
+        const shared = perGroup && !s.band && s.groupIds.length !== 1;
+        const extra = [forStaff && !s.fixedBlock ? staffOf(s) : "", roomOf(s.locationId), !group && !perGroup ? groupsOf(s) : ""].filter(Boolean).join(" · ");
         const ch = changeText(s);
-        lines.push(`${s.start}–${s.end}  ${s.workshopName}${extra ? ` (${extra})` : ""}${ch ? ` — *${ch}*` : ""}`);
+        lines.push(`${s.start}–${s.end}  ${s.workshopName}${shared ? " (משותף)" : ""}${extra ? ` (${extra})` : ""}${ch ? ` — *${ch}*` : ""}`);
         const own = withNames ? ownNames(s) : [];
         if (own.length) lines.push(`   משתתפים (${own.length}): ${own.join(", ")}`);
-      });
+      };
+      // Several groups, none picked: a separate schedule for each group (they rarely share), shared items in each.
+      if (byGroup) {
+        programGroups.forEach(g => {
+          const mine = shown.filter(s => s.groupIds.length !== 1 || s.groupIds[0] === g.id);
+          if (!mine.length) return;
+          lines.push(`_${g.name}_`);
+          mine.forEach(s => line(s, true));
+        });
+      } else shown.forEach(s => line(s, false));
     });
     if (withNames && total) {
       lines.push("", `*משתתפים (${total})*`);
@@ -199,11 +211,12 @@ export default function DaySharePage() {
                 <div key={day.date} style={{ marginBottom: range === "week" ? 10 : 0 }}>
                   {range === "week" && <div style={{ fontWeight: 800, fontSize: 14, padding: "6px 2px 2px", color: tint.ink }}>{dayName(day.date)}</div>}
                   {day.closure && <div style={{ padding: "10px 12px", marginBottom: 8, borderRadius: 8, background: "#f3f4f6", fontWeight: 700 }}>{day.closure.reason || "אין פעילות"}</div>}
-                  {day.list.filter(s => withStaffEvents || s.audience !== "staff").map(s => {
+                  {(() => {
+                  const item = (s: Session) => {
                   const cancelled = s.kind === "cancelled";
                   const ch = changeText(s);
                   const t = hueStyle(programHue(refs.programs.find(p => p.id === s.programId), s.programId));
-                  const room = roomOf(s.locationId), grp = !group ? groupsOf(s) : "";
+                  const room = roomOf(s.locationId), grp = byGroup ? (s.groupIds.length !== 1 && !s.band ? "משותף" : "") : !group ? groupsOf(s) : "";
                   if (s.band) {
                     return (
                       <div key={s.id} style={{ display: "flex", gap: 10, padding: "6px 10px", margin: "4px 0", borderRadius: 8, background: "#f3f4f6", color: SOFT, fontSize: 13 }}>
@@ -227,7 +240,31 @@ export default function DaySharePage() {
                       </div>
                     </div>
                   );
-                  })}
+                  };
+                  const shown = day.list.filter(s => withStaffEvents || s.audience !== "staff");
+                  if (!byGroup) return shown.map(item);
+                  // Several groups: shared items full width; a run of group-only items side by side, one column per group.
+                  const segs: (Session | Session[])[] = [];
+                  for (const s of shown) {
+                    const own = s.groupIds.length === 1 && !s.band;
+                    const last = segs[segs.length - 1];
+                    if (own && Array.isArray(last)) last.push(s); else segs.push(own ? [s] : s);
+                  }
+                  return segs.map((seg, i) => !Array.isArray(seg) ? item(seg) : (
+                    <div key={`seg${i}`} style={{ display: "grid", gridTemplateColumns: `repeat(${programGroups.length}, minmax(0, 1fr))`, gap: 8 }}>
+                      {programGroups.map(g => {
+                        const gh = hueStyle(groupHue(g.id, refs.groups, refs.programs) ?? 0);
+                        const mine = seg.filter(s => s.groupIds[0] === g.id);
+                        return (
+                          <div key={g.id} style={{ minWidth: 0 }}>
+                            <div style={{ fontSize: 12, fontWeight: 800, padding: "6px 2px 0", color: gh.ink, borderBottom: `2px solid ${gh.bar}` }}>{g.name}</div>
+                            {mine.length ? mine.map(item) : <div style={{ fontSize: 12, color: SOFT, padding: "10px 2px" }}>אין פעילות</div>}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ));
+                  })()}
                 </div>
               ))}
             </div>
