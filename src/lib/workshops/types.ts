@@ -130,3 +130,10 @@ export const DAY_SHORT = ["א׳", "ב׳", "ג׳", "ד׳", "ה׳", "ו׳", "ש׳"
 export const DAY_FULL = ["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת"];
 
 export const STAFF_ROLES = ["admin", "manager", "instructor", "social_worker", "employee", "logistics"];
+
+/** How a session's staff differs from the standing team: someone added is a substitute; only removals are just a change. */
+export function staffChangeLabel(s: Pick<Session, "staffIds" | "base">): string {
+  const added = s.staffIds.some(id => !s.base.staffIds.includes(id));
+  const removed = s.base.staffIds.some(id => !s.staffIds.includes(id));
+  return added ? "מחליף" : removed ? "צוות שונה" : "";
+}

@@ -11,7 +11,7 @@ import { buildSessions } from "@/lib/workshops/buildWeek";
 import { hueStyle, programHue } from "@/lib/workshops/colors";
 import { shortDate, toISO } from "@/lib/workshops/dates";
 import { firstNames, participantsOf } from "@/lib/workshops/people";
-import { DAY_FULL, Session } from "@/lib/workshops/types";
+import { DAY_FULL, Session, staffChangeLabel } from "@/lib/workshops/types";
 import { useScheduleData } from "@/lib/workshops/useScheduleData";
 import { dayOf } from "@/lib/workshops/dates";
 
@@ -114,7 +114,7 @@ export function TodaySchedule() {
             const t = hueStyle(programHue(refs.programs.find(p => p.id === s.programId), s.programId));
             const count = s.fixedBlock || !s.hasParticipants ? 0 : firstNames(participantsOf(s, wById.get(s.workshopId), patients)).length;
             const meta = [s.fixedBlock ? "" : s.staffIds.map(nameOf).filter(Boolean).join(", "), roomOf(s.locationId), !pref.groupId ? s.groupIds.map(id => refs.groups.find(g => g.id === id)?.name).filter(Boolean).join(", ") : ""].filter(Boolean).join(" · ");
-            const tag = dead ? "בוטל" : s.kind === "moved-in" ? "הוזז אלינו" : s.kind === "extra" ? "מפגש נוסף" : s.change?.newStart || s.change?.newEnd ? "שעה שונתה" : s.change?.staffIds ? "מחליף" : "";
+            const tag = dead ? "בוטל" : s.kind === "moved-in" ? "הוזז אלינו" : s.kind === "extra" ? "מפגש נוסף" : s.change?.newStart || s.change?.newEnd ? "שעה שונתה" : s.change?.staffIds ? staffChangeLabel(s) : "";
             return (
               <li key={s.id} className={`flex items-stretch gap-3 py-1.5 ${st === "done" ? "opacity-50" : ""}`}>
                 <div dir="ltr" className="w-12 shrink-0 text-center text-sm font-bold tabular-nums leading-tight pt-0.5">

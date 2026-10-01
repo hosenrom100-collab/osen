@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { DAY_SHORT, Session } from "@/lib/workshops/types";
+import { DAY_SHORT, Session, staffChangeLabel } from "@/lib/workshops/types";
 import { dayOf, shortDate } from "@/lib/workshops/dates";
 import { MapPin, Plus } from "lucide-react";
 import { hueStyle } from "@/lib/workshops/colors";
@@ -36,7 +36,7 @@ function changeNote(s: Session): string {
   if (s.kind === "moved-in") return `הוזז מ-${shortDate(s.origDate!)}`;
   if (s.kind === "extra") return "מפגש נוסף";
   const parts: string[] = [];
-  if (s.change?.staffIds && !sameSet(s.staffIds, s.base.staffIds)) parts.push("מחליף");
+  if (s.change?.staffIds) { const l = staffChangeLabel(s); if (l) parts.push(l); }
   if (s.change?.newStart || s.change?.newEnd) parts.push("שעה שונתה");
   if (s.change?.locationId !== undefined) parts.push("מרחב שונה");
   return parts.join(", ");

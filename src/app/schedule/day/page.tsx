@@ -11,7 +11,7 @@ import { buildSessions } from "@/lib/workshops/buildWeek";
 import { groupHue, hueStyle, programHue } from "@/lib/workshops/colors";
 import { firstNames, participantsOf } from "@/lib/workshops/people";
 import { dayOf, shortDate, toISO, weekDates, weekStartOf } from "@/lib/workshops/dates";
-import { DAY_FULL, Session } from "@/lib/workshops/types";
+import { DAY_FULL, Session, staffChangeLabel } from "@/lib/workshops/types";
 import { useScheduleData } from "@/lib/workshops/useScheduleData";
 import { btnGhost, btnPrimary, fieldCls } from "@/components/workshops/Dialog";
 
@@ -85,7 +85,7 @@ export default function DaySharePage() {
 
   const changeText = (s: Session) =>
     s.kind === "cancelled" ? "בוטל" : s.kind === "moved-away" ? `הוזז ל-${shortDate(s.change!.newDate!)}` : s.kind === "moved-in" ? "הוזז אלינו" :
-    s.kind === "extra" ? "מפגש נוסף" : s.change?.newStart || s.change?.newEnd ? "שעה שונתה" : s.change?.staffIds ? "מחליף" : "";
+    s.kind === "extra" ? "מפגש נוסף" : s.change?.newStart || s.change?.newEnd ? "שעה שונתה" : s.change?.staffIds ? staffChangeLabel(s) : "";
 
   // One text per audience: participants get what/when/where, staff also see who leads it.
   const byGroup = !group && programGroups.length > 1;
