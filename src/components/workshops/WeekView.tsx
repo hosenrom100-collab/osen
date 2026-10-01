@@ -245,7 +245,7 @@ export function TimeGrid({ columns, mode, groupName, laneMin, corner, drag: drag
   const starts: number[] = [];
   let cursor = 2;
   laid.forEach(l => { starts.push(cursor); cursor += l.lanes; });
-  const cols = `2.75rem ${laid.map(l => `repeat(${l.lanes}, minmax(${l.placed.length ? laneMin : 4.5}rem, 1fr))`).join(" ")}`;
+  const cols = `2.75rem ${laid.map(l => `repeat(${l.lanes}, minmax(${(l.placed.length ? laneMin : 4.5) * (l.minLanes ?? l.lanes) / l.lanes}rem, 1fr))`).join(" ")}`;
   const rows = [
     "auto", ...(hasLabels ? ["auto"] : []),
     ...(times.length < 2 ? ["minmax(96px, auto)"] : times.slice(0, -1).map((t, i) => {
@@ -282,13 +282,14 @@ export function TimeGrid({ columns, mode, groupName, laneMin, corner, drag: drag
   // Which side of the column the pointer is over (lane 0 is the right-most one in RTL); only for side-by-side columns.
   const laneAt = (x: number, k: number): number | undefined => {
     const l = laid[k];
-    if (!l || l.laneLabels || l.lanes < 2) return undefined;
+    if (!l || l.laneLabels || (l.minLanes ?? l.lanes) < 2) return undefined;
     const r = gridRef.current?.querySelector<HTMLElement>(`[data-col="${k}"]`)?.getBoundingClientRect();
     if (!r) return undefined;
-    return Math.min(l.lanes - 1, Math.max(0, Math.floor((r.right - x) / (r.width / l.lanes))));
+    const sides = l.minLanes ?? l.lanes;
+    return Math.min(sides - 1, Math.max(0, Math.floor((r.right - x) / (r.width / sides))));
   };
   const laneNow = (s: Session): number | undefined => {
-    for (const l of laid) { const p = l.placed.find(q => q.s.id === s.id); if (p) return l.laneLabels ? undefined : p.lane; }
+    for (const l of laid) { const p = l.placed.find(q => q.s.id === s.id); if (p) return l.laneLabels ? undefined : p.side ?? p.lane; }
     return undefined;
   };
   const snap = (m: number) => Math.round(m / STEP) * STEP;
@@ -449,7 +450,7 @@ export function TimeGrid({ columns, mode, groupName, laneMin, corner, drag: drag
         {drag?.started && drag.to && (() => {
           const k = drag.to.col, from = rowFor(toMin(drag.to.start)), upto = rowFor(toMin(drag.to.end) - 1) + 1;
           return <div className="pointer-events-none z-[6] rounded-md border-2 border-dashed border-[var(--accent)] bg-[var(--accent-soft)]"
-            style={{ gridRow: `${HDR + 1 + from} / ${HDR + 1 + Math.max(upto, from + 1)}`, gridColumn: drag.to.lane !== undefined ? `${(starts[k] ?? 2) + drag.to.lane} / span 1` : `${starts[k] ?? 2} / span ${laid[k]?.lanes ?? 1}` }} />;
+            style={{ gridRow: `${HDR + 1 + from} / ${HDR + 1 + Math.max(upto, from + 1)}`, gridColumn: drag.to.lane !== undefined ? `${(starts[k] ?? 2) + drag.to.lane * Math.floor((laid[k]?.lanes ?? 1) / (laid[k]?.minLanes ?? 1))} / span ${Math.floor((laid[k]?.lanes ?? 1) / (laid[k]?.minLanes ?? 1))}` : `${starts[k] ?? 2} / span ${laid[k]?.lanes ?? 1}` }} />;
         })()}
         {times.length < 2 && <div className="text-sm text-[var(--foreground)]/50 px-3 py-6" style={{ gridRow: HDR + 1, gridColumn: "2 / -1" }}>אין מפגשים בתקופה זו.</div>}
       </div>
