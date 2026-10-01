@@ -23,6 +23,9 @@ import { QuickActionGrid, StatRow } from "@/components/ui/Section";
 import { ScheduleEditorModal } from "@/components/home/ScheduleEditorModal";
 import { TodaySchedule } from "@/components/home/TodaySchedule";
 import { FRAMEWORK_LABELS } from "@/app/shopping/lib/constants";
+import { getCutoffStatus } from "@/app/shopping/lib/cutoffUtils";
+import { toDateOrNull } from "@/app/shopping/lib/dateUtils";
+import type { CutoffConfig, ShoppingRequest } from "@/app/shopping/types";
 
 interface GroupStat   { id: string; name: string; present: number; absent: number; total: number }
 interface PresentPat  { id: string; firstName: string; lastName: string; hosenType?: string }
@@ -86,6 +89,8 @@ export default function Home() {
   const [activeShoppingCount, setActiveShoppingCount] = useState(0);
   const [shoppingFramework, setShoppingFramework] = useState<string>("all");
   const [pendingStoreAuthCount, setPendingStoreAuthCount] = useState(0);
+  const [cateringOrdered, setCateringOrdered] = useState(false); // an order already exists for next week
+  const [listsToSend, setListsToSend] = useState(0);             // open items waiting to be e-mailed once the weekly cutoff has passed
 
   useEffect(() => {
     try {
@@ -451,9 +456,27 @@ export default function Home() {
             ? items.length
             : items.filter((it: any) => (it.targetFramework || "main") === savedFw).length;
           setActiveShoppingCount(count);
+
+          // The weekly list is closed (cutoff passed) and has not been e-mailed since: remind to send it.
+          const settings = (await getDoc(doc(db, "settings", "shopping"))).data();
+          const cfg: CutoffConfig = settings?.cutoffConfig || { enabled: true, day: 1, time: "16:00", deliveryDay: null };
+          const status = getCutoffStatus(cfg, items as unknown as ShoppingRequest[]);
+          const sentAt = toDateOrNull(settings?.listsSentAt);
+          setListsToSend(status.isPassed && status.cutoffAt && !(sentAt && sentAt >= status.cutoffAt) ? items.length : 0);
         } catch (err) {
           console.error("Error fetching shopping count:", err);
         }
+      }
+
+      // Catering for next week (Sunday to Saturday) already ordered: the Thursday reminder is not needed.
+      if (isAdmin || isLogistics) {
+        try {
+          const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+          const from = new Date(); from.setDate(from.getDate() + 7 - from.getDay());
+          const to = new Date(from); to.setDate(to.getDate() + 6);
+          const orders = await getDocs(query(collection(db, "catering_orders"), where("deliveryDate", ">=", iso(from)), where("deliveryDate", "<=", iso(to))));
+          setCateringOrdered(!orders.empty);
+        } catch (err) { console.error("Error checking catering orders:", err); }
       }
     } catch (err) { console.error(err); }
     finally { setDataLoaded(true); }
@@ -638,7 +661,7 @@ export default function Home() {
       </div>
 
       {/* ── Thursday Catering Reminder Banner ── */}
-      {dataLoaded && (isAdmin || isLogistics) && new Date().getDay() === 4 && (
+      {dataLoaded && (isAdmin || isLogistics) && new Date().getDay() === 4 && !cateringOrdered && (
         <div className="px-4 md:px-6 mt-6 max-w-6xl mx-auto">
           <div className="p-4 bg-amber-500/10 border border-amber-500/20 text-amber-800 dark:text-amber-300 rounded-3xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm">
             <div className="flex items-center gap-3">
@@ -655,6 +678,29 @@ export default function Home() {
             <Link href="/admin/catering"
               className="w-full sm:w-auto text-center px-4 py-2 bg-amber-500 hover:bg-amber-600 !text-white text-xs font-bold rounded-2xl shadow-sm transition-all shrink-0">
               בצע הזמנה כעת
+            </Link>
+          </div>
+        </div>
+      )}
+
+      {/* ── Weekly list closed: send the shopping lists to the supplier ── */}
+      {dataLoaded && (isAdmin || isLogistics) && listsToSend > 0 && (
+        <div className="px-4 md:px-6 mt-6 max-w-6xl mx-auto">
+          <div className="p-4 bg-amber-500/10 border border-amber-500/20 text-amber-800 dark:text-amber-300 rounded-3xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-amber-500/20 flex items-center justify-center text-amber-500 shrink-0">
+                <ShoppingCart className="w-5 h-5" />
+              </div>
+              <div>
+                <h4 className="text-xs font-bold">הרשימה השבועית נסגרה: יש לשלוח את רשימות הקניות</h4>
+                <p className="text-[11px] opacity-90 mt-0.5 leading-relaxed font-bold">
+                  {listsToSend} פריטים ממתינים לשליחה. ההודעה נפתחת בתוכנת המייל עם הרשימות מוכנות כצרופות.
+                </p>
+              </div>
+            </div>
+            <Link href="/shopping?sendLists=1"
+              className="w-full sm:w-auto text-center px-4 py-2 bg-amber-500 hover:bg-amber-600 !text-white text-xs font-bold rounded-2xl shadow-sm transition-all shrink-0">
+              שלח רשימות
             </Link>
           </div>
         </div>

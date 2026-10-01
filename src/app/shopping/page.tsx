@@ -8,7 +8,7 @@ import {
   doc, updateDoc, deleteDoc, setDoc, collection, query, where, onSnapshot, getDoc
 } from "firebase/firestore";
 import {
-  Loader2, ShoppingBag, Package, Plus, Lock
+  Loader2, ShoppingBag, Package, Plus, Lock, Mail
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { motion, AnimatePresence, MotionConfig } from "framer-motion";
@@ -34,6 +34,7 @@ import { useShoppingActions } from "./hooks/useShoppingActions";
 import { usePullToRefresh } from "./hooks/usePullToRefresh";
 import { useAdminPasswordGate } from "./hooks/useAdminPasswordGate";
 import { useConfirm } from "@/hooks/useConfirm";
+import { SendListsDialog } from "./components/SendListsDialog";
 
 export default function ShoppingPage() {
   const { user, role, isAdmin, isManager, isLogistics } = useAuth();
@@ -135,6 +136,11 @@ export default function ShoppingPage() {
   // Admin Product Requests Modal State
   const [showAdminRequestsModal, setShowAdminRequestsModal] = useState(false);
   const [showCycleClosureModal, setShowCycleClosureModal] = useState(false);
+  const [showSendLists, setShowSendLists] = useState(false);
+  // The dashboard reminder links here with ?sendLists=1.
+  useEffect(() => {
+    try { if (new URLSearchParams(window.location.search).get("sendLists")) setShowSendLists(true); } catch {}
+  }, []);
   const [showCycleHistory, setShowCycleHistory] = useState(false);
 
   const canPurchase = isAdmin || role === "manager" || role === "admin" || role === "logistics" || isManager;
@@ -256,6 +262,15 @@ export default function ShoppingPage() {
                   </p>
                 </div>
               </div>
+              {(isAdmin || isLogistics) && (
+                <button
+                  onClick={() => setShowSendLists(true)}
+                  className="h-10 px-4 rounded-xl bg-amber-500 hover:bg-amber-600 !text-white text-sm font-bold transition-all flex items-center gap-2 cursor-pointer active:scale-[0.97] border-none shrink-0"
+                >
+                  <Mail className="w-4 h-4 text-white" />
+                  <span>שלח רשימות במייל</span>
+                </button>
+              )}
               {(isAdmin || isLogistics) && (
                 <button
                   onClick={() => setShowCycleClosureModal(true)}
@@ -421,6 +436,11 @@ export default function ShoppingPage() {
           isLogistics={isLogistics}
           isFrozen={isListFrozen}
         />
+
+        {showSendLists && (
+          <SendListsDialog requests={requests} pool={pool} weekLabels={weekLabels} format={exportFormat}
+            onClose={() => setShowSendLists(false)} onSent={m => { setShowSendLists(false); showToast(m, "success"); }} />
+        )}
 
         {/* Unified "⋯" Menu */}
         <MenuSheet

@@ -34,8 +34,9 @@ const MIN_ROOM_FOR_NEW_SECTION = 40; // mm: category title + column labels + at 
 export async function generateShoppingListPdf(
   items: ShoppingListExportData[],
   meta: { date: string; title: string; subtitle?: string; weekLabel?: string },
-  filename: string
-) {
+  /** A file name saves the PDF; null returns it as a Blob (for e-mail attachments). */
+  filename: string | null
+): Promise<Blob | void> {
   const [regular, bold] = await Promise.all([loadFont("Heebo-Regular.ttf"), loadFont("Heebo-Bold.ttf")]);
 
   const doc = new jsPDF({ unit: "mm", format: "a4", compress: true });
@@ -131,5 +132,6 @@ export async function generateShoppingListPdf(
     doc.text(rtl(`עמוד ${p} מתוך ${pages}`), pageW / 2, pageH - 8, { align: "center" });
   }
 
+  if (filename === null) return doc.output("blob");
   doc.save(filename);
 }

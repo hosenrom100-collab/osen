@@ -35,6 +35,7 @@ export function getCutoffStatus(config?: CutoffConfig, activeRequests?: Shopping
       return {
         isEnabled: true,
         isPassed: true,
+        cutoffAt: targetDate,
         formattedTarget: `יום ${targetDayName} בשעה ${config.time || "16:00"}`,
         timeLeftFormatted: "המועד חלף",
         deliveryDayFormatted,

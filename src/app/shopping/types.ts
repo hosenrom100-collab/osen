@@ -59,6 +59,8 @@ export interface CutoffConfig {
 export interface CutoffStatus {
   isEnabled: boolean;
   isPassed: boolean;
+  /** The moment this week's cutoff passed; only set when it has passed. */
+  cutoffAt?: Date;
   formattedTarget: string;
   timeLeftFormatted: string;
   /** Milliseconds until the cutoff; only set while the cutoff hasn't passed. */
