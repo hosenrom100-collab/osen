@@ -342,7 +342,7 @@ export default function SchedulePage() {
     <RoleGuard allowedRoles={["admin", "manager", "instructor", "social_worker", "employee", "logistics"]} redirectTo="/">
       <style>{`@media print { aside, nav, .no-print { display: none !important; } @page { size: A4 landscape; margin: 10mm; } body { background: #fff !important; } }`}</style>
       <div dir="rtl" style={LIGHT_VARS} className="min-h-screen bg-white text-[var(--foreground)] pb-24 md:pb-8">
-        <header className="no-print sticky top-0 z-30 bg-white/95 backdrop-blur border-b border-[var(--cal-frame)]">
+        <header className="no-print sticky top-0 z-30 bg-white border-b border-[var(--cal-frame)]">
           <div className="px-3 md:px-4 py-2 flex flex-wrap items-center gap-x-3 gap-y-2">
             {/* 1. What am I looking at: program, then its group. */}
             <select value={programSel[0] || ""} onChange={e => pickProgram(e.target.value)} aria-label="תוכנית"
@@ -370,7 +370,7 @@ export default function SchedulePage() {
             {!atCurrent && <button onClick={goToday} className="text-sm px-3 h-8 rounded-lg border border-[var(--cal-frame)] hover:bg-[var(--foreground)]/5">היום</button>}
 
             {/* 3. How: view and actions. */}
-            <div className="flex items-center gap-1.5 relative">
+            <div className="flex items-center gap-1.5 md:relative">
               <div className="flex border border-[var(--cal-frame)] rounded-lg overflow-hidden" role="group" aria-label="תצוגה">
                 {VIEWS.map(([k, l]) => (
                   <button key={k} onClick={() => { if (k === "day") setSelectedDay(selectedDay); setView(k); }} aria-pressed={view === k}
@@ -387,7 +387,7 @@ export default function SchedulePage() {
               {menuOpen && (
                 <>
                   <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
-                  <ul className="absolute left-0 top-full mt-1 z-50 w-60 bg-white border border-[var(--border)] rounded-md shadow-md py-1 text-sm max-h-[70vh] overflow-y-auto">
+                  <ul className="absolute inset-x-3 md:inset-x-auto md:left-0 top-full mt-1 z-50 md:w-60 bg-white border border-[var(--border)] rounded-xl md:rounded-md shadow-lg py-1 text-sm max-h-[calc(100dvh-9rem)] overflow-y-auto">
                     <li className="px-3 pt-1.5 pb-1 text-xs font-bold text-[var(--foreground)]/50">קיבוץ</li>
                     {MODES.map(([k, l]) => (
                       <li key={k}><button aria-pressed={mode === k} className={`w-full text-right px-3 py-1.5 hover:bg-[var(--foreground)]/5 ${mode === k ? "font-bold text-[var(--accent)]" : ""}`} onClick={() => { setMode(k); setMenuOpen(false); }}>{l}</button></li>
