@@ -89,7 +89,8 @@ export function laneByGroup(day: Session[], groupIds: string[], groupName: (id: 
   };
   const placed: Placed[] = day.map(s => {
     const [lo, hi] = range.get(s.id)!;
-    let [from, to] = part(s.id, lo);
+    const [from, firstEnd] = part(s.id, lo);
+    let to = firstEnd;
     for (let g = lo + 1; g <= hi; g++) { const [a, b] = part(s.id, g); if (a !== to) break; to = b; } // stop where it would not be one piece
     return { s, lane: from, span: to - from };
   });
