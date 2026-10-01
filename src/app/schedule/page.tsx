@@ -401,7 +401,7 @@ export default function SchedulePage() {
             </select>
             {groupOptions.length > 1 && (
               <select value={groupSel[0] || ""} onChange={e => pickGroup(e.target.value)} aria-label="קבוצה"
-                className="text-sm bg-transparent border border-[var(--cal-frame)] rounded-lg px-2.5 h-8 max-w-[10rem] focus:border-[var(--accent)] outline-none">
+                className="hidden md:block text-sm bg-transparent border border-[var(--cal-frame)] rounded-lg px-2.5 h-8 max-w-[10rem] focus:border-[var(--accent)] outline-none">
                 <option value="">כל הקבוצות</option>
                 {groupOptions.map(g => <option key={g.id} value={g.id}>{g.label}</option>)}
               </select>
@@ -503,6 +503,8 @@ export default function SchedulePage() {
             <TimeGrid {...common} columns={columns} mode={mode} groupName={groupName} laneMin={view === "day" ? 8.5 : 6.5} drag={dragApi} laneHints={laneHints} corner={view === "week" ? `שבוע ${getWeek(weekStart, { weekStartsOn: 0 })}` : undefined} />
             <DayAgenda {...common} dates={dates} days={days} rows={rows} mode={mode} today={today} globalClosure={globalClosure}
               selected={selectedDay} setSelected={setSelectedDay} canEdit={isManager}
+              groupChips={groupOptions.length > 1 ? groupOptions.map(g => ({ ...g, hue: groupHue(g.id, refs.groups, refs.programs) })) : undefined}
+              groupPicked={groupSel[0] || ""} onPickGroup={pickGroup}
               onAdd={date => setCreating({ date, programId: programSel.length === 1 ? programSel[0] : undefined })} />
           </div>
         )}

@@ -501,10 +501,11 @@ export function TimeGrid({ columns, mode, groupName, laneMin, corner, drag: drag
 }
 
 /** Phones: one day at a time, everything in chronological order. */
-export function DayAgenda({ dates, days, mode, today, selected, setSelected, globalClosure, canEdit, onAdd, ...c }: Common & {
+export function DayAgenda({ dates, days, mode, today, selected, setSelected, globalClosure, canEdit, onAdd, groupChips, groupPicked, onPickGroup, ...c }: Common & {
   dates: string[]; days: number[]; mode: Mode; today: string; rows?: unknown;
   selected: string; setSelected: (d: string) => void; globalClosure: (date: string) => string | undefined;
   canEdit: boolean; onAdd: (date: string) => void;
+  groupChips?: { id: string; label: string; hue?: number }[]; groupPicked?: string; onPickGroup?: (id: string) => void;
 }) {
   const cols = days.map(d => dates[d]);
   const [touchX, setTouchX] = useState<number | null>(null);
@@ -521,6 +522,14 @@ export function DayAgenda({ dates, days, mode, today, selected, setSelected, glo
   const isToday = selected === today;
   const toM = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3));
   const period = (t: string) => (toM(t) < 720 ? "בוקר" : toM(t) < 900 ? "צהריים" : "אחר הצהריים");
+  // Consecutive sessions that run into each other (fixed meals/breaks stay on their own line).
+  const bundles: Session[][] = [];
+  let bundleEnd = "";
+  for (const s of list) {
+    const last = bundles[bundles.length - 1];
+    if (last && !s.band && !last[0].band && s.start < bundleEnd) { last.push(s); if (s.end > bundleEnd) bundleEnd = s.end; }
+    else { bundles.push([s]); bundleEnd = s.end; }
+  }
   return (
     <div className="md:hidden" onTouchStart={e => setTouchX(e.touches[0].clientX)} onTouchEnd={e => onTouchEnd(e.changedTouches[0].clientX)}>
       {/* Day strip: weekday over a big date; today in a filled circle, the picked day in a soft pill. */}
@@ -536,16 +545,29 @@ export function DayAgenda({ dates, days, mode, today, selected, setSelected, glo
           );
         })}
       </div>
+      {groupChips && onPickGroup && (
+        <div className="flex gap-1.5 px-3 pt-2.5 overflow-x-auto" role="group" aria-label="קבוצה">
+          {[{ id: "", label: "כל הקבוצות", hue: undefined as number | undefined }, ...groupChips].map(g => {
+            const on = (groupPicked || "") === g.id;
+            return (
+              <button key={g.id || "all"} onClick={() => onPickGroup(g.id)} aria-pressed={on}
+                className={`shrink-0 h-8 px-3 rounded-full text-sm font-semibold border flex items-center gap-1.5 ${on ? "bg-[var(--cal-ink)] text-white border-[var(--cal-ink)]" : "bg-white text-[var(--cal-muted)] border-[var(--cal-frame)]"}`}>
+                {g.hue !== undefined && <span className="w-2 h-2 rounded-full" style={{ backgroundColor: hueStyle(g.hue).bar }} />}{g.label}
+              </button>
+            );
+          })}
+        </div>
+      )}
       {closure && <p className="mx-3 mt-3 px-3 py-2.5 text-sm font-medium text-[var(--cal-muted)] bg-[var(--cal-ink)]/[0.05] rounded-lg">{closure}</p>}
       <ul className="px-3 py-2">
-        {list.map((s, i) => {
-          const done = isToday && now !== null && now >= toM(s.end);
-          const live = isToday && now !== null && now >= toM(s.start) && now < toM(s.end);
-          const head = i === 0 || period(list[i - 1].start) !== period(s.start);
-          return (
-            <li key={s.id}>
-              {head && <div className="text-[11px] font-semibold text-[var(--cal-faint)] pt-3 pb-1.5 px-1">{period(s.start)}</div>}
-              <div className="flex gap-2 items-stretch mb-1.5">
+        {bundles.map((b, bi) => {
+          const first = b[0];
+          const head = bi === 0 || period(bundles[bi - 1][0].start) !== period(first.start);
+          const row = (s: Session) => {
+            const done = isToday && now !== null && now >= toM(s.end);
+            const live = isToday && now !== null && now >= toM(s.start) && now < toM(s.end);
+            return (
+              <div key={s.id} className="flex gap-2 items-stretch mb-1.5">
                 <span dir="ltr" className={`w-12 shrink-0 pt-1.5 text-center tabular-nums leading-tight ${done ? "text-[var(--cal-faint)]" : "text-[var(--cal-ink)]"}`}>
                   <span className="block text-sm font-bold">{s.start}</span>
                   <span className="block text-xs font-medium text-[var(--cal-faint)]">{s.end}</span>
@@ -553,6 +575,19 @@ export function DayAgenda({ dates, days, mode, today, selected, setSelected, glo
                 </span>
                 <div className={`flex-1 min-w-0 ${live ? "rounded-md ring-2 ring-[var(--cal-now)]/60" : ""}`}><SessionCard s={s} mode={mode} c={c} groups compact /></div>
               </div>
+            );
+          };
+          const from = b.reduce((m, s) => (s.start < m ? s.start : m), b[0].start), to = b.reduce((m, s) => (s.end > m ? s.end : m), b[0].end);
+          return (
+            <li key={first.id}>
+              {head && <div className="text-[11px] font-semibold text-[var(--cal-faint)] pt-3 pb-1.5 px-1">{period(first.start)}</div>}
+              {b.length === 1 ? row(first) : (
+                // Things that run at the same time are kept together, with a line that says so.
+                <div className="mb-1.5 border-s-2 border-[var(--cal-ink)]/25 ps-2 -ms-1">
+                  <div className="text-[11px] font-semibold text-[var(--cal-muted)] pb-1 tabular-nums"><span dir="ltr">{from}–{to}</span> · במקביל</div>
+                  {b.map(row)}
+                </div>
+              )}
             </li>
           );
         })}
