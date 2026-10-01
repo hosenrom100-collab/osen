@@ -22,6 +22,7 @@ export interface Workshop {
   groupIds?: string[]; // groups within the program taking part; empty/missing = whole program
   startDate: string;
   endDate: string;
+  laneHint?: number;   // preferred side when sessions run in parallel (0 = right-most); set by dragging sideways in the calendar
   slots: Slot[];
   staffIds: string[];
   participantIds: string[];

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { RoleGuard } from "@/components/auth/RoleGuard";
 import { useAuth } from "@/context/AuthContext";
 import { db } from "@/lib/firebase/config";
-import { addDoc, collection, deleteDoc, doc, writeBatch } from "firebase/firestore";
+import { addDoc, collection, deleteDoc, deleteField, doc, updateDoc, writeBatch } from "firebase/firestore";
 import { ChevronLeft, ChevronRight, MoreHorizontal, Plus } from "lucide-react";
 import { ProgramScheduleSettings } from "@/components/workshops/ProgramScheduleSettings";
 import { DayShiftDialog } from "@/components/workshops/DayShiftDialog";
@@ -234,6 +234,7 @@ export default function SchedulePage() {
   const rangeLabel = `${format(weekStart, "d.M")} – ${format(addDays(weekStart, 6), "d.M.yyyy")}`; // print title only
   const programOf = (id: string) => refs.programs.find(p => p.id === id);
   const workshopById = new Map(workshops.map(w => [w.id, w]));
+  const laneHints = Object.fromEntries(workshops.filter(w => w.laneHint !== undefined).map(w => [w.id, w.laneHint!]));
   const common = {
     sessions, warnings, nameOf, roomOf, groupsOf, showGroups: programSel.length === 0,
     hueOf: (s: Session) => sessionHue(s, colorBy, types, refs.programs),
@@ -277,8 +278,17 @@ export default function SchedulePage() {
     },
     onDrop: async (s, to) => {
       try {
-        const undo = await moveSession(s, to, user?.uid);
-        setToast({ text: `${s.workshopName} עודכן ל-${to.date !== s.date ? `${shortDate(to.date)} ` : ""}${to.start}–${to.end}`, undo: async () => { await undo(); load(); } });
+        // Sideways within the day: remember the side for the whole workshop (sessions run in parallel stay where you put them).
+        const { lane, ...when } = to;
+        const prevHint = workshopById.get(s.workshopId)?.laneHint;
+        if (lane !== undefined) await updateDoc(doc(db, "workshops", s.workshopId), { laneHint: lane });
+        const moved = when.date !== s.date || when.start !== s.start || when.end !== s.end;
+        const undoMove = moved ? await moveSession(s, when, user?.uid) : null;
+        const undo = async () => {
+          await undoMove?.();
+          if (lane !== undefined) await updateDoc(doc(db, "workshops", s.workshopId), { laneHint: prevHint ?? deleteField() });
+        };
+        setToast({ text: moved ? `${s.workshopName} עודכן ל-${to.date !== s.date ? `${shortDate(to.date)} ` : ""}${to.start}–${to.end}` : `${s.workshopName} הועבר לצד אחר ביומן`, undo: async () => { await undo(); load(); } });
         load();
       } catch { setToast({ text: "השינוי לא נשמר. נסה שוב." }); }
     },
@@ -451,7 +461,7 @@ export default function SchedulePage() {
           </p>
         ) : (
           <div className="md:px-4 md:pt-3 md:pb-6">
-            <TimeGrid {...common} columns={columns} mode={mode} groupName={groupName} laneMin={view === "day" ? 8.5 : 6.5} drag={dragApi} corner={view === "week" ? `שבוע ${getWeek(weekStart, { weekStartsOn: 0 })}` : undefined} />
+            <TimeGrid {...common} columns={columns} mode={mode} groupName={groupName} laneMin={view === "day" ? 8.5 : 6.5} drag={dragApi} laneHints={laneHints} corner={view === "week" ? `שבוע ${getWeek(weekStart, { weekStartsOn: 0 })}` : undefined} />
             <DayAgenda {...common} dates={dates} days={days} rows={rows} mode={mode} today={today} globalClosure={globalClosure}
               selected={selectedDay} setSelected={setSelectedDay} canEdit={isManager}
               onAdd={date => setCreating({ date, programId: programSel.length === 1 ? programSel[0] : undefined })} />
