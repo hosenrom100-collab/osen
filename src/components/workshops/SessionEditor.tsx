@@ -5,7 +5,7 @@ import Link from "next/link";
 import { rememberBack } from "@/lib/workshops/back";
 import { StaffPicker } from "./StaffPicker";
 import { db } from "@/lib/firebase/config";
-import { collection, deleteDoc, doc, getDocs, query, setDoc, serverTimestamp, where } from "firebase/firestore";
+import { collection, deleteDoc, doc, getDocs, query, setDoc, serverTimestamp, updateDoc, where } from "firebase/firestore";
 import { Dialog, fieldCls, labelCls, btnPrimary, btnGhost } from "./Dialog";
 import { Person, Session, SessionChange, Workshop, DAY_FULL } from "@/lib/workshops/types";
 import { ActivityType, pastel } from "@/lib/workshops/activityTypes";
@@ -89,6 +89,13 @@ export function SessionEditor({ session, extra, workshops, staff, locations, typ
   const staffSorted = [...staff].sort((a, b) => Number(!!busyOf(a.id)) - Number(!!busyOf(b.id)));
   const toggleStaff = (id: string) => setStaffIds(s => (s.includes(id) ? s.filter(x => x !== id) : [...s, id]));
 
+  // Wrong one-off? Remove it for good instead of leaving a cancelled entry on the calendar.
+  // An extra session is just a change record; a one-time event is a whole workshop on a single date.
+  const oneTimeEvent = !!session && !isExtra && !!workshop && workshop.startDate === workshop.endDate && workshop.slots.length === 1;
+  const canDeleteForGood = !!session && (isExtra || oneTimeEvent);
+  const [name, setName] = useState(session?.workshopName || "");
+  const nameChanged = !!session && !session.fixedBlock && name.trim() !== session.workshopName && name.trim() !== "";
+
   const save = async (o: { cancelled?: boolean; start?: string; end?: string } = {}) => {
     const isCancelled = o.cancelled ?? cancelled, st = o.start ?? start, en = o.end ?? end;
     setSaving(true);
@@ -99,6 +106,7 @@ export function SessionEditor({ session, extra, workshops, staff, locations, typ
         await setDoc(ref, {
           workshopId, slotId: null, originalDate: null, newDate: date, newStart: st, newEnd: en,
           staffIds, locationId, note: note.trim(), dates: [date], published: false, ...(kind !== defaultKind ? { kind } : {}),
+          ...(session && name.trim() && name.trim() !== workshop.name ? { title: name.trim() } : {}),
           updatedAt: serverTimestamp(), updatedBy: userId || null,
         });
       } else if (session && session.changeId) {
@@ -111,6 +119,9 @@ export function SessionEditor({ session, extra, workshops, staff, locations, typ
         if (locationId !== (session.base.locationId || "")) c.locationId = locationId;
         if (note.trim()) c.note = note.trim();
         if (kind !== defaultKind) c.kind = kind;
+        // A one-time event owns its name; any other session only carries a name for itself.
+        if (oneTimeEvent && nameChanged && workshop) await updateDoc(doc(db, "workshops", workshop.id), { name: name.trim() });
+        else if (name.trim() && name.trim() !== (workshop?.name ?? session.workshopName)) c.title = name.trim();
         const ref = doc(db, "session_changes", session.changeId);
         if (Object.keys(c).length === 0) await deleteDoc(ref).catch(() => {});
         else await setDoc(ref, {
@@ -130,10 +141,6 @@ export function SessionEditor({ session, extra, workshops, staff, locations, typ
     onSaved();
   };
 
-  // Wrong one-off? Remove it for good instead of leaving a cancelled entry on the calendar.
-  // An extra session is just a change record; a one-time event is a whole workshop on a single date.
-  const oneTimeEvent = !!session && !isExtra && !!workshop && workshop.startDate === workshop.endDate && workshop.slots.length === 1;
-  const canDeleteForGood = !!session && (isExtra || oneTimeEvent);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const deleteForGood = async () => {
     if (!session) return;
@@ -236,6 +243,13 @@ export function SessionEditor({ session, extra, workshops, staff, locations, typ
       )}
 
       <fieldset disabled={cancelled} className={`space-y-4 ${cancelled ? "opacity-40" : ""}`}>
+        {session && !session.fixedBlock && (
+          <div>
+            <label className={labelCls}>{oneTimeEvent ? "שם האירוע" : "שם המפגש"}</label>
+            <input className={fieldCls} value={name} onChange={e => setName(e.target.value)} />
+            {!oneTimeEvent && name.trim() !== (workshop?.name ?? session.workshopName) && <p className="text-xs text-[var(--foreground)]/50 mt-1">השם ישונה למפגש הזה בלבד. את שם הסדנה כולה משנים בעמוד הסדנה.</p>}
+          </div>
+        )}
         <div>
           <label className={labelCls}>{isExtra ? "תאריך" : "הזזה — תאריך"}</label>
           <input type="date" className={fieldCls} value={date} onChange={e => setDate(e.target.value)} />

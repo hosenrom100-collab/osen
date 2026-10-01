@@ -44,6 +44,7 @@ export interface SessionChange {
   staffIds?: string[];
   locationId?: string;
   kind?: string; // activity type for this session only (overrides the workshop's)
+  title?: string; // name for this session only (overrides the workshop's)
   note?: string;
   dates: string[]; // every date this change touches — used for the weekly query
   published: boolean;

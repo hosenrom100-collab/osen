@@ -48,7 +48,7 @@ export function buildSessions(
     id: `${changeId ?? w.id}_${date}_${kind}`,
     changeId,
     workshopId: w.id,
-    workshopName: w.name,
+    workshopName: change?.title || w.name,
     programId: w.programId,
     groupIds: base.groupIds ?? w.groupIds ?? [],
     slotId,

@@ -5,7 +5,7 @@ import { Session } from "./types";
 export interface MoveTo { date: string; start: string; end: string }
 
 // Fields that keep a change document alive even when the time is back to the original.
-const OTHER = ["staffIds", "locationId", "note", "kind", "cancelled"];
+const OTHER = ["staffIds", "locationId", "note", "kind", "title", "cancelled"];
 
 /**
  * Saves a new date/time for one session as an exception on top of the standing schedule.
