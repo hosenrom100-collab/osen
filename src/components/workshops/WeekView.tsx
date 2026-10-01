@@ -29,7 +29,6 @@ export interface Common {
   soft?: Map<string, string[]>;                       // soft warnings: worth a look, not an error
 }
 
-const sameSet = (a: string[], b: string[]) => [...a].sort().join() === [...b].sort().join();
 /** What changed about a session, in words — shown as a tooltip on one small mark instead of a coloured badge. */
 function changeNote(s: Session): string {
   if (s.kind === "moved-away") return `הוזז ל-${shortDate(s.change!.newDate!)}`;
