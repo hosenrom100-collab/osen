@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { CycleItemSnapshot, Product, ShoppingRequest, TargetFramework } from "../types";
-import { Lock, Plus, Search, X, Flame, CheckCircle2, AlertTriangle, Minus, ArrowRight, Sparkles, MapPin, History } from "lucide-react";
+import { Lock, Plus, Search, X, Flame, CheckCircle2, AlertTriangle, Minus, ArrowRight, Sparkles, MapPin, History, Send, Info } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { SwitchVisual } from "./Switch";
 import { rankSimilarProducts, findSimilarProduct } from "../lib/stringUtils";
@@ -65,6 +65,7 @@ export function AddProductOverlay({
   const [selectedFramework, setSelectedFramework] = useState<TargetFramework>(targetFramework);
   const [addedCount, setAddedCount] = useState(0);
   const [feedback, setFeedback] = useState<string | null>(null);
+  const [categoryError, setCategoryError] = useState(false);
   const submittingRef = useRef(false);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -77,6 +78,7 @@ export function AddProductOverlay({
     submittingRef.current = false;
     setInputVal("");
     setPending(null);
+    setCategoryError(false);
     setQtyValue(1);
     setQtyUnit("יחידות");
     setUrgent(false);
@@ -189,6 +191,7 @@ export function AddProductOverlay({
   const selectNewProduct = (name: string) => {
     const cleanName = name.trim();
     if (!cleanName || isUserBlockedByFreeze) return;
+    setCategoryError(false);
     setPending({ name: cleanName, category: "", isNew: true });
     setQtyValue(1);
     setQtyUnit("יחידות");
@@ -209,7 +212,11 @@ export function AddProductOverlay({
 
   const handleConfirmAdd = async () => {
     if (!pending || submittingRef.current) return;
-    if (pending.isNew && !pending.category) return;
+    if (pending.isNew && !pending.category) {
+      setCategoryError(true);
+      return;
+    }
+    setCategoryError(false);
     submittingRef.current = true;
 
     const finalQty = qtyUnit === "יחידות" ? String(qtyValue) : `${qtyValue} ${qtyUnit}`;
@@ -371,14 +378,54 @@ export function AddProductOverlay({
 
             {showStep2 && pending ? (
               /* ── Step 2: new product needs a category before it can be added ── */
-              <div className="flex-1 overflow-y-auto no-scrollbar space-y-5">
-                <div className="p-4 rounded-2xl bg-[var(--accent-soft)] border border-[var(--accent-line)]">
-                  <span className="text-lg font-bold text-[var(--foreground)]">{pending.name}</span>
+              <div className="flex-1 overflow-y-auto no-scrollbar space-y-4">
+                <div className="p-3.5 rounded-2xl bg-[var(--accent-soft)] border border-[var(--accent-line)] flex items-center justify-between">
+                  <span className="text-lg font-bold text-[var(--foreground)] truncate">{pending.name}</span>
+                  <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-300 shrink-0">
+                    מוצר חדש
+                  </span>
                 </div>
 
-                <div>
-                  <label className="text-xs font-bold text-[var(--muted)] mb-1.5 block">
-                    קטגוריה (חובה למוצר חדש)
+                {/* Helpful info message */}
+                <div className="flex items-center gap-2 p-3 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-800 dark:text-amber-200 text-xs font-medium text-right">
+                  <Info className="w-4 h-4 shrink-0 text-amber-500" />
+                  <span>
+                    מוצר זה אינו קיים ברשימת המאגר. כדי להוסיף אותו {canAddDirectly ? "לרשימה" : "ולשלוח לאישור מנהל"}, חובה לבחור קטגוריה מתאימה.
+                  </span>
+                </div>
+
+                {/* Category error alert banner */}
+                <AnimatePresence>
+                  {categoryError && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -6, scale: 0.98 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -6, scale: 0.98 }}
+                      className="p-3 rounded-2xl bg-rose-500/15 border-2 border-rose-500/40 text-rose-700 dark:text-rose-300 text-xs font-bold flex items-center gap-2.5 shadow-sm"
+                    >
+                      <AlertTriangle className="w-5 h-5 shrink-0 text-rose-500 animate-pulse" />
+                      <span>יש לבחור קטגוריה עבור המוצר כדי להוסיף אותו ולשלוח לאישור!</span>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                <div className={`p-3.5 rounded-2xl border transition-all ${
+                  categoryError
+                    ? "border-rose-500 ring-2 ring-rose-500/25 bg-rose-500/5 shadow-sm"
+                    : "border-[var(--border)]/70 bg-[var(--surface)]"
+                }`}>
+                  <label className={`text-xs font-bold mb-2 flex items-center justify-between ${
+                    categoryError ? "text-rose-600 dark:text-rose-400 font-extrabold" : "text-[var(--muted)]"
+                  }`}>
+                    <span className="flex items-center gap-1.5">
+                      <span>קטגוריה (חובה למוצר חדש)</span>
+                      <span className="text-rose-500 font-black">*</span>
+                    </span>
+                    {categoryError && (
+                      <span className="text-[11px] text-rose-600 dark:text-rose-400 font-bold bg-rose-500/10 px-2 py-0.5 rounded-full">
+                        בחר אחת מהאפשרויות למטה ⬇️
+                      </span>
+                    )}
                   </label>
                   <div className="flex flex-wrap gap-2">
                     {[...DEFAULT_CATEGORIES, ...categories]
@@ -387,10 +434,13 @@ export function AddProductOverlay({
                         <button
                           key={c}
                           type="button"
-                          onClick={() => setPending((p) => (p ? { ...p, category: c } : p))}
-                          className={`h-9 px-3.5 rounded-full text-[13px] font-semibold border transition-colors cursor-pointer flex items-center gap-2 ${
+                          onClick={() => {
+                            setPending((p) => (p ? { ...p, category: c } : p));
+                            setCategoryError(false);
+                          }}
+                          className={`h-9 px-3.5 rounded-full text-[13px] font-semibold border transition-all cursor-pointer flex items-center gap-2 ${
                             pending.category === c
-                              ? "bg-[var(--accent-soft)] border-[var(--accent-line)] text-[var(--accent-text)]"
+                              ? "bg-[var(--accent-soft)] border-[var(--accent-line)] text-[var(--accent-text)] ring-2 ring-[var(--accent)]/30 font-bold"
                               : "bg-[var(--surface)] border-[var(--border)] text-[var(--foreground)]/80 hover:bg-[var(--fill)]"
                           }`}
                         >
@@ -721,13 +771,31 @@ export function AddProductOverlay({
             )}
 
             {showStep2 && pending && (
-              <div className="pt-4 mt-2 border-t border-[var(--border)]/60 shrink-0">
+              <div className="pt-3 mt-2 border-t border-[var(--border)]/60 shrink-0 space-y-2">
+                {!pending.category && (
+                  <div className={`text-center text-xs font-bold transition-colors flex items-center justify-center gap-1.5 ${
+                    categoryError ? "text-rose-600 dark:text-rose-400 animate-pulse" : "text-[var(--muted)]"
+                  }`}>
+                    <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                    <span>
+                      {categoryError
+                        ? "חובה לבחור קטגוריה למעלה כדי לשלוח לאישור!"
+                        : `יש לבחור קטגוריה עבור המוצר ${canAddDirectly ? "לפני הוספה" : "כדי לשלוח לאישור"}`}
+                    </span>
+                  </div>
+                )}
                 <button
+                  type="button"
                   onClick={handleConfirmAdd}
-                  disabled={isUserBlockedByFreeze || !pending.category || !qtyValue}
-                  className="w-full h-[52px] btn-primary !text-white text-[15px] font-bold rounded-xl transition-all active:scale-[0.97] cursor-pointer border-none disabled:opacity-40 disabled:cursor-not-allowed"
+                  disabled={isUserBlockedByFreeze || !qtyValue}
+                  className={`w-full h-[52px] text-[15px] font-bold rounded-xl transition-all active:scale-[0.97] cursor-pointer border-none disabled:opacity-40 disabled:cursor-not-allowed shadow-[var(--shadow-card)] flex items-center justify-center gap-2 ${
+                    !pending.category
+                      ? "bg-amber-600 hover:bg-amber-700 text-white"
+                      : "btn-primary !text-white"
+                  }`}
                 >
-                  הוסף לרשימה
+                  <Send className="w-4 h-4 shrink-0" />
+                  <span>{canAddDirectly ? "הוסף לרשימה" : "שלח בקשה לאישור"}</span>
                 </button>
               </div>
             )}

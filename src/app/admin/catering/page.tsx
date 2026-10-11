@@ -39,7 +39,12 @@ const PREDEFINED_SIDES = [
   "אורז",
   "תפו\"א",
   "אפונה",
-  "שעועית"
+  "שעועית",
+  "פתיתים",
+  "מג'דרה",
+  "קוסקוס",
+  "פסטה",
+  "ירקות מבושלים"
 ];
 
 const PREDEFINED_SALADS: string[] = [];
@@ -71,10 +76,46 @@ export default function CateringOrderPage() {
   const [selectedSides, setSelectedSides] = useState<string[]>([]);
   const [selectedSalads, setSelectedSalads] = useState<string[]>([]);
   
-  // Custom items states
-  const [customMeats, setCustomMeats] = useState<string[]>([]);
-  const [customSides, setCustomSides] = useState<string[]>([]);
+  // Custom items states with localStorage persistence
+  const [customMeats, setCustomMeats] = useState<string[]>(() => {
+    if (typeof window === "undefined") return [];
+    try {
+      const saved = localStorage.getItem("catering_custom_meats");
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [customSides, setCustomSides] = useState<string[]>(() => {
+    if (typeof window === "undefined") return [];
+    try {
+      const saved = localStorage.getItem("catering_custom_sides");
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
   const [customSalads, setCustomSalads] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem("catering_custom_meats", JSON.stringify(customMeats));
+      } catch (e) {
+        console.error("Error saving custom meats to storage:", e);
+      }
+    }
+  }, [customMeats]);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem("catering_custom_sides", JSON.stringify(customSides));
+      } catch (e) {
+        console.error("Error saving custom sides to storage:", e);
+      }
+    }
+  }, [customSides]);
   
   // Input fields for adding custom items
   const [newMeat, setNewMeat] = useState("");
@@ -109,18 +150,12 @@ export default function CateringOrderPage() {
   const [showArchive, setShowArchive] = useState(false);
   const [activeMenuStep, setActiveMenuStep] = useState<"meats" | "sides" | null>("meats");
 
-  // Auto-advance step logic (only when not in edit mode)
+  // Auto-advance step logic (only forward to sides when meats completed)
   useEffect(() => {
     if (selectedMeats.length === 2 && activeMenuStep === "meats") {
       setActiveMenuStep("sides");
     }
   }, [selectedMeats.length, activeMenuStep]);
-
-  useEffect(() => {
-    if (selectedSides.length === 2 && activeMenuStep === "sides") {
-      setActiveMenuStep(null);
-    }
-  }, [selectedSides.length, activeMenuStep]);
 
   const [contactName, setContactName] = useState("מירב סארמילי");
   const [contactRole, setContactRole] = useState("מנהלת תפעול מרכז חוסן חוות רום");
@@ -369,6 +404,8 @@ export default function CateringOrderPage() {
     const item = newMeat.trim();
     if (!customMeats.includes(item) && !PREDEFINED_MEATS.includes(item)) {
       setCustomMeats(prev => [...prev, item]);
+    }
+    if (!selectedMeats.includes(item)) {
       setSelectedMeats(prev => [...prev, item]);
     }
     setNewMeat("");
@@ -380,6 +417,8 @@ export default function CateringOrderPage() {
     const item = newSide.trim();
     if (!customSides.includes(item) && !PREDEFINED_SIDES.includes(item)) {
       setCustomSides(prev => [...prev, item]);
+    }
+    if (!selectedSides.includes(item)) {
       setSelectedSides(prev => [...prev, item]);
     }
     setNewSide("");
@@ -391,6 +430,8 @@ export default function CateringOrderPage() {
     const item = newSalad.trim();
     if (!customSalads.includes(item) && !PREDEFINED_SALADS.includes(item)) {
       setCustomSalads(prev => [...prev, item]);
+    }
+    if (!selectedSalads.includes(item)) {
       setSelectedSalads(prev => [...prev, item]);
     }
     setNewSalad("");
@@ -425,7 +466,7 @@ export default function CateringOrderPage() {
   const sidesCount = selectedSides.length;
   const saladsCount = selectedSalads.length;
 
-  const isSelectionValid = meatsCount === 2 && sidesCount === 2;
+  const isSelectionValid = meatsCount === 2 && (sidesCount >= 2 && sidesCount <= 3);
 
   // Format YYYY-MM-DD to DD/MM/YYYY
   const formatDeliveryDate = (dateStr: string) => {
@@ -869,22 +910,29 @@ ${contactRole}`;
                       </div>
 
                       {/* Manual add input */}
-                      <form onSubmit={addCustomMeat} className="flex gap-2 pt-2 border-t border-[var(--border)]/50">
-                        <input 
-                          type="text" 
-                          placeholder="הוסף מנה עיקרית מותאמת אישית..."
-                          value={newMeat}
-                          onChange={(e) => setNewMeat(e.target.value)}
-                          className="w-full bg-[var(--background)] border border-[var(--border)] text-xs rounded-xl px-3 py-2 focus:outline-none focus:border-[var(--muted)]"
-                        />
-                        <button 
-                          type="submit"
-                          className="px-3 bg-amber-500 hover:bg-amber-600 text-white rounded-xl flex items-center justify-center transition-colors shrink-0"
-                          title="הוסף מנה"
-                        >
-                          <Plus className="w-4 h-4" />
-                        </button>
-                      </form>
+                      <div className="pt-2 border-t border-[var(--border)]/50 space-y-1.5">
+                        <div className="text-[11px] font-bold text-[var(--muted)]">
+                          ✍️ הוספת מנה עיקרית בכתיבה חופשית:
+                        </div>
+                        <form onSubmit={addCustomMeat} className="flex gap-2">
+                          <input 
+                            type="text" 
+                            placeholder="הוסף מנה עיקרית מותאמת אישית..."
+                            value={newMeat}
+                            onChange={(e) => setNewMeat(e.target.value)}
+                            className="w-full bg-[var(--background)] border border-[var(--border)] text-xs rounded-xl px-3 py-2 focus:outline-none focus:border-[var(--muted)]"
+                          />
+                          <button 
+                            type="submit"
+                            disabled={!newMeat.trim()}
+                            className="px-3 bg-amber-500 hover:bg-amber-600 disabled:opacity-40 text-white rounded-xl flex items-center justify-center transition-colors shrink-0 gap-1"
+                            title="הוסף מנה"
+                          >
+                            <Plus className="w-4 h-4" />
+                            <span className="text-xs font-bold hidden sm:inline">הוסף</span>
+                          </button>
+                        </form>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -898,13 +946,13 @@ ${contactRole}`;
                   >
                     <div className="flex items-center gap-2">
                       <span className="w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold text-white bg-amber-500 shrink-0">4</span>
-                      <h3 className="text-xs font-bold uppercase tracking-wider">תוספות חמות (בחר 2)</h3>
+                      <h3 className="text-xs font-bold uppercase tracking-wider">תוספות חמות (בחר 2-3)</h3>
                     </div>
                     <div className="flex items-center gap-2">
-                      {sidesCount === 2 ? (
-                        <span className="bg-emerald-500/10 text-emerald-500 text-[11px] px-2.5 py-0.5 rounded-full font-bold">✓ הושלם</span>
+                      {sidesCount >= 2 && sidesCount <= 3 ? (
+                        <span className="bg-emerald-500/10 text-emerald-500 text-[11px] px-2.5 py-0.5 rounded-full font-bold">✓ הושלם ({sidesCount})</span>
                       ) : (
-                        <span className="bg-amber-500/10 text-amber-500 text-[11px] px-2.5 py-0.5 rounded-full font-bold">נבחרו: {sidesCount}/2</span>
+                        <span className="bg-amber-500/10 text-amber-500 text-[11px] px-2.5 py-0.5 rounded-full font-bold">נבחרו: {sidesCount}/2-3</span>
                       )}
                       <span className="text-[11px] text-[var(--muted)] font-bold">
                         {activeMenuStep === "sides" ? "▲" : "▼"}
@@ -976,22 +1024,29 @@ ${contactRole}`;
                       </div>
 
                       {/* Manual add input */}
-                      <form onSubmit={addCustomSide} className="flex gap-2 pt-2 border-t border-[var(--border)]/50">
-                        <input 
-                          type="text" 
-                          placeholder="הוסף תוספת חמה מותאמת אישית..."
-                          value={newSide}
-                          onChange={(e) => setNewSide(e.target.value)}
-                          className="w-full bg-[var(--background)] border border-[var(--border)] text-xs rounded-xl px-3 py-2 focus:outline-none focus:border-[var(--muted)]"
-                        />
-                        <button 
-                          type="submit"
-                          className="px-3 bg-amber-500 hover:bg-amber-600 text-white rounded-xl flex items-center justify-center transition-colors shrink-0"
-                          title="הוסף תוספת"
-                        >
-                          <Plus className="w-4 h-4" />
-                        </button>
-                      </form>
+                      <div className="pt-2 border-t border-[var(--border)]/50 space-y-1.5">
+                        <div className="text-[11px] font-bold text-[var(--muted)]">
+                          ✍️ הוספת תוספת חמה בכתיבה חופשית:
+                        </div>
+                        <form onSubmit={addCustomSide} className="flex gap-2">
+                          <input 
+                            type="text" 
+                            placeholder="הוסף תוספת חמה מותאמת אישית (כתיבה חופשית)..."
+                            value={newSide}
+                            onChange={(e) => setNewSide(e.target.value)}
+                            className="w-full bg-[var(--background)] border border-[var(--border)] text-xs rounded-xl px-3 py-2 focus:outline-none focus:border-[var(--muted)]"
+                          />
+                          <button 
+                            type="submit"
+                            disabled={!newSide.trim()}
+                            className="px-3 bg-amber-500 hover:bg-amber-600 disabled:opacity-40 text-white rounded-xl flex items-center justify-center transition-colors shrink-0 gap-1"
+                            title="הוסף תוספת"
+                          >
+                            <Plus className="w-4 h-4" />
+                            <span className="text-xs font-bold hidden sm:inline">הוסף</span>
+                          </button>
+                        </form>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -1074,6 +1129,14 @@ ${contactRole}`;
                                   <button
                                     type="button"
                                     onClick={() => {
+                                      const customInMeats = order.meats.filter(m => !PREDEFINED_MEATS.includes(m));
+                                      const customInSides = order.sides.filter(s => !PREDEFINED_SIDES.includes(s));
+                                      if (customInMeats.length > 0) {
+                                        setCustomMeats(prev => Array.from(new Set([...prev, ...customInMeats])));
+                                      }
+                                      if (customInSides.length > 0) {
+                                        setCustomSides(prev => Array.from(new Set([...prev, ...customInSides])));
+                                      }
                                       setSelectedMeats(order.meats);
                                       setSelectedSides(order.sides);
                                       setSelectedSalads(order.salads);
@@ -1140,7 +1203,8 @@ ${contactRole}`;
                       </p>
                       <ul className="list-disc list-inside mr-2 space-y-0.5 font-medium opacity-90">
                         {meatsCount !== 2 && <li>מנות עיקריות: נבחרו {meatsCount} (נדרש בדיוק 2)</li>}
-                        {sidesCount !== 2 && <li>תוספות: נבחרו {sidesCount} (נדרש בדיוק 2)</li>}
+                        {sidesCount < 2 && <li>תוספות חמות: נבחרו {sidesCount} (נדרש לפחות 2)</li>}
+                        {sidesCount > 3 && <li>תוספות חמות: נבחרו {sidesCount} (ניתן לבחור עד 3 תוספות)</li>}
                       </ul>
                     </div>
                   ) : (
