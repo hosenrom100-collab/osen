@@ -5,10 +5,11 @@ import Link from "next/link";
 import { rememberBack } from "@/lib/workshops/back";
 import { StaffPicker } from "./StaffPicker";
 import { db } from "@/lib/firebase/config";
-import { collection, deleteDoc, doc, getDocs, query, setDoc, serverTimestamp, updateDoc, where } from "firebase/firestore";
+import { collection, deleteDoc, doc, getDocs, query, setDoc, serverTimestamp, updateDoc, where, writeBatch } from "firebase/firestore";
 import { Dialog, fieldCls, labelCls, btnPrimary, btnGhost } from "./Dialog";
 import { Person, Session, SessionChange, Workshop, DAY_FULL } from "@/lib/workshops/types";
 import { ActivityType, pastel } from "@/lib/workshops/activityTypes";
+import { bindMoves, planSplit } from "@/lib/workshops/splitSeries";
 import { addMinutes, dayOf, shortDate } from "@/lib/workshops/dates";
 
 interface Props {
@@ -75,6 +76,11 @@ export function SessionEditor({ session, extra, workshops, staff, locations, typ
   const defaultKind = workshops.find(w => w.id === workshopId)?.kind || "workshop";
   const staffOnly = (types.find(t => t.id === kind)?.audience ?? "participants") === "staff";
   const [saving, setSaving] = useState(false);
+  // Does this edit change the standing schedule's time/room/staff, so "from here onwards" makes sense?
+  const [scope, setScope] = useState<"one" | "forward">("one");
+  const slotEdited = !!session && !isExtra && !session.fixedBlock && !!session.slotId && !cancelled
+    && (start !== session.base.start || end !== session.base.end || locationId !== (session.base.locationId || "") || !sameSet(staffIds, session.base.staffIds) || date !== session.origDate);
+  const forward = scope === "forward" && slotEdited && !!workshop;
   // Existing sessions open as a readable summary with one-tap actions; the full form is one step further.
   const [stage, setStage] = useState<"view" | "edit">(session ? "view" : "edit");
   const [confirmCancel, setConfirmCancel] = useState(false);
@@ -103,6 +109,7 @@ export function SessionEditor({ session, extra, workshops, staff, locations, typ
     setSaving(true);
     let undo: (() => Promise<void>) | undefined;
     try {
+      if (forward && session && workshop) { onSaved(await saveForward(session, workshop)); return; }
       if (isExtra) {
         if (!workshop) return;
         const ref = session?.changeId ? doc(db, "session_changes", session.changeId) : doc(collection(db, "session_changes"));
@@ -138,6 +145,52 @@ export function SessionEditor({ session, extra, workshops, staff, locations, typ
       }
       onSaved(undo);
     } finally { setSaving(false); }
+  };
+
+  /** "From this session onwards": the workshop is cut in two at this date (or its slot edited in place when this is its first session). */
+  const saveForward = async (s: Session, w: Workshop): Promise<() => Promise<void>> => {
+    const snap = await getDocs(query(collection(db, "session_changes"), where("workshopId", "==", w.id)));
+    const changes = snap.docs.map(d => ({ id: d.id, ...d.data() } as SessionChange));
+    const plan = planSplit(w, s.slotId!, s.origDate!, { day: dayOf(date), start, end, locationId, staffIds }, changes);
+    const ownRef = doc(db, "session_changes", s.changeId!);
+    const stamp = { updatedAt: serverTimestamp(), updatedBy: userId || null };
+    // What stays specific to this one session (name, type, note) is kept as an ordinary change on its new home.
+    const local: Record<string, unknown> = {};
+    if (note.trim()) local.note = note.trim();
+    if (kind !== defaultKind) local.kind = kind;
+    if (name.trim() && name.trim() !== w.name) local.title = name.trim();
+    const batch = writeBatch(db);
+    const putLocal = (workshopId: string) => {
+      if (!Object.keys(local).length) return;
+      batch.set(doc(db, "session_changes", `${workshopId}_${s.origDate}_${s.slotId}`), { workshopId, slotId: s.slotId, originalDate: s.origDate, dates: [s.origDate], ...local, published: false, ...stamp });
+    };
+    if (plan.inPlace) {
+      const oldSlots = w.slots, oldStaff = w.staffIds;
+      batch.update(doc(db, "workshops", w.id), { slots: plan.inPlaceSlots, staffIds: sameSet(staffIds, w.staffIds) ? w.staffIds : staffIds, updatedAt: serverTimestamp() });
+      batch.delete(ownRef); putLocal(w.id);
+      await batch.commit();
+      return async () => {
+        const b = writeBatch(db);
+        b.update(doc(db, "workshops", w.id), { slots: oldSlots, staffIds: oldStaff });
+        if (prevChange) b.set(ownRef, prevChange); else b.delete(doc(db, "session_changes", `${w.id}_${s.origDate}_${s.slotId}`));
+        await b.commit();
+      };
+    }
+    const newRef = doc(collection(db, "workshops"));
+    const moves = bindMoves(plan, newRef.id);
+    batch.set(newRef, { ...plan.continuation, continuesFrom: w.id, createdAt: serverTimestamp(), updatedAt: serverTimestamp(), createdBy: userId || null });
+    batch.update(doc(db, "workshops", w.id), { endDate: plan.oldEndDate, updatedAt: serverTimestamp() });
+    for (const m of moves) { batch.set(doc(db, "session_changes", m.newId), { ...m.data, ...stamp }); if (m.newId !== m.oldId) batch.delete(doc(db, "session_changes", m.oldId)); }
+    batch.delete(ownRef); putLocal(newRef.id);
+    await batch.commit();
+    return async () => {
+      const b = writeBatch(db);
+      b.delete(newRef); b.update(doc(db, "workshops", w.id), { endDate: w.endDate });
+      for (const m of moves) { b.delete(doc(db, "session_changes", m.newId)); const old = changes.find(c => c.id === m.oldId); if (old) { const { id: _i, ...d } = old; void _i; b.set(doc(db, "session_changes", m.oldId), d); } }
+      b.delete(doc(db, "session_changes", `${newRef.id}_${s.origDate}_${s.slotId}`));
+      if (prevChange) b.set(ownRef, prevChange);
+      await b.commit();
+    };
   };
 
   const revert = async () => {
@@ -301,6 +354,16 @@ export function SessionEditor({ session, extra, workshops, staff, locations, typ
           staff={staff} selected={staffIds} onChange={setStaffIds} programId={workshop?.programId}
           groupIds={session?.groupIds?.length ? session.groupIds : workshop?.groupIds || []} busyOf={id => busyOf(id)} />
       </fieldset>
+
+      {slotEdited && canEdit && (
+        <fieldset className="rounded-xl border border-[var(--border)] p-3 space-y-1.5">
+          <legend className="px-1 text-xs font-semibold text-[var(--foreground)]/55">החלת השינוי (תאריך, שעה, מרחב, צוות)</legend>
+          {([["one", "רק המפגש הזה"], ["forward", "מהמפגש הזה והלאה"]] as const).map(([k, l]) => (
+            <label key={k} className="flex items-center gap-2 text-sm cursor-pointer"><input type="radio" name="scope" checked={scope === k} onChange={() => setScope(k)} />{l}</label>
+          ))}
+          {scope === "forward" && <p className="text-xs text-[var(--foreground)]/55 leading-relaxed">הסדנה מתפצלת לשתיים בתאריך הזה. מפגשים קודמים לא משתנים, ושינויים קיימים במפגשים הבאים עוברים להמשך.</p>}
+        </fieldset>
+      )}
 
       {participants.length > 0 && (
         <div>
