@@ -74,6 +74,7 @@ export interface Program {
   name: string;
   activeDays: number[];
   color?: number;              // hue 0-359; missing = derived from the id
+  shortName?: string;          // 2-4 characters shown on cards next to other programs' cards; missing = derived from the name
   laneMode?: "groups" | "stable" | "auto"; // groups: a fixed lane per group; auto: lanes only in weeks the groups overlap ("stable" is legacy = groups)
   dailyBlocks?: DailyBlock[];
   staffGroupUrl?: string;        // community group of the program's staff

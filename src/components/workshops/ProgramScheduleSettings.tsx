@@ -7,7 +7,7 @@ import { Plus, Trash2 } from "lucide-react";
 import { Dialog, fieldCls, labelCls, btnPrimary, btnGhost } from "./Dialog";
 import { ActivityKind, DAY_SHORT, DailyBlock, Group, Program } from "@/lib/workshops/types";
 import { ActivityType } from "@/lib/workshops/activityTypes";
-import { PROGRAM_HUES, groupHue, programHue } from "@/lib/workshops/colors";
+import { PROGRAM_HUES, groupHue, programHue, programShort } from "@/lib/workshops/colors";
 
 const newId = () => Math.random().toString(36).slice(2, 9);
 const validUrl = (u: string) => !u || /^https?:\/\/\S+$/.test(u);
@@ -19,6 +19,7 @@ export function ProgramScheduleSettings({ program, groups, locations, types, onC
   const blockTypes = types.filter(t => t.band && !t.archived);
   const [laneMode, setLaneMode] = useState<"groups" | "auto">(program.laneMode === "auto" ? "auto" : "groups");
   const [hue, setHue] = useState(programHue(program));
+  const [shortName, setShortName] = useState(program.shortName || "");
   const [blocks, setBlocks] = useState<DailyBlock[]>((program.dailyBlocks || []).map(b => ({ ...b })));
   const [staffUrl, setStaffUrl] = useState(program.staffGroupUrl || "");
   const [partUrl, setPartUrl] = useState(program.participantsGroupUrl || "");
@@ -45,7 +46,7 @@ export function ProgramScheduleSettings({ program, groups, locations, types, onC
     setSaving(true);
     try {
       await updateDoc(doc(db, "programs", program.id), {
-        scheduleColor: hue, laneMode,
+        scheduleColor: hue, shortName: shortName.trim(), laneMode,
         dailyBlocks: blocks.map(b => ({ ...b, label: b.label.trim(), days: b.days || [], groupIds: b.groupIds || [], locationId: b.locationId || "" })),
         staffGroupUrl: staffUrl.trim(), participantsGroupUrl: partUrl.trim(),
       });
@@ -61,6 +62,11 @@ export function ProgramScheduleSettings({ program, groups, locations, types, onC
         <button onClick={save} disabled={saving || invalid} className={btnPrimary}>שמור</button>
         <button onClick={onClose} className={btnGhost}>ביטול</button>
       </>}>
+      <div>
+        <label className={labelCls}>קיצור התוכנית (2–4 תווים)</label>
+        <input className={`${fieldCls} !w-28`} maxLength={4} value={shortName} placeholder={programShort({ name: program.name })} onChange={e => setShortName(e.target.value)} />
+        <p className="text-xs text-[var(--foreground)]/50 mt-1">מופיע על כרטיסים כשמוצגות כמה תוכניות יחד. ריק = נגזר מהשם.</p>
+      </div>
       <div>
         <label className={labelCls}>צבע התוכנית ביומן</label>
         <div className="flex gap-2">

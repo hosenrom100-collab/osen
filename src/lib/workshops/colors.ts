@@ -14,6 +14,14 @@ export function programHue(p: Pick<Program, "id" | "color"> | undefined, fallbac
   return p?.color !== undefined ? p.color : hashHue(p?.id || fallbackId);
 }
 
+/** Short tag of a program: its own, else the first letters of its words (at most 3). */
+export function programShort(p: Pick<Program, "name" | "shortName"> | undefined): string {
+  if (!p) return "";
+  if (p.shortName?.trim()) return p.shortName.trim();
+  const words = p.name.trim().split(/\s+/).filter(Boolean);
+  return words.length > 1 ? words.slice(0, 3).map(w => w[0]).join("") : p.name.trim().slice(0, 3);
+}
+
 export type ColorBy = "type" | "program" | "workshop";
 
 /** The hue a session is drawn with, given what the viewer chose to colour by. */

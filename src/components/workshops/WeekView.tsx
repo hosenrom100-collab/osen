@@ -22,6 +22,7 @@ export interface Common {
   dim: (s: Session) => boolean;    // faded while another legend item is highlighted
   countOf: (s: Session) => number | undefined; // headcount of a session, when known
   peekNames: (s: Session) => string[];          // first names of the people attending, for the hover peek
+  programTag?: (s: Session) => string | undefined; // short program name, when cards of several programs share a column
   showGroups?: boolean; // show group names on sessions even in program mode
   onOpen: (s: Session) => void;
   groupHue?: (groupId: string) => number | undefined; // a group's own colour (lane headers, tags)
@@ -60,7 +61,8 @@ function Card({ s, mode, c, groups, compact }: { s: Session; mode: Mode; c: Comm
   const f = facts(s, mode, c, groups);
   const oneOff = s.kind === "extra" || s.kind === "moved-in";
   const showRoom = !!f.room && !f.dead && mode !== "space";
-  const meta = [f.staff ? (f.staffOnly ? `נוכחים: ${f.staff}` : f.staff) : "", f.grp].filter(Boolean).join(" · ");
+  const tag = c.programTag?.(s);
+  const meta = [tag, f.staff ? (f.staffOnly ? `נוכחים: ${f.staff}` : f.staff) : "", f.grp].filter(Boolean).join(" · ");
   const hover = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [peek, setPeek] = useState<DOMRect | null>(null);
   const enter = (e: React.MouseEvent<HTMLElement>) => {
