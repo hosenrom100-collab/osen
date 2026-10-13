@@ -192,18 +192,18 @@ export default function SchedulePage() {
         const pGroups = refs.groups.filter(g => g.programId === p.id);
         // No program picked → one merged row per program; a picked program is split by group.
         if (programSel.length !== 1 || pGroups.length === 0) {
-          out.push({ id: p.id, label: p.name, match: (s: Session) => s.programId === p.id, closedReason });
+          out.push({ id: p.id, label: p.name, hue: programHue(p), match: (s: Session) => s.programId === p.id, closedReason });
           continue;
         }
         const chosen = groupSel.filter(id => pGroups.some(g => g.id === id));
         for (const g of chosen.length ? pGroups.filter(x => chosen.includes(x.id)) : pGroups) {
           out.push({
-            id: `${p.id}:${g.id}`, label: `${p.name} · ${g.name}`, closedReason,
+            id: `${p.id}:${g.id}`, label: `${p.name} · ${g.name}`, hue: groupHue(g.id, refs.groups, refs.programs), closedReason,
             match: (s: Session) => s.programId === p.id && (s.groupIds.includes(g.id) || ((chosen.length > 0 || !!s.fixedBlock) && s.groupIds.length === 0)),
           });
         }
         if (!chosen.length && sessions.some(s => s.programId === p.id && s.groupIds.length === 0 && !s.fixedBlock)) {
-          out.push({ id: `${p.id}:all`, label: `${p.name} · כל התוכנית`, closedReason, match: (s: Session) => s.programId === p.id && s.groupIds.length === 0 && !s.fixedBlock });
+          out.push({ id: `${p.id}:all`, label: `${p.name} · כל התוכנית`, hue: programHue(p), closedReason, match: (s: Session) => s.programId === p.id && s.groupIds.length === 0 && !s.fixedBlock });
         }
       }
       return out;
@@ -453,7 +453,7 @@ export default function SchedulePage() {
         };
       })
     : rows.map(row => ({
-        id: row.id, sessions: sessions.filter(s => s.date === selectedDay && row.match(s)), laneMode: "stable" as const,
+        id: row.id, hue: row.hue, sessions: sessions.filter(s => s.date === selectedDay && row.match(s)), laneMode: "stable" as const,
         today: selectedDay === today, header: <span className="block truncate text-sm font-bold pb-0.5" title={row.label}>{row.label}</span>,
         sub: row.closedReason(selectedDay), onAdd: addFor(selectedDay, row.id.split(":")[0]),
       }));

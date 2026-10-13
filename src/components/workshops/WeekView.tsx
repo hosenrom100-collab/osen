@@ -7,7 +7,7 @@ import { MapPin, Plus } from "lucide-react";
 import { hueStyle } from "@/lib/workshops/colors";
 import { DayLanes, laneByFrame, laneByGroup, laneStable, timeRows } from "@/lib/workshops/lanes";
 
-export interface Row { id: string; label: string; match: (s: Session) => boolean; closedReason: (date: string) => string | undefined }
+export interface Row { id: string; label: string; hue?: number; match: (s: Session) => boolean; closedReason: (date: string) => string | undefined }
 
 export type Mode = "program" | "staff" | "space";
 
@@ -214,6 +214,7 @@ export interface Column {
   sub?: string;                       // closure / absence note under the header
   sessions: Session[];
   today?: boolean;
+  hue?: number;                       // the colour of the frame this column is (a program or group in day view): tints it and marks its header
   laneMode: "groups" | "frames" | "stable";
   frames?: { labels: string[]; hues: (number | undefined)[]; frameOf: (s: Session) => number[] }; // lane per frame (e.g. per program) when laneMode is "frames"
   groupIds?: string[];                // lane order when laneMode is "groups"
@@ -422,7 +423,8 @@ export function TimeGrid({ columns, mode, groupName, laneMin, corner, drag: drag
           return (
             <div key={col.id} className="contents">
               {/* One continuous day separator, header to bottom, so header and body always line up. */}
-              <div className="pointer-events-none border-s border-[var(--cal-line-day)]" style={{ gridRow: `1 / -1`, gridColumn: c1 }} />
+              <div className={`pointer-events-none ${col.hue !== undefined ? "border-s-2 border-[var(--cal-line-frame)]" : "border-s border-[var(--cal-line-day)]"}`} style={{ gridRow: `1 / -1`, gridColumn: c1 }} />
+              {col.hue !== undefined && !l.laneLabels && <div className="pointer-events-none" style={{ gridRow: `2 / -1`, gridColumn: `${c1} / span ${l.lanes}`, backgroundColor: `hsl(${col.hue} 45% 50% / 0.07)` }} />}
               {l.laneLabels && l.laneLabels.slice(1).map((_, i) => (
                 <div key={`d${i}`} className="pointer-events-none border-s-[1.5px] border-[var(--cal-line-frame)]" style={{ gridRow: `2 / -1`, gridColumn: c1 + (i + 1) * (l.unit ?? 1) }} />
               ))}
@@ -444,7 +446,7 @@ export function TimeGrid({ columns, mode, groupName, laneMin, corner, drag: drag
                 );
               })}
               <div data-col={k} className={`sticky top-[3.25rem] z-20 bg-[var(--cal-surface)] px-2 pt-2 text-center text-[var(--cal-ink)] ${l.laneLabels ? "" : "border-b border-[var(--cal-frame)] pb-2"}`}
-                style={{ gridRow: 1, gridColumn: `${c1} / span ${l.lanes}` }}>
+                style={{ gridRow: 1, gridColumn: `${c1} / span ${l.lanes}`, boxShadow: col.hue !== undefined ? `inset 0 4px 0 ${hueStyle(col.hue).bar}` : undefined, backgroundColor: col.hue !== undefined ? `hsl(${col.hue} 60% 96%)` : undefined }}>
                 {col.header}
                 {hasSub && <div className="mt-1 min-h-[1.25rem]">{col.sub && <span className="inline-block max-w-full truncate px-2 rounded-full bg-[var(--cal-ink)]/[0.06] text-[11px] font-medium text-[var(--cal-muted)]">{col.sub}</span>}</div>}
               </div>
