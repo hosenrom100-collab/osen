@@ -1,6 +1,5 @@
 import { Session } from "./types";
-
-const mins = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3));
+import { toMin as mins } from "./dates";
 
 export interface Placed { s: Session; lane: number; span: number; side?: number }
 /** `lanes`: grid tracks of the column; `minLanes`: how many cards stand side by side at most (sizes the column's minimum width). */

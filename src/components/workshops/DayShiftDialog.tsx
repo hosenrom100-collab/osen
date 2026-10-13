@@ -5,12 +5,8 @@ import { db } from "@/lib/firebase/config";
 import { doc, serverTimestamp, setDoc } from "firebase/firestore";
 import { Dialog, fieldCls, labelCls, btnPrimary, btnGhost } from "./Dialog";
 import { Session, DAY_FULL } from "@/lib/workshops/types";
-import { dayOf, shortDate } from "@/lib/workshops/dates";
+import { addMinutes, dayOf, shortDate } from "@/lib/workshops/dates";
 
-const addMinutes = (t: string, d: number) => {
-  const m = Math.min(23 * 60 + 59, Math.max(0, Number(t.slice(0, 2)) * 60 + Number(t.slice(3)) + d));
-  return `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
-};
 
 /** "Everything from 11:00 is 30 minutes late" — shifts every live session of the day in one go. */
 export function DayShiftDialog({ date, sessions, scopeLabel, userId, onClose, onSaved }: {

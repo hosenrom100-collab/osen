@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { DAY_SHORT, Session, staffChangeLabel } from "@/lib/workshops/types";
-import { dayOf, shortDate } from "@/lib/workshops/dates";
+import { dayOf, fromMin as fmtMin, shortDate, toMin } from "@/lib/workshops/dates";
 import { MapPin, Plus } from "lucide-react";
 import { hueStyle } from "@/lib/workshops/colors";
 import { DayLanes, laneByGroup, laneStable, timeRows } from "@/lib/workshops/lanes";
@@ -227,7 +227,6 @@ export interface DragApi {
   conflict: (s: Session, to: { date: string; start: string; end: string }) => string | undefined;
 }
 
-const fmtMin = (m: number) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
 const STEP = 15;
 const PX_PER_MIN = 0.8; // desktop density: ~48px per hour, rows still grow to fit their text
 
@@ -267,8 +266,6 @@ export function TimeGrid({ columns, mode, groupName, laneMin, corner, drag: drag
       return covered[i] ? `minmax(${Math.max(Math.round(dur * PX_PER_MIN), 34)}px, auto)` : dur >= 60 ? "26px" : "10px";
     })),
   ].join(" ");
-
-  const toMin = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3));
 
   // Pointer → clock time, through the row rectangles actually on screen (rows are not linear in time).
   const timeAt = (y: number): number | null => {
@@ -519,7 +516,7 @@ export function DayAgenda({ dates, days, mode, today, selected, setSelected, glo
   const closure = globalClosure(selected);
   const now = useNowMinutes();
   const isToday = selected === today;
-  const toM = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3));
+  const toM = toMin;
   const period = (t: string) => (toM(t) < 720 ? "בוקר" : toM(t) < 900 ? "צהריים" : "אחר הצהריים");
   // Consecutive sessions that run into each other (fixed meals/breaks stay on their own line).
   const bundles: Session[][] = [];

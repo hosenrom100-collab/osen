@@ -9,7 +9,7 @@ import { collection, deleteDoc, doc, getDocs, query, setDoc, serverTimestamp, up
 import { Dialog, fieldCls, labelCls, btnPrimary, btnGhost } from "./Dialog";
 import { Person, Session, SessionChange, Workshop, DAY_FULL } from "@/lib/workshops/types";
 import { ActivityType, pastel } from "@/lib/workshops/activityTypes";
-import { dayOf, shortDate } from "@/lib/workshops/dates";
+import { addMinutes, dayOf, shortDate } from "@/lib/workshops/dates";
 
 interface Props {
   session: Session | null;          // null → creating an extra session
@@ -80,10 +80,7 @@ export function SessionEditor({ session, extra, workshops, staff, locations, typ
     const w = workshops.find(x => x.id === id);
     if (w && !session) { setStaffIds(w.staffIds || []); setKind(w.kind || "workshop"); }
   };
-  const shiftBy = (d: number) => {
-    const add = (t: string) => { const m = Math.min(1439, Math.max(0, Number(t.slice(0, 2)) * 60 + Number(t.slice(3)) + d)); return `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`; };
-    setStart(add(start)); setEnd(add(end));
-  };
+  const shiftBy = (d: number) => { setStart(addMinutes(start, d)); setEnd(addMinutes(end, d)); };
   // Free people first, so picking a substitute does not mean guessing who is available.
   const busyOf = (id: string) => busyFor?.(id, date, start, end, workshopId);
   const staffSorted = [...staff].sort((a, b) => Number(!!busyOf(a.id)) - Number(!!busyOf(b.id)));
@@ -165,7 +162,6 @@ export function SessionEditor({ session, extra, workshops, staff, locations, typ
     <>יום {DAY_FULL[dayOf(session.date)]} {shortDate(session.date)} · <span dir="ltr" className="tabular-nums">{session.start}–{session.end}</span>{roomName ? ` · ${roomName}` : ""}</>
   ) : undefined;
   const dead = session?.kind === "cancelled";
-  const addMin = (t: string, d: number) => { const m = Math.min(1439, Math.max(0, Number(t.slice(0, 2)) * 60 + Number(t.slice(3)) + d)); return `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`; };
   // Summary: what, who, where — readable at a glance. Managers get one-tap actions under it.
   if (session && (!canEdit || stage === "view")) {
     const shown = participants.slice(0, 14);
@@ -191,8 +187,8 @@ export function SessionEditor({ session, extra, workshops, staff, locations, typ
           <div>
             <h3 className={labelCls}>פעולות מהירות</h3>
             <div className="grid grid-cols-2 gap-2">
-              {!dead && <button disabled={saving} onClick={() => save({ start: addMin(session.start, 15), end: addMin(session.end, 15) })} className={quickCls}>דחה ב-15 דקות</button>}
-              {!dead && <button disabled={saving} onClick={() => save({ start: addMin(session.start, -15), end: addMin(session.end, -15) })} className={quickCls}>הקדם ב-15 דקות</button>}
+              {!dead && <button disabled={saving} onClick={() => save({ start: addMinutes(session.start, 15), end: addMinutes(session.end, 15) })} className={quickCls}>דחה ב-15 דקות</button>}
+              {!dead && <button disabled={saving} onClick={() => save({ start: addMinutes(session.start, -15), end: addMinutes(session.end, -15) })} className={quickCls}>הקדם ב-15 דקות</button>}
               {!dead && <button disabled={saving} onClick={() => setStage("edit")} className={quickCls}>מחליף או מרחב…</button>}
               {dead
                 ? <button disabled={saving} onClick={() => save({ cancelled: false })} className={`${quickCls} col-span-2`}>החזר את המפגש</button>
