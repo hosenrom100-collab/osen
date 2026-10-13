@@ -21,7 +21,7 @@ export async function loadRefs(): Promise<Refs> {
     .map(d => {
       const x = d.data();
       return {
-        id: d.id, name: x.name, activeDays: x.activeDays || [], color: x.scheduleColor, laneMode: x.laneMode || "groups",
+        id: d.id, name: x.name, activeDays: x.activeDays || [], color: x.scheduleColor, shortName: x.shortName || "", laneMode: x.laneMode || "groups",
         dailyBlocks: x.dailyBlocks || [], staffGroupUrl: x.staffGroupUrl || "", participantsGroupUrl: x.participantsGroupUrl || "",
       } as Program;
     })

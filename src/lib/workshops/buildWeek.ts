@@ -1,6 +1,6 @@
 import { Closure, Program, Session, SessionChange, Workshop } from "./types";
 import { dayOf } from "./dates";
-import { ActivityType, DEFAULT_TYPES, typeById } from "./activityTypes";
+import { ActivityType, DEFAULT_TYPES, typeById } from "./activityTypesCore";
 
 /** Groups a weekly meeting is for: its own list, otherwise the workshop's. */
 export const slotGroups = (w: Workshop, slot: { groupIds?: string[] }) =>

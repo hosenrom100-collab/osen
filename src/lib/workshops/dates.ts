@@ -16,6 +16,13 @@ export const dayOf = (iso: string) => parseISO(iso).getDay();
 /** "7.10" */
 export const shortDate = (iso: string) => format(parseISO(iso), "d.M");
 
+/** "HH:mm" → minutes after midnight. */
+export const toMin = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3));
+/** Minutes after midnight → "HH:mm". */
+export const fromMin = (m: number) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+/** "HH:mm" plus d minutes, kept inside the same day. */
+export const addMinutes = (t: string, d: number) => fromMin(Math.min(1439, Math.max(0, toMin(t) + d)));
+
 export const overlaps = (aStart: string, aEnd: string, bStart: string, bEnd: string) =>
   aStart < bEnd && bStart < aEnd;
 

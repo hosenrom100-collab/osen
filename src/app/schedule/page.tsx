@@ -4,31 +4,33 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { RoleGuard } from "@/components/auth/RoleGuard";
 import { useAuth } from "@/context/AuthContext";
 import { db } from "@/lib/firebase/config";
-import { addDoc, collection, deleteDoc, deleteField, doc, updateDoc, writeBatch } from "firebase/firestore";
-import { ChevronLeft, ChevronRight, MoreHorizontal, Plus } from "lucide-react";
+import { collection, deleteDoc, deleteField, doc, getDocs, query, serverTimestamp, setDoc, updateDoc, where, writeBatch } from "firebase/firestore";
+import { ChevronLeft, ChevronRight, MoreHorizontal, Plus, Search } from "lucide-react";
+import { MiniCalendar } from "@/components/workshops/MiniCalendar";
 import { ProgramScheduleSettings } from "@/components/workshops/ProgramScheduleSettings";
 import { DayShiftDialog } from "@/components/workshops/DayShiftDialog";
-import { addDays, format, getWeek } from "date-fns";
+import { addDays, format, getWeek, parseISO } from "date-fns";
 import { he } from "date-fns/locale";
 import Link from "next/link";
 import { PageSkeleton } from "@/components/ui/Skeleton";
-import { Dialog, fieldCls, labelCls, btnPrimary } from "@/components/workshops/Dialog";
+import { Dialog, fieldCls, labelCls, btnPrimary, btnGhost } from "@/components/workshops/Dialog";
 import { SessionEditor } from "@/components/workshops/SessionEditor";
 import { SeriesDays } from "@/components/workshops/SeriesDays";
 import { Column, DayAgenda, DragApi, Row, TimeGrid } from "@/components/workshops/WeekView";
-import { findConflicts, staffBusyAt } from "@/lib/workshops/conflicts";
+import { clashesAt, findConflicts } from "@/lib/workshops/conflicts";
 import { buildSessions } from "@/lib/workshops/buildWeek";
 import { notifyStaff, Refs } from "@/lib/workshops/data";
 import { useScheduleData } from "@/lib/workshops/useScheduleData";
 import { firstNames, participantsOf } from "@/lib/workshops/people";
-import { ColorBy, groupHue, hueStyle, sessionHue } from "@/lib/workshops/colors";
+import { ColorBy, groupHue, hueStyle, programHue, programShort, sessionHue } from "@/lib/workshops/colors";
 import { typeById } from "@/lib/workshops/activityTypes";
 import { groupsRunInParallel } from "@/lib/workshops/lanes";
 import { moveSession } from "@/lib/workshops/moveSession";
 import { ActivityTypesDialog } from "@/components/workshops/ActivityTypesDialog";
-import { NewEventDialog } from "@/components/workshops/NewEventDialog";
-import { toISO, weekDates, weekStartOf, shortDate, dayOf } from "@/lib/workshops/dates";
-import { Closure, DAY_FULL, DAY_SHORT, Session } from "@/lib/workshops/types";
+import { CopyScheduleDialog } from "@/components/workshops/CopyScheduleDialog";
+import { EventPrefill, NewEventDialog } from "@/components/workshops/NewEventDialog";
+import { rangeDates, toISO, weekDates, weekStartOf, shortDate, dayOf } from "@/lib/workshops/dates";
+import { Closure, DAY_FULL, DAY_SHORT, Program, Session } from "@/lib/workshops/types";
 
 // The calendar is always shown on white, whatever the app theme is.
 const LIGHT_VARS = {
@@ -65,8 +67,8 @@ export default function SchedulePage() {
   const fromUrl = (k: string) => { try { return new URLSearchParams(window.location.search).get(k); } catch { return null; } };
   const firstVisit = useRef<boolean>(readSaved<string[] | null>("programs", null) === null && !fromUrl("program"));
   const [programSel, setProgramSel] = useState<string[]>(() => {
-    const u = fromUrl("program"); if (u) return [u];
-    const saved = readSaved<string[] | null>("programs", null); if (saved) return saved.slice(0, 1);
+    const u = fromUrl("program"); if (u) return u.split(",").filter(Boolean);
+    const saved = readSaved<string[] | null>("programs", null); if (saved) return saved;
     const p = homePref().programId; return p ? [p] : [];
   });
   const [groupSel, setGroupSel] = useState<string[]>(() => {
@@ -79,7 +81,7 @@ export default function SchedulePage() {
   const [colorBy, setColorBy] = useState<ColorBy>(() => readSaved<ColorBy>("colorBy", "type"));
   const [focus, setFocus] = useState<string | null>(null);
   const [showTypes, setShowTypes] = useState(false);
-  const [creating, setCreating] = useState<{ date: string; programId?: string } | null>(null);
+  const [creating, setCreating] = useState<{ date: string; programId?: string; start?: string; prefill?: EventPrefill } | null>(null);
   const [toast, setToast] = useState<{ text: string; undo?: () => Promise<void> } | null>(null);
   useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(null), 8000); return () => clearTimeout(t); }, [toast]);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -93,11 +95,20 @@ export default function SchedulePage() {
   }, []);
   const [settingsFor, setSettingsFor] = useState<string | null>(null);
   const [showShift, setShowShift] = useState(false);
+  const [showCopy, setShowCopy] = useState(false);
+  const [query, setQuery] = useState("");
+  const [searching, setSearching] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
+  const [jumpOpen, setJumpOpen] = useState(false);
+  const searchRef = useRef<HTMLInputElement>(null);
+  // Ctrl+C on the card under the pointer, Ctrl+V to paste it as a new event (opens the "new event" form, filled in).
+  const hovered = useRef<Session | null>(null);
+  const [clip, setClip] = useState<Session | null>(null);
   useEffect(() => {
     save("mode", mode); save("programs", programSel); save("groups", groupSel); save("view", view); save("colorBy", colorBy);
     try {
       const q = new URLSearchParams();
-      if (programSel[0]) q.set("program", programSel[0]);
+      if (programSel.length) q.set("program", programSel.join(","));
       if (groupSel[0]) q.set("group", groupSel[0]);
       if (view === "day") q.set("view", "day");
       window.history.replaceState(null, "", q.size ? `?${q}` : window.location.pathname);
@@ -113,6 +124,7 @@ export default function SchedulePage() {
   // Saved filter picks may point at programs/groups that no longer exist.
   useEffect(() => {
     if (!refs) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- restores saved choices / loads external data once; nothing to derive during render
     setProgramSel(sel => sel.filter(id => refs.programs.some(p => p.id === id)));
     setGroupSel(sel => sel.filter(id => refs.groups.some(g => g.id === id)));
     // Still nothing picked on a first visit: the program (and group) this person is assigned to, when there is just one.
@@ -152,10 +164,11 @@ export default function SchedulePage() {
   }, [all, mode, onlyMine, user, programSel, groupSel, refs]);
 
   const groupOptions = useMemo(
-    () => (refs && programSel.length ? refs.groups.filter(g => programSel.includes(g.programId)).map(g => ({ id: g.id, label: g.name })) : []),
+    () => (refs && programSel.length === 1 ? refs.groups.filter(g => programSel.includes(g.programId)).map(g => ({ id: g.id, label: g.name })) : []),
     [refs, programSel]
   );
-  const pickProgram = (id: string) => { setProgramSel(id ? [id] : []); setGroupSel([]); };
+  const setPrograms = (ids: string[]) => { setProgramSel(ids); setGroupSel([]); };
+  const onlyProgram = programSel.length === 1 ? programSel[0] : undefined; // groups and program-wide actions only make sense for one program
   const pickGroup = (id: string) => setGroupSel(id ? [id] : []);
   const warnings = useMemo(() => refs ? findConflicts(all, refs.programs, absences, nameOf, id => roomOf(id) || "המרחב") : new Map<string, string[]>(), [all, refs, absences, nameOf, roomOf]);
 
@@ -178,7 +191,7 @@ export default function SchedulePage() {
         const closedReason = (d: string) => closedFor(p.id, d) || (p.activeDays.includes(dayOf(d)) ? undefined : "לא יום פעילות");
         const pGroups = refs.groups.filter(g => g.programId === p.id);
         // No program picked → one merged row per program; a picked program is split by group.
-        if (programSel.length === 0 || pGroups.length === 0) {
+        if (programSel.length !== 1 || pGroups.length === 0) {
           out.push({ id: p.id, label: p.name, match: (s: Session) => s.programId === p.id, closedReason });
           continue;
         }
@@ -221,7 +234,7 @@ export default function SchedulePage() {
   // Weekdays the program(s) on screen are active on — what phone navigation steps through.
   const navDays = useMemo(() => {
     const set = new Set<number>();
-    (programSel[0] ? refs?.programs.filter(p => p.id === programSel[0]) || [] : refs?.programs || []).forEach(p => p.activeDays.forEach(d => set.add(d)));
+    (programSel.length ? refs?.programs.filter(p => programSel.includes(p.id)) || [] : refs?.programs || []).forEach(p => p.activeDays.forEach(d => set.add(d)));
     return set.size ? [...set].sort() : [0, 1, 2, 3, 4];
   }, [refs, programSel]);
 
@@ -236,126 +249,30 @@ export default function SchedulePage() {
   const weekChanges = changes.filter(c => c.dates.some(d => dates.includes(d)));
   const unpublished = weekChanges.filter(c => !c.published);
 
-  const publish = async () => {
-    setPublishing(true);
-    // One tailored message per affected person.
+  // Publishing: first a preview of what each person will be told, where single people can be left out; then send.
+  const [preview, setPreview] = useState<{ lines: Map<string, string[]>; skip: Set<string> } | null>(null);
+  const openPublish = () => {
     const lines = new Map<string, string[]>();
     for (const s of all.filter(x => x.change && !x.change.published)) {
       const what = s.kind === "cancelled" ? "בוטל" : s.kind === "moved-away" ? `הוזז ל-${shortDate(s.change!.newDate!)}` : s.kind === "extra" ? "מפגש נוסף" : "עודכן";
       const line = `${what}: ${s.workshopName}, ${DAY_SHORT[dayOf(s.date)]} ${shortDate(s.date)} ${s.start}`;
       for (const uid of new Set([...s.staffIds, ...s.base.staffIds])) lines.set(uid, [...(lines.get(uid) || []), line]);
     }
-    await Promise.all([...lines].map(([uid, l]) => notifyStaff([uid], "עדכון ביומן השבועי", l.join("\n"))));
-    const batch = writeBatch(db);
-    unpublished.forEach(c => batch.update(doc(db, "session_changes", c.id), { published: true }));
-    await batch.commit();
-    setPublishing(false);
-    load();
+    setPreview({ lines, skip: new Set() });
+  };
+  const publish = async () => {
+    if (!preview || publishing) return;
+    setPublishing(true);
+    try {
+      await Promise.all([...preview.lines].filter(([uid]) => !preview.skip.has(uid)).map(([uid, l]) => notifyStaff([uid], "עדכון ביומן השבועי", l.join("\n"))));
+      const batch = writeBatch(db);
+      unpublished.forEach(c => batch.update(doc(db, "session_changes", c.id), { published: true }));
+      await batch.commit();
+      setPreview(null);
+      load();
+    } finally { setPublishing(false); }
   };
 
-  if (loading || !refs) return <PageSkeleton />;
-
-  const rangeLabel = `${format(weekStart, "d.M")} – ${format(addDays(weekStart, 6), "d.M.yyyy")}`; // print title only
-  const programOf = (id: string) => refs.programs.find(p => p.id === id);
-  const workshopById = new Map(workshops.map(w => [w.id, w]));
-  const laneHints = Object.fromEntries(workshops.filter(w => w.laneHint !== undefined).map(w => [w.id, w.laneHint!]));
-  // Programs with several groups: what is shared by groups, and shared activities that run into a group's own one (rarely meant).
-  const multiGroup = (programId: string) => refs.groups.filter(g => g.programId === programId).length > 1;
-  const jointOf = (s: Session) => !s.fixedBlock && !s.band && multiGroup(s.programId) && s.groupIds.length !== 1;
-  const soft = new Map<string, string[]>();
-  for (const j of sessions) {
-    if (!jointOf(j) || j.kind === "cancelled") continue;
-    for (const o of sessions) {
-      if (o.id === j.id || o.date !== j.date || o.programId !== j.programId || o.groupIds.length !== 1 || o.fixedBlock || o.band || o.kind === "cancelled") continue;
-      if (j.groupIds.length && !j.groupIds.includes(o.groupIds[0])) continue;
-      if (!(o.start < j.end && j.start < o.end)) continue;
-      soft.set(j.id, [...(soft.get(j.id) || []), `חופף לפעילות של ${groupName(o.groupIds[0])}: ${o.workshopName}`]);
-      soft.set(o.id, [...(soft.get(o.id) || []), `חופף לפעילות משותפת: ${j.workshopName}`]);
-    }
-  }
-  const common = {
-    sessions, warnings, soft, jointOf,
-    groupHue: (id: string) => groupHue(id, refs.groups, refs.programs), nameOf, roomOf, groupsOf, showGroups: programSel.length === 0,
-    hueOf: (s: Session) => sessionHue(s, colorBy, types, refs.programs),
-    typeLabel: (s: Session) => (s.activity !== "workshop" && !s.band ? typeById(types, s.activity).label : undefined),
-    dim: (s: Session) => focusKey !== null && legendKey(s) !== focusKey,
-    peekNames: (s: Session) => (s.fixedBlock || !s.hasParticipants ? [] : firstNames(participantsOf(s, workshopById.get(s.workshopId), patients))),
-    countOf: (s: Session) => {
-      if (s.fixedBlock) return undefined;
-      if (s.audience === "staff") return s.staffIds.length || undefined;
-      if (!s.hasParticipants) return undefined;
-      const n = participantsOf(s, workshopById.get(s.workshopId), patients).length;
-      return n || undefined;
-    },
-    // A fixed meal/break opens its program's schedule settings; everything else opens the session.
-    onOpen: (s: Session) => (s.fixedBlock ? (isManager && setSettingsFor(s.programId)) : setEditing({ session: s })),
-  };
-  const legendKey = (s: Session) => (colorBy === "type" ? s.activity : colorBy === "program" ? s.programId : s.workshopId);
-  const focusKey = focus;
-  const legend = (() => {
-    const seen = new Map<string, { key: string; label: string; hue: number }>();
-    for (const s of sessions) {
-      const k = legendKey(s);
-      if (!seen.has(k)) seen.set(k, { key: k, label: colorBy === "type" ? typeById(types, s.activity).label : colorBy === "program" ? programOf(s.programId)?.name || "—" : s.workshopName, hue: sessionHue(s, colorBy, types, refs.programs) });
-    }
-    return [...seen.values()];
-  })();
-  // Drag a card to move it (sideways = another day), or its bottom edge to change the length. Managers only.
-  const dragApi: DragApi | undefined = isManager ? {
-    can: s => !s.fixedBlock && !!s.changeId && s.kind !== "cancelled" && s.kind !== "moved-away",
-    conflict: (s, to) => {
-      const warn: string[] = [];
-      for (const id of s.staffIds) {
-        if (absences.some(a => a.userId === id && a.date === to.date)) warn.push(`${nameOf(id)} בהיעדרות`);
-        const busy = staffBusyAt(id, to.date, to.start, to.end, all, s.workshopId);
-        if (busy) warn.push(`${nameOf(id)} משובץ ב"${busy.workshopName}"`);
-      }
-      const room = s.locationId && all.find(o => o.id !== s.id && !o.fixedBlock && o.kind !== "cancelled" && o.kind !== "moved-away" && o.locationId === s.locationId && o.date === to.date && o.start < to.end && to.start < o.end);
-      if (room) warn.push(`${roomOf(s.locationId)} תפוס ב"${room.workshopName}"`);
-      if (closedFor(s.programId, to.date)) warn.push("יום ללא פעילות");
-      return warn.slice(0, 3).join(" · ") || undefined;
-    },
-    onDrop: async (s, to) => {
-      try {
-        // Sideways within the day: remember the side for the whole workshop (sessions run in parallel stay where you put them).
-        const { lane, ...when } = to;
-        const prevHint = workshopById.get(s.workshopId)?.laneHint;
-        if (lane !== undefined) await updateDoc(doc(db, "workshops", s.workshopId), { laneHint: lane });
-        const moved = when.date !== s.date || when.start !== s.start || when.end !== s.end;
-        const undoMove = moved ? await moveSession(s, when, user?.uid) : null;
-        const undo = async () => {
-          await undoMove?.();
-          if (lane !== undefined) await updateDoc(doc(db, "workshops", s.workshopId), { laneHint: prevHint ?? deleteField() });
-        };
-        setToast({ text: moved ? `${s.workshopName} עודכן ל-${to.date !== s.date ? `${shortDate(to.date)} ` : ""}${to.start}–${to.end}` : `${s.workshopName} הועבר לצד אחר ביומן`, undo: async () => { await undo(); load(); } });
-        load();
-      } catch { setToast({ text: "השינוי לא נשמר. נסה שוב." }); }
-    },
-  } : undefined;
-  const addFor = (date: string, programId?: string) => (isManager && mode === "program" ? () => setCreating({ date, programId }) : undefined);
-  const laneGroups = programSel[0] && !groupSel[0] ? refs.groups.filter(g => g.programId === programSel[0]) : [];
-  const weekLanes: "groups" | "stable" = (() => {
-    const p = programOf(programSel[0]);
-    if (!p || laneGroups.length < 2) return "stable";
-    return p.laneMode !== "auto" || groupsRunInParallel(sessions) ? "groups" : "stable";
-  })();
-  const columns: Column[] = view === "week"
-    ? days.map(d => {
-        const date = dates[d];
-        const sub = closedFor(programSel[0] || null, date);
-        return {
-          id: date, date, today: date === today, sessions: sessions.filter(s => s.date === date), laneMode: weekLanes, groupIds: laneGroups.map(g => g.id),
-          showGroups: weekLanes === "stable" && !groupSel[0],
-          header: <span className="flex flex-col items-center leading-none" aria-label={`יום ${DAY_FULL[dayOf(date)]} ${shortDate(date)}`}><span className="text-xs font-medium text-[var(--cal-muted)]">{DAY_FULL[dayOf(date)]}</span><span className={`mt-1 inline-flex items-center justify-center min-w-8 h-8 px-1 rounded-full text-xl font-bold tabular-nums ${date === today ? "bg-[var(--accent)] text-white" : ""}`}>{format(new Date(`${date}T12:00:00`), "d")}</span><span className="mt-0.5 text-[11px] text-[var(--cal-faint)] tabular-nums">{format(new Date(`${date}T12:00:00`), "MMM", { locale: he })}</span></span>,
-          sub, onAdd: addFor(date, programSel[0]),
-        };
-      })
-    : rows.map(row => ({
-        id: row.id, sessions: sessions.filter(s => s.date === selectedDay && row.match(s)), laneMode: "stable" as const,
-        today: selectedDay === today, header: <span className="block truncate text-sm font-bold pb-0.5" title={row.label}>{row.label}</span>,
-        sub: row.closedReason(selectedDay), onAdd: addFor(selectedDay, row.id.split(":")[0]),
-      }));
-  const currentProgram = programSel[0] ? programOf(programSel[0]) : undefined;
   const moveDay = (delta: number) => {
     const d = addDays(new Date(`${selectedDay}T12:00:00`), delta);
     setSelectedDay(toISO(d));
@@ -383,8 +300,166 @@ export default function SchedulePage() {
     const t = new Date();
     jumpTo(!isMobile || navDays.includes(t.getDay()) ? t : nextActive(t, 1));
   };
+  useEffect(() => { stepRef.current = step; goTodayRef.current = goToday; onlyProgramRef.current = onlyProgram; });
+  const keys = useRef<(e: KeyboardEvent) => void>(() => {});
+  const stepRef = useRef<(d: 1 | -1) => void>(() => {});
+  const goTodayRef = useRef<() => void>(() => {});
+  const onlyProgramRef = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    keys.current = e => {
+      const el = e.target as HTMLElement | null;
+      if (el && (/^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName) || el.isContentEditable)) return;
+      if (editing || creating || showCopy || showShift || series || settingsFor || showChanges || showClosures || showTypes || showHelp) return;
+      const k = e.key.toLowerCase();
+      if (e.ctrlKey || e.metaKey) {
+        if (!isManager) return;
+        if (k === "c" && hovered.current && !hovered.current.fixedBlock && !window.getSelection()?.toString()) {
+          e.preventDefault(); const s = hovered.current; setClip(s);
+          setToast({ text: `הועתק: ${s.workshopName}. Ctrl+V להדבקה` });
+        } else if (k === "v" && clip) {
+          e.preventDefault();
+          setCreating({ date: view === "day" ? selectedDay : dates.includes(today) ? today : dates[0], programId: clip.programId,
+            prefill: { name: clip.workshopName, kind: clip.activity, groupIds: clip.groupIds, start: clip.start, end: clip.end, locationId: clip.locationId, staffIds: clip.staffIds } });
+        }
+        return;
+      }
+      if (e.altKey) return;
+      // Days run right-to-left: the right arrow goes back, the left arrow forward.
+      if (e.key === "ArrowRight") { e.preventDefault(); stepRef.current(-1); }
+      else if (e.key === "ArrowLeft") { e.preventDefault(); stepRef.current(1); }
+      else if (k === "t") goTodayRef.current();
+      else if (k === "d") setView("day");
+      else if (k === "w") setView("week");
+      else if (k === "n" && isManager) { e.preventDefault(); setCreating({ date: view === "day" ? selectedDay : dates.includes(today) ? today : dates[0], programId: onlyProgramRef.current }); }
+      else if (k === "/") { e.preventDefault(); setSearching(true); }
+      else if (e.key === "?") setShowHelp(true);
+    };
+  });
+  useEffect(() => { const on = (e: KeyboardEvent) => keys.current(e); window.addEventListener("keydown", on); return () => window.removeEventListener("keydown", on); }, []);
+
+  if (loading || !refs) return <PageSkeleton />;
+
+  const rangeLabel = `${format(weekStart, "d.M")} – ${format(addDays(weekStart, 6), "d.M.yyyy")}`; // print title only
+  const programOf = (id: string) => refs.programs.find(p => p.id === id);
+  const workshopById = new Map(workshops.map(w => [w.id, w]));
+  const laneHints = Object.fromEntries(workshops.filter(w => w.laneHint !== undefined).map(w => [w.id, w.laneHint!]));
+  // Programs with several groups: what is shared by groups, and shared activities that run into a group's own one (rarely meant).
+  const multiGroup = (programId: string) => refs.groups.filter(g => g.programId === programId).length > 1;
+  const jointOf = (s: Session) => !s.fixedBlock && !s.band && multiGroup(s.programId) && s.groupIds.length !== 1;
+  const soft = new Map<string, string[]>();
+  for (const j of sessions) {
+    if (!jointOf(j) || j.kind === "cancelled") continue;
+    for (const o of sessions) {
+      if (o.id === j.id || o.date !== j.date || o.programId !== j.programId || o.groupIds.length !== 1 || o.fixedBlock || o.band || o.kind === "cancelled") continue;
+      if (j.groupIds.length && !j.groupIds.includes(o.groupIds[0])) continue;
+      if (!(o.start < j.end && j.start < o.end)) continue;
+      soft.set(j.id, [...(soft.get(j.id) || []), `חופף לפעילות של ${groupName(o.groupIds[0])}: ${o.workshopName}`]);
+      soft.set(o.id, [...(soft.get(o.id) || []), `חופף לפעילות משותפת: ${j.workshopName}`]);
+    }
+  }
+  const common = {
+    sessions, warnings, soft, jointOf,
+    groupHue: (id: string) => groupHue(id, refs.groups, refs.programs), nameOf, roomOf, groupsOf, showGroups: programSel.length !== 1,
+    programTag: (s: Session) => (programSel.length !== 1 && !frames ? programShort(programOf(s.programId)) : undefined),
+    hueOf: (s: Session) => sessionHue(s, colorBy, types, refs.programs),
+    typeLabel: (s: Session) => (s.activity !== "workshop" && !s.band ? typeById(types, s.activity).label : undefined),
+    dim: (s: Session) => (focusKey !== null && legendKey(s) !== focusKey) || (needle !== "" && !matches(s)),
+    peekNames: (s: Session) => (s.fixedBlock || !s.hasParticipants ? [] : firstNames(participantsOf(s, workshopById.get(s.workshopId), patients))),
+    countOf: (s: Session) => {
+      if (s.fixedBlock) return undefined;
+      if (s.audience === "staff") return s.staffIds.length || undefined;
+      if (!s.hasParticipants) return undefined;
+      const n = participantsOf(s, workshopById.get(s.workshopId), patients).length;
+      return n || undefined;
+    },
+    // A fixed meal/break opens its program's schedule settings; everything else opens the session.
+    onHover: (s: Session | null) => { hovered.current = s; },
+    onOpen: (s: Session) => (s.fixedBlock ? (isManager && setSettingsFor(s.programId)) : setEditing({ session: s })),
+  };
+  // Search: names of the session, people, room, groups and participants; what does not match fades.
+  const needle = query.trim().toLowerCase();
+  const matches = (s: Session) => [s.workshopName, s.note, roomOf(s.locationId), ...s.staffIds.map(nameOf), groupsOf(s.groupIds), ...(s.fixedBlock || !s.hasParticipants ? [] : firstNames(participantsOf(s, workshopById.get(s.workshopId), patients)))]
+    .some(v => !!v && v.toLowerCase().includes(needle));
+  const hits = needle ? sessions.filter(matches).length : 0;
+  const legendKey = (s: Session) => (colorBy === "type" ? s.activity : colorBy === "program" ? s.programId : s.workshopId);
+  const focusKey = focus;
+  const legend = (() => {
+    const seen = new Map<string, { key: string; label: string; hue: number }>();
+    for (const s of sessions) {
+      const k = legendKey(s);
+      if (!seen.has(k)) seen.set(k, { key: k, label: colorBy === "type" ? typeById(types, s.activity).label : colorBy === "program" ? programOf(s.programId)?.name || "—" : s.workshopName, hue: sessionHue(s, colorBy, types, refs.programs) });
+    }
+    return [...seen.values()];
+  })();
+  // Drag a card to move it (sideways = another day), or its bottom edge to change the length. Managers only.
+  const dragApi: DragApi | undefined = isManager ? {
+    can: s => !s.fixedBlock && !!s.changeId && s.kind !== "cancelled" && s.kind !== "moved-away",
+    conflict: (s, to) => {
+      const c = clashesAt({ staffIds: s.staffIds, locationId: s.locationId, ...to, ignoreWorkshopId: s.workshopId, ignoreSessionId: s.id }, all, absences, roomOf);
+      const warn = [...[...c.staff].map(([id, why]) => `${nameOf(id)} ${why}`), ...(c.room ? [c.room] : []), ...(closedFor(s.programId, to.date) ? ["יום ללא פעילות"] : [])];
+      return warn.slice(0, 3).join(" · ") || undefined;
+    },
+    onDrop: async (s, to, copy) => {
+      try {
+        if (copy) {
+          // Ctrl/Alt + drag: a copy at the new place (a one-off session of the same workshop), the original stays.
+          const ref = doc(collection(db, "session_changes"));
+          await setDoc(ref, {
+            workshopId: s.workshopId, slotId: null, originalDate: null, newDate: to.date, newStart: to.start, newEnd: to.end,
+            staffIds: s.staffIds, locationId: s.locationId || "", note: s.note || "", kind: s.activity, title: s.workshopName,
+            dates: [to.date], published: false, updatedAt: serverTimestamp(), updatedBy: user?.uid || null,
+          });
+          setToast({ text: `${s.workshopName} הועתק ל-${to.date !== s.date ? `${shortDate(to.date)} ` : ""}${to.start}–${to.end}`, undo: async () => { await deleteDoc(ref); load(); } });
+          load();
+          return;
+        }
+        // Sideways within the day: remember the side for the whole workshop (sessions run in parallel stay where you put them).
+        const { lane, ...when } = to;
+        const prevHint = workshopById.get(s.workshopId)?.laneHint;
+        if (lane !== undefined) await updateDoc(doc(db, "workshops", s.workshopId), { laneHint: lane });
+        const moved = when.date !== s.date || when.start !== s.start || when.end !== s.end;
+        const undoMove = moved ? await moveSession(s, when, user?.uid) : null;
+        const undo = async () => {
+          await undoMove?.();
+          if (lane !== undefined) await updateDoc(doc(db, "workshops", s.workshopId), { laneHint: prevHint ?? deleteField() });
+        };
+        setToast({ text: moved ? `${s.workshopName} עודכן ל-${to.date !== s.date ? `${shortDate(to.date)} ` : ""}${to.start}–${to.end}` : `${s.workshopName} הועבר לצד אחר ביומן`, undo: async () => { await undo(); load(); } });
+        load();
+      } catch { setToast({ text: "השינוי לא נשמר. נסה שוב." }); }
+    },
+  } : undefined;
+  const addFor = (date: string, programId?: string) => (isManager && mode === "program" ? (start?: string) => setCreating({ date, programId, start }) : undefined);
+  const laneGroups = onlyProgram && !groupSel[0] ? refs.groups.filter(g => g.programId === onlyProgram) : [];
+  const weekLanes: "groups" | "stable" = (() => {
+    const p = programOf(onlyProgram || "");
+    if (!p || laneGroups.length < 2) return "stable";
+    return p.laneMode !== "auto" || groupsRunInParallel(sessions) ? "groups" : "stable";
+  })();
+  // Several programs on screen: one fixed lane per program, the same on every day, in the program's own colour.
+  const frameList = mode === "program" && programSel.length !== 1 && shownPrograms.length >= 2 && shownPrograms.length <= 4 ? shownPrograms : [];
+  const frames = frameList.length ? {
+    labels: frameList.map(p => p.name), hues: frameList.map(p => programHue(p)),
+    frameOf: (s: Session) => { const i = frameList.findIndex(p => p.id === s.programId); return i < 0 ? [] : [i]; },
+  } : undefined;
+  const columns: Column[] = view === "week"
+    ? days.map(d => {
+        const date = dates[d];
+        const sub = closedFor(onlyProgram || null, date);
+        return {
+          id: date, date, today: date === today, sessions: sessions.filter(s => s.date === date), laneMode: frames ? "frames" as const : weekLanes, groupIds: laneGroups.map(g => g.id), frames,
+          showGroups: !frames && weekLanes === "stable" && !groupSel[0],
+          header: <span className="flex flex-col items-center leading-none" aria-label={`יום ${DAY_FULL[dayOf(date)]} ${shortDate(date)}`}><span className="text-xs font-medium text-[var(--cal-muted)]">{DAY_FULL[dayOf(date)]}</span><span className={`mt-1 inline-flex items-center justify-center min-w-8 h-8 px-1 rounded-full text-xl font-bold tabular-nums ${date === today ? "bg-[var(--accent)] text-white" : ""}`}>{format(new Date(`${date}T12:00:00`), "d")}</span><span className="mt-0.5 text-[11px] text-[var(--cal-faint)] tabular-nums">{format(new Date(`${date}T12:00:00`), "MMM", { locale: he })}</span></span>,
+          sub, onAdd: addFor(date, onlyProgram),
+        };
+      })
+    : rows.map(row => ({
+        id: row.id, sessions: sessions.filter(s => s.date === selectedDay && row.match(s)), laneMode: "stable" as const,
+        today: selectedDay === today, header: <span className="block truncate text-sm font-bold pb-0.5" title={row.label}>{row.label}</span>,
+        sub: row.closedReason(selectedDay), onAdd: addFor(selectedDay, row.id.split(":")[0]),
+      }));
+  const currentProgram = onlyProgram ? programOf(onlyProgram) : undefined;
   const dayLabel = `${DAY_FULL[dayOf(selectedDay)]} ${shortDate(selectedDay)}`;
-  const dayUrl = `/schedule/day?date=${selectedDay}${programSel[0] ? `&program=${programSel[0]}` : ""}${groupSel[0] ? `&group=${groupSel[0]}` : ""}`;
+  const dayUrl = `/schedule/day?date=${selectedDay}${onlyProgram ? `&program=${onlyProgram}` : ""}${groupSel[0] ? `&group=${groupSel[0]}` : ""}`;
   const activeWorkshops = workshops.filter(w => w.status === "active");
 
   return (
@@ -394,11 +469,7 @@ export default function SchedulePage() {
         <header className="no-print sticky top-0 z-30 bg-white border-b border-[var(--cal-frame)]">
           <div className="px-3 md:px-4 py-2 flex flex-wrap items-center gap-x-3 gap-y-2">
             {/* 1. What am I looking at: program, then its group. */}
-            <select value={programSel[0] || ""} onChange={e => pickProgram(e.target.value)} aria-label="תוכנית"
-              className="text-sm font-bold bg-transparent border border-[var(--cal-frame)] rounded-lg px-2.5 h-8 max-w-[11rem] focus:border-[var(--accent)] outline-none">
-              <option value="">כל התוכניות</option>
-              {refs.programs.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-            </select>
+            <ProgramPicker programs={refs.programs} selected={programSel} onChange={setPrograms} />
             {groupOptions.length > 1 && (
               <select value={groupSel[0] || ""} onChange={e => pickGroup(e.target.value)} aria-label="קבוצה"
                 className="hidden md:block text-sm bg-transparent border border-[var(--cal-frame)] rounded-lg px-2.5 h-8 max-w-[10rem] focus:border-[var(--accent)] outline-none">
@@ -411,11 +482,29 @@ export default function SchedulePage() {
             <div className="flex items-center mx-auto">
               <button onClick={() => step(-1)} aria-label="הקודם" className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[var(--foreground)]/5"><ChevronRight className="w-4 h-4" /></button>
               {/* Separate spans: a single string gets its parts reordered by the RTL bidi algorithm. */}
-              <span className="flex items-center gap-1 text-base font-bold tabular-nums min-w-[9rem] justify-center">
-                {view === "day" ? <span>{dayLabel}</span> : <><span>{format(weekStart, "d.M")}</span><span className="text-[var(--foreground)]/40">–</span><span>{format(addDays(weekStart, 6), "d.M")}</span></>}
+              <span className="relative">
+                <button onClick={() => setJumpOpen(o => !o)} aria-label="קפיצה לתאריך" aria-expanded={jumpOpen}
+                  className="flex items-center gap-1 text-base font-bold tabular-nums min-w-[9rem] justify-center h-8 rounded-lg hover:bg-[var(--foreground)]/5">
+                  {view === "day" ? <span>{dayLabel}</span> : <><span>{format(weekStart, "d.M")}</span><span className="text-[var(--foreground)]/40">–</span><span>{format(addDays(weekStart, 6), "d.M")}</span></>}
+                </button>
+                {jumpOpen && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setJumpOpen(false)} />
+                    <div className="absolute top-full mt-1 start-1/2 -translate-x-1/2 z-50"><MiniCalendar value={selectedDay} range={view === "day" ? "day" : "week"} onPick={iso => { jumpTo(parseISO(iso)); setJumpOpen(false); }} /></div>
+                  </>
+                )}
               </span>
               <button onClick={() => step(1)} aria-label="הבא" className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[var(--foreground)]/5"><ChevronLeft className="w-4 h-4" /></button>
             </div>
+            {searching ? (
+              <div className="flex items-center gap-1.5">
+                <input ref={searchRef} autoFocus value={query} onChange={e => setQuery(e.target.value)} placeholder="חיפוש: שם, מדריך, מרחב, משתתף" aria-label="חיפוש ביומן"
+                  onKeyDown={e => { if (e.key === "Escape") { setQuery(""); setSearching(false); } }}
+                  className="text-sm border border-[var(--cal-frame)] rounded-lg px-2.5 h-8 w-52 focus:border-[var(--accent)] outline-none" />
+                {needle && <span className="text-xs text-[var(--cal-muted)] tabular-nums">{hits} תוצאות</span>}
+                <button onClick={() => { setQuery(""); setSearching(false); }} aria-label="סגור חיפוש" className="w-8 h-8 rounded-lg hover:bg-[var(--foreground)]/5">✕</button>
+              </div>
+            ) : <button onClick={() => setSearching(true)} aria-label="חיפוש" title="חיפוש (/)" className="w-8 h-8 flex items-center justify-center rounded-lg border border-[var(--cal-frame)] hover:bg-[var(--foreground)]/5"><Search className="w-4 h-4" /></button>}
             {!atCurrent && <button onClick={goToday} className="text-sm px-3 h-8 rounded-lg border border-[var(--cal-frame)] hover:bg-[var(--foreground)]/5">היום</button>}
 
             {/* 3. How: view and actions. */}
@@ -427,7 +516,7 @@ export default function SchedulePage() {
                 ))}
               </div>
               {isManager && (
-                <button onClick={() => setCreating({ date: view === "day" ? selectedDay : dates.includes(today) ? today : dates[0], programId: programSel[0] })}
+                <button onClick={() => setCreating({ date: view === "day" ? selectedDay : dates.includes(today) ? today : dates[0], programId: onlyProgram })}
                   aria-label="אירוע חדש" className={`${btnPrimary} flex items-center gap-1.5 !px-3 !py-0 h-8`}>
                   <Plus className="w-4 h-4" /><span className="hidden sm:inline">אירוע</span>
                 </button>
@@ -453,6 +542,7 @@ export default function SchedulePage() {
                     {isManager && <>
                       <li className="border-t border-[var(--border)] my-1" />
                       <li><button className="w-full text-right px-3 py-2 hover:bg-[var(--foreground)]/5" onClick={() => { setMenuOpen(false); setShowShift(true); }}>דחיית מפגשי היום</button></li>
+                      <li><button className="w-full text-right px-3 py-2 hover:bg-[var(--foreground)]/5" onClick={() => { setMenuOpen(false); setShowCopy(true); }}>העתקת לוז…</button></li>
                       <li><button className="w-full text-right px-3 py-2 hover:bg-[var(--foreground)]/5" onClick={() => { setMenuOpen(false); setShowTypes(true); }}>סוגי פעילות</button></li>
                       <li><button className="w-full text-right px-3 py-2 hover:bg-[var(--foreground)]/5" onClick={() => { setMenuOpen(false); setSeries({}); }}>ימי פעילות קבועים</button></li>
                       <li><button className="w-full text-right px-3 py-2 hover:bg-[var(--foreground)]/5" onClick={() => { setMenuOpen(false); setShowClosures(true); }}>ימים ללא פעילות</button></li>
@@ -484,7 +574,7 @@ export default function SchedulePage() {
             {isManager && unpublished.length > 0 && (
               <>
                 <span className="text-[var(--foreground)]/60 flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-amber-500" />{unpublished.length} טרם פורסמו לצוות</span>
-                <button onClick={publish} disabled={publishing} className={`${btnPrimary} mr-auto !py-1`}>פרסם ועדכן צוות</button>
+                <button onClick={openPublish} className={`${btnPrimary} mr-auto !py-1`}>פרסם ועדכן צוות…</button>
               </>
             )}
           </div>
@@ -505,7 +595,7 @@ export default function SchedulePage() {
               selected={selectedDay} setSelected={setSelectedDay} canEdit={isManager}
               groupChips={groupOptions.length > 1 ? groupOptions.map(g => ({ ...g, hue: groupHue(g.id, refs.groups, refs.programs) })) : undefined}
               groupPicked={groupSel[0] || ""} onPickGroup={pickGroup}
-              onAdd={date => setCreating({ date, programId: programSel.length === 1 ? programSel[0] : undefined })} />
+              onAdd={date => setCreating({ date, programId: onlyProgram })} />
           </div>
         )}
 
@@ -518,11 +608,12 @@ export default function SchedulePage() {
             groupNames={editing.session ? editing.session.groupIds.map(groupName).filter(Boolean) : []}
             participants={editing.session ? firstNames(participantsOf(editing.session, workshopById.get(editing.session.workshopId), patients)) : []}
             busyFor={(staffId, date, start, end, workshopId) =>
-              absences.some(a => a.userId === staffId && a.date === date) ? "בהיעדרות" : staffBusyAt(staffId, date, start, end, all, workshopId)?.workshopName}
+              clashesAt({ staffIds: [staffId], date, start, end, ignoreWorkshopId: workshopId }, all, absences, roomOf).staff.get(staffId)}
             warnings={editing.session ? warnings.get(editing.session.id) || [] : []}
             userId={user?.uid} onClose={() => setEditing(null)}
             onEditSeries={id => { setEditing(null); setSeries({ id }); }}
-            onSaved={() => { setEditing(null); load(); }}
+            onDuplicate={s => { setEditing(null); setCreating({ date: s.date, programId: s.programId, prefill: { name: s.workshopName, kind: s.activity, groupIds: s.groupIds, start: s.start, end: s.end, locationId: s.locationId, staffIds: s.staffIds } }); }}
+            onSaved={undo => { setEditing(null); if (undo) setToast({ text: "השינוי נשמר", undo: async () => { await undo(); load(); } }); load(); }}
           />
         )}
 
@@ -556,7 +647,34 @@ export default function SchedulePage() {
         )}
         {showShift && (
           <DayShiftDialog date={selectedDay} userId={user?.uid} scopeLabel={currentProgram ? currentProgram.name : "כל התוכניות"}
-            sessions={sessions} onClose={() => setShowShift(false)} onSaved={() => { setShowShift(false); load(); }} />
+            sessions={sessions} onClose={() => setShowShift(false)} onSaved={undo => { setShowShift(false); if (undo) setToast({ text: "המפגשים נדחו", undo: async () => { await undo(); load(); } }); load(); }} />
+        )}
+        {preview && (
+          <Dialog title="פרסום שינויים לצוות" subtitle={`${preview.lines.size} אנשי צוות יקבלו הודעה. אפשר להשמיט אנשים מהשליחה.`} onClose={() => setPreview(null)}
+            footer={<><button onClick={publish} disabled={publishing} className={btnPrimary}>שלח ופרסם</button><button onClick={() => setPreview(null)} className={btnGhost}>ביטול</button></>}>
+            <ul className="divide-y divide-[var(--border)] text-sm">
+              {[...preview.lines].map(([uid, l]) => (
+                <li key={uid} className="py-2">
+                  <label className="flex items-center gap-2 font-bold cursor-pointer"><input type="checkbox" checked={!preview.skip.has(uid)} onChange={() => setPreview(p => { if (!p) return p; const skip = new Set(p.skip); if (skip.has(uid)) skip.delete(uid); else skip.add(uid); return { ...p, skip }; })} />{nameOf(uid)}</label>
+                  <ul className="mt-1 ps-6 text-xs text-[var(--foreground)]/65 space-y-0.5">{l.map(x => <li key={x}>{x}</li>)}</ul>
+                </li>
+              ))}
+              {preview.lines.size === 0 && <li className="py-2 text-[var(--foreground)]/55">אין אנשי צוות מושפעים. השינויים יסומנו כמפורסמים בלי הודעות.</li>}
+            </ul>
+          </Dialog>
+        )}
+        {showHelp && (
+          <Dialog title="קיצורי מקלדת" onClose={() => setShowHelp(false)}>
+            <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-sm">
+              {([["→ / ←", "הקודם / הבא"], ["T", "היום"], ["D / W", "תצוגת יום / שבוע"], ["/", "חיפוש"], ["N", "אירוע חדש"], ["Ctrl+C / Ctrl+V", "העתקת מפגש (מעל כרטיס) והדבקה"], ["Ctrl + גרירה", "העתקה בגרירה"], ["Esc", "סגירה"], ["?", "חלון זה"]] as const).map(([k, v]) => (
+                <div key={k} className="contents"><dt><kbd dir="ltr" className="px-1.5 py-0.5 rounded bg-[var(--btn-soft)] text-xs font-semibold">{k}</kbd></dt><dd>{v}</dd></div>
+              ))}
+            </dl>
+          </Dialog>
+        )}
+        {showCopy && (
+          <CopyScheduleDialog refs={refs} workshops={workshops} sessions={all} dates={dates} selectedDay={selectedDay} programId={onlyProgram} userId={user?.uid}
+            onClose={() => setShowCopy(false)} onDone={(text, undo) => { setToast({ text, undo: async () => { await undo(); load(); } }); load(); }} />
         )}
         {toast && (
           <div role="status" className="no-print fixed bottom-20 md:bottom-6 inset-x-0 z-[70] mx-auto w-fit max-w-[92vw] flex items-center gap-3 bg-[#2b1e17] text-white text-sm pl-3 pr-4 py-2.5 rounded-lg shadow-[0_8px_24px_rgba(0,0,0,0.3)]">
@@ -565,50 +683,106 @@ export default function SchedulePage() {
           </div>
         )}
         {creating && (
-          <NewEventDialog refs={refs} types={types} initial={creating} userId={user?.uid} onClose={() => setCreating(null)}
+          <NewEventDialog refs={refs} types={types} initial={creating} existing={all}
+            busyFor={(id, date, start, end) => clashesAt({ staffIds: [id], date, start, end }, all, absences, roomOf).staff.get(id)}
+            roomBusy={(loc, date, start, end) => clashesAt({ staffIds: [], locationId: loc, date, start, end }, all, absences, roomOf).room}
+            userId={user?.uid} onClose={() => setCreating(null)}
             onSaved={() => { setCreating(null); load(); }}
             onExisting={() => { setEditing({ session: null, extra: creating }); setCreating(null); }} />
         )}
         {showTypes && <ActivityTypesDialog types={types} programs={refs.programs} onClose={() => setShowTypes(false)} onSaved={() => { setShowTypes(false); load(); }} />}
-        {showClosures && <ClosuresDialog dates={dates} closures={closures} refs={refs} onClose={() => setShowClosures(false)} onChanged={load} />}
+        {showClosures && <ClosuresDialog dates={dates} refs={refs} onClose={() => setShowClosures(false)} onChanged={load} />}
       </div>
     </RoleGuard>
   );
 }
 
-function ClosuresDialog({ dates, closures, refs, onClose, onChanged }: {
-  dates: string[]; closures: Closure[]; refs: Refs; onClose: () => void; onChanged: () => void;
+/** Which programs to show side by side: none ticked = all of them. A popover of checkboxes, each in its own colour. */
+function ProgramPicker({ programs, selected, onChange }: { programs: Program[]; selected: string[]; onChange: (ids: string[]) => void }) {
+  const [open, setOpen] = useState(false);
+  const label = selected.length === 0 ? "כל התוכניות" : selected.length === 1 ? programs.find(p => p.id === selected[0])?.name || "תוכנית" : `${selected.length} תוכניות`;
+  const toggle = (id: string) => onChange(selected.includes(id) ? selected.filter(x => x !== id) : [...selected, id]);
+  return (
+    <div className="relative">
+      <button onClick={() => setOpen(o => !o)} aria-expanded={open} aria-haspopup="true" aria-label="תוכניות"
+        className="text-sm font-bold border border-[var(--cal-frame)] rounded-lg px-2.5 h-8 max-w-[12rem] truncate focus:border-[var(--accent)] outline-none">{label} ▾</button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
+          <div className="absolute start-0 top-full mt-1 z-50 w-60 bg-white border border-[var(--border)] rounded-xl shadow-lg py-1 text-sm max-h-[calc(100dvh-9rem)] overflow-y-auto">
+            <button className="w-full text-start px-3 py-1.5 hover:bg-[var(--foreground)]/5 font-semibold" onClick={() => { onChange([]); setOpen(false); }}>כל התוכניות</button>
+            {programs.map(p => (
+              <label key={p.id} className="flex items-center gap-2 px-3 py-1.5 cursor-pointer hover:bg-[var(--foreground)]/5">
+                <input type="checkbox" checked={selected.includes(p.id)} onChange={() => toggle(p.id)} />
+                <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ backgroundColor: hueStyle(programHue(p)).bar }} aria-hidden />
+                <span className="flex-1 truncate">{p.name}</span>
+                <span className="text-xs text-[var(--cal-faint)]">{programShort(p)}</span>
+                <button type="button" className="text-xs underline text-[var(--cal-muted)]" onClick={e => { e.preventDefault(); onChange([p.id]); setOpen(false); }}>רק זו</button>
+              </label>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function ClosuresDialog({ dates, refs, onClose, onChanged }: {
+  dates: string[]; refs: Refs; onClose: () => void; onChanged: () => void;
 }) {
   const [date, setDate] = useState(dates[0]);
+  const [until, setUntil] = useState("");
   const [reason, setReason] = useState("");
   const [programId, setProgramId] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [list, setList] = useState<Closure[]>([]);
+  const refresh = useCallback(async () => {
+    const snap = await getDocs(query(collection(db, "closures"), where("date", ">=", toISO(new Date()))));
+    setList(snap.docs.map(d => ({ id: d.id, ...d.data() } as Closure)).sort((a, b) => a.date.localeCompare(b.date)));
+  }, []);
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- loads the list once when the dialog opens
+  useEffect(() => { refresh(); }, [refresh]);
+  const last = until && until >= date ? until : date;
+  const days = rangeDates(date, last);
+  const wanted = programId ? [programId] : [];
+  const taken = (d: string) => list.some(c => c.date === d && c.programIds.join() === wanted.join());
+  const fresh = days.filter(d => !taken(d));
   const add = async () => {
-    await addDoc(collection(db, "closures"), { date, reason: reason.trim() || "אין פעילות", programIds: programId ? [programId] : [] });
-    setReason(""); onChanged();
+    if (saving || !fresh.length) return;
+    setSaving(true);
+    try {
+      const batch = writeBatch(db);
+      fresh.forEach(d => batch.set(doc(collection(db, "closures")), { date: d, reason: reason.trim() || "אין פעילות", programIds: wanted }));
+      await batch.commit();
+      setReason(""); setUntil(""); await refresh(); onChanged();
+    } finally { setSaving(false); }
   };
-  const remove = async (id: string) => { await deleteDoc(doc(db, "closures", id)); onChanged(); };
+  const remove = async (id: string) => { await deleteDoc(doc(db, "closures", id)); await refresh(); onChanged(); };
   return (
     <Dialog title="ימים ללא פעילות" onClose={onClose}>
-      <p className="text-xs text-[var(--foreground)]/60">חגים, אירועים מוסדיים וכד׳. מפגשים שנופלים על היום הזה לא יופיעו ביומן.</p>
-      <ul className="divide-y divide-[var(--border)] text-sm">
-        {closures.map(c => (
+      <p className="text-xs text-[var(--foreground)]/60">חגים, אירועים מוסדיים וכד׳. מפגשים שנופלים על היום הזה לא יופיעו ביומן. מוצגים הימים מהיום והלאה.</p>
+      <ul className="divide-y divide-[var(--border)] text-sm max-h-56 overflow-y-auto">
+        {list.map(c => (
           <li key={c.id} className="py-2 flex items-center gap-2">
             <span className="tabular-nums">{shortDate(c.date)}</span>
             <span className="flex-1">{c.reason}{c.programIds.length ? ` · ${refs.programs.find(p => p.id === c.programIds[0])?.name}` : " · כל התוכניות"}</span>
             <button onClick={() => remove(c.id)} className="text-xs text-rose-500 underline">הסר</button>
           </li>
         ))}
-        {closures.length === 0 && <li className="py-2 text-[var(--foreground)]/50">אין ימים כאלה בשבוע הזה.</li>}
+        {list.length === 0 && <li className="py-2 text-[var(--foreground)]/50">אין ימים כאלה קדימה.</li>}
       </ul>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
-        <div><label className={labelCls}>תאריך</label><input type="date" className={fieldCls} value={date} onChange={e => setDate(e.target.value)} /></div>
+        <div><label className={labelCls}>מתאריך</label><input type="date" className={fieldCls} value={date} onChange={e => setDate(e.target.value)} /></div>
+        <div><label className={labelCls}>עד תאריך (לחג של כמה ימים, לא חובה)</label><input type="date" className={fieldCls} value={until} min={date} onChange={e => setUntil(e.target.value)} /></div>
         <div><label className={labelCls}>תוכנית</label>
           <select className={fieldCls} value={programId} onChange={e => setProgramId(e.target.value)}>
             <option value="">כל התוכניות</option>{refs.programs.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
           </select></div>
-        <div className="sm:col-span-2"><label className={labelCls}>סיבה</label><textarea rows={2} className={fieldCls} value={reason} placeholder="סוכות, יום כיף…" onChange={e => setReason(e.target.value)} /></div>
+        <div><label className={labelCls}>סיבה</label><input className={fieldCls} value={reason} placeholder="סוכות, יום כיף…" onChange={e => setReason(e.target.value)} /></div>
       </div>
-      <button onClick={add} disabled={!date} className={btnPrimary}>הוסף</button>
+      {days.length > 1 && <p className="text-xs text-[var(--foreground)]/60">{fresh.length} ימים יתווספו{fresh.length < days.length ? ` (${days.length - fresh.length} כבר סגורים)` : ""}.</p>}
+      {days.length === 1 && !fresh.length && <p className="text-xs text-[#8a5a00]">היום הזה כבר סגור.</p>}
+      <button onClick={add} disabled={!date || saving || !fresh.length} className={btnPrimary}>הוסף</button>
     </Dialog>
   );
 }

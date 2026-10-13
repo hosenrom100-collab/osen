@@ -2,19 +2,15 @@
 
 import { useState } from "react";
 import { db } from "@/lib/firebase/config";
-import { doc, serverTimestamp, setDoc } from "firebase/firestore";
+import { deleteDoc, doc, serverTimestamp, setDoc } from "firebase/firestore";
 import { Dialog, fieldCls, labelCls, btnPrimary, btnGhost } from "./Dialog";
 import { Session, DAY_FULL } from "@/lib/workshops/types";
-import { dayOf, shortDate } from "@/lib/workshops/dates";
+import { addMinutes, dayOf, shortDate } from "@/lib/workshops/dates";
 
-const addMinutes = (t: string, d: number) => {
-  const m = Math.min(23 * 60 + 59, Math.max(0, Number(t.slice(0, 2)) * 60 + Number(t.slice(3)) + d));
-  return `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
-};
 
 /** "Everything from 11:00 is 30 minutes late" — shifts every live session of the day in one go. */
 export function DayShiftDialog({ date, sessions, scopeLabel, userId, onClose, onSaved }: {
-  date: string; sessions: Session[]; scopeLabel: string; userId?: string; onClose: () => void; onSaved: () => void;
+  date: string; sessions: Session[]; scopeLabel: string; userId?: string; onClose: () => void; onSaved: (undo?: () => Promise<void>) => void;
 }) {
   const movable = sessions.filter(s => !s.fixedBlock && s.date === date && s.kind !== "cancelled" && s.kind !== "moved-away");
   const [from, setFrom] = useState(movable.map(s => s.start).sort()[0] || "09:00");
@@ -25,6 +21,13 @@ export function DayShiftDialog({ date, sessions, scopeLabel, userId, onClose, on
   const apply = async () => {
     setSaving(true);
     try {
+      const undo = async () => {
+        await Promise.all(hit.map(s => {
+          const ref = doc(db, "session_changes", s.changeId!);
+          const prev = s.change ? (({ id: _id, ...rest }) => { void _id; return rest; })(s.change) : null;
+          return prev ? setDoc(ref, prev) : deleteDoc(ref).catch(() => {});
+        }));
+      };
       await Promise.all(hit.map(s => {
         const ch = s.change;
         const extra = s.slotId === null;
@@ -34,7 +37,7 @@ export function DayShiftDialog({ date, sessions, scopeLabel, userId, onClose, on
           published: false, updatedAt: serverTimestamp(), updatedBy: userId || null,
         }, { merge: true });
       }));
-      onSaved();
+      onSaved(undo);
     } finally { setSaving(false); }
   };
 
@@ -46,7 +49,7 @@ export function DayShiftDialog({ date, sessions, scopeLabel, userId, onClose, on
       </>}>
       <p className="text-sm">יום {DAY_FULL[dayOf(date)]} {shortDate(date)} · {scopeLabel}</p>
       <div className="grid grid-cols-2 gap-3">
-        <div><label className={labelCls}>מהשעה</label><input type="time" className={fieldCls} value={from} onChange={e => setFrom(e.target.value)} /></div>
+        <div><label className={labelCls}>מהשעה</label><input type="time" step={900} className={fieldCls} value={from} onChange={e => setFrom(e.target.value)} /></div>
         <div><label className={labelCls}>הזזה (דקות)</label><input type="number" step={5} className={fieldCls} value={delta} onChange={e => setDelta(Number(e.target.value))} /></div>
       </div>
       <div className="flex gap-2">

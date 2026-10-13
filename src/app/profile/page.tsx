@@ -1,5 +1,6 @@
 "use client";
 
+import { CalendarFeedCard } from "@/components/workshops/CalendarFeedCard";
 import { RoleGuard } from "@/components/auth/RoleGuard";
 import { useAuth } from "@/context/AuthContext";
 import { useSettings } from "@/context/SettingsContext";
@@ -318,6 +319,7 @@ export default function ProfilePage() {
             
             {/* Sidebar: Profile Summary */}
             <div className="space-y-4 md:space-y-6">
+              <CalendarFeedCard />
               <div className="border-b border-[var(--border)] md:rounded-[3rem] py-6 md:py-10 text-center">
                 <div className="relative inline-block mb-6 md:mb-8">
                   {photoURL ? (

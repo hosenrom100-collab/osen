@@ -9,7 +9,7 @@ import { doc, getDoc, setDoc } from "firebase/firestore";
 import { useAuth } from "@/context/AuthContext";
 import { buildSessions } from "@/lib/workshops/buildWeek";
 import { hueStyle, programHue } from "@/lib/workshops/colors";
-import { shortDate, toISO } from "@/lib/workshops/dates";
+import { shortDate, toISO, toMin } from "@/lib/workshops/dates";
 import { firstNames, participantsOf } from "@/lib/workshops/people";
 import { DAY_FULL, Session, staffChangeLabel } from "@/lib/workshops/types";
 import { useScheduleData } from "@/lib/workshops/useScheduleData";
@@ -21,7 +21,7 @@ const KEY = "home.schedulePref";
 
 const readLocal = (): Pref => { try { return { ...EMPTY, ...JSON.parse(localStorage.getItem(KEY) || "{}") }; } catch { return EMPTY; } };
 const nowMin = () => { const d = new Date(); return d.getHours() * 60 + d.getMinutes(); };
-const mins = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3));
+const mins = toMin;
 
 /** Home-screen schedule: one day, for the program/group each person picks for themselves. */
 export function TodaySchedule() {
@@ -35,6 +35,7 @@ export function TodaySchedule() {
   const [now, setNow] = useState(0);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- restores saved choices / loads external data once; nothing to derive during render
     setPref(readLocal());
     if (!user) return;
     getDoc(doc(db, "users", user.uid)).then(s => {
@@ -42,6 +43,7 @@ export function TodaySchedule() {
       if (p) { setPref({ ...EMPTY, ...p }); try { localStorage.setItem(KEY, JSON.stringify(p)); } catch { /* ignore */ } }
     }).catch(() => {});
   }, [user]);
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- restores saved choices / loads external data once; nothing to derive during render
   useEffect(() => { setNow(nowMin()); const t = setInterval(() => setNow(nowMin()), 60000); return () => clearInterval(t); }, []);
 
   const change = (p: Pref) => {

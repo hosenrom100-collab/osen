@@ -2,10 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import { DAY_SHORT, Session, staffChangeLabel } from "@/lib/workshops/types";
-import { dayOf, shortDate } from "@/lib/workshops/dates";
+import { dayOf, fromMin as fmtMin, shortDate, toMin } from "@/lib/workshops/dates";
 import { MapPin, Plus } from "lucide-react";
 import { hueStyle } from "@/lib/workshops/colors";
-import { DayLanes, laneByGroup, laneStable, timeRows } from "@/lib/workshops/lanes";
+import { DayLanes, laneByFrame, laneByGroup, laneStable, timeRows } from "@/lib/workshops/lanes";
 
 export interface Row { id: string; label: string; match: (s: Session) => boolean; closedReason: (date: string) => string | undefined }
 
@@ -22,8 +22,10 @@ export interface Common {
   dim: (s: Session) => boolean;    // faded while another legend item is highlighted
   countOf: (s: Session) => number | undefined; // headcount of a session, when known
   peekNames: (s: Session) => string[];          // first names of the people attending, for the hover peek
+  programTag?: (s: Session) => string | undefined; // short program name, when cards of several programs share a column
   showGroups?: boolean; // show group names on sessions even in program mode
   onOpen: (s: Session) => void;
+  onHover?: (s: Session | null) => void;             // the card under the pointer (for Ctrl+C)
   groupHue?: (groupId: string) => number | undefined; // a group's own colour (lane headers, tags)
   jointOf?: (s: Session) => boolean;                  // a session shared by several groups of a program
   soft?: Map<string, string[]>;                       // soft warnings: worth a look, not an error
@@ -60,15 +62,17 @@ function Card({ s, mode, c, groups, compact }: { s: Session; mode: Mode; c: Comm
   const f = facts(s, mode, c, groups);
   const oneOff = s.kind === "extra" || s.kind === "moved-in";
   const showRoom = !!f.room && !f.dead && mode !== "space";
-  const meta = [f.staff ? (f.staffOnly ? `נוכחים: ${f.staff}` : f.staff) : "", f.grp].filter(Boolean).join(" · ");
+  const tag = c.programTag?.(s);
+  const meta = [tag, f.staff ? (f.staffOnly ? `נוכחים: ${f.staff}` : f.staff) : "", f.grp].filter(Boolean).join(" · ");
   const hover = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [peek, setPeek] = useState<DOMRect | null>(null);
   const enter = (e: React.MouseEvent<HTMLElement>) => {
     const el = e.currentTarget;
     if (hover.current) clearTimeout(hover.current);
     hover.current = setTimeout(() => setPeek(el.getBoundingClientRect()), 280);
+    c.onHover?.(s);
   };
-  const leave = () => { if (hover.current) clearTimeout(hover.current); setPeek(null); };
+  const leave = () => { if (hover.current) clearTimeout(hover.current); setPeek(null); c.onHover?.(null); };
 
   // Phone: every card the same shape (name, then one line of room / people / count). The rest is one tap away in the details.
   if (compact) {
@@ -210,10 +214,11 @@ export interface Column {
   sub?: string;                       // closure / absence note under the header
   sessions: Session[];
   today?: boolean;
-  laneMode: "groups" | "stable";
+  laneMode: "groups" | "frames" | "stable";
+  frames?: { labels: string[]; hues: (number | undefined)[]; frameOf: (s: Session) => number[] }; // lane per frame (e.g. per program) when laneMode is "frames"
   groupIds?: string[];                // lane order when laneMode is "groups"
   showGroups?: boolean;               // name the group on each card (when lanes do not already)
-  onAdd?: () => void;
+  onAdd?: (start?: string) => void;   // `start`: the clicked time, rounded to 15 minutes
 }
 
 /**
@@ -223,11 +228,12 @@ export interface Column {
  */
 export interface DragApi {
   can: (s: Session) => boolean;
-  onDrop: (s: Session, to: { date: string; start: string; end: string; lane?: number }) => void;
+  onDrop: (s: Session, to: { date: string; start: string; end: string; lane?: number }, copy?: boolean) => void;
   conflict: (s: Session, to: { date: string; start: string; end: string }) => string | undefined;
 }
 
-const fmtMin = (m: number) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+/** Text selection off while dragging. Returns the previous value. (Kept outside the component: it touches the page, not React state.) */
+function setUserSelect(v: string): string { const prev = document.body.style.userSelect; document.body.style.userSelect = v; return prev; }
 const STEP = 15;
 const PX_PER_MIN = 0.8; // desktop density: ~48px per hour, rows still grow to fit their text
 
@@ -251,7 +257,8 @@ export function TimeGrid({ columns, mode, groupName, laneMin, corner, drag: drag
   const { times, covered, rowOf } = timeRows(all);
   const pref = new Map<string, number>(Object.entries(laneHints || {})); // workshop → lane, shared by all days so it stays on one side
   const laid: DayLanes[] = columns.map(col =>
-    col.laneMode === "groups" && col.groupIds?.length ? laneByGroup(col.sessions, col.groupIds, groupName) : laneStable(col.sessions, pref));
+    col.laneMode === "frames" && col.frames ? laneByFrame(col.sessions, col.frames.labels, col.frames.frameOf)
+      : col.laneMode === "groups" && col.groupIds?.length ? laneByGroup(col.sessions, col.groupIds, groupName) : laneStable(col.sessions, pref));
   const hasLabels = laid.some(l => l.laneLabels);
   const HDR = hasLabels ? 2 : 1;
 
@@ -267,8 +274,6 @@ export function TimeGrid({ columns, mode, groupName, laneMin, corner, drag: drag
       return covered[i] ? `minmax(${Math.max(Math.round(dur * PX_PER_MIN), 34)}px, auto)` : dur >= 60 ? "26px" : "10px";
     })),
   ].join(" ");
-
-  const toMin = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3));
 
   // Pointer → clock time, through the row rectangles actually on screen (rows are not linear in time).
   const timeAt = (y: number): number | null => {
@@ -321,12 +326,11 @@ export function TimeGrid({ columns, mode, groupName, laneMin, corner, drag: drag
     const col = columns.some(col => col.date) ? colAt(x) : origin;
     return { date: columns[col]?.date ?? st.s.date, start: fmtMin(start), end: fmtMin(start + dur), col, lane: laneAt(x, col) };
   };
+  // The drag listeners live outside React's render, so they read the latest functions through refs kept up to date after each render.
   const computeRef = useRef(computeTo);
-  computeRef.current = computeTo;
   const laneRef = useRef(laneNow);
-  laneRef.current = laneNow;
   const dropRef = useRef(dragApi?.onDrop);
-  dropRef.current = dragApi?.onDrop;
+  useEffect(() => { computeRef.current = computeTo; laneRef.current = laneNow; dropRef.current = dragApi?.onDrop; });
 
   const startDrag = (e: React.PointerEvent, s: Session, m: "move" | "resize") => {
     if (!dragApi?.can(s) || e.button !== 0) return;
@@ -344,7 +348,7 @@ export function TimeGrid({ columns, mode, groupName, laneMin, corner, drag: drag
       const next = { ...st, started: true, x: e.clientX, y: e.clientY, to: computeRef.current(st, e.clientX, e.clientY) };
       dragRef.current = next; setDrag(next);
     };
-    const end = (cancel: boolean) => {
+    const end = (cancel: boolean, copy = false) => {
       const st = dragRef.current;
       dragRef.current = null; setDrag(null);
       if (!st?.started) return;
@@ -352,18 +356,17 @@ export function TimeGrid({ columns, mode, groupName, laneMin, corner, drag: drag
       setTimeout(() => { justDragged.current = false; }, 60);
       const to = st.to;
       const laneChanged = st.mode === "move" && to?.lane !== undefined && to.lane !== laneRef.current(st.s);
-      if (!cancel && to && (to.date !== st.s.date || to.start !== st.s.start || to.end !== st.s.end || laneChanged)) dropRef.current?.(st.s, { date: to.date, start: to.start, end: to.end, ...(laneChanged ? { lane: to.lane } : {}) });
+      if (!cancel && to && (to.date !== st.s.date || to.start !== st.s.start || to.end !== st.s.end || laneChanged)) dropRef.current?.(st.s, { date: to.date, start: to.start, end: to.end, ...(laneChanged ? { lane: to.lane } : {}) }, copy && st.mode === "move");
     };
-    const up = () => end(false);
+    const up = (e: PointerEvent) => end(false, e.ctrlKey || e.altKey);
     const key = (e: KeyboardEvent) => { if (e.key === "Escape") end(true); };
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", up);
     window.addEventListener("keydown", key);
-    const prevSelect = document.body.style.userSelect;
-    document.body.style.userSelect = "none";
+    const prevSelect = setUserSelect("none");
     return () => {
       window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up); window.removeEventListener("keydown", key);
-      document.body.style.userSelect = prevSelect;
+      setUserSelect(prevSelect);
     };
   }, [dragging]);
 
@@ -421,7 +424,7 @@ export function TimeGrid({ columns, mode, groupName, laneMin, corner, drag: drag
               {/* One continuous day separator, header to bottom, so header and body always line up. */}
               <div className="pointer-events-none border-s border-[var(--cal-line-day)]" style={{ gridRow: `1 / -1`, gridColumn: c1 }} />
               {l.laneLabels && l.laneLabels.slice(1).map((_, i) => (
-                <div key={`d${i}`} className="pointer-events-none border-s border-dashed border-[var(--cal-line-lane)]" style={{ gridRow: `2 / -1`, gridColumn: c1 + (i + 1) * (l.unit ?? 1) }} />
+                <div key={`d${i}`} className="pointer-events-none border-s-[1.5px] border-[var(--cal-line-frame)]" style={{ gridRow: `2 / -1`, gridColumn: c1 + (i + 1) * (l.unit ?? 1) }} />
               ))}
               {/* A group with nothing of its own that day keeps its place, shaded, so every group stays where it always is. */}
               {l.laneLabels && l.placed.length > 0 && l.laneLabels.map((_, g) => {
@@ -434,22 +437,28 @@ export function TimeGrid({ columns, mode, groupName, laneMin, corner, drag: drag
                   </div>
                 );
               })}
+              {l.laneLabels && l.laneLabels.map((_, g) => {
+                const h = col.frames ? col.frames.hues[g] : col.groupIds?.[g] ? c.groupHue?.(col.groupIds[g]) : undefined;
+                return h !== undefined && (
+                  <div key={`t${g}`} className="pointer-events-none" style={{ gridRow: `2 / -1`, gridColumn: `${c1 + g * (l.unit ?? 1)} / span ${l.unit ?? 1}`, backgroundColor: `hsl(${h} 45% 50% / 0.05)` }} />
+                );
+              })}
               <div data-col={k} className={`sticky top-[3.25rem] z-20 bg-[var(--cal-surface)] px-2 pt-2 text-center text-[var(--cal-ink)] ${l.laneLabels ? "" : "border-b border-[var(--cal-frame)] pb-2"}`}
                 style={{ gridRow: 1, gridColumn: `${c1} / span ${l.lanes}` }}>
                 {col.header}
                 {hasSub && <div className="mt-1 min-h-[1.25rem]">{col.sub && <span className="inline-block max-w-full truncate px-2 rounded-full bg-[var(--cal-ink)]/[0.06] text-[11px] font-medium text-[var(--cal-muted)]">{col.sub}</span>}</div>}
               </div>
               {l.laneLabels && l.laneLabels.map((name, i) => {
-                const h = col.groupIds?.[i] ? c.groupHue?.(col.groupIds[i]) : undefined;
+                const h = col.frames ? col.frames.hues[i] : col.groupIds?.[i] ? c.groupHue?.(col.groupIds[i]) : undefined;
                 return (
-                  <div key={i} className="sticky top-[7.25rem] z-20 bg-[var(--cal-surface)] px-2 pb-1.5 pt-0.5 text-[11px] font-semibold text-center text-[var(--cal-muted)] truncate border-b border-[var(--cal-frame)]"
-                    style={{ gridRow: 2, gridColumn: `${c1 + i * (l.unit ?? 1)} / span ${l.unit ?? 1}`, boxShadow: h !== undefined ? `inset 0 -2px 0 ${hueStyle(h).bar}` : undefined }} title={name}>
-                    {h !== undefined && <span className="inline-block w-1.5 h-1.5 rounded-full me-1 align-middle" style={{ backgroundColor: hueStyle(h).bar }} />}{name}
+                  <div key={i} className="sticky top-[7.25rem] z-20 bg-[var(--cal-surface)] px-2 pb-1.5 pt-1 text-xs font-bold text-center text-[var(--cal-ink)] truncate border-b border-[var(--cal-frame)]"
+                    style={{ gridRow: 2, gridColumn: `${c1 + i * (l.unit ?? 1)} / span ${l.unit ?? 1}`, boxShadow: h !== undefined ? `inset 0 3px 0 ${hueStyle(h).bar}, inset 0 -2px 0 ${hueStyle(h).bar}` : undefined }} title={name}>
+                    {h !== undefined && <span className="inline-block w-2 h-2 rounded-full me-1 align-middle" style={{ backgroundColor: hueStyle(h).bar }} />}{name}
                   </div>
                 );
               })}
               {col.onAdd && (
-                <button onClick={col.onAdd} aria-label="הוסף מפגש חד-פעמי" title="הוסף מפגש חד-פעמי"
+                <button onClick={e => { const tp = timeAt(e.clientY); col.onAdd?.(tp === null ? undefined : fmtMin(Math.min(1380, Math.max(0, snap(tp))))); }} aria-label="הוסף מפגש חד-פעמי" title="לחיצה על שעה ריקה יוצרת אירוע בשעה הזו"
                   className="group flex items-end justify-center pb-1 text-xs font-semibold text-transparent hover:text-[var(--cal-muted)] hover:bg-[var(--cal-ink)]/[0.025] focus-visible:text-[var(--cal-muted)]"
                   style={{ gridRow: `${HDR + 1} / -1`, gridColumn: `${c1} / span ${l.lanes}` }}>
                   <span className="flex items-center gap-1"><Plus className="w-3 h-3" />הוסף</span>
@@ -492,6 +501,7 @@ export function TimeGrid({ columns, mode, groupName, laneMin, corner, drag: drag
             <div className="font-bold text-[13px]">{drag.s.workshopName}</div>
             <div className="tabular-nums mt-0.5">{d !== drag.s.date ? `${shortDate(d)} · ` : ""}{drag.to.start}–{drag.to.end}</div>
             {warn && <div className="mt-1 text-[#ffb4a8] font-semibold">{warn}</div>}
+            {drag.mode === "move" && <div className="mt-1 opacity-70">Ctrl להעתקה</div>}
           </div>
         );
       })()}
@@ -519,7 +529,7 @@ export function DayAgenda({ dates, days, mode, today, selected, setSelected, glo
   const closure = globalClosure(selected);
   const now = useNowMinutes();
   const isToday = selected === today;
-  const toM = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3));
+  const toM = toMin;
   const period = (t: string) => (toM(t) < 720 ? "בוקר" : toM(t) < 900 ? "צהריים" : "אחר הצהריים");
   // Consecutive sessions that run into each other (fixed meals/breaks stay on their own line).
   const bundles: Session[][] = [];

@@ -22,6 +22,7 @@ export interface Workshop {
   groupIds?: string[]; // groups within the program taking part; empty/missing = whole program
   startDate: string;
   endDate: string;
+  continuesFrom?: string; // set on the second half of a workshop that was cut in two at some session ("from this session onwards")
   laneHint?: number;   // preferred side when sessions run in parallel (0 = right-most); set by dragging sideways in the calendar
   slots: Slot[];
   staffIds: string[];
@@ -74,6 +75,7 @@ export interface Program {
   name: string;
   activeDays: number[];
   color?: number;              // hue 0-359; missing = derived from the id
+  shortName?: string;          // 2-4 characters shown on cards next to other programs' cards; missing = derived from the name
   laneMode?: "groups" | "stable" | "auto"; // groups: a fixed lane per group; auto: lanes only in weeks the groups overlap ("stable" is legacy = groups)
   dailyBlocks?: DailyBlock[];
   staffGroupUrl?: string;        // community group of the program's staff
