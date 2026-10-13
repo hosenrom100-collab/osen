@@ -9,7 +9,7 @@ import { StaffPicker } from "./StaffPicker";
 import { Refs } from "@/lib/workshops/data";
 import { ActivityType, pastel } from "@/lib/workshops/activityTypes";
 import { DAY_FULL, Session } from "@/lib/workshops/types";
-import { OPEN_END, dayOf, toISO } from "@/lib/workshops/dates";
+import { OPEN_END, addMinutes, dayOf, toISO } from "@/lib/workshops/dates";
 
 const REPEATS: [number, string][] = [[0, "לא חוזר"], [1, "כל שבוע"], [2, "כל שבועיים"], [3, "כל 3 שבועות"], [4, "כל 4 שבועות"]];
 
@@ -20,7 +20,7 @@ const REPEATS: [number, string][] = [[0, "לא חוזר"], [1, "כל שבוע"],
 export interface EventPrefill { name: string; kind: string; groupIds: string[]; start: string; end: string; locationId?: string; staffIds: string[] }
 
 export function NewEventDialog({ refs, types, initial, existing = [], busyFor, roomBusy, userId, onClose, onSaved, onExisting }: {
-  refs: Refs; types: ActivityType[]; initial: { date: string; programId?: string; prefill?: EventPrefill }; existing?: Session[];
+  refs: Refs; types: ActivityType[]; initial: { date: string; programId?: string; start?: string; prefill?: EventPrefill }; existing?: Session[];
   busyFor?: (staffId: string, date: string, start: string, end: string) => string | undefined; roomBusy?: (locationId: string, date: string, start: string, end: string) => string | undefined;
   userId?: string; onClose: () => void; onSaved: () => void; onExisting: () => void;
 }) {
@@ -31,8 +31,8 @@ export function NewEventDialog({ refs, types, initial, existing = [], busyFor, r
   const [programId, setProgramId] = useState(initial.programId || refs.programs[0]?.id || "");
   const [groupIds, setGroupIds] = useState<string[]>(pf?.groupIds || []);
   const [date, setDate] = useState(initial.date);
-  const [start, setStart] = useState(pf?.start || "09:00");
-  const [end, setEnd] = useState(pf?.end || "10:00");
+  const [start, setStart] = useState(pf?.start || initial.start || "09:00");
+  const [end, setEnd] = useState(pf?.end || (initial.start ? addMinutes(initial.start, 60) : "10:00"));
   const [locationId, setLocationId] = useState(pf?.locationId || "");
   const [staffIds, setStaffIds] = useState<string[]>(pf?.staffIds || []);
   const [every, setEvery] = useState(0);

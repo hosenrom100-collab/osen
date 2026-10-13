@@ -218,7 +218,7 @@ export interface Column {
   frames?: { labels: string[]; hues: (number | undefined)[]; frameOf: (s: Session) => number[] }; // lane per frame (e.g. per program) when laneMode is "frames"
   groupIds?: string[];                // lane order when laneMode is "groups"
   showGroups?: boolean;               // name the group on each card (when lanes do not already)
-  onAdd?: () => void;
+  onAdd?: (start?: string) => void;   // `start`: the clicked time, rounded to 15 minutes
 }
 
 /**
@@ -458,7 +458,7 @@ export function TimeGrid({ columns, mode, groupName, laneMin, corner, drag: drag
                 );
               })}
               {col.onAdd && (
-                <button onClick={col.onAdd} aria-label="הוסף מפגש חד-פעמי" title="הוסף מפגש חד-פעמי"
+                <button onClick={e => { const tp = timeAt(e.clientY); col.onAdd?.(tp === null ? undefined : fmtMin(Math.min(1380, Math.max(0, snap(tp))))); }} aria-label="הוסף מפגש חד-פעמי" title="לחיצה על שעה ריקה יוצרת אירוע בשעה הזו"
                   className="group flex items-end justify-center pb-1 text-xs font-semibold text-transparent hover:text-[var(--cal-muted)] hover:bg-[var(--cal-ink)]/[0.025] focus-visible:text-[var(--cal-muted)]"
                   style={{ gridRow: `${HDR + 1} / -1`, gridColumn: `${c1} / span ${l.lanes}` }}>
                   <span className="flex items-center gap-1"><Plus className="w-3 h-3" />הוסף</span>

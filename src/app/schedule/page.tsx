@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { RoleGuard } from "@/components/auth/RoleGuard";
 import { useAuth } from "@/context/AuthContext";
 import { db } from "@/lib/firebase/config";
-import { addDoc, collection, deleteDoc, deleteField, doc, serverTimestamp, setDoc, updateDoc, writeBatch } from "firebase/firestore";
+import { collection, deleteDoc, deleteField, doc, getDocs, query, serverTimestamp, setDoc, updateDoc, where, writeBatch } from "firebase/firestore";
 import { ChevronLeft, ChevronRight, MoreHorizontal, Plus, Search } from "lucide-react";
 import { MiniCalendar } from "@/components/workshops/MiniCalendar";
 import { ProgramScheduleSettings } from "@/components/workshops/ProgramScheduleSettings";
@@ -13,7 +13,7 @@ import { addDays, format, getWeek, parseISO } from "date-fns";
 import { he } from "date-fns/locale";
 import Link from "next/link";
 import { PageSkeleton } from "@/components/ui/Skeleton";
-import { Dialog, fieldCls, labelCls, btnPrimary } from "@/components/workshops/Dialog";
+import { Dialog, fieldCls, labelCls, btnPrimary, btnGhost } from "@/components/workshops/Dialog";
 import { SessionEditor } from "@/components/workshops/SessionEditor";
 import { SeriesDays } from "@/components/workshops/SeriesDays";
 import { Column, DayAgenda, DragApi, Row, TimeGrid } from "@/components/workshops/WeekView";
@@ -29,7 +29,7 @@ import { moveSession } from "@/lib/workshops/moveSession";
 import { ActivityTypesDialog } from "@/components/workshops/ActivityTypesDialog";
 import { CopyScheduleDialog } from "@/components/workshops/CopyScheduleDialog";
 import { EventPrefill, NewEventDialog } from "@/components/workshops/NewEventDialog";
-import { toISO, weekDates, weekStartOf, shortDate, dayOf } from "@/lib/workshops/dates";
+import { rangeDates, toISO, weekDates, weekStartOf, shortDate, dayOf } from "@/lib/workshops/dates";
 import { Closure, DAY_FULL, DAY_SHORT, Program, Session } from "@/lib/workshops/types";
 
 // The calendar is always shown on white, whatever the app theme is.
@@ -81,7 +81,7 @@ export default function SchedulePage() {
   const [colorBy, setColorBy] = useState<ColorBy>(() => readSaved<ColorBy>("colorBy", "type"));
   const [focus, setFocus] = useState<string | null>(null);
   const [showTypes, setShowTypes] = useState(false);
-  const [creating, setCreating] = useState<{ date: string; programId?: string; prefill?: EventPrefill } | null>(null);
+  const [creating, setCreating] = useState<{ date: string; programId?: string; start?: string; prefill?: EventPrefill } | null>(null);
   const [toast, setToast] = useState<{ text: string; undo?: () => Promise<void> } | null>(null);
   useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(null), 8000); return () => clearTimeout(t); }, [toast]);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -249,21 +249,28 @@ export default function SchedulePage() {
   const weekChanges = changes.filter(c => c.dates.some(d => dates.includes(d)));
   const unpublished = weekChanges.filter(c => !c.published);
 
-  const publish = async () => {
-    setPublishing(true);
-    // One tailored message per affected person.
+  // Publishing: first a preview of what each person will be told, where single people can be left out; then send.
+  const [preview, setPreview] = useState<{ lines: Map<string, string[]>; skip: Set<string> } | null>(null);
+  const openPublish = () => {
     const lines = new Map<string, string[]>();
     for (const s of all.filter(x => x.change && !x.change.published)) {
       const what = s.kind === "cancelled" ? "בוטל" : s.kind === "moved-away" ? `הוזז ל-${shortDate(s.change!.newDate!)}` : s.kind === "extra" ? "מפגש נוסף" : "עודכן";
       const line = `${what}: ${s.workshopName}, ${DAY_SHORT[dayOf(s.date)]} ${shortDate(s.date)} ${s.start}`;
       for (const uid of new Set([...s.staffIds, ...s.base.staffIds])) lines.set(uid, [...(lines.get(uid) || []), line]);
     }
-    await Promise.all([...lines].map(([uid, l]) => notifyStaff([uid], "עדכון ביומן השבועי", l.join("\n"))));
-    const batch = writeBatch(db);
-    unpublished.forEach(c => batch.update(doc(db, "session_changes", c.id), { published: true }));
-    await batch.commit();
-    setPublishing(false);
-    load();
+    setPreview({ lines, skip: new Set() });
+  };
+  const publish = async () => {
+    if (!preview || publishing) return;
+    setPublishing(true);
+    try {
+      await Promise.all([...preview.lines].filter(([uid]) => !preview.skip.has(uid)).map(([uid, l]) => notifyStaff([uid], "עדכון ביומן השבועי", l.join("\n"))));
+      const batch = writeBatch(db);
+      unpublished.forEach(c => batch.update(doc(db, "session_changes", c.id), { published: true }));
+      await batch.commit();
+      setPreview(null);
+      load();
+    } finally { setPublishing(false); }
   };
 
   const moveDay = (delta: number) => {
@@ -428,7 +435,7 @@ export default function SchedulePage() {
       } catch { setToast({ text: "השינוי לא נשמר. נסה שוב." }); }
     },
   } : undefined;
-  const addFor = (date: string, programId?: string) => (isManager && mode === "program" ? () => setCreating({ date, programId }) : undefined);
+  const addFor = (date: string, programId?: string) => (isManager && mode === "program" ? (start?: string) => setCreating({ date, programId, start }) : undefined);
   const laneGroups = onlyProgram && !groupSel[0] ? refs.groups.filter(g => g.programId === onlyProgram) : [];
   const weekLanes: "groups" | "stable" = (() => {
     const p = programOf(onlyProgram || "");
@@ -574,7 +581,7 @@ export default function SchedulePage() {
             {isManager && unpublished.length > 0 && (
               <>
                 <span className="text-[var(--foreground)]/60 flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-amber-500" />{unpublished.length} טרם פורסמו לצוות</span>
-                <button onClick={publish} disabled={publishing} className={`${btnPrimary} mr-auto !py-1`}>פרסם ועדכן צוות</button>
+                <button onClick={openPublish} className={`${btnPrimary} mr-auto !py-1`}>פרסם ועדכן צוות…</button>
               </>
             )}
           </div>
@@ -649,6 +656,20 @@ export default function SchedulePage() {
           <DayShiftDialog date={selectedDay} userId={user?.uid} scopeLabel={currentProgram ? currentProgram.name : "כל התוכניות"}
             sessions={sessions} onClose={() => setShowShift(false)} onSaved={undo => { setShowShift(false); if (undo) setToast({ text: "המפגשים נדחו", undo: async () => { await undo(); load(); } }); load(); }} />
         )}
+        {preview && (
+          <Dialog title="פרסום שינויים לצוות" subtitle={`${preview.lines.size} אנשי צוות יקבלו הודעה. אפשר להשמיט אנשים מהשליחה.`} onClose={() => setPreview(null)}
+            footer={<><button onClick={publish} disabled={publishing} className={btnPrimary}>שלח ופרסם</button><button onClick={() => setPreview(null)} className={btnGhost}>ביטול</button></>}>
+            <ul className="divide-y divide-[var(--border)] text-sm">
+              {[...preview.lines].map(([uid, l]) => (
+                <li key={uid} className="py-2">
+                  <label className="flex items-center gap-2 font-bold cursor-pointer"><input type="checkbox" checked={!preview.skip.has(uid)} onChange={() => setPreview(p => { if (!p) return p; const skip = new Set(p.skip); if (skip.has(uid)) skip.delete(uid); else skip.add(uid); return { ...p, skip }; })} />{nameOf(uid)}</label>
+                  <ul className="mt-1 ps-6 text-xs text-[var(--foreground)]/65 space-y-0.5">{l.map(x => <li key={x}>{x}</li>)}</ul>
+                </li>
+              ))}
+              {preview.lines.size === 0 && <li className="py-2 text-[var(--foreground)]/55">אין אנשי צוות מושפעים. השינויים יסומנו כמפורסמים בלי הודעות.</li>}
+            </ul>
+          </Dialog>
+        )}
         {showHelp && (
           <Dialog title="קיצורי מקלדת" onClose={() => setShowHelp(false)}>
             <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-sm">
@@ -676,7 +697,7 @@ export default function SchedulePage() {
             onExisting={() => { setEditing({ session: null, extra: creating }); setCreating(null); }} />
         )}
         {showTypes && <ActivityTypesDialog types={types} programs={refs.programs} onClose={() => setShowTypes(false)} onSaved={() => { setShowTypes(false); load(); }} />}
-        {showClosures && <ClosuresDialog dates={dates} closures={closures} refs={refs} onClose={() => setShowClosures(false)} onChanged={load} />}
+        {showClosures && <ClosuresDialog dates={dates} refs={refs} onClose={() => setShowClosures(false)} onChanged={load} />}
       </div>
     </RoleGuard>
   );
@@ -712,39 +733,62 @@ function ProgramPicker({ programs, selected, onChange }: { programs: Program[]; 
   );
 }
 
-function ClosuresDialog({ dates, closures, refs, onClose, onChanged }: {
-  dates: string[]; closures: Closure[]; refs: Refs; onClose: () => void; onChanged: () => void;
+function ClosuresDialog({ dates, refs, onClose, onChanged }: {
+  dates: string[]; refs: Refs; onClose: () => void; onChanged: () => void;
 }) {
   const [date, setDate] = useState(dates[0]);
+  const [until, setUntil] = useState("");
   const [reason, setReason] = useState("");
   const [programId, setProgramId] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [list, setList] = useState<Closure[]>([]);
+  const refresh = useCallback(async () => {
+    const snap = await getDocs(query(collection(db, "closures"), where("date", ">=", toISO(new Date()))));
+    setList(snap.docs.map(d => ({ id: d.id, ...d.data() } as Closure)).sort((a, b) => a.date.localeCompare(b.date)));
+  }, []);
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- loads the list once when the dialog opens
+  useEffect(() => { refresh(); }, [refresh]);
+  const last = until && until >= date ? until : date;
+  const days = rangeDates(date, last);
+  const wanted = programId ? [programId] : [];
+  const taken = (d: string) => list.some(c => c.date === d && c.programIds.join() === wanted.join());
+  const fresh = days.filter(d => !taken(d));
   const add = async () => {
-    await addDoc(collection(db, "closures"), { date, reason: reason.trim() || "אין פעילות", programIds: programId ? [programId] : [] });
-    setReason(""); onChanged();
+    if (saving || !fresh.length) return;
+    setSaving(true);
+    try {
+      const batch = writeBatch(db);
+      fresh.forEach(d => batch.set(doc(collection(db, "closures")), { date: d, reason: reason.trim() || "אין פעילות", programIds: wanted }));
+      await batch.commit();
+      setReason(""); setUntil(""); await refresh(); onChanged();
+    } finally { setSaving(false); }
   };
-  const remove = async (id: string) => { await deleteDoc(doc(db, "closures", id)); onChanged(); };
+  const remove = async (id: string) => { await deleteDoc(doc(db, "closures", id)); await refresh(); onChanged(); };
   return (
     <Dialog title="ימים ללא פעילות" onClose={onClose}>
-      <p className="text-xs text-[var(--foreground)]/60">חגים, אירועים מוסדיים וכד׳. מפגשים שנופלים על היום הזה לא יופיעו ביומן.</p>
-      <ul className="divide-y divide-[var(--border)] text-sm">
-        {closures.map(c => (
+      <p className="text-xs text-[var(--foreground)]/60">חגים, אירועים מוסדיים וכד׳. מפגשים שנופלים על היום הזה לא יופיעו ביומן. מוצגים הימים מהיום והלאה.</p>
+      <ul className="divide-y divide-[var(--border)] text-sm max-h-56 overflow-y-auto">
+        {list.map(c => (
           <li key={c.id} className="py-2 flex items-center gap-2">
             <span className="tabular-nums">{shortDate(c.date)}</span>
             <span className="flex-1">{c.reason}{c.programIds.length ? ` · ${refs.programs.find(p => p.id === c.programIds[0])?.name}` : " · כל התוכניות"}</span>
             <button onClick={() => remove(c.id)} className="text-xs text-rose-500 underline">הסר</button>
           </li>
         ))}
-        {closures.length === 0 && <li className="py-2 text-[var(--foreground)]/50">אין ימים כאלה בשבוע הזה.</li>}
+        {list.length === 0 && <li className="py-2 text-[var(--foreground)]/50">אין ימים כאלה קדימה.</li>}
       </ul>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
-        <div><label className={labelCls}>תאריך</label><input type="date" className={fieldCls} value={date} onChange={e => setDate(e.target.value)} /></div>
+        <div><label className={labelCls}>מתאריך</label><input type="date" className={fieldCls} value={date} onChange={e => setDate(e.target.value)} /></div>
+        <div><label className={labelCls}>עד תאריך (לחג של כמה ימים, לא חובה)</label><input type="date" className={fieldCls} value={until} min={date} onChange={e => setUntil(e.target.value)} /></div>
         <div><label className={labelCls}>תוכנית</label>
           <select className={fieldCls} value={programId} onChange={e => setProgramId(e.target.value)}>
             <option value="">כל התוכניות</option>{refs.programs.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
           </select></div>
-        <div className="sm:col-span-2"><label className={labelCls}>סיבה</label><textarea rows={2} className={fieldCls} value={reason} placeholder="סוכות, יום כיף…" onChange={e => setReason(e.target.value)} /></div>
+        <div><label className={labelCls}>סיבה</label><input className={fieldCls} value={reason} placeholder="סוכות, יום כיף…" onChange={e => setReason(e.target.value)} /></div>
       </div>
-      <button onClick={add} disabled={!date} className={btnPrimary}>הוסף</button>
+      {days.length > 1 && <p className="text-xs text-[var(--foreground)]/60">{fresh.length} ימים יתווספו{fresh.length < days.length ? ` (${days.length - fresh.length} כבר סגורים)` : ""}.</p>}
+      {days.length === 1 && !fresh.length && <p className="text-xs text-[#8a5a00]">היום הזה כבר סגור.</p>}
+      <button onClick={add} disabled={!date || saving || !fresh.length} className={btnPrimary}>הוסף</button>
     </Dialog>
   );
 }
