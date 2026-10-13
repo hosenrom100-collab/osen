@@ -92,7 +92,7 @@ export function SeriesDays({ workshops, initialId, programs, groups, locations, 
           </select>
         </div>
         <p className="text-xs text-[var(--foreground)]/60 rounded-lg bg-[var(--foreground)]/[0.04] px-3 py-2 leading-relaxed">
-          שינוי חד-פעמי (ביטול, הזזה, מחליף) עושים בלחיצה על המפגש ביומן. כאן משנים את המערכת הקבועה. לשם, תאריכים, צוות ומשתתפים, עוברים ל"כל פרטי הסדנה".
+          שינוי חד-פעמי (ביטול, הזזה, מחליף) עושים בלחיצה על המפגש ביומן. כאן משנים את המערכת הקבועה. לשם, תאריכים, צוות ומשתתפים, עוברים ל״כל פרטי הסדנה״.
         </p>
         {sections.map(sec => {
           const rows = slots.filter(sec.match);

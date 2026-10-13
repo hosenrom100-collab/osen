@@ -113,6 +113,7 @@ export default function SchedulePage() {
   // Saved filter picks may point at programs/groups that no longer exist.
   useEffect(() => {
     if (!refs) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- restores saved choices / loads external data once; nothing to derive during render
     setProgramSel(sel => sel.filter(id => refs.programs.some(p => p.id === id)));
     setGroupSel(sel => sel.filter(id => refs.groups.some(g => g.id === id)));
     // Still nothing picked on a first visit: the program (and group) this person is assigned to, when there is just one.

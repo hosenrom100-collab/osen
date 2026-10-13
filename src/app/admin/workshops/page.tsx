@@ -53,6 +53,7 @@ export default function WorkshopsPage() {
     }
     setLoading(false);
   }, []);
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- loads external data / restores saved choices once; nothing to derive during render
   useEffect(() => { load(); }, [load]);
 
   const today = toISO(new Date());

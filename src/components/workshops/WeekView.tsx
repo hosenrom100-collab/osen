@@ -230,6 +230,8 @@ export interface DragApi {
   conflict: (s: Session, to: { date: string; start: string; end: string }) => string | undefined;
 }
 
+/** Text selection off while dragging. Returns the previous value. (Kept outside the component: it touches the page, not React state.) */
+function setUserSelect(v: string): string { const prev = document.body.style.userSelect; document.body.style.userSelect = v; return prev; }
 const STEP = 15;
 const PX_PER_MIN = 0.8; // desktop density: ~48px per hour, rows still grow to fit their text
 
@@ -322,12 +324,11 @@ export function TimeGrid({ columns, mode, groupName, laneMin, corner, drag: drag
     const col = columns.some(col => col.date) ? colAt(x) : origin;
     return { date: columns[col]?.date ?? st.s.date, start: fmtMin(start), end: fmtMin(start + dur), col, lane: laneAt(x, col) };
   };
+  // The drag listeners live outside React's render, so they read the latest functions through refs kept up to date after each render.
   const computeRef = useRef(computeTo);
-  computeRef.current = computeTo;
   const laneRef = useRef(laneNow);
-  laneRef.current = laneNow;
   const dropRef = useRef(dragApi?.onDrop);
-  dropRef.current = dragApi?.onDrop;
+  useEffect(() => { computeRef.current = computeTo; laneRef.current = laneNow; dropRef.current = dragApi?.onDrop; });
 
   const startDrag = (e: React.PointerEvent, s: Session, m: "move" | "resize") => {
     if (!dragApi?.can(s) || e.button !== 0) return;
@@ -360,11 +361,10 @@ export function TimeGrid({ columns, mode, groupName, laneMin, corner, drag: drag
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", up);
     window.addEventListener("keydown", key);
-    const prevSelect = document.body.style.userSelect;
-    document.body.style.userSelect = "none";
+    const prevSelect = setUserSelect("none");
     return () => {
       window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up); window.removeEventListener("keydown", key);
-      document.body.style.userSelect = prevSelect;
+      setUserSelect(prevSelect);
     };
   }, [dragging]);
 

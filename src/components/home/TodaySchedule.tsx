@@ -35,6 +35,7 @@ export function TodaySchedule() {
   const [now, setNow] = useState(0);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- restores saved choices / loads external data once; nothing to derive during render
     setPref(readLocal());
     if (!user) return;
     getDoc(doc(db, "users", user.uid)).then(s => {
@@ -42,6 +43,7 @@ export function TodaySchedule() {
       if (p) { setPref({ ...EMPTY, ...p }); try { localStorage.setItem(KEY, JSON.stringify(p)); } catch { /* ignore */ } }
     }).catch(() => {});
   }, [user]);
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- restores saved choices / loads external data once; nothing to derive during render
   useEffect(() => { setNow(nowMin()); const t = setInterval(() => setNow(nowMin()), 60000); return () => clearInterval(t); }, []);
 
   const change = (p: Pref) => {

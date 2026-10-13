@@ -40,6 +40,7 @@ export function useScheduleData(dates: string[]) {
     setLoading(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [first, last]);
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- restores saved choices / loads external data once; nothing to derive during render
   useEffect(() => { load(); }, [load]);
 
   return { refs, types, workshops, changes, closures, absences, patients, loading, reload: load };
