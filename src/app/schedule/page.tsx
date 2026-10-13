@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { RoleGuard } from "@/components/auth/RoleGuard";
 import { useAuth } from "@/context/AuthContext";
 import { db } from "@/lib/firebase/config";
-import { collection, deleteDoc, deleteField, doc, getDocs, query, serverTimestamp, setDoc, updateDoc, where, writeBatch } from "firebase/firestore";
+import { collection, deleteDoc, deleteField, doc, getDoc, getDocs, query, serverTimestamp, setDoc, updateDoc, where, writeBatch } from "firebase/firestore";
 import { ChevronLeft, ChevronRight, MoreHorizontal, Plus, Search } from "lucide-react";
 import { MiniCalendar } from "@/components/workshops/MiniCalendar";
 import { ProgramScheduleSettings } from "@/components/workshops/ProgramScheduleSettings";
@@ -95,6 +95,16 @@ export default function SchedulePage() {
   }, []);
   const [settingsFor, setSettingsFor] = useState<string | null>(null);
   const [showShift, setShowShift] = useState(false);
+  // Saved combinations of programs ("morning: A + B"), kept on the person's account so they follow them between computers.
+  const [sets, setSets] = useState<ProgramSet[]>(() => readSaved<ProgramSet[]>("sets", []));
+  const saveSets = (next: ProgramSet[]) => {
+    setSets(next); save("sets", next);
+    if (user) setDoc(doc(db, "users", user.uid), { scheduleSets: next }, { merge: true }).catch(() => {});
+  };
+  useEffect(() => {
+    if (!user) return;
+    getDoc(doc(db, "users", user.uid)).then(s => { const v = s.data()?.scheduleSets; if (Array.isArray(v)) { setSets(v); save("sets", v); } }).catch(() => {});
+  }, [user]);
   const [showCopy, setShowCopy] = useState(false);
   const [query, setQuery] = useState("");
   const [searching, setSearching] = useState(false);
@@ -469,7 +479,15 @@ export default function SchedulePage() {
         <header className="no-print sticky top-0 z-30 bg-white border-b border-[var(--cal-frame)]">
           <div className="px-3 md:px-4 py-2 flex flex-wrap items-center gap-x-3 gap-y-2">
             {/* 1. What am I looking at: program, then its group. */}
-            <ProgramPicker programs={refs.programs} selected={programSel} onChange={setPrograms} />
+            <ProgramPicker programs={refs.programs} selected={programSel} onChange={setPrograms} sets={sets} onSaveSets={saveSets} />
+            <button onClick={() => setOnlyMine(o => !o)} aria-pressed={onlyMine}
+              className={`text-sm px-3 h-8 rounded-lg border ${onlyMine ? "bg-[var(--accent)] text-white border-[var(--accent)] font-bold" : "border-[var(--cal-frame)] hover:bg-[var(--foreground)]/5"}`}>רק שלי</button>
+            <div className="hidden md:flex border border-[var(--cal-frame)] rounded-lg overflow-hidden" role="group" aria-label="קיבוץ">
+              {MODES.map(([k, l]) => (
+                <button key={k} onClick={() => setMode(k)} aria-pressed={mode === k}
+                  className={`px-2.5 h-8 text-sm ${mode === k ? "bg-[var(--cal-ink)] text-white font-bold" : "text-[var(--foreground)]/70 hover:bg-[var(--foreground)]/5"}`}>{l.replace("לפי ", "")}</button>
+              ))}
+            </div>
             {groupOptions.length > 1 && (
               <select value={groupSel[0] || ""} onChange={e => pickGroup(e.target.value)} aria-label="קבוצה"
                 className="hidden md:block text-sm bg-transparent border border-[var(--cal-frame)] rounded-lg px-2.5 h-8 max-w-[10rem] focus:border-[var(--accent)] outline-none">
@@ -526,16 +544,15 @@ export default function SchedulePage() {
                 <>
                   <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
                   <ul className="absolute inset-x-3 md:inset-x-auto md:left-0 top-full mt-1 z-50 md:w-60 bg-white border border-[var(--border)] rounded-xl md:rounded-md shadow-lg py-1 text-sm max-h-[calc(100dvh-9rem)] overflow-y-auto">
-                    <li className="px-3 pt-1.5 pb-1 text-xs font-bold text-[var(--foreground)]/50">קיבוץ</li>
-                    {MODES.map(([k, l]) => (
-                      <li key={k}><button aria-pressed={mode === k} className={`w-full text-right px-3 py-1.5 hover:bg-[var(--foreground)]/5 ${mode === k ? "font-bold text-[var(--accent)]" : ""}`} onClick={() => { setMode(k); setMenuOpen(false); }}>{l}</button></li>
-                    ))}
                     <li className="px-3 pt-1.5 pb-1 text-xs font-bold text-[var(--foreground)]/50">צבע לפי</li>
                     {COLOR_BY.map(([k, l]) => (
                       <li key={k}><button aria-pressed={colorBy === k} className={`w-full text-right px-3 py-1.5 hover:bg-[var(--foreground)]/5 ${colorBy === k ? "font-bold text-[var(--accent)]" : ""}`} onClick={() => { setColorBy(k); setFocus(null); setMenuOpen(false); }}>{l}</button></li>
                     ))}
-                    <li className="border-t border-[var(--border)] my-1" />
-                    <li><label className="flex items-center gap-2 px-3 py-1.5 cursor-pointer hover:bg-[var(--foreground)]/5"><input type="checkbox" checked={onlyMine} onChange={e => setOnlyMine(e.target.checked)} /> רק המפגשים שלי</label></li>
+                    <li className="border-t border-[var(--border)] my-1 md:hidden" />
+                    <li className="px-3 pt-1.5 pb-1 text-xs font-bold text-[var(--foreground)]/50 md:hidden">קיבוץ</li>
+                    {MODES.map(([k, l]) => (
+                      <li key={k} className="md:hidden"><button aria-pressed={mode === k} className={`w-full text-right px-3 py-1.5 hover:bg-[var(--foreground)]/5 ${mode === k ? "font-bold text-[var(--accent)]" : ""}`} onClick={() => { setMode(k); setMenuOpen(false); }}>{l}</button></li>
+                    ))}
                     <li className="border-t border-[var(--border)] my-1" />
                     <li><Link className="block px-3 py-2 hover:bg-[var(--foreground)]/5" href={dayUrl}>עמוד יומי לשיתוף</Link></li>
                     <li><button className="w-full text-right px-3 py-2 hover:bg-[var(--foreground)]/5" onClick={() => { setMenuOpen(false); window.print(); }}>הדפסה</button></li>
@@ -698,8 +715,11 @@ export default function SchedulePage() {
 }
 
 /** Which programs to show side by side: none ticked = all of them. A popover of checkboxes, each in its own colour. */
-function ProgramPicker({ programs, selected, onChange }: { programs: Program[]; selected: string[]; onChange: (ids: string[]) => void }) {
+interface ProgramSet { name: string; programIds: string[] }
+
+function ProgramPicker({ programs, selected, onChange, sets, onSaveSets }: { programs: Program[]; selected: string[]; onChange: (ids: string[]) => void; sets: ProgramSet[]; onSaveSets: (s: ProgramSet[]) => void }) {
   const [open, setOpen] = useState(false);
+  const [setName, setSetName] = useState("");
   const label = selected.length === 0 ? "כל התוכניות" : selected.length === 1 ? programs.find(p => p.id === selected[0])?.name || "תוכנית" : `${selected.length} תוכניות`;
   const toggle = (id: string) => onChange(selected.includes(id) ? selected.filter(x => x !== id) : [...selected, id]);
   return (
@@ -720,6 +740,21 @@ function ProgramPicker({ programs, selected, onChange }: { programs: Program[]; 
                 <button type="button" className="text-xs underline text-[var(--cal-muted)]" onClick={e => { e.preventDefault(); onChange([p.id]); setOpen(false); }}>רק זו</button>
               </label>
             ))}
+            {sets.length > 0 && <div className="border-t border-[var(--border)] mt-1 pt-1">
+              <p className="px-3 py-1 text-xs font-bold text-[var(--foreground)]/50">שילובים שמורים</p>
+              {sets.map(st => (
+                <div key={st.name} className="flex items-center hover:bg-[var(--foreground)]/5">
+                  <button className="flex-1 text-start px-3 py-1.5 truncate" onClick={() => { onChange(st.programIds.filter(id => programs.some(p => p.id === id))); setOpen(false); }}>{st.name}</button>
+                  <button aria-label={`מחק את השילוב ${st.name}`} className="px-2 text-[var(--foreground)]/40 hover:text-rose-500" onClick={() => onSaveSets(sets.filter(x => x.name !== st.name))}>✕</button>
+                </div>
+              ))}
+            </div>}
+            {selected.length > 1 && (
+              <form className="border-t border-[var(--border)] mt-1 p-2 flex gap-1.5" onSubmit={e => { e.preventDefault(); const n = setName.trim(); if (!n) return; onSaveSets([...sets.filter(x => x.name !== n), { name: n, programIds: selected }]); setSetName(""); }}>
+                <input value={setName} onChange={e => setSetName(e.target.value)} placeholder="שם לשילוב הנוכחי" className="flex-1 min-w-0 text-sm border border-[var(--cal-frame)] rounded-md px-2 h-8" />
+                <button className="text-sm font-bold px-2 h-8 rounded-md bg-[var(--btn)] text-[var(--btn-text)] disabled:opacity-40" disabled={!setName.trim()}>שמור</button>
+              </form>
+            )}
           </div>
         </>
       )}
