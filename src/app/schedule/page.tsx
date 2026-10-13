@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { RoleGuard } from "@/components/auth/RoleGuard";
 import { useAuth } from "@/context/AuthContext";
 import { db } from "@/lib/firebase/config";
-import { addDoc, collection, deleteDoc, deleteField, doc, updateDoc, writeBatch } from "firebase/firestore";
+import { addDoc, collection, deleteDoc, deleteField, doc, serverTimestamp, setDoc, updateDoc, writeBatch } from "firebase/firestore";
 import { ChevronLeft, ChevronRight, MoreHorizontal, Plus } from "lucide-react";
 import { ProgramScheduleSettings } from "@/components/workshops/ProgramScheduleSettings";
 import { DayShiftDialog } from "@/components/workshops/DayShiftDialog";
@@ -26,7 +26,7 @@ import { typeById } from "@/lib/workshops/activityTypes";
 import { groupsRunInParallel } from "@/lib/workshops/lanes";
 import { moveSession } from "@/lib/workshops/moveSession";
 import { ActivityTypesDialog } from "@/components/workshops/ActivityTypesDialog";
-import { NewEventDialog } from "@/components/workshops/NewEventDialog";
+import { EventPrefill, NewEventDialog } from "@/components/workshops/NewEventDialog";
 import { toISO, weekDates, weekStartOf, shortDate, dayOf } from "@/lib/workshops/dates";
 import { Closure, DAY_FULL, DAY_SHORT, Program, Session } from "@/lib/workshops/types";
 
@@ -79,7 +79,7 @@ export default function SchedulePage() {
   const [colorBy, setColorBy] = useState<ColorBy>(() => readSaved<ColorBy>("colorBy", "type"));
   const [focus, setFocus] = useState<string | null>(null);
   const [showTypes, setShowTypes] = useState(false);
-  const [creating, setCreating] = useState<{ date: string; programId?: string } | null>(null);
+  const [creating, setCreating] = useState<{ date: string; programId?: string; prefill?: EventPrefill } | null>(null);
   const [toast, setToast] = useState<{ text: string; undo?: () => Promise<void> } | null>(null);
   useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(null), 8000); return () => clearTimeout(t); }, [toast]);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -317,8 +317,20 @@ export default function SchedulePage() {
       if (closedFor(s.programId, to.date)) warn.push("יום ללא פעילות");
       return warn.slice(0, 3).join(" · ") || undefined;
     },
-    onDrop: async (s, to) => {
+    onDrop: async (s, to, copy) => {
       try {
+        if (copy) {
+          // Ctrl/Alt + drag: a copy at the new place (a one-off session of the same workshop), the original stays.
+          const ref = doc(collection(db, "session_changes"));
+          await setDoc(ref, {
+            workshopId: s.workshopId, slotId: null, originalDate: null, newDate: to.date, newStart: to.start, newEnd: to.end,
+            staffIds: s.staffIds, locationId: s.locationId || "", note: s.note || "", kind: s.activity, title: s.workshopName,
+            dates: [to.date], published: false, updatedAt: serverTimestamp(), updatedBy: user?.uid || null,
+          });
+          setToast({ text: `${s.workshopName} הועתק ל-${to.date !== s.date ? `${shortDate(to.date)} ` : ""}${to.start}–${to.end}`, undo: async () => { await deleteDoc(ref); load(); } });
+          load();
+          return;
+        }
         // Sideways within the day: remember the side for the whole workshop (sessions run in parallel stay where you put them).
         const { lane, ...when } = to;
         const prevHint = workshopById.get(s.workshopId)?.laneHint;
@@ -526,6 +538,7 @@ export default function SchedulePage() {
             warnings={editing.session ? warnings.get(editing.session.id) || [] : []}
             userId={user?.uid} onClose={() => setEditing(null)}
             onEditSeries={id => { setEditing(null); setSeries({ id }); }}
+            onDuplicate={s => { setEditing(null); setCreating({ date: s.date, programId: s.programId, prefill: { name: s.workshopName, kind: s.activity, groupIds: s.groupIds, start: s.start, end: s.end, locationId: s.locationId, staffIds: s.staffIds } }); }}
             onSaved={() => { setEditing(null); load(); }}
           />
         )}
@@ -569,7 +582,7 @@ export default function SchedulePage() {
           </div>
         )}
         {creating && (
-          <NewEventDialog refs={refs} types={types} initial={creating} userId={user?.uid} onClose={() => setCreating(null)}
+          <NewEventDialog refs={refs} types={types} initial={creating} existing={all} userId={user?.uid} onClose={() => setCreating(null)}
             onSaved={() => { setCreating(null); load(); }}
             onExisting={() => { setEditing({ session: null, extra: creating }); setCreating(null); }} />
         )}

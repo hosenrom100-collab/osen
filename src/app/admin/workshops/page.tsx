@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { RoleGuard } from "@/components/auth/RoleGuard";
@@ -38,10 +38,19 @@ export default function WorkshopsPage() {
   const [search, setSearch] = useState("");
   const [creating, setCreating] = useState<{ from?: Workshop } | null>(null);
 
+  // Opened from the calendar with ?duplicate=<id>: go straight to the duplicate dialog for that workshop.
+  const wantedCopy = useRef<string | null>(typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get("duplicate"));
+
   const load = useCallback(async () => {
     const [r, snap, tps] = await Promise.all([loadRefs(), getDocs(collection(db, "workshops")), loadActivityTypes()]);
     setRefs(r); setTypes(tps);
-    setWorkshops(snap.docs.map(d => ({ id: d.id, ...d.data() } as Workshop)));
+    const list = snap.docs.map(d => ({ id: d.id, ...d.data() } as Workshop));
+    setWorkshops(list);
+    if (wantedCopy.current) {
+      const from = list.find(w => w.id === wantedCopy.current);
+      wantedCopy.current = null;
+      if (from) setCreating({ from });
+    }
     setLoading(false);
   }, []);
   useEffect(() => { load(); }, [load]);

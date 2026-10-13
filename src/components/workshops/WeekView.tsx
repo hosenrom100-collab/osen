@@ -226,7 +226,7 @@ export interface Column {
  */
 export interface DragApi {
   can: (s: Session) => boolean;
-  onDrop: (s: Session, to: { date: string; start: string; end: string; lane?: number }) => void;
+  onDrop: (s: Session, to: { date: string; start: string; end: string; lane?: number }, copy?: boolean) => void;
   conflict: (s: Session, to: { date: string; start: string; end: string }) => string | undefined;
 }
 
@@ -345,7 +345,7 @@ export function TimeGrid({ columns, mode, groupName, laneMin, corner, drag: drag
       const next = { ...st, started: true, x: e.clientX, y: e.clientY, to: computeRef.current(st, e.clientX, e.clientY) };
       dragRef.current = next; setDrag(next);
     };
-    const end = (cancel: boolean) => {
+    const end = (cancel: boolean, copy = false) => {
       const st = dragRef.current;
       dragRef.current = null; setDrag(null);
       if (!st?.started) return;
@@ -353,9 +353,9 @@ export function TimeGrid({ columns, mode, groupName, laneMin, corner, drag: drag
       setTimeout(() => { justDragged.current = false; }, 60);
       const to = st.to;
       const laneChanged = st.mode === "move" && to?.lane !== undefined && to.lane !== laneRef.current(st.s);
-      if (!cancel && to && (to.date !== st.s.date || to.start !== st.s.start || to.end !== st.s.end || laneChanged)) dropRef.current?.(st.s, { date: to.date, start: to.start, end: to.end, ...(laneChanged ? { lane: to.lane } : {}) });
+      if (!cancel && to && (to.date !== st.s.date || to.start !== st.s.start || to.end !== st.s.end || laneChanged)) dropRef.current?.(st.s, { date: to.date, start: to.start, end: to.end, ...(laneChanged ? { lane: to.lane } : {}) }, copy && st.mode === "move");
     };
-    const up = () => end(false);
+    const up = (e: PointerEvent) => end(false, e.ctrlKey || e.altKey);
     const key = (e: KeyboardEvent) => { if (e.key === "Escape") end(true); };
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", up);
@@ -499,6 +499,7 @@ export function TimeGrid({ columns, mode, groupName, laneMin, corner, drag: drag
             <div className="font-bold text-[13px]">{drag.s.workshopName}</div>
             <div className="tabular-nums mt-0.5">{d !== drag.s.date ? `${shortDate(d)} · ` : ""}{drag.to.start}–{drag.to.end}</div>
             {warn && <div className="mt-1 text-[#ffb4a8] font-semibold">{warn}</div>}
+            {drag.mode === "move" && <div className="mt-1 opacity-70">Ctrl להעתקה</div>}
           </div>
         );
       })()}

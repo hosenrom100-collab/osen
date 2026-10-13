@@ -8,7 +8,7 @@ import { Dialog, fieldCls, labelCls, btnPrimary, btnGhost } from "./Dialog";
 import { StaffPicker } from "./StaffPicker";
 import { Refs } from "@/lib/workshops/data";
 import { ActivityType, pastel } from "@/lib/workshops/activityTypes";
-import { DAY_FULL } from "@/lib/workshops/types";
+import { DAY_FULL, Session } from "@/lib/workshops/types";
 import { OPEN_END, dayOf, toISO } from "@/lib/workshops/dates";
 
 const REPEATS: [number, string][] = [[0, "לא חוזר"], [1, "כל שבוע"], [2, "כל שבועיים"], [3, "כל 3 שבועות"], [4, "כל 4 שבועות"]];
@@ -17,20 +17,23 @@ const REPEATS: [number, string][] = [[0, "לא חוזר"], [1, "כל שבוע"],
  * A new event — a team meeting, a workshop, anything — optionally repeating every N weeks.
  * It is created as its own activity, so it can be edited later for all of its dates at once.
  */
-export function NewEventDialog({ refs, types, initial, userId, onClose, onSaved, onExisting }: {
-  refs: Refs; types: ActivityType[]; initial: { date: string; programId?: string };
+export interface EventPrefill { name: string; kind: string; groupIds: string[]; start: string; end: string; locationId?: string; staffIds: string[] }
+
+export function NewEventDialog({ refs, types, initial, existing = [], userId, onClose, onSaved, onExisting }: {
+  refs: Refs; types: ActivityType[]; initial: { date: string; programId?: string; prefill?: EventPrefill }; existing?: Session[];
   userId?: string; onClose: () => void; onSaved: () => void; onExisting: () => void;
 }) {
   const pickable = types.filter(t => !t.band && !t.archived);
-  const [name, setName] = useState("");
-  const [kind, setKind] = useState(pickable.find(t => t.id === "staff_meeting")?.id || pickable[0]?.id || "workshop");
+  const pf = initial.prefill;
+  const [name, setName] = useState(pf ? `${pf.name} (עותק)` : "");
+  const [kind, setKind] = useState(pf?.kind || pickable.find(t => t.id === "staff_meeting")?.id || pickable[0]?.id || "workshop");
   const [programId, setProgramId] = useState(initial.programId || refs.programs[0]?.id || "");
-  const [groupIds, setGroupIds] = useState<string[]>([]);
+  const [groupIds, setGroupIds] = useState<string[]>(pf?.groupIds || []);
   const [date, setDate] = useState(initial.date);
-  const [start, setStart] = useState("09:00");
-  const [end, setEnd] = useState("10:00");
-  const [locationId, setLocationId] = useState("");
-  const [staffIds, setStaffIds] = useState<string[]>([]);
+  const [start, setStart] = useState(pf?.start || "09:00");
+  const [end, setEnd] = useState(pf?.end || "10:00");
+  const [locationId, setLocationId] = useState(pf?.locationId || "");
+  const [staffIds, setStaffIds] = useState<string[]>(pf?.staffIds || []);
   const [every, setEvery] = useState(0);
   const [until, setUntil] = useState(toISO(addMonths(parseISO(initial.date), 3)));
   const [noEnd, setNoEnd] = useState(false);
@@ -49,6 +52,9 @@ export function NewEventDialog({ refs, types, initial, userId, onClose, onSaved,
     return n;
   }, [every, date, until, noEnd]);
 
+  // The same thing already on that day (same name, same program, overlapping time): probably a double entry.
+  const twin = existing.find(s => !s.fixedBlock && s.kind !== "cancelled" && s.kind !== "moved-away" && s.date === date && s.programId === programId
+    && s.workshopName.trim() === name.trim() && s.start < end && start < s.end);
   const valid = !!name.trim() && !!programId && !!date && end > start && (!every || noEnd || until >= date);
   const save = async () => {
     if (!valid) return;
@@ -124,6 +130,7 @@ export function NewEventDialog({ refs, types, initial, userId, onClose, onSaved,
         <div><label className={labelCls}>התחלה</label><input type="time" className={fieldCls} value={start} onChange={e => setStart(e.target.value)} /></div>
         <div><label className={labelCls}>סיום</label><input type="time" className={fieldCls} value={end} onChange={e => setEnd(e.target.value)} /></div>
       </div>
+      {twin && <p role="alert" className="rounded-lg bg-[#fff6dc] text-[#8a5a00] text-[13px] px-3 py-2">כבר קיים ביומן: {twin.workshopName}, {twin.start}–{twin.end}. אם זה לא מכוון, אפשר לבטל ולפתוח אותו.</p>}
       {date && <p className="text-xs text-[var(--foreground)]/55 -mt-3">יום {DAY_FULL[dayOf(date)]}{end <= start ? " · שעת הסיום מוקדמת מההתחלה" : ""}</p>}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

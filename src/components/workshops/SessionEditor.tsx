@@ -28,6 +28,7 @@ interface Props {
   onClose: () => void;
   onSaved: () => void;
   onEditSeries?: (workshopId: string) => void;
+  onDuplicate?: (s: Session) => void;
 }
 
 const Chip = ({ children }: { children: React.ReactNode }) => <span className="inline-flex items-center h-7 px-3 rounded-full bg-[var(--btn-soft)] text-[var(--btn-soft-text)] text-[13px] font-medium">{children}</span>;
@@ -43,6 +44,7 @@ function WholeWorkshop({ name, id, onEditSeries }: { name: string; id: string; o
       <p className="text-xs text-[var(--foreground)]/60 mt-0.5 leading-relaxed">הפעולות למעלה חלות על המפגש הזה בלבד. כאן משנים את כל המפגשים של הסדנה, בכל השבועות.</p>
       <div className="mt-2.5 flex flex-wrap gap-2">
         {onEditSeries && <button type="button" onClick={() => onEditSeries(id)} className={btnGhost}>ימים ושעות קבועים</button>}
+        <Link href={`/admin/workshops?duplicate=${id}`} onClick={rememberBack} className={`${btnGhost} inline-flex items-center`}>שכפל סדנה למחזור חדש</Link>
         <Link href={`/admin/workshops/${id}`} onClick={rememberBack} className={`${btnGhost} inline-flex items-center`}>כל פרטי הסדנה (שם, תאריכים, צוות, משתתפים) ←</Link>
       </div>
     </section>
@@ -52,7 +54,7 @@ function WholeWorkshop({ name, id, onEditSeries }: { name: string; id: string; o
 const quickCls = "rounded-lg border border-[var(--border)] px-3 py-2.5 text-sm font-semibold hover:bg-[var(--foreground)]/5 disabled:opacity-50 transition-colors";
 const sameSet = (a: string[], b: string[]) => [...a].sort().join() === [...b].sort().join();
 
-export function SessionEditor({ session, extra, workshops, staff, locations, types = [], canEdit, warnings, participants = [], groupNames = [], accent, busyFor, userId, onClose, onSaved, onEditSeries }: Props) {
+export function SessionEditor({ session, extra, workshops, staff, locations, types = [], canEdit, warnings, participants = [], groupNames = [], accent, busyFor, userId, onClose, onSaved, onEditSeries, onDuplicate }: Props) {
   const isExtra = !session || session.kind === "extra";
   const ch = session?.change;
   const [workshopId, setWorkshopId] = useState(session?.workshopId || "");
@@ -190,6 +192,7 @@ export function SessionEditor({ session, extra, workshops, staff, locations, typ
               {!dead && <button disabled={saving} onClick={() => save({ start: addMinutes(session.start, 15), end: addMinutes(session.end, 15) })} className={quickCls}>דחה ב-15 דקות</button>}
               {!dead && <button disabled={saving} onClick={() => save({ start: addMinutes(session.start, -15), end: addMinutes(session.end, -15) })} className={quickCls}>הקדם ב-15 דקות</button>}
               {!dead && <button disabled={saving} onClick={() => setStage("edit")} className={quickCls}>מחליף או מרחב…</button>}
+              {onDuplicate && !session.fixedBlock && <button disabled={saving} onClick={() => onDuplicate(session)} className={quickCls}>שכפל מפגש</button>}
               {dead
                 ? <button disabled={saving} onClick={() => save({ cancelled: false })} className={`${quickCls} col-span-2`}>החזר את המפגש</button>
                 : confirmCancel
