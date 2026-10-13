@@ -25,6 +25,7 @@ export interface Common {
   programTag?: (s: Session) => string | undefined; // short program name, when cards of several programs share a column
   showGroups?: boolean; // show group names on sessions even in program mode
   onOpen: (s: Session) => void;
+  onHover?: (s: Session | null) => void;             // the card under the pointer (for Ctrl+C)
   groupHue?: (groupId: string) => number | undefined; // a group's own colour (lane headers, tags)
   jointOf?: (s: Session) => boolean;                  // a session shared by several groups of a program
   soft?: Map<string, string[]>;                       // soft warnings: worth a look, not an error
@@ -69,8 +70,9 @@ function Card({ s, mode, c, groups, compact }: { s: Session; mode: Mode; c: Comm
     const el = e.currentTarget;
     if (hover.current) clearTimeout(hover.current);
     hover.current = setTimeout(() => setPeek(el.getBoundingClientRect()), 280);
+    c.onHover?.(s);
   };
-  const leave = () => { if (hover.current) clearTimeout(hover.current); setPeek(null); };
+  const leave = () => { if (hover.current) clearTimeout(hover.current); setPeek(null); c.onHover?.(null); };
 
   // Phone: every card the same shape (name, then one line of room / people / count). The rest is one tap away in the details.
   if (compact) {

@@ -26,6 +26,7 @@ import { typeById } from "@/lib/workshops/activityTypes";
 import { groupsRunInParallel } from "@/lib/workshops/lanes";
 import { moveSession } from "@/lib/workshops/moveSession";
 import { ActivityTypesDialog } from "@/components/workshops/ActivityTypesDialog";
+import { CopyScheduleDialog } from "@/components/workshops/CopyScheduleDialog";
 import { EventPrefill, NewEventDialog } from "@/components/workshops/NewEventDialog";
 import { toISO, weekDates, weekStartOf, shortDate, dayOf } from "@/lib/workshops/dates";
 import { Closure, DAY_FULL, DAY_SHORT, Program, Session } from "@/lib/workshops/types";
@@ -93,6 +94,10 @@ export default function SchedulePage() {
   }, []);
   const [settingsFor, setSettingsFor] = useState<string | null>(null);
   const [showShift, setShowShift] = useState(false);
+  const [showCopy, setShowCopy] = useState(false);
+  // Ctrl+C on the card under the pointer, Ctrl+V to paste it as a new event (opens the "new event" form, filled in).
+  const hovered = useRef<Session | null>(null);
+  const [clip, setClip] = useState<Session | null>(null);
   useEffect(() => {
     save("mode", mode); save("programs", programSel); save("groups", groupSel); save("view", view); save("colorBy", colorBy);
     try {
@@ -255,6 +260,25 @@ export default function SchedulePage() {
     load();
   };
 
+  const keys = useRef<(e: KeyboardEvent) => void>(() => {});
+  useEffect(() => {
+    keys.current = e => {
+      if (!(e.ctrlKey || e.metaKey) || !isManager || editing || creating || showCopy || showShift || series || settingsFor || showChanges || showClosures || showTypes) return;
+      const el = e.target as HTMLElement | null;
+      if (el && (/^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName) || el.isContentEditable)) return;
+      const k = e.key.toLowerCase();
+      if (k === "c" && hovered.current && !hovered.current.fixedBlock && !window.getSelection()?.toString()) {
+        e.preventDefault(); const s = hovered.current; setClip(s);
+        setToast({ text: `הועתק: ${s.workshopName}. Ctrl+V להדבקה` });
+      } else if (k === "v" && clip) {
+        e.preventDefault();
+        setCreating({ date: view === "day" ? selectedDay : dates.includes(today) ? today : dates[0], programId: clip.programId,
+          prefill: { name: clip.workshopName, kind: clip.activity, groupIds: clip.groupIds, start: clip.start, end: clip.end, locationId: clip.locationId, staffIds: clip.staffIds } });
+      }
+    };
+  });
+  useEffect(() => { const on = (e: KeyboardEvent) => keys.current(e); window.addEventListener("keydown", on); return () => window.removeEventListener("keydown", on); }, []);
+
   if (loading || !refs) return <PageSkeleton />;
 
   const rangeLabel = `${format(weekStart, "d.M")} – ${format(addDays(weekStart, 6), "d.M.yyyy")}`; // print title only
@@ -291,6 +315,7 @@ export default function SchedulePage() {
       return n || undefined;
     },
     // A fixed meal/break opens its program's schedule settings; everything else opens the session.
+    onHover: (s: Session | null) => { hovered.current = s; },
     onOpen: (s: Session) => (s.fixedBlock ? (isManager && setSettingsFor(s.programId)) : setEditing({ session: s })),
   };
   const legendKey = (s: Session) => (colorBy === "type" ? s.activity : colorBy === "program" ? s.programId : s.workshopId);
@@ -470,6 +495,7 @@ export default function SchedulePage() {
                     {isManager && <>
                       <li className="border-t border-[var(--border)] my-1" />
                       <li><button className="w-full text-right px-3 py-2 hover:bg-[var(--foreground)]/5" onClick={() => { setMenuOpen(false); setShowShift(true); }}>דחיית מפגשי היום</button></li>
+                      <li><button className="w-full text-right px-3 py-2 hover:bg-[var(--foreground)]/5" onClick={() => { setMenuOpen(false); setShowCopy(true); }}>העתקת לוז…</button></li>
                       <li><button className="w-full text-right px-3 py-2 hover:bg-[var(--foreground)]/5" onClick={() => { setMenuOpen(false); setShowTypes(true); }}>סוגי פעילות</button></li>
                       <li><button className="w-full text-right px-3 py-2 hover:bg-[var(--foreground)]/5" onClick={() => { setMenuOpen(false); setSeries({}); }}>ימי פעילות קבועים</button></li>
                       <li><button className="w-full text-right px-3 py-2 hover:bg-[var(--foreground)]/5" onClick={() => { setMenuOpen(false); setShowClosures(true); }}>ימים ללא פעילות</button></li>
@@ -575,6 +601,10 @@ export default function SchedulePage() {
         {showShift && (
           <DayShiftDialog date={selectedDay} userId={user?.uid} scopeLabel={currentProgram ? currentProgram.name : "כל התוכניות"}
             sessions={sessions} onClose={() => setShowShift(false)} onSaved={() => { setShowShift(false); load(); }} />
+        )}
+        {showCopy && (
+          <CopyScheduleDialog refs={refs} workshops={workshops} sessions={all} dates={dates} selectedDay={selectedDay} programId={onlyProgram} userId={user?.uid}
+            onClose={() => setShowCopy(false)} onDone={(text, undo) => { setToast({ text, undo: async () => { await undo(); load(); } }); load(); }} />
         )}
         {toast && (
           <div role="status" className="no-print fixed bottom-20 md:bottom-6 inset-x-0 z-[70] mx-auto w-fit max-w-[92vw] flex items-center gap-3 bg-[#2b1e17] text-white text-sm pl-3 pr-4 py-2.5 rounded-lg shadow-[0_8px_24px_rgba(0,0,0,0.3)]">
