@@ -20,7 +20,6 @@ import { format, addMonths, differenceInDays, parseISO, isValid } from "date-fns
 import { he } from "date-fns/locale";
 import { PageSkeleton, SkeletonRows } from "@/components/ui/Skeleton";
 import { QuickActionGrid, StatRow } from "@/components/ui/Section";
-import { ScheduleEditorModal } from "@/components/home/ScheduleEditorModal";
 import { TodaySchedule } from "@/components/home/TodaySchedule";
 import { FRAMEWORK_LABELS } from "@/app/shopping/lib/constants";
 import { getCutoffStatus } from "@/app/shopping/lib/cutoffUtils";
@@ -29,11 +28,6 @@ import type { CutoffConfig, ShoppingRequest } from "@/app/shopping/types";
 
 interface GroupStat   { id: string; name: string; present: number; absent: number; total: number }
 interface PresentPat  { id: string; firstName: string; lastName: string; hosenType?: string }
-interface ScheduleAct {
-  id: string; title: string; startTime: string; endTime?: string;
-  locationName: string; staffNames: string[]; groupId: string;
-  type?: 'activity' | 'break' | 'meal' | 'swap' | 'custom';
-}
 
 const greeting = () => {
   const h = new Date().getHours();
@@ -68,15 +62,9 @@ export default function Home() {
   const [programs,        setPrograms]        = useState<any[]>([]);
   const [stats,           setStats]           = useState<GroupStat[]>([]);
   const [presentPatients, setPresentPatients] = useState<PresentPat[]>([]);
-  const [activities,      setActivities]      = useState<ScheduleAct[]>([]);
-  const [dutyName,        setDutyName]        = useState("");
-  const [dutyId,          setDutyId]          = useState("");
   const [allStaff,        setAllStaff]        = useState<{ id: string; name: string }[]>([]);
   const [staffMembers,    setStaffMembers]    = useState<any[]>([]);
   const [staffAttendance, setStaffAttendance] = useState<Record<string, { status: string; reason?: string }>>({});
-  const [isEditingDuty,   setIsEditingDuty]   = useState(false);
-  const [isScheduleEditorOpen, setIsScheduleEditorOpen] = useState(false);
-  const [conflicts,       setConflicts]       = useState<{userId: string, userName: string, type: 'duty'|'activity'}[]>([]);
   const [expandedGroups,  setExpandedGroups]  = useState<Set<string>>(new Set());
   const [showGroupPicker, setShowGroupPicker] = useState(false);
   const [dataLoaded,      setDataLoaded]      = useState(false);
@@ -118,54 +106,6 @@ export default function Home() {
   const isStrictAdmin = isAdmin && !(roles || []).some(r => r === "social_worker" || r === "instructor" || r === "employee" || r === "logistics");
   const isStrictManager = isManager && !(roles || []).some(r => r === "social_worker" || r === "instructor" || r === "employee" || r === "logistics");
   const showAll = isStrictAdmin || isStrictManager;
-
-  const [scheduleCopied, setScheduleCopied] = useState(false);
-
-  const handleCopyForWhatsApp = () => {
-    if (visibleActs.length === 0) return;
-    
-    const now = new Date();
-    const days = ["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת"];
-    const dayName = days[now.getDay()];
-    const formattedDate = `יום ${dayName} (${format(now, "dd/MM/yyyy")})`;
-
-    let text = `📅 *לוז פעילות ל${formattedDate}*\n\n`;
-    
-    if (dutyName) {
-      text += `👤 *מדריך/ה תורן/נית:* ${dutyName}\n\n`;
-    }
-    
-    const sortedActs = [...visibleActs].sort((a, b) => a.startTime.localeCompare(b.startTime));
-    
-    sortedActs.forEach(act => {
-      const timeStr = act.endTime ? `${act.startTime}–${act.endTime}` : act.startTime;
-      text += `⏰ *${timeStr}* | *${act.title}*\n`;
-      
-      const details = [];
-      if (act.locationName && act.locationName !== "ללא מיקום") {
-        details.push(`📍 *מיקום:* ${act.locationName}`);
-      }
-      if (act.staffNames && act.staffNames.length > 0) {
-        details.push(`👥 *צוות:* ${act.staffNames.join(", ")}`);
-      }
-      
-      if (details.length > 0) {
-        text += `${details.join("  •  ")}\n`;
-      }
-      text += `\n`;
-    });
-    
-    text += `_*חוות רום - מרכז חוסן*_`;
-    
-    navigator.clipboard.writeText(text)
-      .then(() => {
-        setScheduleCopied(true);
-        setTimeout(() => setScheduleCopied(false), 2000);
-      })
-      .catch(err => {
-        console.error("Failed to copy schedule:", err);
-      });
-  };
 
   useEffect(() => {
     if (!loading && (!user || !isWhitelisted)) router.push("/login");
@@ -348,8 +288,7 @@ export default function Home() {
       setPendingAbsences(allAbsSnap.size);
 
       // 4. Schedule and Staff Presence
-      const [schedSnap, usersSnap, locsSnap, staffAttSnap] = await Promise.all([
-        getDoc(doc(db, "schedules", today)),
+      const [usersSnap, locsSnap, staffAttSnap] = await Promise.all([
         getDocs(collection(db, "users")),
         getDocs(collection(db, "locations")),
         getDocs(query(collection(db, "staff_attendance"), where("date", "==", today))),
@@ -392,40 +331,6 @@ export default function Home() {
         }
       });
       setStaffAttendance(attRec);
-
-      if (schedSnap.exists()) {
-        const data = schedSnap.data();
-        const duty = data.dutyInstructorId || data.dutyId || "";
-        setDutyId(duty);
-        setDutyName(duty ? (userMap[duty] || "") : "");
-        const acts: ScheduleAct[] = (data.activities || []).map((a: any) => ({
-          id:           a.id || Math.random().toString(36).slice(2),
-          title:        a.title || a.activityType || "פעילות",
-          startTime:    a.startTime || "",
-          endTime:      a.endTime || "",
-          locationName: locMap[a.locationId] || "",
-          staffNames:   (a.staffIds || (a.instructorId ? [a.instructorId] : []))
-                          .map((id: string) => userMap[id] || "").filter(Boolean),
-          groupId:      a.groupId || a.hosenType || "all",
-          type:         a.type || "activity",
-        })).sort((a: ScheduleAct, b: ScheduleAct) => a.startTime.localeCompare(b.startTime));
-        setActivities(acts);
-
-        if (isAdmin || isManager) {
-          const newConflicts: {userId: string, userName: string, type: 'duty'|'activity'}[] = [];
-          if (duty && absentStaffIds.has(duty)) newConflicts.push({ userId: duty, userName: userMap[duty] || duty, type: 'duty' });
-          (data.activities || []).forEach((oa: any) => {
-            const staffIds = oa.staffIds || (oa.instructorId ? [oa.instructorId] : []);
-            staffIds.forEach((sid: string) => { if (absentStaffIds.has(sid)) newConflicts.push({ userId: sid, userName: userMap[sid] || sid, type: 'activity' }); });
-          });
-          setConflicts(newConflicts);
-        }
-      } else {
-        setDutyId("");
-        setDutyName("");
-        setActivities([]);
-        setConflicts([]);
-      }
 
       // 5. Notifications
       const nSnap = await getDocs(query(
@@ -482,19 +387,6 @@ export default function Home() {
     finally { setDataLoaded(true); }
   };
 
-  const updateDuty = async (newId: string) => {
-    const today = format(new Date(), "yyyy-MM-dd");
-    try {
-      const ref  = doc(db, "schedules", today);
-      const snap = await getDoc(ref);
-      if (snap.exists()) await updateDoc(ref, { dutyInstructorId: newId });
-      else               await setDoc(ref, { dutyInstructorId: newId, activities: [] });
-      setDutyId(newId);
-      setDutyName(allStaff.find(s => s.id === newId)?.name || "");
-      setIsEditingDuty(false);
-    } catch (err) { console.error(err); }
-  };
-
   /* ── Derived ── */
   const isGroupVisible = (gId: string) => {
     const isGroupActiveToday = groups.some(g => g.id === gId);
@@ -518,13 +410,6 @@ export default function Home() {
   const totalMissing  = visibleStats.reduce((n, s) => n + Math.max(0, s.total - s.present - s.absent), 0);
   const totalActive   = visibleStats.reduce((n, s) => n + s.total, 0);
   const now           = format(new Date(), "HH:mm");
-  const visibleActs   = activities.filter(a => {
-    const isPast = (a.endTime ?? a.startTime) < now;
-    if (isPast) return false;
-    return isGroupVisible(a.groupId) || a.groupId === "all";
-  });
-  const nextAct       = visibleActs.find(a => a.startTime > now);
-  const currentAct    = visibleActs.find(a => a.startTime <= now && (!a.endTime || a.endTime > now));
   const primaryGroup  = groups.find(g => g.id === primaryGroupId);
   const overallPct    = totalActive > 0 ? Math.round((totalPresent / totalActive) * 100) : 0;
 
