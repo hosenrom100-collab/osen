@@ -21,7 +21,7 @@ import { buildSessions } from "@/lib/workshops/buildWeek";
 import { notifyStaff, Refs } from "@/lib/workshops/data";
 import { useScheduleData } from "@/lib/workshops/useScheduleData";
 import { firstNames, participantsOf } from "@/lib/workshops/people";
-import { ColorBy, groupHue, hueStyle, sessionHue } from "@/lib/workshops/colors";
+import { ColorBy, groupHue, hueStyle, programHue, sessionHue } from "@/lib/workshops/colors";
 import { typeById } from "@/lib/workshops/activityTypes";
 import { groupsRunInParallel } from "@/lib/workshops/lanes";
 import { moveSession } from "@/lib/workshops/moveSession";
@@ -339,13 +339,19 @@ export default function SchedulePage() {
     if (!p || laneGroups.length < 2) return "stable";
     return p.laneMode !== "auto" || groupsRunInParallel(sessions) ? "groups" : "stable";
   })();
+  // Several programs on screen: one fixed lane per program, the same on every day, in the program's own colour.
+  const frameList = mode === "program" && programSel.length === 0 && shownPrograms.length >= 2 && shownPrograms.length <= 4 ? shownPrograms : [];
+  const frames = frameList.length ? {
+    labels: frameList.map(p => p.name), hues: frameList.map(p => programHue(p)),
+    frameOf: (s: Session) => { const i = frameList.findIndex(p => p.id === s.programId); return i < 0 ? [] : [i]; },
+  } : undefined;
   const columns: Column[] = view === "week"
     ? days.map(d => {
         const date = dates[d];
         const sub = closedFor(programSel[0] || null, date);
         return {
-          id: date, date, today: date === today, sessions: sessions.filter(s => s.date === date), laneMode: weekLanes, groupIds: laneGroups.map(g => g.id),
-          showGroups: weekLanes === "stable" && !groupSel[0],
+          id: date, date, today: date === today, sessions: sessions.filter(s => s.date === date), laneMode: frames ? "frames" as const : weekLanes, groupIds: laneGroups.map(g => g.id), frames,
+          showGroups: !frames && weekLanes === "stable" && !groupSel[0],
           header: <span className="flex flex-col items-center leading-none" aria-label={`יום ${DAY_FULL[dayOf(date)]} ${shortDate(date)}`}><span className="text-xs font-medium text-[var(--cal-muted)]">{DAY_FULL[dayOf(date)]}</span><span className={`mt-1 inline-flex items-center justify-center min-w-8 h-8 px-1 rounded-full text-xl font-bold tabular-nums ${date === today ? "bg-[var(--accent)] text-white" : ""}`}>{format(new Date(`${date}T12:00:00`), "d")}</span><span className="mt-0.5 text-[11px] text-[var(--cal-faint)] tabular-nums">{format(new Date(`${date}T12:00:00`), "MMM", { locale: he })}</span></span>,
           sub, onAdd: addFor(date, programSel[0]),
         };

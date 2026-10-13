@@ -5,7 +5,7 @@ import { DAY_SHORT, Session, staffChangeLabel } from "@/lib/workshops/types";
 import { dayOf, fromMin as fmtMin, shortDate, toMin } from "@/lib/workshops/dates";
 import { MapPin, Plus } from "lucide-react";
 import { hueStyle } from "@/lib/workshops/colors";
-import { DayLanes, laneByGroup, laneStable, timeRows } from "@/lib/workshops/lanes";
+import { DayLanes, laneByFrame, laneByGroup, laneStable, timeRows } from "@/lib/workshops/lanes";
 
 export interface Row { id: string; label: string; match: (s: Session) => boolean; closedReason: (date: string) => string | undefined }
 
@@ -210,7 +210,8 @@ export interface Column {
   sub?: string;                       // closure / absence note under the header
   sessions: Session[];
   today?: boolean;
-  laneMode: "groups" | "stable";
+  laneMode: "groups" | "frames" | "stable";
+  frames?: { labels: string[]; hues: (number | undefined)[]; frameOf: (s: Session) => number[] }; // lane per frame (e.g. per program) when laneMode is "frames"
   groupIds?: string[];                // lane order when laneMode is "groups"
   showGroups?: boolean;               // name the group on each card (when lanes do not already)
   onAdd?: () => void;
@@ -250,7 +251,8 @@ export function TimeGrid({ columns, mode, groupName, laneMin, corner, drag: drag
   const { times, covered, rowOf } = timeRows(all);
   const pref = new Map<string, number>(Object.entries(laneHints || {})); // workshop → lane, shared by all days so it stays on one side
   const laid: DayLanes[] = columns.map(col =>
-    col.laneMode === "groups" && col.groupIds?.length ? laneByGroup(col.sessions, col.groupIds, groupName) : laneStable(col.sessions, pref));
+    col.laneMode === "frames" && col.frames ? laneByFrame(col.sessions, col.frames.labels, col.frames.frameOf)
+      : col.laneMode === "groups" && col.groupIds?.length ? laneByGroup(col.sessions, col.groupIds, groupName) : laneStable(col.sessions, pref));
   const hasLabels = laid.some(l => l.laneLabels);
   const HDR = hasLabels ? 2 : 1;
 
@@ -418,7 +420,7 @@ export function TimeGrid({ columns, mode, groupName, laneMin, corner, drag: drag
               {/* One continuous day separator, header to bottom, so header and body always line up. */}
               <div className="pointer-events-none border-s border-[var(--cal-line-day)]" style={{ gridRow: `1 / -1`, gridColumn: c1 }} />
               {l.laneLabels && l.laneLabels.slice(1).map((_, i) => (
-                <div key={`d${i}`} className="pointer-events-none border-s border-dashed border-[var(--cal-line-lane)]" style={{ gridRow: `2 / -1`, gridColumn: c1 + (i + 1) * (l.unit ?? 1) }} />
+                <div key={`d${i}`} className="pointer-events-none border-s-[1.5px] border-[var(--cal-line-frame)]" style={{ gridRow: `2 / -1`, gridColumn: c1 + (i + 1) * (l.unit ?? 1) }} />
               ))}
               {/* A group with nothing of its own that day keeps its place, shaded, so every group stays where it always is. */}
               {l.laneLabels && l.placed.length > 0 && l.laneLabels.map((_, g) => {
@@ -431,17 +433,23 @@ export function TimeGrid({ columns, mode, groupName, laneMin, corner, drag: drag
                   </div>
                 );
               })}
+              {l.laneLabels && l.laneLabels.map((_, g) => {
+                const h = col.frames ? col.frames.hues[g] : col.groupIds?.[g] ? c.groupHue?.(col.groupIds[g]) : undefined;
+                return h !== undefined && (
+                  <div key={`t${g}`} className="pointer-events-none" style={{ gridRow: `2 / -1`, gridColumn: `${c1 + g * (l.unit ?? 1)} / span ${l.unit ?? 1}`, backgroundColor: `hsl(${h} 45% 50% / 0.05)` }} />
+                );
+              })}
               <div data-col={k} className={`sticky top-[3.25rem] z-20 bg-[var(--cal-surface)] px-2 pt-2 text-center text-[var(--cal-ink)] ${l.laneLabels ? "" : "border-b border-[var(--cal-frame)] pb-2"}`}
                 style={{ gridRow: 1, gridColumn: `${c1} / span ${l.lanes}` }}>
                 {col.header}
                 {hasSub && <div className="mt-1 min-h-[1.25rem]">{col.sub && <span className="inline-block max-w-full truncate px-2 rounded-full bg-[var(--cal-ink)]/[0.06] text-[11px] font-medium text-[var(--cal-muted)]">{col.sub}</span>}</div>}
               </div>
               {l.laneLabels && l.laneLabels.map((name, i) => {
-                const h = col.groupIds?.[i] ? c.groupHue?.(col.groupIds[i]) : undefined;
+                const h = col.frames ? col.frames.hues[i] : col.groupIds?.[i] ? c.groupHue?.(col.groupIds[i]) : undefined;
                 return (
-                  <div key={i} className="sticky top-[7.25rem] z-20 bg-[var(--cal-surface)] px-2 pb-1.5 pt-0.5 text-[11px] font-semibold text-center text-[var(--cal-muted)] truncate border-b border-[var(--cal-frame)]"
-                    style={{ gridRow: 2, gridColumn: `${c1 + i * (l.unit ?? 1)} / span ${l.unit ?? 1}`, boxShadow: h !== undefined ? `inset 0 -2px 0 ${hueStyle(h).bar}` : undefined }} title={name}>
-                    {h !== undefined && <span className="inline-block w-1.5 h-1.5 rounded-full me-1 align-middle" style={{ backgroundColor: hueStyle(h).bar }} />}{name}
+                  <div key={i} className="sticky top-[7.25rem] z-20 bg-[var(--cal-surface)] px-2 pb-1.5 pt-1 text-xs font-bold text-center text-[var(--cal-ink)] truncate border-b border-[var(--cal-frame)]"
+                    style={{ gridRow: 2, gridColumn: `${c1 + i * (l.unit ?? 1)} / span ${l.unit ?? 1}`, boxShadow: h !== undefined ? `inset 0 3px 0 ${hueStyle(h).bar}, inset 0 -2px 0 ${hueStyle(h).bar}` : undefined }} title={name}>
+                    {h !== undefined && <span className="inline-block w-2 h-2 rounded-full me-1 align-middle" style={{ backgroundColor: hueStyle(h).bar }} />}{name}
                   </div>
                 );
               })}

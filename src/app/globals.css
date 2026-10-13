@@ -535,6 +535,7 @@ button[class*="border-[var(--border)]"]:not([class*=" bg-"]):not([class^="bg-"])
   --cal-line-hour: #ece7df;
   --cal-line-day: #e3ddd3;
   --cal-line-lane: #f1ede6;
+  --cal-line-frame: #c9c0b3; /* between two frames (programs/groups) side by side */
   --cal-ink: #2b211b;
   --cal-muted: #6b6158;
   --cal-faint: #8a8078;

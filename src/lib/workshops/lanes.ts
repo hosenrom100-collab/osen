@@ -54,10 +54,18 @@ function sides(block: Session[], want: (s: Session) => number | undefined): { si
  * keeps the side that touches its other lanes, so it still reads as one card.
  */
 export function laneByGroup(day: Session[], groupIds: string[], groupName: (id: string) => string): DayLanes {
-  const n = Math.max(groupIds.length, 1);
+  return laneByFrame(day, groupIds.map(groupName), s => s.groupIds.map(g => groupIds.indexOf(g)).filter(i => i >= 0));
+}
+
+/**
+ * The same fixed-lane layout for any kind of frame (a group of one program, or a whole program among several).
+ * `labels[i]` names lane i; `frameIdx(s)` says which lanes a session belongs to (none = the whole width).
+ */
+export function laneByFrame(day: Session[], labels: string[], frameIdx: (s: Session) => number[]): DayLanes {
+  const n = Math.max(labels.length, 1);
   const range = new Map<string, [number, number]>();
   for (const s of day) {
-    const idx = s.groupIds.map(g => groupIds.indexOf(g)).filter(i => i >= 0);
+    const idx = frameIdx(s);
     range.set(s.id, idx.length ? [Math.min(...idx), Math.max(...idx)] : [0, n - 1]);
   }
   const joint = (s: Session) => { const [lo, hi] = range.get(s.id)!; return hi > lo; };
@@ -93,7 +101,7 @@ export function laneByGroup(day: Session[], groupIds: string[], groupName: (id: 
     for (let g = lo + 1; g <= hi; g++) { const [a, b] = part(s.id, g); if (a !== to) break; to = b; } // stop where it would not be one piece
     return { s, lane: from, span: to - from };
   });
-  return { lanes: n * U, minLanes: n, unit: U, laneLabels: groupIds.map(groupName), placed };
+  return { lanes: n * U, minLanes: n, unit: U, laneLabels: labels, placed };
 }
 
 /**
