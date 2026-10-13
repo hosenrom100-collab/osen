@@ -269,7 +269,7 @@ export function TimeGrid({ columns, mode, groupName, laneMin, corner, drag: drag
   const starts: number[] = [];
   let cursor = 2;
   laid.forEach(l => { starts.push(cursor); cursor += l.lanes; });
-  const cols = `2.75rem ${laid.map(l => `repeat(${l.lanes}, minmax(${(l.placed.length ? laneMin : 4.5) * (l.minLanes ?? l.lanes) / l.lanes}rem, 1fr))`).join(" ")}`;
+  const cols = `2.75rem ${laid.map(l => `repeat(${l.lanes}, minmax(${(l.placed.length ? laneMin : 4.5) * (l.minLanes ?? l.lanes) / l.lanes}rem, ${1 / l.lanes}fr))`).join(" ")}`; // every column gets the same share of the width, however many cards stand side by side in it
   const rows = [
     "auto", ...(hasLabels ? ["auto"] : []),
     ...(times.length < 2 ? ["minmax(96px, auto)"] : times.slice(0, -1).map((t, i) => {
