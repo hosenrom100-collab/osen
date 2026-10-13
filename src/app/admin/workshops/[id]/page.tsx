@@ -1,18 +1,19 @@
 "use client";
 
+import { SlotRow } from "@/components/workshops/SlotRow";
 import { useEffect, useMemo, useState, useCallback } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { RoleGuard } from "@/components/auth/RoleGuard";
 import { db } from "@/lib/firebase/config";
 import { collection, deleteDoc, doc, getDoc, getDocs, query, updateDoc, where, serverTimestamp } from "firebase/firestore";
-import { Plus, Trash2, ChevronRight } from "lucide-react";
+import { Plus, ChevronRight } from "lucide-react";
 import { fieldCls, labelCls, btnPrimary, btnGhost } from "@/components/workshops/Dialog";
 import { PageSkeleton } from "@/components/ui/Skeleton";
 import { loadRefs, Refs } from "@/lib/workshops/data";
 import { buildSessions } from "@/lib/workshops/buildWeek";
-import { rangeDates, shortDate, overlaps, dayOf, OPEN_START, OPEN_END, isOpenStart, isOpenEnd, effectiveRange, anchorFallback, toISO } from "@/lib/workshops/dates";
-import { Closure, DAY_FULL, DAY_SHORT, SessionChange, Slot, Workshop } from "@/lib/workshops/types";
+import { rangeDates, shortDate, overlaps, dayOf, OPEN_START, OPEN_END, isOpenStart, isOpenEnd, effectiveRange, toISO } from "@/lib/workshops/dates";
+import { Closure, DAY_SHORT, SessionChange, Slot, Workshop } from "@/lib/workshops/types";
 import { readBack } from "@/lib/workshops/back";
 import { ActivityType, DEFAULT_TYPES, loadActivityTypes } from "@/lib/workshops/activityTypes";
 
@@ -194,28 +195,8 @@ export default function WorkshopDetailPage() {
             <h2 className="text-sm font-bold">מפגשים שבועיים</h2>
             {form.slots.length === 0 && <p className="text-sm text-[var(--foreground)]/50">לא הוגדרו מפגשים — הסדנה לא תופיע ביומן.</p>}
             {form.slots.map(s => (
-              <div key={s.id} className="flex flex-wrap items-center gap-2">
-                <select className={`${fieldCls} !w-28`} value={s.day} onChange={e => setSlot(s.id, { day: Number(e.target.value) })}>
-                  {days.map(d => <option key={d} value={d}>יום {DAY_FULL[d]}</option>)}
-                  {!days.includes(s.day) && <option value={s.day}>יום {DAY_FULL[s.day]} (לא פעיל)</option>}
-                </select>
-                <input type="time" className={`${fieldCls} !w-28`} value={s.start} onChange={e => setSlot(s.id, { start: e.target.value })} />
-                <span className="text-[var(--foreground)]/40">–</span>
-                <input type="time" className={`${fieldCls} !w-28`} value={s.end} onChange={e => setSlot(s.id, { end: e.target.value })} />
-                <select className={`${fieldCls} !w-36`} value={s.locationId || ""} onChange={e => setSlot(s.id, { locationId: e.target.value || undefined })}>
-                  <option value="">ללא מרחב</option>
-                  {refs.locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
-                </select>
-                <select aria-label="תדירות" className={`${fieldCls} !w-32`} value={s.every || 1}
-                  onChange={e => { const n = Number(e.target.value); setSlot(s.id, { every: n > 1 ? n : undefined, anchorDate: n > 1 ? s.anchorDate || anchorFallback(form.startDate) : undefined }); }}>
-                  {[[1, "כל שבוע"], [2, "כל שבועיים"], [3, "כל 3 שבועות"], [4, "כל 4 שבועות"]].map(([n, l]) => <option key={n} value={n}>{l}</option>)}
-                </select>
-                {(s.every || 1) > 1 && (
-                  <label className="w-full flex items-center gap-2 text-xs text-[var(--foreground)]/60">השבוע הראשון שבו זה מתקיים
-                    <input type="date" className={`${fieldCls} !w-auto`} value={s.anchorDate || anchorFallback(form.startDate)} onChange={e => setSlot(s.id, { anchorDate: e.target.value })} />
-                  </label>
-                )}
-                {s.end <= s.start && <span className="text-xs text-rose-500">שעת הסיום מוקדמת מההתחלה</span>}
+              <SlotRow key={s.id} slot={s} days={days} locations={refs.locations} workshopStart={form.startDate}
+                onChange={patch => setSlot(s.id, patch)} onRemove={() => set({ slots: form.slots.filter(x => x.id !== s.id) })}>
                 {(form.groupIds?.length ?? 0) > 1 && (
                   <div className="w-full flex flex-wrap items-center gap-1.5 text-xs">
                     <span className="text-[var(--foreground)]/50">לקבוצות:</span>
@@ -235,9 +216,7 @@ export default function WorkshopDetailPage() {
                     })}
                   </div>
                 )}
-                <button onClick={() => set({ slots: form.slots.filter(x => x.id !== s.id) })} aria-label="הסר מפגש"
-                  className="p-2 text-[var(--foreground)]/50 hover:text-rose-500"><Trash2 className="w-4 h-4" /></button>
-              </div>
+              </SlotRow>
             ))}
             <div className="flex items-center gap-3">
               <button onClick={() => set({ slots: [...form.slots, newSlot(days[0])] })} className={`${btnGhost} flex items-center gap-1.5`}>

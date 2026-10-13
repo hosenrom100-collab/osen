@@ -17,7 +17,7 @@ import { Dialog, fieldCls, labelCls, btnPrimary, btnGhost } from "@/components/w
 import { SessionEditor } from "@/components/workshops/SessionEditor";
 import { SeriesDays } from "@/components/workshops/SeriesDays";
 import { Column, DayAgenda, DragApi, Row, TimeGrid } from "@/components/workshops/WeekView";
-import { findConflicts, staffBusyAt } from "@/lib/workshops/conflicts";
+import { clashesAt, findConflicts } from "@/lib/workshops/conflicts";
 import { buildSessions } from "@/lib/workshops/buildWeek";
 import { notifyStaff, Refs } from "@/lib/workshops/data";
 import { useScheduleData } from "@/lib/workshops/useScheduleData";
@@ -395,15 +395,8 @@ export default function SchedulePage() {
   const dragApi: DragApi | undefined = isManager ? {
     can: s => !s.fixedBlock && !!s.changeId && s.kind !== "cancelled" && s.kind !== "moved-away",
     conflict: (s, to) => {
-      const warn: string[] = [];
-      for (const id of s.staffIds) {
-        if (absences.some(a => a.userId === id && a.date === to.date)) warn.push(`${nameOf(id)} בהיעדרות`);
-        const busy = staffBusyAt(id, to.date, to.start, to.end, all, s.workshopId);
-        if (busy) warn.push(`${nameOf(id)} משובץ ב"${busy.workshopName}"`);
-      }
-      const room = s.locationId && all.find(o => o.id !== s.id && !o.fixedBlock && o.kind !== "cancelled" && o.kind !== "moved-away" && o.locationId === s.locationId && o.date === to.date && o.start < to.end && to.start < o.end);
-      if (room) warn.push(`${roomOf(s.locationId)} תפוס ב"${room.workshopName}"`);
-      if (closedFor(s.programId, to.date)) warn.push("יום ללא פעילות");
+      const c = clashesAt({ staffIds: s.staffIds, locationId: s.locationId, ...to, ignoreWorkshopId: s.workshopId, ignoreSessionId: s.id }, all, absences, roomOf);
+      const warn = [...[...c.staff].map(([id, why]) => `${nameOf(id)} ${why}`), ...(c.room ? [c.room] : []), ...(closedFor(s.programId, to.date) ? ["יום ללא פעילות"] : [])];
       return warn.slice(0, 3).join(" · ") || undefined;
     },
     onDrop: async (s, to, copy) => {
@@ -615,7 +608,7 @@ export default function SchedulePage() {
             groupNames={editing.session ? editing.session.groupIds.map(groupName).filter(Boolean) : []}
             participants={editing.session ? firstNames(participantsOf(editing.session, workshopById.get(editing.session.workshopId), patients)) : []}
             busyFor={(staffId, date, start, end, workshopId) =>
-              absences.some(a => a.userId === staffId && a.date === date) ? "בהיעדרות" : staffBusyAt(staffId, date, start, end, all, workshopId)?.workshopName}
+              clashesAt({ staffIds: [staffId], date, start, end, ignoreWorkshopId: workshopId }, all, absences, roomOf).staff.get(staffId)}
             warnings={editing.session ? warnings.get(editing.session.id) || [] : []}
             userId={user?.uid} onClose={() => setEditing(null)}
             onEditSeries={id => { setEditing(null); setSeries({ id }); }}
@@ -691,8 +684,9 @@ export default function SchedulePage() {
         )}
         {creating && (
           <NewEventDialog refs={refs} types={types} initial={creating} existing={all}
-            busyFor={(id, date, start, end) => absences.some(a => a.userId === id && a.date === date) ? "בהיעדרות" : staffBusyAt(id, date, start, end, all)?.workshopName}
-            roomBusy={(loc, date, start, end) => { const o = all.find(x => !x.fixedBlock && x.kind !== "cancelled" && x.kind !== "moved-away" && x.locationId === loc && x.date === date && x.start < end && start < x.end); return o ? `${roomOf(loc)} תפוס ב"${o.workshopName}" (${o.start}–${o.end})` : undefined; }} userId={user?.uid} onClose={() => setCreating(null)}
+            busyFor={(id, date, start, end) => clashesAt({ staffIds: [id], date, start, end }, all, absences, roomOf).staff.get(id)}
+            roomBusy={(loc, date, start, end) => clashesAt({ staffIds: [], locationId: loc, date, start, end }, all, absences, roomOf).room}
+            userId={user?.uid} onClose={() => setCreating(null)}
             onSaved={() => { setCreating(null); load(); }}
             onExisting={() => { setEditing({ session: null, extra: creating }); setCreating(null); }} />
         )}

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { RoleGuard } from "@/components/auth/RoleGuard";
 import { useState, useEffect, useRef } from "react";
 import { db } from "@/lib/firebase/config";
@@ -415,6 +416,7 @@ export default function ProgramDetailPage() {
             <div className="flex-1 min-w-0 text-right">
               <h1 className="text-sm font-bold leading-tight truncate">{program?.name}</h1>
               <p className="text-[11px] text-[var(--foreground)]/40 font-bold uppercase tracking-wider mt-0.5">Program Details</p>
+              <Link href={`/schedule?program=${progId}`} className="text-[11px] underline text-[var(--foreground)]/55">צבע, ארוחות, הפסקות וקישורי קהילה מגדירים ביומן (⋯, הגדרות לוז)</Link>
             </div>
             <div className="flex items-center gap-2">
               <AutoSaveIndicator

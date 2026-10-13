@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { db } from "@/lib/firebase/config";
 import { deleteField, doc, updateDoc } from "firebase/firestore";
 import { Plus, Trash2 } from "lucide-react";
@@ -61,6 +62,7 @@ export function ProgramScheduleSettings({ program, groups, locations, types, onC
       footer={<>
         <button onClick={save} disabled={saving || invalid} className={btnPrimary}>שמור</button>
         <button onClick={onClose} className={btnGhost}>ביטול</button>
+        <Link href={`/admin/programs/${program.id}`} className="mr-auto text-sm font-semibold underline text-[var(--foreground)]/65">שם, ימי פעילות וקבוצות ←</Link>
       </>}>
       <div>
         <label className={labelCls}>קיצור התוכנית (2–4 תווים)</label>

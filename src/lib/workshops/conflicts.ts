@@ -60,3 +60,23 @@ export function staffBusyAt(
     s.date === date && s.staffIds.includes(staffId) && overlaps(s.start, s.end, start, end)
   );
 }
+
+/**
+ * Everything that would clash if a session (these people, this room) took place at that date and time.
+ * One check for dragging, for the "new event" form and for the session editor, so they always agree.
+ * `ignore`: a workshop whose own sessions do not count (the session being moved or edited).
+ */
+export function clashesAt(
+  at: { staffIds: string[]; locationId?: string; date: string; start: string; end: string; ignoreWorkshopId?: string; ignoreSessionId?: string },
+  sessions: Session[], absences: AbsenceLite[], roomOf: (locationId?: string) => string | undefined
+): { staff: Map<string, string>; room?: string } { // staff: id → why they are not free (without the name)
+  const staff = new Map<string, string>();
+  for (const id of at.staffIds) {
+    if (absences.some(a => a.userId === id && a.date === at.date)) { staff.set(id, "בהיעדרות"); continue; }
+    const busy = staffBusyAt(id, at.date, at.start, at.end, sessions, at.ignoreWorkshopId);
+    if (busy) staff.set(id, `משובץ ב"${busy.workshopName}"`);
+  }
+  const o = at.locationId ? sessions.find(x => x.id !== at.ignoreSessionId && !x.fixedBlock && x.kind !== "cancelled" && x.kind !== "moved-away"
+    && x.locationId === at.locationId && x.date === at.date && overlaps(x.start, x.end, at.start, at.end)) : undefined;
+  return { staff, room: o ? `${roomOf(at.locationId)} תפוס ב"${o.workshopName}" (${o.start}–${o.end})` : undefined };
+}
