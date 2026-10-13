@@ -192,6 +192,8 @@ export default function SchedulePage() {
     [refs, programSel]
   );
 
+  // Two to four programs side by side: each keeps its own group layout inside its block.
+  const frameList = mode === "program" && programSel.length !== 1 && shownPrograms.length >= 2 && shownPrograms.length <= 4 ? shownPrograms : [];
   // Rows exist even when a program has no sessions this week, so the grid is always visible.
   const rows: Row[] = useMemo(() => {
     if (!refs) return [];
@@ -201,7 +203,7 @@ export default function SchedulePage() {
         const closedReason = (d: string) => closedFor(p.id, d) || (p.activeDays.includes(dayOf(d)) ? undefined : "לא יום פעילות");
         const pGroups = refs.groups.filter(g => g.programId === p.id);
         // No program picked → one merged row per program; a picked program is split by group.
-        if (programSel.length !== 1 || pGroups.length === 0) {
+        if (pGroups.length === 0 || (programSel.length !== 1 && (frameList.length === 0 || pGroups.length < 2))) {
           out.push({ id: p.id, label: p.name, hue: programHue(p), match: (s: Session) => s.programId === p.id, closedReason });
           continue;
         }
@@ -229,7 +231,7 @@ export default function SchedulePage() {
     const list = refs.locations.filter(l => ids.has(l.id)).map(l => ({ id: l.id, label: l.name, match: (s: Session) => (s.locationId || "") === l.id, closedReason: () => undefined }));
     if (ids.has("")) list.push({ id: "", label: "ללא מרחב", match: (s: Session) => !s.locationId, closedReason: () => undefined });
     return list;
-  }, [refs, mode, sessions, absences, closedFor, shownPrograms, programSel, groupSel]);
+  }, [refs, mode, sessions, absences, closedFor, shownPrograms, programSel, groupSel, frameList.length]);
 
   // Weekdays = active days of the programs on screen, plus any day that has a session.
   const days = useMemo(() => {
@@ -446,10 +448,26 @@ export default function SchedulePage() {
     return p.laneMode !== "auto" || groupsRunInParallel(sessions) ? "groups" : "stable";
   })();
   // Several programs on screen: one fixed lane per program, the same on every day, in the program's own colour.
-  const frameList = mode === "program" && programSel.length !== 1 && shownPrograms.length >= 2 && shownPrograms.length <= 4 ? shownPrograms : [];
-  const frames = frameList.length ? {
-    labels: frameList.map(p => p.name), hues: frameList.map(p => programHue(p)),
-    frameOf: (s: Session) => { const i = frameList.findIndex(p => p.id === s.programId); return i < 0 ? [] : [i]; },
+  const frameLanes = frameList.length ? (() => {
+    // One block of lanes per program. A program with several groups is laid out exactly as when shown alone:
+    // a fixed lane per group (always, or only in weeks its groups overlap, as the program's setting says); otherwise one lane.
+    const lanes: { label: string; sub?: string; hue: number; start: boolean; programId: string; groupId?: string }[] = [];
+    for (const p of frameList) {
+      const pg = refs.groups.filter(g => g.programId === p.id);
+      const split = pg.length > 1 && (p.laneMode !== "auto" || groupsRunInParallel(sessions.filter(x => x.programId === p.id)));
+      if (split) pg.forEach((g, k) => lanes.push({ label: g.name, sub: p.name, hue: groupHue(g.id, refs.groups, refs.programs) ?? programHue(p), start: k === 0, programId: p.id, groupId: g.id }));
+      else lanes.push({ label: p.name, hue: programHue(p), start: true, programId: p.id });
+    }
+    return lanes;
+  })() : [];
+  const frames = frameLanes.length ? {
+    labels: frameLanes.map(l => l.label), subs: frameLanes.map(l => l.sub), hues: frameLanes.map(l => l.hue), starts: frameLanes.map(l => l.start),
+    frameOf: (s: Session) => {
+      const own = frameLanes.map((l, k) => (l.programId === s.programId ? k : -1)).filter(k => k >= 0);
+      if (!own.length || !frameLanes[own[0]].groupId) return own;
+      const hit = own.filter(k => s.groupIds.includes(frameLanes[k].groupId!));
+      return hit.length ? hit : own; // for the whole program: all of its lanes
+    },
   } : undefined;
   const columns: Column[] = view === "week"
     ? days.map(d => {

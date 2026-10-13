@@ -216,7 +216,7 @@ export interface Column {
   today?: boolean;
   hue?: number;                       // the colour of the frame this column is (a program or group in day view): tints it and marks its header
   laneMode: "groups" | "frames" | "stable";
-  frames?: { labels: string[]; hues: (number | undefined)[]; frameOf: (s: Session) => number[] }; // lane per frame (e.g. per program) when laneMode is "frames"
+  frames?: { labels: string[]; hues: (number | undefined)[]; frameOf: (s: Session) => number[]; subs?: (string | undefined)[]; starts?: boolean[] }; // lane per frame (e.g. per program) when laneMode is "frames"
   groupIds?: string[];                // lane order when laneMode is "groups"
   showGroups?: boolean;               // name the group on each card (when lanes do not already)
   onAdd?: (start?: string) => void;   // `start`: the clicked time, rounded to 15 minutes
@@ -428,7 +428,7 @@ export function TimeGrid({ columns, mode, groupName, laneMin, corner, drag: drag
               <div className={`pointer-events-none ${col.hue !== undefined ? "border-s-2 border-[var(--cal-line-frame)]" : "border-s border-[var(--cal-line-day)]"}`} style={{ gridRow: `1 / -1`, gridColumn: c1 }} />
               {col.hue !== undefined && !l.laneLabels && <div className="pointer-events-none" style={{ gridRow: `2 / -1`, gridColumn: `${c1} / span ${l.lanes}`, backgroundColor: `hsl(${col.hue} 50% 50% / 0.12)` }} />}
               {l.laneLabels && l.laneLabels.slice(1).map((_, i) => (
-                <div key={`d${i}`} className="pointer-events-none border-s-[1.5px] border-[var(--cal-line-frame)]" style={{ gridRow: `2 / -1`, gridColumn: c1 + (i + 1) * (l.unit ?? 1) }} />
+                <div key={`d${i}`} className={`pointer-events-none ${!col.frames?.starts ? "border-s-[1.5px] border-[var(--cal-line-frame)]" : col.frames.starts[i + 1] ? "border-s-2 border-[var(--cal-ink)]/40" : "border-s border-dashed border-[var(--cal-line-frame)]"}`} style={{ gridRow: `2 / -1`, gridColumn: c1 + (i + 1) * (l.unit ?? 1) }} />
               ))}
               {/* A group with nothing of its own that day keeps its place, shaded, so every group stays where it always is. */}
               {l.laneLabels && l.placed.length > 0 && l.laneLabels.map((_, g) => {
@@ -457,7 +457,7 @@ export function TimeGrid({ columns, mode, groupName, laneMin, corner, drag: drag
                 return (
                   <div key={i} className="sticky top-[7.25rem] z-20 bg-[var(--cal-surface)] px-2 pb-1.5 pt-1 text-xs font-bold text-center text-[var(--cal-ink)] truncate border-b border-[var(--cal-frame)]"
                     style={{ gridRow: 2, gridColumn: `${c1 + i * (l.unit ?? 1)} / span ${l.unit ?? 1}`, ...(h !== undefined ? frameBand(h) : {}) }} title={name}>
-                    {name}
+                    {col.frames?.subs?.[i] && <span className="block text-[10px] font-semibold leading-none opacity-80 pb-0.5">{col.frames.subs[i]}</span>}{name}
                   </div>
                 );
               })}
