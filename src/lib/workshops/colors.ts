@@ -40,6 +40,6 @@ export function groupHue(groupId: string, groups: { id: string; programId: strin
   if (g.color !== undefined) return g.color;
   const siblings = groups.filter(x => x.programId === g.programId).sort((a, b) => a.id.localeCompare(b.id));
   const i = siblings.findIndex(x => x.id === g.id);
-  const step = [-28, 28, -56, 56, -84, 84][i % 6];
+  const step = [-45, 45, -90, 90, -135, 135][i % 6]; // far apart, so two groups of one program are told apart at a glance
   return (programHue(programs.find(p => p.id === g.programId), g.programId) + step + 360) % 360;
 }

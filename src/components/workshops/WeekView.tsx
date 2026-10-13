@@ -235,6 +235,8 @@ export interface DragApi {
 
 /** Text selection off while dragging. Returns the previous value. (Kept outside the component: it touches the page, not React state.) */
 function setUserSelect(v: string): string { const prev = document.body.style.userSelect; document.body.style.userSelect = v; return prev; }
+/** A frame's header: a solid band in its colour with white text, so frames tell apart at a glance. */
+const frameBand = (hue: number): React.CSSProperties => ({ backgroundColor: `hsl(${hue} 55% 38%)`, color: "#fff" });
 const STEP = 15;
 const PX_PER_MIN = 0.8; // desktop density: ~48px per hour, rows still grow to fit their text
 
@@ -424,7 +426,7 @@ export function TimeGrid({ columns, mode, groupName, laneMin, corner, drag: drag
             <div key={col.id} className="contents">
               {/* One continuous day separator, header to bottom, so header and body always line up. */}
               <div className={`pointer-events-none ${col.hue !== undefined ? "border-s-2 border-[var(--cal-line-frame)]" : "border-s border-[var(--cal-line-day)]"}`} style={{ gridRow: `1 / -1`, gridColumn: c1 }} />
-              {col.hue !== undefined && !l.laneLabels && <div className="pointer-events-none" style={{ gridRow: `2 / -1`, gridColumn: `${c1} / span ${l.lanes}`, backgroundColor: `hsl(${col.hue} 45% 50% / 0.07)` }} />}
+              {col.hue !== undefined && !l.laneLabels && <div className="pointer-events-none" style={{ gridRow: `2 / -1`, gridColumn: `${c1} / span ${l.lanes}`, backgroundColor: `hsl(${col.hue} 50% 50% / 0.12)` }} />}
               {l.laneLabels && l.laneLabels.slice(1).map((_, i) => (
                 <div key={`d${i}`} className="pointer-events-none border-s-[1.5px] border-[var(--cal-line-frame)]" style={{ gridRow: `2 / -1`, gridColumn: c1 + (i + 1) * (l.unit ?? 1) }} />
               ))}
@@ -446,16 +448,16 @@ export function TimeGrid({ columns, mode, groupName, laneMin, corner, drag: drag
                 );
               })}
               <div data-col={k} className={`sticky top-[3.25rem] z-20 bg-[var(--cal-surface)] px-2 pt-2 text-center text-[var(--cal-ink)] ${l.laneLabels ? "" : "border-b border-[var(--cal-frame)] pb-2"}`}
-                style={{ gridRow: 1, gridColumn: `${c1} / span ${l.lanes}`, boxShadow: col.hue !== undefined ? `inset 0 4px 0 ${hueStyle(col.hue).bar}` : undefined, backgroundColor: col.hue !== undefined ? `hsl(${col.hue} 60% 96%)` : undefined }}>
+                style={{ gridRow: 1, gridColumn: `${c1} / span ${l.lanes}`, ...(col.hue !== undefined ? frameBand(col.hue) : {}) }}>
                 {col.header}
-                {hasSub && <div className="mt-1 min-h-[1.25rem]">{col.sub && <span className="inline-block max-w-full truncate px-2 rounded-full bg-[var(--cal-ink)]/[0.06] text-[11px] font-medium text-[var(--cal-muted)]">{col.sub}</span>}</div>}
+                {hasSub && <div className="mt-1 min-h-[1.25rem]">{col.sub && <span className={`inline-block max-w-full truncate px-2 rounded-full text-[11px] font-medium ${col.hue !== undefined ? "bg-white/25 text-white" : "bg-[var(--cal-ink)]/[0.06] text-[var(--cal-muted)]"}`}>{col.sub}</span>}</div>}
               </div>
               {l.laneLabels && l.laneLabels.map((name, i) => {
                 const h = col.frames ? col.frames.hues[i] : col.groupIds?.[i] ? c.groupHue?.(col.groupIds[i]) : undefined;
                 return (
                   <div key={i} className="sticky top-[7.25rem] z-20 bg-[var(--cal-surface)] px-2 pb-1.5 pt-1 text-xs font-bold text-center text-[var(--cal-ink)] truncate border-b border-[var(--cal-frame)]"
-                    style={{ gridRow: 2, gridColumn: `${c1 + i * (l.unit ?? 1)} / span ${l.unit ?? 1}`, boxShadow: h !== undefined ? `inset 0 3px 0 ${hueStyle(h).bar}, inset 0 -2px 0 ${hueStyle(h).bar}` : undefined }} title={name}>
-                    {h !== undefined && <span className="inline-block w-2 h-2 rounded-full me-1 align-middle" style={{ backgroundColor: hueStyle(h).bar }} />}{name}
+                    style={{ gridRow: 2, gridColumn: `${c1 + i * (l.unit ?? 1)} / span ${l.unit ?? 1}`, ...(h !== undefined ? frameBand(h) : {}) }} title={name}>
+                    {name}
                   </div>
                 );
               })}
