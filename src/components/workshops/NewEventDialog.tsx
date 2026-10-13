@@ -19,8 +19,9 @@ const REPEATS: [number, string][] = [[0, "לא חוזר"], [1, "כל שבוע"],
  */
 export interface EventPrefill { name: string; kind: string; groupIds: string[]; start: string; end: string; locationId?: string; staffIds: string[] }
 
-export function NewEventDialog({ refs, types, initial, existing = [], userId, onClose, onSaved, onExisting }: {
+export function NewEventDialog({ refs, types, initial, existing = [], busyFor, roomBusy, userId, onClose, onSaved, onExisting }: {
   refs: Refs; types: ActivityType[]; initial: { date: string; programId?: string; prefill?: EventPrefill }; existing?: Session[];
+  busyFor?: (staffId: string, date: string, start: string, end: string) => string | undefined; roomBusy?: (locationId: string, date: string, start: string, end: string) => string | undefined;
   userId?: string; onClose: () => void; onSaved: () => void; onExisting: () => void;
 }) {
   const pickable = types.filter(t => !t.band && !t.archived);
@@ -127,8 +128,8 @@ export function NewEventDialog({ refs, types, initial, existing = [], userId, on
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div className="sm:col-span-1"><label className={labelCls}>תאריך (המפגש הראשון)</label><input type="date" className={fieldCls} value={date} onChange={e => setDate(e.target.value)} /></div>
-        <div><label className={labelCls}>התחלה</label><input type="time" className={fieldCls} value={start} onChange={e => setStart(e.target.value)} /></div>
-        <div><label className={labelCls}>סיום</label><input type="time" className={fieldCls} value={end} onChange={e => setEnd(e.target.value)} /></div>
+        <div><label className={labelCls}>התחלה</label><input type="time" step={900} className={fieldCls} value={start} onChange={e => setStart(e.target.value)} /></div>
+        <div><label className={labelCls}>סיום</label><input type="time" step={900} className={fieldCls} value={end} onChange={e => setEnd(e.target.value)} /></div>
       </div>
       {twin && <p role="alert" className="rounded-lg bg-[#fff6dc] text-[#8a5a00] text-[13px] px-3 py-2">כבר קיים ביומן: {twin.workshopName}, {twin.start}–{twin.end}. אם זה לא מכוון, אפשר לבטל ולפתוח אותו.</p>}
       {date && <p className="text-xs text-[var(--foreground)]/55 -mt-3">יום {DAY_FULL[dayOf(date)]}{end <= start ? " · שעת הסיום מוקדמת מההתחלה" : ""}</p>}
@@ -150,7 +151,9 @@ export function NewEventDialog({ refs, types, initial, existing = [], userId, on
       </div>
       {every > 0 && <p className="text-xs text-[var(--foreground)]/55 -mt-3">{noEnd ? `ללא סיום (הצגה מקדימה: ${occurrences} מפגשים ב-6 החודשים הקרובים)` : `${occurrences} מפגשים`}, בכל {every === 1 ? "שבוע" : `${every} שבועות`} ביום {DAY_FULL[dayOf(date)]}. ימים סגורים ביומן מדולגים.</p>}
 
-      <StaffPicker label={staffOnly ? "נוכחים" : "מעבירים"} staff={refs.staff} selected={staffIds} onChange={setStaffIds} programId={programId} groupIds={groupIds} />
+      {locationId && date && end > start && roomBusy?.(locationId, date, start, end) && <p role="alert" className="rounded-lg bg-[#fde8e5] text-[#9b1c12] text-[13px] px-3 py-2">{roomBusy(locationId, date, start, end)}</p>}
+      <StaffPicker label={staffOnly ? "נוכחים" : "מעבירים"} staff={refs.staff} selected={staffIds} onChange={setStaffIds} programId={programId} groupIds={groupIds}
+        busyOf={id => (date && end > start ? busyFor?.(id, date, start, end) : undefined)} />
     </Dialog>
   );
 }

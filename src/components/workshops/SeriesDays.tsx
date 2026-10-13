@@ -106,8 +106,8 @@ export function SeriesDays({ workshops, initialId, programs, groups, locations, 
                     {days.map(d => <option key={d} value={d}>{DAY_FULL[d]}</option>)}
                     {!days.includes(s.day) && <option value={s.day}>{DAY_FULL[s.day]} (לא פעיל)</option>}
                   </select>
-                  <input aria-label="התחלה" type="time" className={fieldCls} value={s.start} onChange={e => patch(s.id, { start: e.target.value })} />
-                  <input aria-label="סיום" type="time" className={fieldCls} value={s.end} onChange={e => patch(s.id, { end: e.target.value })} />
+                  <input aria-label="התחלה" type="time" step={900} className={fieldCls} value={s.start} onChange={e => patch(s.id, { start: e.target.value })} />
+                  <input aria-label="סיום" type="time" step={900} className={fieldCls} value={s.end} onChange={e => patch(s.id, { end: e.target.value })} />
                   <select aria-label="מרחב" className={`${fieldCls} col-span-2 sm:col-span-1`} value={s.locationId || ""} onChange={e => patch(s.id, { locationId: e.target.value || undefined })}>
                     <option value="">ללא מרחב</option>
                     {locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}

@@ -132,8 +132,8 @@ export function ProgramScheduleSettings({ program, groups, locations, types, onC
                   <option value="">ללא מרחב</option>
                   {locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
                 </select>
-                <input type="time" className={fieldCls} value={b.start} onChange={e => patch(b.id, { start: e.target.value })} />
-                <input type="time" className={fieldCls} value={b.end} onChange={e => patch(b.id, { end: e.target.value })} />
+                <input type="time" step={900} className={fieldCls} value={b.start} onChange={e => patch(b.id, { start: e.target.value })} />
+                <input type="time" step={900} className={fieldCls} value={b.end} onChange={e => patch(b.id, { end: e.target.value })} />
               </div>
               <div className="flex flex-wrap items-center gap-1">
                 <span className="text-xs text-[var(--foreground)]/50 ml-1">ימים:</span>

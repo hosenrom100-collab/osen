@@ -26,7 +26,7 @@ interface Props {
   busyFor?: (staffId: string, date: string, start: string, end: string, workshopId?: string) => string | undefined;
   userId?: string;
   onClose: () => void;
-  onSaved: () => void;
+  onSaved: (undo?: () => Promise<void>) => void; // `undo` puts the session back exactly as it was before this save
   onEditSeries?: (workshopId: string) => void;
   onDuplicate?: (s: Session) => void;
 }
@@ -57,6 +57,9 @@ const sameSet = (a: string[], b: string[]) => [...a].sort().join() === [...b].so
 export function SessionEditor({ session, extra, workshops, staff, locations, types = [], canEdit, warnings, participants = [], groupNames = [], accent, busyFor, userId, onClose, onSaved, onEditSeries, onDuplicate }: Props) {
   const isExtra = !session || session.kind === "extra";
   const ch = session?.change;
+  // The change document as it was when this editor opened, so a save can be taken back.
+  const prevChange = ch ? (({ id: _id, ...rest }) => { void _id; return rest; })(ch) : null;
+  const restoreChange = (ref: ReturnType<typeof doc>) => async () => { if (prevChange) await setDoc(ref, prevChange); else await deleteDoc(ref).catch(() => {}); };
   const [workshopId, setWorkshopId] = useState(session?.workshopId || "");
   const wsList = workshops.filter(w => !extra?.programId || w.programId === extra.programId);
   const workshop = workshops.find(w => w.id === workshopId);
@@ -98,10 +101,12 @@ export function SessionEditor({ session, extra, workshops, staff, locations, typ
   const save = async (o: { cancelled?: boolean; start?: string; end?: string } = {}) => {
     const isCancelled = o.cancelled ?? cancelled, st = o.start ?? start, en = o.end ?? end;
     setSaving(true);
+    let undo: (() => Promise<void>) | undefined;
     try {
       if (isExtra) {
         if (!workshop) return;
         const ref = session?.changeId ? doc(db, "session_changes", session.changeId) : doc(collection(db, "session_changes"));
+        undo = restoreChange(ref);
         await setDoc(ref, {
           workshopId, slotId: null, originalDate: null, newDate: date, newStart: st, newEnd: en,
           staffIds, locationId, note: note.trim(), dates: [date], published: false, ...(kind !== defaultKind ? { kind } : {}),
@@ -122,6 +127,8 @@ export function SessionEditor({ session, extra, workshops, staff, locations, typ
         if (oneTimeEvent && nameChanged && workshop) await updateDoc(doc(db, "workshops", workshop.id), { name: name.trim() });
         else if (name.trim() && name.trim() !== (workshop?.name ?? session.workshopName)) c.title = name.trim();
         const ref = doc(db, "session_changes", session.changeId);
+        const oldName = workshop?.name;
+        undo = async () => { await restoreChange(ref)(); if (oneTimeEvent && nameChanged && workshop && oldName) await updateDoc(doc(db, "workshops", workshop.id), { name: oldName }); };
         if (Object.keys(c).length === 0) await deleteDoc(ref).catch(() => {});
         else await setDoc(ref, {
           workshopId: session.workshopId, slotId: session.slotId, originalDate: session.origDate, ...c,
@@ -129,15 +136,17 @@ export function SessionEditor({ session, extra, workshops, staff, locations, typ
           published: false, updatedAt: serverTimestamp(), updatedBy: userId || null,
         });
       }
-      onSaved();
+      onSaved(undo);
     } finally { setSaving(false); }
   };
 
   const revert = async () => {
     if (!session?.changeId) return;
     setSaving(true);
-    await deleteDoc(doc(db, "session_changes", session.changeId));
-    onSaved();
+    const ref = doc(db, "session_changes", session.changeId);
+    const undo = restoreChange(ref);
+    await deleteDoc(ref);
+    onSaved(undo);
   };
 
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -150,7 +159,11 @@ export function SessionEditor({ session, extra, workshops, staff, locations, typ
         await Promise.all(rel.docs.map(d => deleteDoc(d.ref)));
         await deleteDoc(doc(db, "workshops", workshop.id));
       } else if (session.changeId) {
-        await deleteDoc(doc(db, "session_changes", session.changeId));
+        const ref = doc(db, "session_changes", session.changeId);
+        const undo = restoreChange(ref);
+        await deleteDoc(ref);
+        onSaved(undo);
+        return;
       }
       onSaved();
     } finally { setSaving(false); }
@@ -260,8 +273,8 @@ export function SessionEditor({ session, extra, workshops, staff, locations, typ
           {[-15, 15].map(d => <button key={d} type="button" onClick={() => shiftBy(d)} className={`${btnGhost} !py-1 !text-xs`}>{d > 0 ? `+${d} דקות` : `${d} דקות`}</button>)}
         </div>
         <div className="grid grid-cols-2 gap-3">
-          <div><label className={labelCls}>התחלה</label><input type="time" className={fieldCls} value={start} onChange={e => setStart(e.target.value)} /></div>
-          <div><label className={labelCls}>סיום</label><input type="time" className={fieldCls} value={end} onChange={e => setEnd(e.target.value)} /></div>
+          <div><label className={labelCls}>התחלה</label><input type="time" step={900} className={fieldCls} value={start} onChange={e => setStart(e.target.value)} /></div>
+          <div><label className={labelCls}>סיום</label><input type="time" step={900} className={fieldCls} value={end} onChange={e => setEnd(e.target.value)} /></div>
         </div>
         {types.length > 0 && (
           <div>

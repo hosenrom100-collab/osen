@@ -5,10 +5,11 @@ import { RoleGuard } from "@/components/auth/RoleGuard";
 import { useAuth } from "@/context/AuthContext";
 import { db } from "@/lib/firebase/config";
 import { addDoc, collection, deleteDoc, deleteField, doc, serverTimestamp, setDoc, updateDoc, writeBatch } from "firebase/firestore";
-import { ChevronLeft, ChevronRight, MoreHorizontal, Plus } from "lucide-react";
+import { ChevronLeft, ChevronRight, MoreHorizontal, Plus, Search } from "lucide-react";
+import { MiniCalendar } from "@/components/workshops/MiniCalendar";
 import { ProgramScheduleSettings } from "@/components/workshops/ProgramScheduleSettings";
 import { DayShiftDialog } from "@/components/workshops/DayShiftDialog";
-import { addDays, format, getWeek } from "date-fns";
+import { addDays, format, getWeek, parseISO } from "date-fns";
 import { he } from "date-fns/locale";
 import Link from "next/link";
 import { PageSkeleton } from "@/components/ui/Skeleton";
@@ -95,6 +96,11 @@ export default function SchedulePage() {
   const [settingsFor, setSettingsFor] = useState<string | null>(null);
   const [showShift, setShowShift] = useState(false);
   const [showCopy, setShowCopy] = useState(false);
+  const [query, setQuery] = useState("");
+  const [searching, setSearching] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
+  const [jumpOpen, setJumpOpen] = useState(false);
+  const searchRef = useRef<HTMLInputElement>(null);
   // Ctrl+C on the card under the pointer, Ctrl+V to paste it as a new event (opens the "new event" form, filled in).
   const hovered = useRef<Session | null>(null);
   const [clip, setClip] = useState<Session | null>(null);
@@ -260,21 +266,66 @@ export default function SchedulePage() {
     load();
   };
 
+  const moveDay = (delta: number) => {
+    const d = addDays(new Date(`${selectedDay}T12:00:00`), delta);
+    setSelectedDay(toISO(d));
+    setWeekStart(weekStartOf(d));
+  };
+  // Phones skip days the program does not run on, so there are never empty days to swipe through.
+  const nextActive = (from: Date, dir: 1 | -1) => {
+    let d = from;
+    for (let i = 0; i < 14; i++) { d = addDays(d, dir); if (navDays.includes(d.getDay())) return d; }
+    return addDays(from, dir);
+  };
+  const jumpTo = (d: Date) => { setSelectedDay(toISO(d)); setWeekStart(weekStartOf(d)); };
+  const step = (dir: 1 | -1) => {
+    if (!isMobile) return view === "day" ? moveDay(dir) : setWeekStart(addDays(weekStart, 7 * dir));
+    const cur = new Date(`${selectedDay}T12:00:00`);
+    if (view === "day") return jumpTo(nextActive(cur, dir));
+    // Week: the same weekday next/previous week, or the closest activity day of that week.
+    const target = addDays(cur, 7 * dir);
+    if (navDays.includes(target.getDay())) return jumpTo(target);
+    const fwd = nextActive(target, 1);
+    jumpTo(weekStartOf(fwd).getTime() === weekStartOf(target).getTime() ? fwd : nextActive(target, -1));
+  };
+  const atCurrent = view === "day" ? selectedDay === today : dates.includes(today);
+  const goToday = () => {
+    const t = new Date();
+    jumpTo(!isMobile || navDays.includes(t.getDay()) ? t : nextActive(t, 1));
+  };
+  useEffect(() => { stepRef.current = step; goTodayRef.current = goToday; onlyProgramRef.current = onlyProgram; });
   const keys = useRef<(e: KeyboardEvent) => void>(() => {});
+  const stepRef = useRef<(d: 1 | -1) => void>(() => {});
+  const goTodayRef = useRef<() => void>(() => {});
+  const onlyProgramRef = useRef<string | undefined>(undefined);
   useEffect(() => {
     keys.current = e => {
-      if (!(e.ctrlKey || e.metaKey) || !isManager || editing || creating || showCopy || showShift || series || settingsFor || showChanges || showClosures || showTypes) return;
       const el = e.target as HTMLElement | null;
       if (el && (/^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName) || el.isContentEditable)) return;
+      if (editing || creating || showCopy || showShift || series || settingsFor || showChanges || showClosures || showTypes || showHelp) return;
       const k = e.key.toLowerCase();
-      if (k === "c" && hovered.current && !hovered.current.fixedBlock && !window.getSelection()?.toString()) {
-        e.preventDefault(); const s = hovered.current; setClip(s);
-        setToast({ text: `הועתק: ${s.workshopName}. Ctrl+V להדבקה` });
-      } else if (k === "v" && clip) {
-        e.preventDefault();
-        setCreating({ date: view === "day" ? selectedDay : dates.includes(today) ? today : dates[0], programId: clip.programId,
-          prefill: { name: clip.workshopName, kind: clip.activity, groupIds: clip.groupIds, start: clip.start, end: clip.end, locationId: clip.locationId, staffIds: clip.staffIds } });
+      if (e.ctrlKey || e.metaKey) {
+        if (!isManager) return;
+        if (k === "c" && hovered.current && !hovered.current.fixedBlock && !window.getSelection()?.toString()) {
+          e.preventDefault(); const s = hovered.current; setClip(s);
+          setToast({ text: `הועתק: ${s.workshopName}. Ctrl+V להדבקה` });
+        } else if (k === "v" && clip) {
+          e.preventDefault();
+          setCreating({ date: view === "day" ? selectedDay : dates.includes(today) ? today : dates[0], programId: clip.programId,
+            prefill: { name: clip.workshopName, kind: clip.activity, groupIds: clip.groupIds, start: clip.start, end: clip.end, locationId: clip.locationId, staffIds: clip.staffIds } });
+        }
+        return;
       }
+      if (e.altKey) return;
+      // Days run right-to-left: the right arrow goes back, the left arrow forward.
+      if (e.key === "ArrowRight") { e.preventDefault(); stepRef.current(-1); }
+      else if (e.key === "ArrowLeft") { e.preventDefault(); stepRef.current(1); }
+      else if (k === "t") goTodayRef.current();
+      else if (k === "d") setView("day");
+      else if (k === "w") setView("week");
+      else if (k === "n" && isManager) { e.preventDefault(); setCreating({ date: view === "day" ? selectedDay : dates.includes(today) ? today : dates[0], programId: onlyProgramRef.current }); }
+      else if (k === "/") { e.preventDefault(); setSearching(true); }
+      else if (e.key === "?") setShowHelp(true);
     };
   });
   useEffect(() => { const on = (e: KeyboardEvent) => keys.current(e); window.addEventListener("keydown", on); return () => window.removeEventListener("keydown", on); }, []);
@@ -305,7 +356,7 @@ export default function SchedulePage() {
     programTag: (s: Session) => (programSel.length !== 1 && !frames ? programShort(programOf(s.programId)) : undefined),
     hueOf: (s: Session) => sessionHue(s, colorBy, types, refs.programs),
     typeLabel: (s: Session) => (s.activity !== "workshop" && !s.band ? typeById(types, s.activity).label : undefined),
-    dim: (s: Session) => focusKey !== null && legendKey(s) !== focusKey,
+    dim: (s: Session) => (focusKey !== null && legendKey(s) !== focusKey) || (needle !== "" && !matches(s)),
     peekNames: (s: Session) => (s.fixedBlock || !s.hasParticipants ? [] : firstNames(participantsOf(s, workshopById.get(s.workshopId), patients))),
     countOf: (s: Session) => {
       if (s.fixedBlock) return undefined;
@@ -318,6 +369,11 @@ export default function SchedulePage() {
     onHover: (s: Session | null) => { hovered.current = s; },
     onOpen: (s: Session) => (s.fixedBlock ? (isManager && setSettingsFor(s.programId)) : setEditing({ session: s })),
   };
+  // Search: names of the session, people, room, groups and participants; what does not match fades.
+  const needle = query.trim().toLowerCase();
+  const matches = (s: Session) => [s.workshopName, s.note, roomOf(s.locationId), ...s.staffIds.map(nameOf), groupsOf(s.groupIds), ...(s.fixedBlock || !s.hasParticipants ? [] : firstNames(participantsOf(s, workshopById.get(s.workshopId), patients)))]
+    .some(v => !!v && v.toLowerCase().includes(needle));
+  const hits = needle ? sessions.filter(matches).length : 0;
   const legendKey = (s: Session) => (colorBy === "type" ? s.activity : colorBy === "program" ? s.programId : s.workshopId);
   const focusKey = focus;
   const legend = (() => {
@@ -402,33 +458,6 @@ export default function SchedulePage() {
         sub: row.closedReason(selectedDay), onAdd: addFor(selectedDay, row.id.split(":")[0]),
       }));
   const currentProgram = onlyProgram ? programOf(onlyProgram) : undefined;
-  const moveDay = (delta: number) => {
-    const d = addDays(new Date(`${selectedDay}T12:00:00`), delta);
-    setSelectedDay(toISO(d));
-    setWeekStart(weekStartOf(d));
-  };
-  // Phones skip days the program does not run on, so there are never empty days to swipe through.
-  const nextActive = (from: Date, dir: 1 | -1) => {
-    let d = from;
-    for (let i = 0; i < 14; i++) { d = addDays(d, dir); if (navDays.includes(d.getDay())) return d; }
-    return addDays(from, dir);
-  };
-  const jumpTo = (d: Date) => { setSelectedDay(toISO(d)); setWeekStart(weekStartOf(d)); };
-  const step = (dir: 1 | -1) => {
-    if (!isMobile) return view === "day" ? moveDay(dir) : setWeekStart(addDays(weekStart, 7 * dir));
-    const cur = new Date(`${selectedDay}T12:00:00`);
-    if (view === "day") return jumpTo(nextActive(cur, dir));
-    // Week: the same weekday next/previous week, or the closest activity day of that week.
-    const target = addDays(cur, 7 * dir);
-    if (navDays.includes(target.getDay())) return jumpTo(target);
-    const fwd = nextActive(target, 1);
-    jumpTo(weekStartOf(fwd).getTime() === weekStartOf(target).getTime() ? fwd : nextActive(target, -1));
-  };
-  const atCurrent = view === "day" ? selectedDay === today : dates.includes(today);
-  const goToday = () => {
-    const t = new Date();
-    jumpTo(!isMobile || navDays.includes(t.getDay()) ? t : nextActive(t, 1));
-  };
   const dayLabel = `${DAY_FULL[dayOf(selectedDay)]} ${shortDate(selectedDay)}`;
   const dayUrl = `/schedule/day?date=${selectedDay}${onlyProgram ? `&program=${onlyProgram}` : ""}${groupSel[0] ? `&group=${groupSel[0]}` : ""}`;
   const activeWorkshops = workshops.filter(w => w.status === "active");
@@ -453,11 +482,29 @@ export default function SchedulePage() {
             <div className="flex items-center mx-auto">
               <button onClick={() => step(-1)} aria-label="הקודם" className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[var(--foreground)]/5"><ChevronRight className="w-4 h-4" /></button>
               {/* Separate spans: a single string gets its parts reordered by the RTL bidi algorithm. */}
-              <span className="flex items-center gap-1 text-base font-bold tabular-nums min-w-[9rem] justify-center">
-                {view === "day" ? <span>{dayLabel}</span> : <><span>{format(weekStart, "d.M")}</span><span className="text-[var(--foreground)]/40">–</span><span>{format(addDays(weekStart, 6), "d.M")}</span></>}
+              <span className="relative">
+                <button onClick={() => setJumpOpen(o => !o)} aria-label="קפיצה לתאריך" aria-expanded={jumpOpen}
+                  className="flex items-center gap-1 text-base font-bold tabular-nums min-w-[9rem] justify-center h-8 rounded-lg hover:bg-[var(--foreground)]/5">
+                  {view === "day" ? <span>{dayLabel}</span> : <><span>{format(weekStart, "d.M")}</span><span className="text-[var(--foreground)]/40">–</span><span>{format(addDays(weekStart, 6), "d.M")}</span></>}
+                </button>
+                {jumpOpen && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setJumpOpen(false)} />
+                    <div className="absolute top-full mt-1 start-1/2 -translate-x-1/2 z-50"><MiniCalendar value={selectedDay} range={view === "day" ? "day" : "week"} onPick={iso => { jumpTo(parseISO(iso)); setJumpOpen(false); }} /></div>
+                  </>
+                )}
               </span>
               <button onClick={() => step(1)} aria-label="הבא" className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[var(--foreground)]/5"><ChevronLeft className="w-4 h-4" /></button>
             </div>
+            {searching ? (
+              <div className="flex items-center gap-1.5">
+                <input ref={searchRef} autoFocus value={query} onChange={e => setQuery(e.target.value)} placeholder="חיפוש: שם, מדריך, מרחב, משתתף" aria-label="חיפוש ביומן"
+                  onKeyDown={e => { if (e.key === "Escape") { setQuery(""); setSearching(false); } }}
+                  className="text-sm border border-[var(--cal-frame)] rounded-lg px-2.5 h-8 w-52 focus:border-[var(--accent)] outline-none" />
+                {needle && <span className="text-xs text-[var(--cal-muted)] tabular-nums">{hits} תוצאות</span>}
+                <button onClick={() => { setQuery(""); setSearching(false); }} aria-label="סגור חיפוש" className="w-8 h-8 rounded-lg hover:bg-[var(--foreground)]/5">✕</button>
+              </div>
+            ) : <button onClick={() => setSearching(true)} aria-label="חיפוש" title="חיפוש (/)" className="w-8 h-8 flex items-center justify-center rounded-lg border border-[var(--cal-frame)] hover:bg-[var(--foreground)]/5"><Search className="w-4 h-4" /></button>}
             {!atCurrent && <button onClick={goToday} className="text-sm px-3 h-8 rounded-lg border border-[var(--cal-frame)] hover:bg-[var(--foreground)]/5">היום</button>}
 
             {/* 3. How: view and actions. */}
@@ -566,7 +613,7 @@ export default function SchedulePage() {
             userId={user?.uid} onClose={() => setEditing(null)}
             onEditSeries={id => { setEditing(null); setSeries({ id }); }}
             onDuplicate={s => { setEditing(null); setCreating({ date: s.date, programId: s.programId, prefill: { name: s.workshopName, kind: s.activity, groupIds: s.groupIds, start: s.start, end: s.end, locationId: s.locationId, staffIds: s.staffIds } }); }}
-            onSaved={() => { setEditing(null); load(); }}
+            onSaved={undo => { setEditing(null); if (undo) setToast({ text: "השינוי נשמר", undo: async () => { await undo(); load(); } }); load(); }}
           />
         )}
 
@@ -600,7 +647,16 @@ export default function SchedulePage() {
         )}
         {showShift && (
           <DayShiftDialog date={selectedDay} userId={user?.uid} scopeLabel={currentProgram ? currentProgram.name : "כל התוכניות"}
-            sessions={sessions} onClose={() => setShowShift(false)} onSaved={() => { setShowShift(false); load(); }} />
+            sessions={sessions} onClose={() => setShowShift(false)} onSaved={undo => { setShowShift(false); if (undo) setToast({ text: "המפגשים נדחו", undo: async () => { await undo(); load(); } }); load(); }} />
+        )}
+        {showHelp && (
+          <Dialog title="קיצורי מקלדת" onClose={() => setShowHelp(false)}>
+            <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-sm">
+              {([["→ / ←", "הקודם / הבא"], ["T", "היום"], ["D / W", "תצוגת יום / שבוע"], ["/", "חיפוש"], ["N", "אירוע חדש"], ["Ctrl+C / Ctrl+V", "העתקת מפגש (מעל כרטיס) והדבקה"], ["Ctrl + גרירה", "העתקה בגרירה"], ["Esc", "סגירה"], ["?", "חלון זה"]] as const).map(([k, v]) => (
+                <div key={k} className="contents"><dt><kbd dir="ltr" className="px-1.5 py-0.5 rounded bg-[var(--btn-soft)] text-xs font-semibold">{k}</kbd></dt><dd>{v}</dd></div>
+              ))}
+            </dl>
+          </Dialog>
         )}
         {showCopy && (
           <CopyScheduleDialog refs={refs} workshops={workshops} sessions={all} dates={dates} selectedDay={selectedDay} programId={onlyProgram} userId={user?.uid}
@@ -613,7 +669,9 @@ export default function SchedulePage() {
           </div>
         )}
         {creating && (
-          <NewEventDialog refs={refs} types={types} initial={creating} existing={all} userId={user?.uid} onClose={() => setCreating(null)}
+          <NewEventDialog refs={refs} types={types} initial={creating} existing={all}
+            busyFor={(id, date, start, end) => absences.some(a => a.userId === id && a.date === date) ? "בהיעדרות" : staffBusyAt(id, date, start, end, all)?.workshopName}
+            roomBusy={(loc, date, start, end) => { const o = all.find(x => !x.fixedBlock && x.kind !== "cancelled" && x.kind !== "moved-away" && x.locationId === loc && x.date === date && x.start < end && start < x.end); return o ? `${roomOf(loc)} תפוס ב"${o.workshopName}" (${o.start}–${o.end})` : undefined; }} userId={user?.uid} onClose={() => setCreating(null)}
             onSaved={() => { setCreating(null); load(); }}
             onExisting={() => { setEditing({ session: null, extra: creating }); setCreating(null); }} />
         )}
