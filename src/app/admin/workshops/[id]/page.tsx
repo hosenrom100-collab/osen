@@ -7,7 +7,7 @@ import { useParams, useRouter } from "next/navigation";
 import { RoleGuard } from "@/components/auth/RoleGuard";
 import { db } from "@/lib/firebase/config";
 import { collection, deleteDoc, doc, getDoc, getDocs, query, updateDoc, where, serverTimestamp } from "firebase/firestore";
-import { Plus, ChevronRight } from "lucide-react";
+import { Copy, Plus, ChevronRight } from "lucide-react";
 import { fieldCls, labelCls, btnPrimary, btnGhost } from "@/components/workshops/Dialog";
 import { PageSkeleton } from "@/components/ui/Skeleton";
 import { loadRefs, Refs } from "@/lib/workshops/data";
@@ -131,6 +131,13 @@ export default function WorkshopDetailPage() {
 
   const days = program?.activeDays.length ? program.activeDays : [0, 1, 2, 3, 4];
   const setSlot = (sid: string, patch: Partial<Slot>) => set({ slots: form.slots.map(s => (s.id === sid ? { ...s, ...patch } : s)) });
+  // A copy right after the original (same day, hours, room, rhythm, groups), e.g. to change only the day of a second meeting.
+  const duplicateSlot = (s: Slot) => {
+    const clone: Slot = { ...s, id: newSlot(s.day).id, ...(s.groupIds ? { groupIds: [...s.groupIds] } : {}) };
+    const next = [...form.slots];
+    next.splice(form.slots.findIndex(x => x.id === s.id) + 1, 0, clone);
+    set({ slots: next });
+  };
 
   const progGroups = refs.groups.filter(g => g.programId === form.programId);
   const inSelectedGroups = (p: PatientLite) => !form.groupIds?.length || p.groupIds.some(g => form.groupIds!.includes(g));
@@ -210,6 +217,8 @@ export default function WorkshopDetailPage() {
             {form.slots.map(s => (
               <SlotRow key={s.id} slot={s} days={days} locations={refs.locations} workshopStart={form.startDate}
                 onChange={patch => setSlot(s.id, patch)} onRemove={() => set({ slots: form.slots.filter(x => x.id !== s.id) })}>
+                <button type="button" onClick={() => duplicateSlot(s)} aria-label="שכפל משבצת" title="שכפל משבצת (למשל כדי לשנות רק יום)"
+                  className="p-2 text-[var(--foreground)]/50 hover:text-[var(--accent)] hover:bg-[var(--foreground)]/5 rounded-md transition-colors"><Copy className="w-4 h-4" /></button>
                 {(form.groupIds?.length ?? 0) > 1 && (
                   <div className="w-full flex flex-wrap items-center gap-1.5 text-xs">
                     <span className="text-[var(--foreground)]/50">לקבוצות:</span>
