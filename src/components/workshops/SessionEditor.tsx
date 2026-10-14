@@ -30,6 +30,8 @@ interface Props {
   onSaved: (undo?: () => Promise<void>) => void; // `undo` puts the session back exactly as it was before this save
   onEditSeries?: (workshopId: string) => void;
   onDuplicate?: (s: Session) => void;
+  /** Opens the session's attendance (shown to staff, for sessions that have participants). */
+  onMarkAttendance?: (s: Session) => void;
 }
 
 const Chip = ({ children }: { children: React.ReactNode }) => <span className="inline-flex items-center h-7 px-3 rounded-full bg-[var(--btn-soft)] text-[var(--btn-soft-text)] text-[13px] font-medium">{children}</span>;
@@ -55,7 +57,7 @@ function WholeWorkshop({ name, id, onEditSeries }: { name: string; id: string; o
 const quickCls = "rounded-lg border border-[var(--border)] px-3 py-2.5 text-sm font-semibold hover:bg-[var(--foreground)]/5 disabled:opacity-50 transition-colors";
 const sameSet = (a: string[], b: string[]) => [...a].sort().join() === [...b].sort().join();
 
-export function SessionEditor({ session, extra, workshops, staff, locations, types = [], canEdit, warnings, participants = [], groupNames = [], accent, busyFor, userId, onClose, onSaved, onEditSeries, onDuplicate }: Props) {
+export function SessionEditor({ session, extra, workshops, staff, locations, types = [], canEdit, warnings, participants = [], groupNames = [], accent, busyFor, userId, onClose, onSaved, onEditSeries, onDuplicate, onMarkAttendance }: Props) {
   const isExtra = !session || session.kind === "extra";
   const ch = session?.change;
   // The change document as it was when this editor opened, so a save can be taken back.
@@ -248,6 +250,9 @@ export function SessionEditor({ session, extra, workshops, staff, locations, typ
             {shown.map((n, i) => <Chip key={i}>{n}</Chip>)}
             {participants.length > shown.length && <Chip>+{participants.length - shown.length}</Chip>}
           </Section>
+        )}
+        {onMarkAttendance && !dead && participants.length > 0 && session.changeId && (
+          <button type="button" onClick={() => onMarkAttendance(session)} className={`${btnPrimary} w-full`}>סמן נוכחות במפגש</button>
         )}
         {session.note && <div><h3 className={labelCls}>הערה</h3><p className="text-sm">{session.note}</p></div>}
 

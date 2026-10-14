@@ -99,3 +99,85 @@ export function countEntries(entries: Iterable<AttendanceEntry>): DayCounts {
 /** Short text for the tags shown next to a name. */
 export const lateLabel = (m: TimeMark) => (m.at ? `איחור ${m.at}` : "איחור");
 export const leftEarlyLabel = (m: TimeMark) => (m.at ? `יצא ${m.at}` : "יצא מוקדם");
+
+// ── Workshop sessions ───────────────────────────────────────────────────────────────────
+
+export interface DayFillAction {
+  type: "fill" | "clear" | "rederive";
+  /** For "rederive": the session that now backs the day's mark. */
+  sessionId?: string;
+}
+
+/**
+ * What a session mark does to the participant's day. A present mark in a session fills an empty
+ * day (never a manual one). Undoing it takes back only what that session filled, and only if
+ * no other session of the day still has the participant present.
+ */
+export function dayFillAction(
+  day: Pick<AttendanceEntry, "status" | "source" | "derivedFrom"> | undefined,
+  sessionId: string,
+  sessionStatus: DayStatus,
+  otherPresentSessionId: string | null
+): DayFillAction | null {
+  if (sessionStatus === "present") {
+    return !day || day.status === "unset" ? { type: "fill" } : null;
+  }
+  if (day?.status === "present" && day.source === "session" && day.derivedFrom === sessionId) {
+    return otherPresentSessionId ? { type: "rederive", sessionId: otherPresentSessionId } : { type: "clear" };
+  }
+  return null;
+}
+
+export interface Hint {
+  kind: "late" | "leftEarly";
+  /** The time the mark would get ("HH:MM"), or null when unknown. */
+  at: string | null;
+  text: string;
+}
+
+interface SessionSlot { id: string; start: string; end: string }
+
+/**
+ * A suggestion, never an automatic mark: the time a "present" tap happens is not the time the
+ * person arrived. Offered when the day's other sessions point to a late arrival or an early leave,
+ * or when a tap on today's session comes more than LATE_THRESHOLD_MIN after it began.
+ */
+export function suggestMark(args: {
+  newStatus: DayStatus;
+  session: SessionSlot & { date: string };
+  /** The day's sessions of this participant, in any order. */
+  daySessions: SessionSlot[];
+  /** This participant's other session marks that day. */
+  others: { sessionId: string; status: DayStatus }[];
+  /** Israel wall clock now, and today's date there. */
+  nowTime: string;
+  today: string;
+}): Hint | null {
+  const { newStatus, session, daySessions, others, nowTime, today } = args;
+  const statusIn = (id: string) => others.find((o) => o.sessionId === id)?.status;
+  const earlier = daySessions
+    .filter((s) => s.id !== session.id && s.start < session.start)
+    .sort((a, b) => a.start.localeCompare(b.start));
+
+  if (newStatus === "present") {
+    const missedEarlier = earlier.some((s) => statusIn(s.id) === "absent");
+    const presentEarlier = earlier.some((s) => statusIn(s.id) === "present");
+    if (missedEarlier && !presentEarlier) {
+      return { kind: "late", at: session.start, text: "לא היה במפגש הקודם. לסמן איחור?" };
+    }
+    if (!presentEarlier && session.date === today && minutesOf(nowTime) > minutesOf(session.start) + LATE_THRESHOLD_MIN && nowTime < session.end) {
+      return { kind: "late", at: nowTime, text: `סומן ב-${nowTime}. לסמן איחור?` };
+    }
+    return null;
+  }
+  if (newStatus === "absent") {
+    const lastPresent = [...earlier].reverse().find((s) => statusIn(s.id) === "present");
+    if (lastPresent) return { kind: "leftEarly", at: lastPresent.end, text: "היה במפגש הקודם. לסמן יציאה מוקדמת?" };
+  }
+  return null;
+}
+
+/** Today's date ("yyyy-MM-dd") on the Israel calendar. */
+export function todayInIsrael(d: Date = new Date()): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: TIME_ZONE, year: "numeric", month: "2-digit", day: "2-digit" }).format(d);
+}

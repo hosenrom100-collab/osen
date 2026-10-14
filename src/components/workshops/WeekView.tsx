@@ -21,6 +21,7 @@ export interface Common {
   typeLabel: (s: Session) => string | undefined; // name of the type when it is not a plain workshop
   dim: (s: Session) => boolean;    // faded while another legend item is highlighted
   countOf: (s: Session) => number | undefined; // headcount of a session, when known
+  absentOf?: (s: Session) => number | undefined; // participants marked absent in a session, when any
   peekNames: (s: Session) => string[];          // first names of the people attending, for the hover peek
   programTag?: (s: Session) => string | undefined; // short program name, when cards of several programs share a column
   showGroups?: boolean; // show group names on sessions even in program mode
@@ -50,7 +51,7 @@ function facts(s: Session, mode: Mode, c: Common, groups?: boolean) {
   const staffOnly = s.audience === "staff";
   const staff = mode !== "staff" && !s.fixedBlock ? s.staffIds.map(c.nameOf).join(", ") : "";
   const grp = groups || mode !== "program" || c.showGroups ? c.groupsOf(s.groupIds) : "";
-  return { dead, room, staff, staffOnly, grp, count: dead ? undefined : c.countOf(s), special: dead ? undefined : c.typeLabel(s), note: changeNote(s), warn: c.warnings.get(s.id), soft: dead ? undefined : c.soft?.get(s.id), joint: !dead && !!c.jointOf?.(s) };
+  return { dead, room, staff, staffOnly, grp, count: dead ? undefined : c.countOf(s), absent: dead ? undefined : c.absentOf?.(s), special: dead ? undefined : c.typeLabel(s), note: changeNote(s), warn: c.warnings.get(s.id), soft: dead ? undefined : c.soft?.get(s.id), joint: !dead && !!c.jointOf?.(s) };
 }
 
 /**
@@ -81,7 +82,7 @@ function Card({ s, mode, c, groups, compact }: { s: Session; mode: Mode; c: Comm
     const line = tagged || f.joint ? (f.staff ? (f.staffOnly ? `נוכחים: ${f.staff}` : f.staff) : "") : meta;
     return (
       <button onClick={() => c.onOpen(s)}
-        aria-label={[`${s.start}–${s.end}`, s.workshopName, f.room && `מרחב ${f.room}`, f.staff, f.grp, f.count ? `${f.count} משתתפים` : "", f.note, f.warn?.join(", ")].filter(Boolean).join(", ")}
+        aria-label={[`${s.start}–${s.end}`, s.workshopName, f.room && `מרחב ${f.room}`, f.staff, f.grp, f.count ? `${f.count} משתתפים${f.absent ? `, ${f.absent} חסרים` : ""}` : "", f.note, f.warn?.join(", ")].filter(Boolean).join(", ")}
         style={f.dead ? undefined : { backgroundColor: t.fill, color: t.ink, borderInlineStartColor: t.bar, borderInlineStartStyle: oneOff ? "dashed" : "solid" }}
         className={`flex flex-col justify-center w-full h-full min-h-[3.75rem] text-start rounded-md px-2.5 py-1.5 border-s-[3px] ${c.dim(s) ? "opacity-30" : ""} ${f.dead ? "bg-[var(--cal-ink)]/[0.04] text-[var(--cal-faint)] border-[var(--cal-line-day)]" : ""}`}>
         <span className="flex items-center gap-1.5 min-w-0">
@@ -102,7 +103,7 @@ function Card({ s, mode, c, groups, compact }: { s: Session; mode: Mode; c: Comm
             {showRoom && <span className="inline-flex items-center gap-1 shrink-0 max-w-[45%] px-1.5 rounded bg-white/80 font-bold" style={{ color: t.ink }}><MapPin className="w-3 h-3 shrink-0" /><span className="truncate">{f.room}</span></span>}
             {line && <span className="flex-1 min-w-0 truncate text-[var(--cal-muted)]">{line}</span>}
             {!line && <span className="flex-1" />}
-            {f.count ? <span className="shrink-0 px-1.5 rounded bg-black/[0.06] tabular-nums font-semibold text-[var(--cal-muted)]">{f.count}</span> : null}
+            {f.count ? <span className="shrink-0 px-1.5 rounded bg-black/[0.06] tabular-nums font-semibold text-[var(--cal-muted)]">{f.count}{f.absent ? ` · ${f.absent} חסרים` : ""}</span> : null}
           </span>
         )}
       </button>
@@ -112,7 +113,7 @@ function Card({ s, mode, c, groups, compact }: { s: Session; mode: Mode; c: Comm
   return (
     <>
       <button onClick={() => { leave(); c.onOpen(s); }} onMouseEnter={enter} onMouseLeave={leave} onPointerDown={leave}
-        aria-label={[`${s.start}–${s.end}`, s.workshopName, f.room && `מרחב ${f.room}`, f.staff, f.grp, f.count ? `${f.count} משתתפים` : "", f.note, f.warn?.join(", ")].filter(Boolean).join(", ")}
+        aria-label={[`${s.start}–${s.end}`, s.workshopName, f.room && `מרחב ${f.room}`, f.staff, f.grp, f.count ? `${f.count} משתתפים${f.absent ? `, ${f.absent} חסרים` : ""}` : "", f.note, f.warn?.join(", ")].filter(Boolean).join(", ")}
         style={f.dead ? undefined : { backgroundColor: t.fill, color: t.ink, borderInlineStartColor: t.bar, borderInlineStartStyle: oneOff ? "dashed" : "solid", boxShadow: f.joint ? `inset 0 0 0 1px ${t.bar}, inset 0 0 0 3px ${t.fill}, inset 0 0 0 4px ${t.soft}` : undefined }}
         className={`block w-full h-full text-start rounded-md px-2.5 py-1.5 md:px-2 md:py-1 border-s-[3px] transition-[filter,opacity] hover:brightness-[0.97] focus-visible:outline-2 focus-visible:outline-[var(--accent)] ${c.dim(s) ? "opacity-30" : ""} ${f.dead ? "border border-dashed border-[var(--cal-frame)] text-[var(--cal-muted)]" : "border-transparent"}`}>
         <span className="flex items-start gap-1.5">
@@ -140,7 +141,7 @@ function Card({ s, mode, c, groups, compact }: { s: Session; mode: Mode; c: Comm
             {f.joint && <span className="px-1.5 rounded bg-white text-[var(--cal-ink)] ring-1 ring-current/30" style={{ color: t.ink }}>משותף</span>}
             {f.special && <span className="px-1.5 rounded bg-white/80" style={{ color: t.ink }}>{f.special}</span>}
             {oneOff && <span className="px-1.5 rounded bg-[#fff0c2] text-[#6b4700]">{s.kind === "extra" ? "חד-פעמי" : "הוזז"}</span>}
-            {f.count ? <span className="px-1.5 rounded bg-black/[0.06] tabular-nums text-[var(--cal-muted)]" title={`${f.count} ${f.staffOnly ? "בצוות" : "משתתפים"}`}>{f.count} {f.staffOnly ? "בצוות" : "משתתפים"}</span> : null}
+            {f.count ? <span className="px-1.5 rounded bg-black/[0.06] tabular-nums text-[var(--cal-muted)]" title={`${f.count} ${f.staffOnly ? "בצוות" : "משתתפים"}`}>{f.count} {f.staffOnly ? "בצוות" : "משתתפים"}{f.absent ? ` · ${f.absent} חסרים` : ""}</span> : null}
             {f.warn && !f.dead && <span className="text-[#b42318] font-bold">{f.warn[0]}{f.warn.length > 1 ? ` (+${f.warn.length - 1})` : ""}</span>}
           </span>
         )}
