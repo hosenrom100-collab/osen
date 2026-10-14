@@ -16,6 +16,9 @@ interface AttendanceRecord {
   status: string;
   hosenType: string;
   groupId: string;
+  late?: boolean;
+  leftEarly?: boolean;
+  note?: string;
 }
 
 interface Group {
@@ -83,6 +86,14 @@ function AttendanceLogPageContent() {
 
       // 3. Fetch attendance
       const attendanceSnap = await getDocs(query(collection(db, "attendance"), orderBy("date", "desc")));
+      // One-line notes (staff only) by participant and day.
+      const noteOf = new Map<string, string>();
+      try {
+        (await getDocs(collection(db, "attendance_notes"))).forEach(n => {
+          const x = n.data();
+          if (x.kind === "day" && typeof x.text === "string") noteOf.set(`${x.patientId}_${x.date}`, x.text);
+        });
+      } catch { /* notes are optional */ }
       const allRecords: AttendanceRecord[] = [];
       attendanceSnap.forEach(doc => {
         const data = doc.data();
@@ -96,7 +107,10 @@ function AttendanceLogPageContent() {
           date: data.date,
           status: data.status,
           hosenType: patientInfo.hosenType,
-          groupId: patientInfo.groupId
+          groupId: patientInfo.groupId,
+          late: data.status === "present" && !!data.late,
+          leftEarly: data.status === "present" && !!data.leftEarly,
+          note: noteOf.get(`${data.patientId}_${data.date}`),
         });
       });
 
@@ -204,6 +218,13 @@ function AttendanceLogPageContent() {
                         {record.hosenType}
                       </span>
                     </div>
+                    {(record.late || record.leftEarly || record.note) && (
+                      <p className="mt-1 flex items-center gap-1.5 text-[11px] text-slate-500 min-w-0">
+                        {record.late && <span className="shrink-0 px-1.5 rounded bg-amber-500/10 text-amber-400">איחור</span>}
+                        {record.leftEarly && <span className="shrink-0 px-1.5 rounded bg-sky-500/10 text-sky-400">יצא מוקדם</span>}
+                        {record.note && <span className="truncate">{record.note}</span>}
+                      </p>
+                    )}
                   </div>
                 </div>
                 <div className={`px-3 py-1 rounded-full text-[11px] font-bold ${

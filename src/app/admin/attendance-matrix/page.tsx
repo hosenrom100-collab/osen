@@ -13,8 +13,7 @@ import {
 import { useRouter } from "next/navigation";
 import { 
   format, startOfMonth, endOfMonth, eachDayOfInterval, 
-  getDay, getYear, getMonth
-} from "date-fns";
+  getDay, getYear, getMonth, parseISO } from "date-fns";
 import { he } from "date-fns/locale";
 import { motion, AnimatePresence } from "framer-motion";
 import * as XLSX from "xlsx";
@@ -468,6 +467,27 @@ export default function AttendanceMatrixPage() {
         const cleanSheetName = prog.name.substring(0, 30).replace(/[\\/?*\[\]]/g, "_");
         XLSX.utils.book_append_sheet(wb, ws, cleanSheetName || "תוכנית");
       });
+
+      // One extra tab with the day notes, the late arrivals and the early leaves of the month.
+      const detailRows: string[][] = [["תאריך", "משתתף", "סוג", "שעה", "הערה"]];
+      Object.entries(extras)
+        .sort(([a], [b]) => a.split("_")[1].localeCompare(b.split("_")[1]))
+        .forEach(([key, x]) => {
+          const [pid, dateStr] = key.split("_");
+          const p = patients.find(pt => pt.id === pid);
+          if (!p || attendance[key] !== "present" && !x.note) return;
+          const kinds = [x.late && "איחור", x.leftEarly && "יציאה מוקדמת"].filter(Boolean).join(" + ");
+          if (!kinds && !x.note) return;
+          detailRows.push([
+            format(parseISO(dateStr), "dd/MM/yyyy"), `${p.firstName} ${p.lastName}`, kinds,
+            [x.late?.at, x.leftEarly?.at].filter(Boolean).join(" / "), x.note ?? "",
+          ]);
+        });
+      if (detailRows.length > 1) {
+        const wsNotes = XLSX.utils.aoa_to_sheet(detailRows);
+        wsNotes['!dir'] = 'rtl';
+        XLSX.utils.book_append_sheet(wb, wsNotes, "הערות ואיחורים");
+      }
 
       if (wb.SheetNames.length === 0) {
         alert("אין נתוני נוכחות לייצוא עבור החודש הנוכחי");
