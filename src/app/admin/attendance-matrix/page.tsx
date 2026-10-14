@@ -208,6 +208,9 @@ export default function AttendanceMatrixPage() {
       setExtras(prev => ({ ...prev, [attKey]: { note: extra?.note, docIds: [] } }));
     } catch (err) {
       console.error("Error setting attendance:", err);
+      alert((err as { code?: string })?.code === "permission-denied"
+        ? "הסימון לא נשמר: אין הרשאה. רענן את הדף ונסה שוב."
+        : "הסימון לא נשמר. בדוק חיבור לאינטרנט ונסה שוב.");
       setAttendance(prev => {
         const next = { ...prev };
         if (prevStatus) next[attKey] = prevStatus;

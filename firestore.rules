@@ -90,6 +90,13 @@ service cloud.firestore {
       );
     }
 
+    // The id is patientId_date. Screens that were open before that change still write the older
+    // patientId_group_date id; accepting it keeps them saving until they reload (readers merge both).
+    function dayAttendanceIdOk(docId, d) {
+      return docId == d.patientId + '_' + d.date ||
+        docId.matches('^' + d.patientId + '_.+_' + d.date + '$');
+    }
+
     function validDayAttendance(docId, d) {
       return d.keys().hasOnly([
         'patientId', 'date', 'status', 'contextId', 'hasNote', 'source', 'derivedFrom',
@@ -97,7 +104,7 @@ service cloud.firestore {
       ]) &&
         d.patientId is string && d.date is string &&
         d.date.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$') &&
-        docId == d.patientId + '_' + d.date &&
+        dayAttendanceIdOk(docId, d) &&
         d.status in ['present', 'absent', 'unset'] &&
         validTimeMark(d.get('late', null)) && validTimeMark(d.get('leftEarly', null));
     }

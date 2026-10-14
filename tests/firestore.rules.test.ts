@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import {
   assertFails, assertSucceeds, initializeTestEnvironment, type RulesTestEnvironment,
 } from "@firebase/rules-unit-testing";
-import { doc, getDoc, setDoc, addDoc, updateDoc, deleteDoc, collection, Timestamp, deleteField } from "firebase/firestore";
+import { doc, getDoc, setDoc, addDoc, updateDoc, deleteDoc, collection, Timestamp, deleteField, writeBatch } from "firebase/firestore";
 
 let env: RulesTestEnvironment;
 
@@ -219,9 +219,10 @@ test("staff write a day's attendance, with late and early-leave marks", async ()
   await assertSucceeds(deleteDoc(att("staff")));
 });
 
-test("attendance: the id must be patient and date, and only known statuses and times pass", async () => {
+test("attendance: the id must belong to the patient and date, and only known statuses and times pass", async () => {
   await seedAttendance();
-  await assertFails(setDoc(att("staff", "p1_group_2026-10-14"), dayDoc())); // the old per-screen id
+  await assertFails(setDoc(att("staff", "p2_2026-10-14"), dayDoc())); // someone else's document
+  await assertFails(setDoc(att("staff", "p1_group_2026-10-15"), dayDoc())); // another date
   await assertFails(setDoc(att("staff"), dayDoc({ status: "late" })));
   await assertFails(setDoc(att("staff"), dayDoc({ late: { at: "9:40" } })));
   await assertFails(setDoc(att("staff"), dayDoc({ late: { at: "25:00" } })));
@@ -262,4 +263,25 @@ test("session attendance: the id is session and participant", async () => {
   await assertFails(sess("staff", "w1_2026-10-14_s1_p2")); // wrong id
   await assertFails(sess("staff", "w1_2026-10-14_s1_p1", { status: "unset" }));
   await assertFails(sess("participant", "w1_2026-10-14_s1_p1"));
+});
+
+// ── the exact batch the attendance screens send ──
+test("the day-attendance batch (document + note delete + legacy delete) is accepted for staff", async () => {
+  await seedAttendance();
+  const db = as("staff");
+  const b = writeBatch(db);
+  b.set(doc(db, "attendance", "p1_2026-10-14"), {
+    patientId: "p1", date: "2026-10-14", status: "present", hasNote: false, source: "manual",
+    updatedBy: "staff", updatedAt: "2026-10-14T07:00:00.000Z", contextId: "g1",
+  });
+  b.delete(doc(db, "attendance_notes", "p1_2026-10-14"));
+  b.delete(doc(db, "attendance", "p1_g1_2026-10-14"));
+  await assertSucceeds(b.commit());
+});
+
+test("a screen still running the previous version (id with the group in it) can still save", async () => {
+  await seedAttendance();
+  await assertSucceeds(setDoc(att("staff", "p1_group7_2026-10-14"), {
+    patientId: "p1", date: "2026-10-14", status: "present", contextId: "group7", updatedAt: "2026-10-14T07:00:00.000Z",
+  }));
 });
