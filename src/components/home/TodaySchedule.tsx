@@ -11,7 +11,8 @@ import { buildSessions } from "@/lib/workshops/buildWeek";
 import { hueStyle, programHue } from "@/lib/workshops/colors";
 import { shortDate, toISO, toMin } from "@/lib/workshops/dates";
 import { firstNames, participantsOf } from "@/lib/workshops/people";
-import { DAY_FULL, Session, staffChangeLabel } from "@/lib/workshops/types";
+import { DAY_FULL, Session, STAFF_ROLES, staffChangeLabel } from "@/lib/workshops/types";
+import { SessionAttendanceSheet } from "@/components/workshops/SessionAttendanceSheet";
 import { useScheduleData } from "@/lib/workshops/useScheduleData";
 import { dayOf } from "@/lib/workshops/dates";
 
@@ -25,7 +26,9 @@ const mins = toMin;
 
 /** Home-screen schedule: one day, for the program/group each person picks for themselves. */
 export function TodaySchedule() {
-  const { user, isManager } = useAuth();
+  const { user, isManager, role } = useAuth();
+  const canMark = !!role && STAFF_ROLES.includes(role);
+  const [attending, setAttending] = useState<Session | null>(null);
   const [offset, setOffset] = useState(0);
   const date = toISO(addDays(new Date(), offset));
   const dates = useMemo(() => [date], [date]);
@@ -135,6 +138,9 @@ export function TodaySchedule() {
                     </div>
                     {meta && !dead && <p className="text-xs text-[var(--foreground)]/65 mt-0.5">{meta}</p>}
                     {s.note && <p className="text-xs mt-0.5 text-[var(--foreground)]/75">{s.note}</p>}
+                    {canMark && count > 0 && !dead && st !== "later" && s.changeId && (
+                      <button type="button" onClick={() => setAttending(s)} className="mt-1.5 h-8 px-3 rounded-md border border-[var(--border)] bg-[var(--background)] text-xs font-bold hover:bg-[var(--foreground)]/5">סמן נוכחות</button>
+                    )}
                   </div>
                 )}
               </li>
@@ -147,6 +153,15 @@ export function TodaySchedule() {
         <Link href={`/schedule?${pref.programId ? `program=${pref.programId}&` : ""}${pref.groupId ? `group=${pref.groupId}&` : ""}view=day`} className="text-[var(--primary)] flex items-center gap-0.5 hover:underline">ליומן המלא <ChevronLeft className="w-3 h-3" /></Link>
         {isManager && <Link href={`/schedule/day?date=${date}${pref.programId ? `&program=${pref.programId}` : ""}${pref.groupId ? `&group=${pref.groupId}` : ""}`} className="text-[var(--foreground)]/60 hover:underline">שיתוף לוז היום</Link>}
       </div>
+      {attending && (
+        <SessionAttendanceSheet
+          key={attending.changeId}
+          session={attending}
+          participants={participantsOf(attending, wById.get(attending.workshopId), patients)}
+          daySessions={sessions.filter(x => x.hasParticipants && !x.fixedBlock && x.kind !== "cancelled" && !!x.changeId)}
+          onClose={() => setAttending(null)}
+        />
+      )}
     </section>
   );
 }

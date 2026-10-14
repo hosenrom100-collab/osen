@@ -34,9 +34,22 @@ export default function WorkshopDetailPage() {
   const [changes, setChanges] = useState<SessionChange[]>([]);
   const [closures, setClosures] = useState<Closure[]>([]);
   const [loading, setLoading] = useState(true);
+  // Attendance marks of this workshop's sessions, for the attendance summary.
+  const [marks, setMarks] = useState<{ sessionId: string; patientId: string; status: string; late: boolean; leftEarly: boolean }[]>([]);
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState("");
   const [allPrograms, setAllPrograms] = useState(false);
+
+  useEffect(() => {
+    let live = true;
+    getDocs(query(collection(db, "session_attendance"), where("workshopId", "==", id)))
+      .then(snap => {
+        if (!live) return;
+        setMarks(snap.docs.map(d => { const x = d.data(); return { sessionId: String(x.sessionId), patientId: String(x.patientId), status: String(x.status), late: !!x.late, leftEarly: !!x.leftEarly }; }));
+      })
+      .catch(() => {});
+    return () => { live = false; };
+  }, [id]);
 
   const load = useCallback(async () => {
     const [r, wSnap, allW, pSnap, cSnap] = await Promise.all([
@@ -297,6 +310,51 @@ export default function WorkshopDetailPage() {
               {sessions.length === 0 && <li className="py-3 text-[var(--foreground)]/50">אין מפגשים. בדוק שהסדנה פעילה, שיש לה מפגשים שבועיים ושהימים תואמים לימי הפעילות של התוכנית.</li>}
             </ul>
           </section>
+
+          {marks.length > 0 && (() => {
+            const sessionMarks = new Map<string, { present: number; absent: number }>();
+            const personMarks = new Map<string, { present: number; absent: number; late: number; leftEarly: number }>();
+            for (const m of marks) {
+              const sm = sessionMarks.get(m.sessionId) ?? { present: 0, absent: 0 };
+              const pm = personMarks.get(m.patientId) ?? { present: 0, absent: 0, late: 0, leftEarly: 0 };
+              if (m.status === "present") { sm.present++; pm.present++; if (m.late) pm.late++; if (m.leftEarly) pm.leftEarly++; }
+              else if (m.status === "absent") { sm.absent++; pm.absent++; }
+              sessionMarks.set(m.sessionId, sm); personMarks.set(m.patientId, pm);
+            }
+            const markedSessions = sessions.filter(s => s.changeId && sessionMarks.has(s.changeId));
+            const people = [...personMarks.entries()]
+              .map(([pid, v]) => ({ pid, name: patients.find(p => p.id === pid)?.name || "משתתף", ...v }))
+              .sort((a, b) => a.name.localeCompare(b.name, "he"));
+            return (
+              <section className="py-5 border-b border-[var(--border)]">
+                <h2 className="text-sm font-bold mb-3">נוכחות במפגשים</h2>
+                <ul className="text-sm divide-y divide-[var(--border)] mb-5">
+                  {markedSessions.map(s => {
+                    const m = sessionMarks.get(s.changeId!)!;
+                    const total = m.present + m.absent;
+                    return (
+                      <li key={s.id} className="py-1.5 flex gap-3 tabular-nums">
+                        <span className="w-24">יום {DAY_SHORT[dayOf(s.date)]} {shortDate(s.date)}</span>
+                        <span className="flex-1">{m.present}/{total} נוכחים</span>
+                        <span className="text-xs text-[var(--foreground)]/55">{total ? Math.round((m.present / total) * 100) : 0}%</span>
+                      </li>
+                    );
+                  })}
+                </ul>
+                <ul className="text-sm divide-y divide-[var(--border)]">
+                  {people.map(p => (
+                    <li key={p.pid} className="py-1.5 flex gap-3">
+                      <span className="flex-1 truncate">{p.name}</span>
+                      <span className="text-xs text-[var(--foreground)]/60 tabular-nums">
+                        {p.present}/{p.present + p.absent} מפגשים
+                        {(p.late > 0 || p.leftEarly > 0) && ` · ${[p.late > 0 && `${p.late} איחורים`, p.leftEarly > 0 && `${p.leftEarly} יצא מוקדם`].filter(Boolean).join(", ")}`}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            );
+          })()}
 
           <section className="py-5">
             <button onClick={remove} className="text-sm text-rose-500 hover:underline">מחק סדנה</button>

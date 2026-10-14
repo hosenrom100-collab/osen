@@ -97,6 +97,7 @@ function AttendancePageContent() {
   const [showCalendar,   setShowCalendar]   = useState(false);
   const [copied,         setCopied]         = useState(false);
   const [detailFor,      setDetailFor]      = useState<string | null>(null);
+  const [saveError,      setSaveError]      = useState("");
 
   const copyAttendanceToClipboard = () => {
     const presentList = filteredPatients.filter(p => attendance[p.id]?.status === "present");
@@ -295,9 +296,17 @@ function AttendancePageContent() {
         contextId: selectedId,
         legacyIds: previous.docIds,
       });
+      setSaveError("");
     } catch (err) {
       console.error(err);
       setAttendance(prev => ({ ...prev, [pId]: previous }));
+      // Never fail silently: the mark went back to empty, so say why.
+      const code = (err as { code?: string })?.code;
+      setSaveError(
+        code === "permission-denied"
+          ? "הסימון לא נשמר: אין הרשאה. רענן את הדף (משיכה למטה), ואם זה חוזר פנה למנהל המערכת."
+          : "הסימון לא נשמר. בדוק חיבור לאינטרנט ונסה שוב."
+      );
     }
   };
 
@@ -543,6 +552,12 @@ function AttendancePageContent() {
             {(stats.late > 0 || stats.leftEarly > 0) && (
               <p className="text-[11px] font-semibold text-[var(--muted)] -mt-1">
                 {[stats.late > 0 && `${stats.late} איחורים`, stats.leftEarly > 0 && `${stats.leftEarly} יצאו מוקדם`].filter(Boolean).join(" · ")}
+              </p>
+            )}
+
+            {saveError && (
+              <p role="alert" className="rounded-xl bg-rose-500/10 border border-rose-500/25 text-rose-600 text-xs font-bold px-3 py-2">
+                {saveError}
               </p>
             )}
 

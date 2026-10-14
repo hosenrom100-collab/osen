@@ -152,6 +152,8 @@ export default function PatientDetailPage() {
   const [attendance, setAttendance] = useState<Attendance[]>([]);
   // One-line attendance notes by date (staff only; participants cannot read them).
   const [attendanceNotes, setAttendanceNotes] = useState<Record<string, string>>({});
+  // Workshop sessions this participant was marked in, grouped by workshop.
+  const [workshopStats, setWorkshopStats] = useState<{ id: string; name: string; present: number; absent: number; late: number; leftEarly: number }[]>([]);
   const [loading, setLoading] = useState(true);
   const requestedTab = (searchParams.get("tab") as "overview" | "attendance" | "certificates" | "reports") || "overview";
   const initialTab = (requestedTab === "reports" && !REPORTS_ENABLED) ? "overview" : requestedTab;
@@ -459,6 +461,23 @@ export default function PatientDetailPage() {
         notesSnap.forEach(d => { const n = d.data(); if (n.kind === "day" && typeof n.text === "string") notes[n.date] = n.text; });
         setAttendanceNotes(notes);
       } catch { /* not allowed for this role: no notes are shown */ }
+      try {
+        const [saSnap, wSnap] = await Promise.all([
+          getDocs(query(collection(db, "session_attendance"), where("patientId", "==", id))),
+          getDocs(collection(db, "workshops")),
+        ]);
+        const names = new Map(wSnap.docs.map(d => [d.id, String(d.data().name || "סדנה")]));
+        const by = new Map<string, { id: string; name: string; present: number; absent: number; late: number; leftEarly: number }>();
+        saSnap.forEach(d => {
+          const x = d.data();
+          const wid = String(x.workshopId || "");
+          const row = by.get(wid) ?? { id: wid, name: names.get(wid) || "סדנה", present: 0, absent: 0, late: 0, leftEarly: 0 };
+          if (x.status === "present") { row.present++; if (x.late) row.late++; if (x.leftEarly) row.leftEarly++; }
+          else if (x.status === "absent") row.absent++;
+          by.set(wid, row);
+        });
+        setWorkshopStats([...by.values()].sort((a, b) => a.name.localeCompare(b.name, "he")));
+      } catch { /* sessions are optional */ }
       const uSnap = await getDocs(query(collection(db, "users"), where("patientId", "==", id), limit(1)));
       if (!uSnap.empty) setParticipantUid(uSnap.docs[0].id);
 
@@ -2138,6 +2157,26 @@ export default function PatientDetailPage() {
                     </div>
                   );
                 })()}
+
+                {workshopStats.length > 0 && (
+                  <div className="border-b border-[var(--border)] py-4">
+                    <h3 className="text-xs font-bold text-slate-500 mb-2">לפי סדנה</h3>
+                    <ul className="divide-y divide-slate-100">
+                      {workshopStats.map(w => {
+                        const total = w.present + w.absent;
+                        return (
+                          <li key={w.id} className="py-2 flex items-center justify-between gap-3 text-xs">
+                            <span className="font-bold text-slate-700 truncate">{w.name}</span>
+                            <span className="shrink-0 font-semibold text-slate-400 tabular-nums">
+                              {w.present}/{total} מפגשים
+                              {(w.late > 0 || w.leftEarly > 0) && ` · ${[w.late > 0 && `${w.late} איחורים`, w.leftEarly > 0 && `${w.leftEarly} יצא מוקדם`].filter(Boolean).join(", ")}`}
+                            </span>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                )}
 
                 <div className="border-b border-[var(--border)] py-5 md:py-6">
                   <div className="flex items-center gap-2.5 mb-5">
