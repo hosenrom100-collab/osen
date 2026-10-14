@@ -33,8 +33,8 @@ const MIN_ROOM_FOR_NEW_SECTION = 40; // mm: category title + column labels + at 
 
 export async function generateShoppingListPdf(
   items: ShoppingListExportData[],
-  meta: { date: string; title: string; subtitle?: string; weekLabel?: string },
-  /** A file name saves the PDF; null returns it as a Blob (for e-mail attachments). */
+  meta: { date: string; title: string; subtitle?: string },
+  /** A file name saves the PDF; null returns it as a Blob. */
   filename: string | null
 ): Promise<Blob | void> {
   const [regular, bold] = await Promise.all([loadFont("Heebo-Regular.ttf"), loadFont("Heebo-Bold.ttf")]);
@@ -49,7 +49,6 @@ export async function generateShoppingListPdf(
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
   const right = pageW - MARGIN;
-  const showFramework = items.some((i) => !!i.frameworkName);
 
   // ── Title block ──
   let y = 16;
@@ -70,56 +69,111 @@ export async function generateShoppingListPdf(
   doc.setTextColor(30);
   y += 5;
 
-  // ── One table per category; the category name is a header row repeated on each page it spans ──
-  const byCategory = new Map<string, ShoppingListExportData[]>();
-  [...items]
-    .sort((a, b) => a.category.localeCompare(b.category, "he") || a.name.localeCompare(b.name, "he"))
-    .forEach((it) => {
-      const cat = it.category || "כללי";
-      byCategory.set(cat, [...(byCategory.get(cat) ?? []), it]);
-    });
+  // ── Sections: one per framework (when items carry one), each with a table per category ──
+  const sorted = [...items].sort(
+    (a, b) =>
+      (a.frameworkName || "").localeCompare(b.frameworkName || "", "he") ||
+      (a.category || "כללי").localeCompare(b.category || "כללי", "he") ||
+      a.name.localeCompare(b.name, "he")
+  );
+  const sections = new Map<string, Map<string, ShoppingListExportData[]>>();
+  for (const it of sorted) {
+    const fw = it.frameworkName || "";
+    const cat = it.category || "כללי";
+    const cats = sections.get(fw) ?? new Map<string, ShoppingListExportData[]>();
+    cats.set(cat, [...(cats.get(cat) ?? []), it]);
+    sections.set(fw, cats);
+  }
 
-  // Columns are listed left→right, so the visual right-to-left order is reversed here.
-  const colLabels = [...(showFramework ? ["מסגרת"] : []), "מזמין", "הערות", "כמות", "מוצר"];
-  const colCount = colLabels.length;
-  const colStyles: Record<number, object> = {
-    [colCount - 1]: { cellWidth: "auto", fontStyle: "bold" },
-    [colCount - 2]: { cellWidth: 20, halign: "center" },
-    [colCount - 3]: { cellWidth: 46 },
-    [colCount - 4]: { cellWidth: 28 },
+  // Columns left→right, so the visual right-to-left order is reversed: ☐ | product | quantity | notes.
+  // Every width is fixed so the table can never run past the margins.
+  const innerW = pageW - MARGIN * 2;
+  const W_BOX = 10;
+  const W_QTY = 22;
+  const W_NOTES = 62;
+  const W_NAME = innerW - W_BOX - W_QTY - W_NOTES;
+  const PAD = 2.2;
+  const FONT_SIZE = 10;
+
+  /**
+   * Wraps in logical order first and only then reverses each line for jsPDF. Letting autoTable
+   * wrap an already-reversed string would put the end of the sentence on the first line.
+   */
+  const wrap = (text: string, width: number, bold = false): string => {
+    doc.setFont("Heebo", bold ? "bold" : "normal");
+    doc.setFontSize(FONT_SIZE);
+    const lines: string[] = doc.splitTextToSize(text || "", width - PAD * 2);
+    return lines.map(rtl).join("\n");
   };
-  if (showFramework) colStyles[0] = { cellWidth: 26 };
 
-  for (const [cat, rows] of byCategory) {
-    const last = (doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable;
-    let startY = last ? Math.max(last.finalY, y) + 6 : y + 2;
-    // Never strand a category title at the bottom of a page.
-    if (pageH - MARGIN - startY < MIN_ROOM_FOR_NEW_SECTION) {
-      doc.addPage();
-      startY = MARGIN;
+  const colStyles: Record<number, object> = {
+    0: { cellWidth: W_NOTES },
+    1: { cellWidth: W_QTY, halign: "center" },
+    2: { cellWidth: W_NAME, fontStyle: "bold" },
+    3: { cellWidth: W_BOX },
+  };
+
+  for (const [framework, cats] of sections) {
+    if (framework) {
+      const last = (doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable;
+      let fy = last ? last.finalY + 8 : y + 4;
+      if (pageH - MARGIN - fy < MIN_ROOM_FOR_NEW_SECTION + 10) {
+        doc.addPage();
+        fy = MARGIN + 4;
+      }
+      doc.setFont("Heebo", "bold");
+      doc.setFontSize(14);
+      doc.setTextColor(30);
+      doc.text(rtl(framework), right, fy, { align: "right" });
+      doc.setDrawColor(79, 70, 229);
+      doc.setLineWidth(0.6);
+      doc.line(MARGIN, fy + 2, right, fy + 2);
+      y = fy + 3;
+      (doc as unknown as { lastAutoTable?: unknown }).lastAutoTable = undefined;
     }
 
-    autoTable(doc, {
-      startY,
-      margin: { left: MARGIN, right: MARGIN, top: MARGIN, bottom: 16 },
-      theme: "grid",
-      showHead: "everyPage",
-      rowPageBreak: "avoid",
-      styles: { font: "Heebo", fontSize: 10, cellPadding: 2.2, halign: "right", valign: "middle", lineColor: [220, 220, 225], lineWidth: 0.2, textColor: 30 },
-      headStyles: { font: "Heebo", fontStyle: "bold" },
-      head: [
-        [{ content: rtl(`${cat} (${rows.length})`), colSpan: colCount, styles: { fillColor: [79, 70, 229], textColor: 255, fontSize: 11, halign: "right" } }],
-        colLabels.map((l) => ({ content: rtl(l), styles: { fillColor: [240, 240, 244], textColor: 60, fontSize: 9, halign: l === "כמות" ? "center" : "right" } })),
-      ],
-      body: rows.map((r) => [
-        ...(showFramework ? [rtl(r.frameworkName || "")] : []),
-        rtl(r.requestedByName || ""),
-        rtl(r.notes || ""),
-        rtl(r.quantity || "1"),
-        rtl(r.name),
-      ]),
-      columnStyles: colStyles,
-    });
+    for (const [cat, rows] of cats) {
+      const last = (doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable;
+      let startY = last ? last.finalY + 6 : y + 3;
+      // Never strand a category title at the bottom of a page.
+      if (pageH - MARGIN - startY < MIN_ROOM_FOR_NEW_SECTION) {
+        doc.addPage();
+        startY = MARGIN;
+      }
+
+      autoTable(doc, {
+        startY,
+        margin: { left: MARGIN, right: MARGIN, top: MARGIN, bottom: 16 },
+        tableWidth: innerW,
+        theme: "grid",
+        showHead: "everyPage",
+        rowPageBreak: "avoid",
+        styles: { font: "Heebo", fontSize: FONT_SIZE, cellPadding: PAD, halign: "right", valign: "middle", lineColor: [200, 200, 208], lineWidth: 0.2, textColor: 30, overflow: "linebreak" },
+        headStyles: { font: "Heebo", fontStyle: "bold" },
+        head: [
+          [{ content: rtl(`${cat} (${rows.length})`), colSpan: 4, styles: { fillColor: [79, 70, 229], textColor: 255, fontSize: 11, halign: "right" } }],
+          ["הערות", "כמות", "מוצר", ""].map((l) => ({
+            content: rtl(l),
+            styles: { fillColor: [240, 240, 244], textColor: 60, fontSize: 9, halign: l === "כמות" ? "center" : "right" } as const,
+          })),
+        ],
+        body: rows.map((r) => [
+          wrap(r.notes || "", W_NOTES),
+          rtl(r.quantity || "1"),
+          wrap(r.name, W_NAME, true),
+          "",
+        ]),
+        columnStyles: colStyles,
+        // The empty last column becomes a tick box for the shopper.
+        didDrawCell: (data) => {
+          if (data.section !== "body" || data.column.index !== 3) return;
+          const size = 4;
+          doc.setDrawColor(90);
+          doc.setLineWidth(0.3);
+          doc.rect(data.cell.x + (data.cell.width - size) / 2, data.cell.y + (data.cell.height - size) / 2, size, size);
+        },
+      });
+    }
   }
 
   // ── Footer: page numbers ──

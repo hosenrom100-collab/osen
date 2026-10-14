@@ -22,8 +22,8 @@ import { PageSkeleton, SkeletonRows } from "@/components/ui/Skeleton";
 import { QuickActionGrid, StatRow } from "@/components/ui/Section";
 import { TodaySchedule } from "@/components/home/TodaySchedule";
 import { FRAMEWORK_LABELS } from "@/app/shopping/lib/constants";
+import { belongsToList } from "@/app/shopping/lib/listFilters";
 import { getCutoffStatus } from "@/app/shopping/lib/cutoffUtils";
-import { toDateOrNull } from "@/app/shopping/lib/dateUtils";
 import type { CutoffConfig, ShoppingRequest } from "@/app/shopping/types";
 
 interface GroupStat   { id: string; name: string; present: number; absent: number; total: number }
@@ -78,7 +78,7 @@ export default function Home() {
   const [shoppingFramework, setShoppingFramework] = useState<string>("all");
   const [pendingStoreAuthCount, setPendingStoreAuthCount] = useState(0);
   const [cateringOrdered, setCateringOrdered] = useState(false); // an order already exists for next week
-  const [listsToSend, setListsToSend] = useState(0);             // open items waiting to be e-mailed once the weekly cutoff has passed
+  const [listsToSend, setListsToSend] = useState(0);             // open items waiting to be closed once the weekly cutoff has passed
 
   useEffect(() => {
     try {
@@ -348,7 +348,7 @@ export default function Home() {
         try {
           const shoppingSnap = await getDocs(query(
             collection(db, "shopping_requests"),
-            where("status", "in", ["approved", "pending"])
+            where("status", "in", ["approved", "pending", "purchased"])
           ));
           let savedFw = "all";
           try {
@@ -356,18 +356,24 @@ export default function Home() {
             setShoppingFramework(savedFw);
           } catch (e) {}
 
-          const items = shoppingSnap.docs.map((d) => d.data());
+          const allItems = shoppingSnap.docs.map((d) => d.data());
+          const items = allItems.filter((it) => it.status !== "purchased");
           const count = (!savedFw || savedFw === "all")
             ? items.length
             : items.filter((it: any) => (it.targetFramework || "main") === savedFw).length;
           setActiveShoppingCount(count);
 
-          // The weekly list is closed (cutoff passed) and has not been e-mailed since: remind to send it.
+          // The weekly list is frozen (cutoff passed) and still holds items: remind to close it and download the PDF.
           const settings = (await getDoc(doc(db, "settings", "shopping"))).data();
           const cfg: CutoffConfig = settings?.cutoffConfig || { enabled: true, day: 1, time: "16:00", deliveryDay: null };
-          const status = getCutoffStatus(cfg, items as unknown as ShoppingRequest[]);
-          const sentAt = toDateOrNull(settings?.listsSentAt);
-          setListsToSend(status.isPassed && status.cutoffAt && !(sentAt && sentAt >= status.cutoffAt) ? items.length : 0);
+          // Same rule as the shopping page: each list is judged on its own items, purchased ones included.
+          let waiting = 0;
+          for (const lt of ["supermarket", "large"] as const) {
+            const listItems = allItems.filter((it) => belongsToList(it, lt)) as unknown as ShoppingRequest[];
+            const status = getCutoffStatus(cfg, listItems);
+            if (status.isPassed && listItems.length > 0) waiting += listItems.length;
+          }
+          setListsToSend(waiting);
         } catch (err) {
           console.error("Error fetching shopping count:", err);
         }
@@ -568,7 +574,7 @@ export default function Home() {
         </div>
       )}
 
-      {/* ── Weekly list closed: send the shopping lists to the supplier ── */}
+      {/* ── Weekly list frozen: close it and download the PDF ── */}
       {dataLoaded && (isAdmin || isLogistics) && listsToSend > 0 && (
         <div className="px-4 md:px-6 mt-6 max-w-6xl mx-auto">
           <div className="p-4 bg-amber-500/10 border border-amber-500/20 text-amber-800 dark:text-amber-300 rounded-3xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm">
@@ -577,15 +583,15 @@ export default function Home() {
                 <ShoppingCart className="w-5 h-5" />
               </div>
               <div>
-                <h4 className="text-xs font-bold">הרשימה השבועית נסגרה: יש לשלוח את רשימות הקניות</h4>
+                <h4 className="text-xs font-bold">מועד הקציבה חלף: יש לסגור את רשימת הקניות</h4>
                 <p className="text-[11px] opacity-90 mt-0.5 leading-relaxed font-bold">
-                  {listsToSend} פריטים ממתינים לשליחה. ההודעה נפתחת בתוכנת המייל עם הרשימות מוכנות כצרופות.
+                  {listsToSend} פריטים ממתינים. הסגירה מורידה קובץ PDF למכשיר ומנקה את הרשימה.
                 </p>
               </div>
             </div>
-            <Link href="/shopping?sendLists=1"
+            <Link href="/shopping"
               className="w-full sm:w-auto text-center px-4 py-2 bg-amber-500 hover:bg-amber-600 !text-white text-xs font-bold rounded-2xl shadow-sm transition-all shrink-0">
-              שלח רשימות
+              סגור רשימה
             </Link>
           </div>
         </div>

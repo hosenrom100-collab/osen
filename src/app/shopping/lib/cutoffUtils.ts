@@ -15,35 +15,34 @@ export function getCutoffStatus(config?: CutoffConfig, activeRequests?: Shopping
       : undefined;
 
   const now = new Date();
-  const currentDay = now.getDay();
 
-  // Find target cutoff Date for current week
-  let targetDate = new Date(now);
-  let dayDiff = config.day - currentDay;
+  // The cutoff falls on config.day of the current calendar week. Depending on today it is either
+  // still ahead (the one that passed is last week's) or already behind (the next is next week's).
+  const thisWeekCutoff = new Date(now);
+  thisWeekCutoff.setDate(now.getDate() + (config.day - now.getDay()));
+  thisWeekCutoff.setHours(targetHour ?? 16, targetMinute ?? 0, 0, 0);
 
-  targetDate.setDate(now.getDate() + dayDiff);
-  targetDate.setHours(targetHour || 16, targetMinute || 0, 0, 0);
+  const lastCutoff = new Date(thisWeekCutoff);
+  let targetDate = new Date(thisWeekCutoff);
+  if (thisWeekCutoff > now) lastCutoff.setDate(lastCutoff.getDate() - 7);
+  else targetDate.setDate(targetDate.getDate() + 7);
 
-  // If today is past the cutoff targetDate in the current week cycle
-  if (now > targetDate) {
-    const hasActiveBeforeCutoff = activeRequests?.some((r) => {
-      const createdAt = toDateOrNull(r.createdAt);
-      return createdAt !== null && createdAt < targetDate;
-    });
-
-    if (hasActiveBeforeCutoff) {
-      return {
-        isEnabled: true,
-        isPassed: true,
-        cutoffAt: targetDate,
-        formattedTarget: `יום ${targetDayName} בשעה ${config.time || "16:00"}`,
-        timeLeftFormatted: "המועד חלף",
-        deliveryDayFormatted,
-      };
-    } else {
-      // Roll over to next week's target date
-      targetDate.setDate(targetDate.getDate() + 7);
-    }
+  // Frozen: the most recent cutoff has passed and the list still holds items from before it
+  // (i.e. it was never closed). Looking at the previous cutoff, not just this week's, keeps a
+  // list that was left open over the weekend frozen until someone closes it.
+  const hasActiveBeforeCutoff = activeRequests?.some((r) => {
+    const createdAt = toDateOrNull(r.createdAt);
+    return createdAt !== null && createdAt < lastCutoff;
+  });
+  if (hasActiveBeforeCutoff) {
+    return {
+      isEnabled: true,
+      isPassed: true,
+      cutoffAt: lastCutoff,
+      formattedTarget: `יום ${targetDayName} בשעה ${config.time || "16:00"}`,
+      timeLeftFormatted: "המועד חלף",
+      deliveryDayFormatted,
+    };
   }
 
   // Calculate time remaining

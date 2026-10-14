@@ -8,7 +8,7 @@ import {
   doc, updateDoc, deleteDoc, setDoc, collection, query, where, onSnapshot, getDoc
 } from "firebase/firestore";
 import {
-  Loader2, ShoppingBag, Package, Plus, Lock, Mail
+  Loader2, ShoppingBag, Package, Plus, Lock
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { motion, AnimatePresence, MotionConfig } from "framer-motion";
@@ -34,7 +34,7 @@ import { useShoppingActions } from "./hooks/useShoppingActions";
 import { usePullToRefresh } from "./hooks/usePullToRefresh";
 import { useAdminPasswordGate } from "./hooks/useAdminPasswordGate";
 import { useConfirm } from "@/hooks/useConfirm";
-import { SendListsDialog } from "./components/SendListsDialog";
+import { belongsToList } from "./lib/listFilters";
 
 export default function ShoppingPage() {
   const { user, role, isAdmin, isManager, isLogistics } = useAuth();
@@ -136,11 +136,6 @@ export default function ShoppingPage() {
   // Admin Product Requests Modal State
   const [showAdminRequestsModal, setShowAdminRequestsModal] = useState(false);
   const [showCycleClosureModal, setShowCycleClosureModal] = useState(false);
-  const [showSendLists, setShowSendLists] = useState(false);
-  // The dashboard reminder links here with ?sendLists=1.
-  useEffect(() => {
-    try { if (new URLSearchParams(window.location.search).get("sendLists")) setShowSendLists(true); } catch {}
-  }, []);
   const [showCycleHistory, setShowCycleHistory] = useState(false);
 
   const canPurchase = isAdmin || role === "manager" || role === "admin" || role === "logistics" || isManager;
@@ -200,12 +195,13 @@ export default function ShoppingPage() {
     exportOngoingList,
     exportSplitOngoingLists,
     exportSplitProcurementLists,
+    downloadClosingPdf,
   } = useExport(requests, pool, showToast, weekLabels, exportFormat);
 
   // Purchased vs total for what the list shows (list type + framework filter) — feeds the header line and the desktop rail.
   const progress = useMemo(() => {
     const inScope = (r: (typeof requests)[number]) =>
-      (listType === "large" ? r.listType === "large" : r.listType !== "large") &&
+      belongsToList(r, listType) &&
       (selectedFramework === "all" || (r.targetFramework || "main") === selectedFramework);
     const done = requests.filter((r) => r.status === "purchased" && inScope(r)).length;
     const open = requests.filter((r) => (r.status === "approved" || r.status === "pending") && inScope(r)).length;
@@ -264,20 +260,11 @@ export default function ShoppingPage() {
               </div>
               {(isAdmin || isLogistics) && (
                 <button
-                  onClick={() => setShowSendLists(true)}
-                  className="h-10 px-4 rounded-xl bg-amber-500 hover:bg-amber-600 !text-white text-sm font-bold transition-all flex items-center gap-2 cursor-pointer active:scale-[0.97] border-none shrink-0"
-                >
-                  <Mail className="w-4 h-4 text-white" />
-                  <span>שלח רשימות במייל</span>
-                </button>
-              )}
-              {(isAdmin || isLogistics) && (
-                <button
                   onClick={() => setShowCycleClosureModal(true)}
                   className="h-10 px-4 rounded-xl bg-amber-500 hover:bg-amber-600 !text-white text-sm font-bold transition-all flex items-center gap-2 cursor-pointer active:scale-[0.97] border-none shrink-0"
                 >
                   <Package className="w-4 h-4 text-white" />
-                  <span>הפקת רשימה</span>
+                  <span>סגור רשימה והורד PDF</span>
                 </button>
               )}
             </div>
@@ -437,11 +424,6 @@ export default function ShoppingPage() {
           isFrozen={isListFrozen}
         />
 
-        {showSendLists && (
-          <SendListsDialog requests={requests} pool={pool} weekLabels={weekLabels} format={exportFormat}
-            onClose={() => setShowSendLists(false)} onSent={m => { setShowSendLists(false); showToast(m, "success"); }} />
-        )}
-
         {/* Unified "⋯" Menu */}
         <MenuSheet
           isOpen={menuOpen}
@@ -503,20 +485,17 @@ export default function ShoppingPage() {
           onAddProduct={async (name, cat, priority, qty, notes) => {
             await addProduct(name, cat, priority, qty, notes, undefined, orderingFramework);
           }}
-          onExportList={async () => {
-            if (listType === "large") {
-              await exportSplitProcurementLists();
-            } else {
-              await exportSplitOngoingLists();
-            }
-          }}
-          onCloseCycle={async ({ carryOver }) => {
-            const { purchased, carriedOver, dropped } = await closeCycle({ listType, carryOver, user });
+          onCloseCycle={async () => {
+            const { purchased, unpurchased } = await closeCycle({
+              listType,
+              user,
+              beforeClear: (openItems) => downloadClosingPdf(listType, openItems),
+            });
             refreshWeeks();
             showToast(
-              carriedOver > 0
-                ? `הסבב נסגר ונשמר בהיסטוריה (${purchased} נרכשו). ${carriedOver} מוצרים הועברו לסבב הבא.`
-                : `הסבב נסגר ונשמר בהיסטוריה (${purchased} נרכשו, ${dropped} הוסרו). הרשימה מוכנה לשבוע הבא.`,
+              unpurchased > 0
+                ? `הרשימה נסגרה ו-PDF ירד למכשיר (${unpurchased} מוצרים). הרשימה נוקתה ונשמרה בהיסטוריה (${purchased} נרכשו).`
+                : `הרשימה נסגרה ונוקתה, ונשמרה בהיסטוריה (${purchased} נרכשו). לא היו מוצרים פתוחים ל-PDF.`,
               "success"
             );
           }}

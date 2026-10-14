@@ -10,6 +10,7 @@ import { ShoppingRequest, Product, CutoffConfig } from "../types";
 import { getCutoffStatus } from "../lib/cutoffUtils";
 import { DEFAULT_CATEGORIES } from "../lib/constants";
 import { toDateOrNull } from "../lib/dateUtils";
+import { belongsToList } from "../lib/listFilters";
 
 const DEFAULT_CUTOFF: CutoffConfig = { enabled: true, day: 1, time: "16:00", deliveryDay: null };
 
@@ -17,13 +18,14 @@ function normalizeCutoff(saved?: CutoffConfig): { config: CutoffConfig; needsUpd
   if (!saved) {
     return { config: DEFAULT_CUTOFF, needsUpdate: true };
   }
-  // If saved config is legacy Thursday (day 4), or old 18:00 cutoff, permanently migrate to Monday 16:00
-  if (saved.day === 4 || saved.day === undefined || (saved.day === 1 && saved.time === "18:00")) {
+  // Only a config with no day at all is repaired. A day/time the admin saved (Thursday, 18:00...)
+  // is always respected — it used to be silently reset to Monday 16:00 on the next load.
+  if (saved.day === undefined) {
     return {
       config: {
         enabled: saved.enabled ?? true,
-        day: 1,
-        time: "16:00",
+        day: DEFAULT_CUTOFF.day,
+        time: saved.time || DEFAULT_CUTOFF.time,
         deliveryDay: saved.deliveryDay !== undefined ? saved.deliveryDay : null,
       },
       needsUpdate: true,
@@ -117,7 +119,7 @@ export function useShoppingData(
       liveRequests.filter(
         (r) =>
           (r.status === "approved" || r.status === "pending") &&
-          (listType === "large" ? r.listType === "large" : r.listType !== "large")
+          belongsToList(r, listType)
       ),
     [liveRequests, listType]
   );
@@ -125,7 +127,7 @@ export function useShoppingData(
   const sessionPurchased = useMemo(
     () =>
       liveRequests.filter(
-        (r) => r.status === "purchased" && (listType === "large" ? r.listType === "large" : r.listType !== "large")
+        (r) => r.status === "purchased" && belongsToList(r, listType)
       ),
     [liveRequests, listType]
   );
@@ -135,7 +137,7 @@ export function useShoppingData(
       liveRequests.filter(
         (r) =>
           (r.status === "approved" || r.status === "pending" || r.status === "purchased") &&
-          (listType === "large" ? r.listType === "large" : r.listType !== "large")
+          belongsToList(r, listType)
       ),
     [liveRequests, listType]
   );

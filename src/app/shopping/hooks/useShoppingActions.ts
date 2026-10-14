@@ -8,6 +8,7 @@ import { sendPush } from "@/lib/notify";
 import { ShoppingRequest, Product, CutoffConfig, TargetFramework } from "../types";
 import { findSimilarRequestStrict } from "../lib/stringUtils";
 import { parseQuantity, buildQuantityString, getMinQuantity } from "../lib/quantityUtils";
+import { belongsToList } from "../lib/listFilters";
 
 export function useShoppingActions(
   user: User | null,
@@ -94,7 +95,7 @@ export function useShoppingActions(
     const activeRequestsList = requests.filter(
       (r) =>
         r.status !== "deleted" &&
-        (listType === "large" ? r.listType === "large" : r.listType !== "large") &&
+        belongsToList(r, listType) &&
         (r.targetFramework || "main") === targetFramework
     );
     const similarName = findSimilarRequestStrict(cleanName, activeRequestsList);
@@ -162,7 +163,7 @@ export function useShoppingActions(
   const changeStatus = useCallback(
     async (
       id: string,
-      next: "pending" | "approved" | "purchased" | "archived" | "deleted" | "permanently_delete",
+      next: "pending" | "approved" | "purchased" | "deleted" | "permanently_delete",
       extra: Record<string, unknown> = {}
     ) => {
       try {
@@ -179,8 +180,7 @@ export function useShoppingActions(
           if (next === "purchased") {
             const changedItem = requests.find((r) => r.id === id);
             const itemListType = changedItem?.listType;
-            const sameList = (r: ShoppingRequest) =>
-              itemListType === "large" ? r.listType === "large" : r.listType !== "large";
+            const sameList = (r: ShoppingRequest) => belongsToList(r, itemListType === "large" ? "large" : "supermarket");
 
             const remainingApproved = requests.filter(
               (r) => (r.status === "approved" || r.status === "pending") && r.id !== id && sameList(r)
