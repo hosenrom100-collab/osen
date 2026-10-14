@@ -78,14 +78,66 @@ service cloud.firestore {
       allow write: if isStaff();
     }
     
-    // Attendance collection
-    match /attendance/{docId} {
-      // Participants can read only their own attendance.
-      allow read: if isAuthenticated() && (
-        isStaff() || 
-        (resource != null && resource.data.patientId == (getUserData() != null ? getUserData().patientId : ''))
+    // ─── Attendance ──────────────────────────────────────────────────────────
+    // One document per participant per day: attendance/{patientId}_{yyyy-MM-dd}. Late arrival and
+    // early leave are marks on a present participant. Only staff write; a participant may read
+    // only their own documents. Notes live in attendance_notes, which participants cannot read.
+    function validTimeMark(m) {
+      return m == null || (
+        m is map &&
+        m.keys().hasOnly(['at']) &&
+        (m.get('at', null) == null || (m.at is string && m.at.matches('^([01][0-9]|2[0-3]):[0-5][0-9]$')))
       );
-      allow write: if isAuthenticated();
+    }
+
+    function validDayAttendance(docId, d) {
+      return d.keys().hasOnly([
+        'patientId', 'date', 'status', 'contextId', 'hasNote', 'source', 'derivedFrom',
+        'late', 'leftEarly', 'updatedBy', 'updatedAt'
+      ]) &&
+        d.patientId is string && d.date is string &&
+        d.date.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$') &&
+        docId == d.patientId + '_' + d.date &&
+        d.status in ['present', 'absent', 'unset'] &&
+        validTimeMark(d.get('late', null)) && validTimeMark(d.get('leftEarly', null));
+    }
+
+    function ownsPatient(data) {
+      return getUserData() != null && data.get('patientId', '') == getUserData().get('patientId', null);
+    }
+
+    match /attendance/{docId} {
+      allow read: if isAuthenticated() && (isStaff() || (resource != null && ownsPatient(resource.data)));
+      allow create, update: if isStaff() && validDayAttendance(docId, request.resource.data);
+      allow delete: if isStaff();
+    }
+
+    // One short line per participant per day (kind 'day') or per workshop session (kind 'session').
+    match /attendance_notes/{docId} {
+      allow read: if isStaff();
+      allow create, update: if isStaff() &&
+        request.resource.data.keys().hasOnly(['text', 'patientId', 'date', 'kind', 'sessionId', 'updatedBy', 'updatedAt']) &&
+        request.resource.data.text is string &&
+        request.resource.data.text.size() > 0 && request.resource.data.text.size() <= 80 &&
+        request.resource.data.kind in ['day', 'session'];
+      allow delete: if isStaff();
+    }
+
+    // Attendance of a single workshop session: session_attendance/{sessionId}_{patientId}.
+    match /session_attendance/{docId} {
+      allow read: if isAuthenticated() && (isStaff() || (resource != null && ownsPatient(resource.data)));
+      allow create, update: if isStaff() &&
+        request.resource.data.keys().hasOnly([
+          'patientId', 'date', 'sessionId', 'workshopId', 'slotId', 'programId', 'status', 'hasNote',
+          'late', 'leftEarly', 'updatedBy', 'updatedAt'
+        ]) &&
+        request.resource.data.patientId is string && request.resource.data.sessionId is string &&
+        request.resource.data.date.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$') &&
+        docId == request.resource.data.sessionId + '_' + request.resource.data.patientId &&
+        request.resource.data.status in ['present', 'absent'] &&
+        validTimeMark(request.resource.data.get('late', null)) &&
+        validTimeMark(request.resource.data.get('leftEarly', null));
+      allow delete: if isStaff();
     }
 
     // Document Requests

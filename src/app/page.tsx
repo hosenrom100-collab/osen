@@ -78,6 +78,7 @@ export default function Home() {
   const [shoppingFramework, setShoppingFramework] = useState<string>("all");
   const [pendingStoreAuthCount, setPendingStoreAuthCount] = useState(0);
   const [cateringOrdered, setCateringOrdered] = useState(false); // an order already exists for next week
+  const [lateToday, setLateToday] = useState(0);                // present today with a late-arrival mark
   const [listsToSend, setListsToSend] = useState(0);             // open items waiting to be closed once the weekly cutoff has passed
 
   useEffect(() => {
@@ -154,11 +155,15 @@ export default function Home() {
 
       const presentIds = new Set<string>();
       const absentIds  = new Set<string>();
+      const lateIds    = new Set<string>();
       aSnap.forEach(d => {
         const data = d.data();
-        if (data.status === "present") presentIds.add(data.patientId);
-        else if (data.status === "absent") absentIds.add(data.patientId);
+        if (data.status === "present") {
+          presentIds.add(data.patientId);
+          if (data.late) lateIds.add(data.patientId);
+        } else if (data.status === "absent") absentIds.add(data.patientId);
       });
+      setLateToday(lateIds.size);
 
       const statMap    = new Map<string, GroupStat>();
       groupList.forEach(g => statMap.set(g.id, { ...g, present: 0, absent: 0, total: 0 }));
@@ -189,11 +194,9 @@ export default function Home() {
             const s = statMap.get(gId)!;
             s.total++;
 
-            // Check attendance specifically for this group context, or fallback to general doc
-            const groupAttendance = aSnap.docs.find(doc => {
-              const data = doc.data();
-              return data.patientId === pId && (data.contextId === gId || data.groupId === gId);
-            });
+            // Attendance is one document per participant per day, whichever group it was marked
+            // from, so a participant in two groups counts as marked in both.
+            const groupAttendance = aSnap.docs.find(doc => doc.data().patientId === pId);
 
             if (groupAttendance) {
               const status = groupAttendance.data().status;
@@ -604,6 +607,7 @@ export default function Home() {
             { label: "משתתפים פעילים", value: totalActive },
             { label: "נוכחות היום", value: <>{totalPresent}<span className="text-xs font-semibold text-[var(--text-muted)] me-1"> / {totalActive}</span></>, hint: `${overallPct}% התייצבות` },
             { label: "ממתינים לרישום", value: totalMissing, tone: totalMissing > 0 ? "alert" : "default", hint: totalMissing > 0 ? "טרם הוזנה נוכחות" : "הוזנה נוכחות מלאה" },
+            ...(lateToday > 0 ? [{ label: "איחורים היום", value: lateToday, hint: "הגיעו באיחור" }] : []),
           ]} />
         </div>
       )}

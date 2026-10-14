@@ -192,3 +192,74 @@ test("the admin override still reaches collections no rule mentions", async () =
   await assertSucceeds(setDoc(doc(as("adm"), "some_unlisted_collection", "x"), { a: 1 }));
   await assertSucceeds(addDoc(collection(as("adm"), "shopping_requests"), newItem({ requestedBy: "adm" })));
 });
+
+// ── attendance ──
+const dayDoc = (over: Record<string, unknown> = {}) => ({
+  patientId: "p1", date: "2026-10-14", status: "present", updatedAt: "2026-10-14T07:00:00.000Z", ...over,
+});
+const att = (uid: string, id = "p1_2026-10-14") => doc(as(uid), "attendance", id);
+
+async function seedAttendance() {
+  await env.clearFirestore();
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    const db = ctx.firestore();
+    for (const [uid, role] of Object.entries(ROLES)) await setDoc(doc(db, "users", uid), { role, roles: [role] });
+    await setDoc(doc(db, "users", "participant"), { role: "participant", patientId: "p1" });
+    await setDoc(doc(db, "users", "other"), { role: "participant", patientId: "p2" });
+    await setDoc(doc(db, "attendance", "p1_2026-10-13"), dayDoc({ date: "2026-10-13" }));
+    await setDoc(doc(db, "attendance_notes", "p1_2026-10-13"), { text: "חולה", patientId: "p1", date: "2026-10-13", kind: "day" });
+  });
+}
+
+test("staff write a day's attendance, with late and early-leave marks", async () => {
+  await seedAttendance();
+  await assertSucceeds(setDoc(att("staff"), dayDoc()));
+  await assertSucceeds(setDoc(att("staff"), dayDoc({ late: { at: "09:40" }, leftEarly: { at: null }, hasNote: true, source: "manual" })));
+  await assertSucceeds(setDoc(att("staff"), dayDoc({ status: "unset", hasNote: true })));
+  await assertSucceeds(deleteDoc(att("staff")));
+});
+
+test("attendance: the id must be patient and date, and only known statuses and times pass", async () => {
+  await seedAttendance();
+  await assertFails(setDoc(att("staff", "p1_group_2026-10-14"), dayDoc())); // the old per-screen id
+  await assertFails(setDoc(att("staff"), dayDoc({ status: "late" })));
+  await assertFails(setDoc(att("staff"), dayDoc({ late: { at: "9:40" } })));
+  await assertFails(setDoc(att("staff"), dayDoc({ late: { at: "25:00" } })));
+  await assertFails(setDoc(att("staff"), dayDoc({ note: "הערה שלא שייכת למסמך הזה" })));
+  await assertFails(setDoc(att("staff"), dayDoc({ date: "14/10/2026" })));
+});
+
+test("a participant cannot write attendance, and reads only their own", async () => {
+  await seedAttendance();
+  await assertFails(setDoc(att("participant"), dayDoc()));
+  await assertFails(deleteDoc(att("participant", "p1_2026-10-13")));
+  await assertSucceeds(getDoc(att("participant", "p1_2026-10-13")));
+  await assertFails(getDoc(att("other", "p1_2026-10-13")));
+});
+
+test("notes: staff only, one short line", async () => {
+  await seedAttendance();
+  const note = (uid: string, id: string, text: string) =>
+    setDoc(doc(as(uid), "attendance_notes", id), { text, patientId: "p1", date: "2026-10-14", kind: "day" });
+  await assertSucceeds(note("staff", "p1_2026-10-14", "ללא אישור"));
+  await assertFails(note("staff", "p1_2026-10-14", ""));
+  await assertFails(note("staff", "p1_2026-10-14", "א".repeat(81)));
+  await assertSucceeds(note("staff", "p1_2026-10-14", "א".repeat(80)));
+  await assertFails(note("participant", "p1_2026-10-14", "חולה"));
+  await assertFails(getDoc(doc(as("participant"), "attendance_notes", "p1_2026-10-13"))); // not even their own
+  await assertSucceeds(getDoc(doc(as("staff"), "attendance_notes", "p1_2026-10-13")));
+});
+
+test("session attendance: the id is session and participant", async () => {
+  await seedAttendance();
+  const sess = (uid: string, id: string, over: Record<string, unknown> = {}) =>
+    setDoc(doc(as(uid), "session_attendance", id), {
+      patientId: "p1", sessionId: "w1_2026-10-14_s1", date: "2026-10-14", workshopId: "w1", slotId: "s1",
+      programId: "pr1", status: "present", updatedAt: "2026-10-14T07:00:00.000Z", ...over,
+    });
+  await assertSucceeds(sess("staff", "w1_2026-10-14_s1_p1"));
+  await assertSucceeds(sess("staff", "w1_2026-10-14_s1_p1", { late: { at: "10:30" } }));
+  await assertFails(sess("staff", "w1_2026-10-14_s1_p2")); // wrong id
+  await assertFails(sess("staff", "w1_2026-10-14_s1_p1", { status: "unset" }));
+  await assertFails(sess("participant", "w1_2026-10-14_s1_p1"));
+});

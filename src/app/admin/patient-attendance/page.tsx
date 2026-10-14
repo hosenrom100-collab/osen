@@ -3,7 +3,7 @@
 import { RoleGuard } from "@/components/auth/RoleGuard";
 import { useState, useEffect, Suspense } from "react";
 import { db } from "@/lib/firebase/config";
-import { collection, getDocs, query, where, doc, setDoc, deleteDoc } from "firebase/firestore";
+import { collection, getDocs } from "firebase/firestore";
 import {
   Search, Loader2, ChevronLeft, ChevronRight,
   Calendar as CalendarIcon, Users, CheckCircle,
@@ -11,7 +11,10 @@ import {
 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AttendanceItem } from "@/components/admin/attendance/AttendanceItem";
+import { AttendanceDetailSheet } from "@/components/admin/attendance/AttendanceDetailSheet";
 import { useAuth } from "@/context/AuthContext";
+import { AttendanceEntry, countEntries, entryFromDoc } from "@/lib/attendance/model";
+import { loadDayAttendance, saveDayEntry, StoredDay } from "@/lib/attendance/data";
 import {
   format, startOfMonth, endOfMonth, startOfWeek, endOfWeek,
   eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths,
@@ -30,7 +33,8 @@ interface Patient {
 }
 interface Group { id: string; name: string; programId?: string }
 interface SelectionItem { id: string; name: string; type: 'program' | 'group'; activeDays?: number[] }
-interface AttendanceRecord { [patientId: string]: "present" | "absent" | "unset" }
+interface AttendanceRecord { [patientId: string]: StoredDay }
+const UNSET: StoredDay = { ...entryFromDoc(undefined), docIds: [] };
 
 function MiniCalendar({ value, onChange }: { value: string; onChange: (d: string) => void }) {
   const sel = new Date(value);
@@ -81,7 +85,7 @@ function MiniCalendar({ value, onChange }: { value: string; onChange: (d: string
 function AttendancePageContent() {
   const searchParams = useSearchParams();
   const router       = useRouter();
-  const { preferredProgramIds, preferredGroupIds, setPreferredPrograms, setPreferredGroups } = useAuth();
+  const { user, preferredProgramIds, preferredGroupIds, setPreferredPrograms, setPreferredGroups } = useAuth();
 
   const [selectionItems, setSelectionItems] = useState<SelectionItem[]>([]);
   const [selectedId,     setSelectedId]     = useState<string>(searchParams.get("group") || "");
@@ -92,9 +96,10 @@ function AttendancePageContent() {
   const [selectedDate,   setSelectedDate]   = useState(format(new Date(), "yyyy-MM-dd"));
   const [showCalendar,   setShowCalendar]   = useState(false);
   const [copied,         setCopied]         = useState(false);
+  const [detailFor,      setDetailFor]      = useState<string | null>(null);
 
   const copyAttendanceToClipboard = () => {
-    const presentList = filteredPatients.filter(p => attendance[p.id] === "present");
+    const presentList = filteredPatients.filter(p => attendance[p.id]?.status === "present");
     const text = presentList.map(p => p.firstName).filter(Boolean).join("\n");
 
     navigator.clipboard.writeText(text).then(() => {
@@ -268,57 +273,43 @@ function AttendancePageContent() {
       });
       setPatients(list);
 
-      const attSnap = await getDocs(query(collection(db, "attendance"), where("date", "==", selectedDate)));
+      // One document per participant per day, whichever group or screen wrote it.
+      const day = await loadDayAttendance(selectedDate);
       const record: AttendanceRecord = {};
-      list.forEach(p => record[p.id] = "unset");
-      attSnap.forEach(d => {
-        const data = d.data();
-        if (data.patientId && record[data.patientId] !== undefined) {
-          if (!data.contextId || data.contextId === selectedId || data.programId === selectedId || data.groupId === selectedId) {
-            record[data.patientId] = data.status;
-          }
-        }
-      });
+      list.forEach(p => { record[p.id] = day.get(p.id) ?? UNSET; });
       setAttendance(record);
     } catch (err) { console.error(err); }
     finally { setLoading(false); }
   };
 
-  const handleToggle = async (pId: string, status: "present" | "absent") => {
-    const newStatus = attendance[pId] === status ? "unset" : status;
-    setAttendance(prev => ({ ...prev, [pId]: newStatus }));
+  // Optimistic save of one participant's day; a failed write puts the previous entry back.
+  const commitEntry = async (pId: string, entry: AttendanceEntry) => {
+    const previous = attendance[pId] ?? UNSET;
+    setAttendance(prev => ({ ...prev, [pId]: { ...entry, docIds: previous.docIds } }));
     try {
-      const attId = `${pId}_${selectedId}_${selectedDate}`;
-      if (newStatus === "unset") {
-        await deleteDoc(doc(db, "attendance", attId));
-      } else {
-        await setDoc(doc(db, "attendance", attId), {
-          patientId: pId,
-          date: selectedDate,
-          status: newStatus,
-          contextId: selectedId,
-          updatedAt: new Date().toISOString(),
-        });
-      }
-    } catch (err) { console.error(err); }
+      await saveDayEntry({
+        patientId: pId,
+        date: selectedDate,
+        entry,
+        uid: user?.uid ?? "",
+        contextId: selectedId,
+        legacyIds: previous.docIds,
+      });
+    } catch (err) {
+      console.error(err);
+      setAttendance(prev => ({ ...prev, [pId]: previous }));
+    }
   };
 
-  const markAllPresent = async () => {
-    const newAtt = { ...attendance };
-    const updates = filteredPatients
-      .filter(p => attendance[p.id] === "unset")
-      .map(p => {
-        newAtt[p.id] = "present";
-        return setDoc(doc(db, "attendance", `${p.id}_${selectedId}_${selectedDate}`), {
-          patientId: p.id,
-          date: selectedDate,
-          status: "present",
-          contextId: selectedId,
-          updatedAt: new Date().toISOString(),
-        });
-      });
-    setAttendance(newAtt);
-    await Promise.all(updates);
+  const handleToggle = (pId: string, status: "present" | "absent") => {
+    const current = attendance[pId] ?? UNSET;
+    // Tapping the chosen status again clears it (and any late / early-leave mark with it).
+    const next = current.status === status ? "unset" : status;
+    commitEntry(pId, { ...current, status: next, late: null, leftEarly: null, source: "manual", derivedFrom: null });
+  };
+
+  const handleNote = (pId: string, text: string) => {
+    commitEntry(pId, { ...(attendance[pId] ?? UNSET), note: text || undefined });
   };
 
   const changeDate = (days: number) => {
@@ -335,10 +326,13 @@ function AttendancePageContent() {
     .filter(p => `${p.firstName} ${p.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()))
     .sort((a, b) => `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`));
 
+  const counts = countEntries(patients.map(p => attendance[p.id] ?? UNSET));
   const stats = {
-    present: Object.values(attendance).filter(v => v === "present").length,
-    absent:  Object.values(attendance).filter(v => v === "absent").length,
-    unset:   Object.values(attendance).filter(v => v === "unset").length,
+    present: counts.present,
+    absent:  counts.absent,
+    unset:   counts.unset,
+    late:    counts.late,
+    leftEarly: counts.leftEarly,
     total:   patients.length,
   };
 
@@ -346,7 +340,7 @@ function AttendancePageContent() {
   const dayLabel = isToday ? "היום" : format(parseISO(selectedDate), "EEEE", { locale: he });
   const dateLabel = format(parseISO(selectedDate), "d בMMMM", { locale: he });
   const pct = stats.total ? Math.round((stats.present / stats.total) * 100) : 0;
-  const hasUnset = stats.unset > 0 && filteredPatients.some(p => attendance[p.id] === "unset");
+  const hasUnset = stats.unset > 0 && filteredPatients.some(p => (attendance[p.id] ?? UNSET).status === "unset");
 
   const selectedItem = selectionItems.find(item => item.id === selectedId);
   const dayOfWeekIndex = getDay(parseISO(selectedDate));
@@ -546,6 +540,12 @@ function AttendancePageContent() {
               </div>
             </div>
 
+            {(stats.late > 0 || stats.leftEarly > 0) && (
+              <p className="text-[11px] font-semibold text-[var(--muted)] -mt-1">
+                {[stats.late > 0 && `${stats.late} איחורים`, stats.leftEarly > 0 && `${stats.leftEarly} יצאו מוקדם`].filter(Boolean).join(" · ")}
+              </p>
+            )}
+
             {/* Search */}
             <div className="relative">
               <Search className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--muted)]/40" />
@@ -574,8 +574,10 @@ function AttendancePageContent() {
                       <AttendanceItem
                         key={p.id}
                         patient={p}
-                        status={attendance[p.id] || "unset"}
+                        entry={attendance[p.id] ?? UNSET}
                         onToggle={s => handleToggle(p.id, s)}
+                        onSaveNote={text => handleNote(p.id, text)}
+                        onOpenDetails={() => setDetailFor(p.id)}
                       />
                     ))}
                   </motion.div>
@@ -713,6 +715,19 @@ function AttendancePageContent() {
           </>
         )}
       </AnimatePresence>
+
+      {detailFor && (() => {
+        const p = patients.find(x => x.id === detailFor);
+        return p ? (
+          <AttendanceDetailSheet
+            isOpen
+            onClose={() => setDetailFor(null)}
+            name={`${p.firstName} ${p.lastName}`}
+            entry={attendance[p.id] ?? UNSET}
+            onSave={entry => commitEntry(p.id, { ...entry, source: "manual", derivedFrom: null })}
+          />
+        ) : null;
+      })()}
 
     </div>
   );

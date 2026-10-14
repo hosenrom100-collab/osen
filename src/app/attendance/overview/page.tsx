@@ -27,6 +27,8 @@ interface GroupData {
   missing: number;
   presentNames: string[];
   absentNames:  string[];
+  late:         number;
+  leftEarly:    number;
 }
 
 interface ProgramData {
@@ -82,11 +84,12 @@ export default function AttendanceOverviewPage() {
   const fetchAll = async () => {
     setLoading(true);
     try {
-      const [progSnap, groupSnap, patientSnap, attSnap] = await Promise.all([
+      const [progSnap, groupSnap, patientSnap, attSnap, notesSnap] = await Promise.all([
         getDocs(query(collection(db, "programs"), orderBy("name"))),
         getDocs(query(collection(db, "groups"),   orderBy("name"))),
         getDocs(query(collection(db, "patients"), where("status", "==", "active"))),
         getDocs(query(collection(db, "attendance"), where("date", "==", today))),
+        getDocs(query(collection(db, "attendance_notes"), where("date", "==", today))).catch(() => null),
       ]);
 
       const programs: Program[] = progSnap.docs.map(d => ({ id: d.id, name: d.data().name }));
@@ -94,7 +97,18 @@ export default function AttendanceOverviewPage() {
       const patients: Patient[] = patientSnap.docs.map(d => ({ id: d.id, ...d.data() as any }));
 
       const attMap: Record<string, "present" | "absent"> = {};
-      attSnap.forEach(d => { attMap[d.data().patientId] = d.data().status; });
+      const lateIds = new Set<string>();
+      const leftEarlyIds = new Set<string>();
+      attSnap.forEach(d => {
+        const data = d.data();
+        attMap[data.patientId] = data.status;
+        if (data.status === "present" && data.late) lateIds.add(data.patientId);
+        if (data.status === "present" && data.leftEarly) leftEarlyIds.add(data.patientId);
+      });
+      // A short note shows quietly in brackets after the name.
+      const noteOf: Record<string, string> = {};
+      notesSnap?.forEach(d => { const n = d.data(); if (n.kind === "day" && typeof n.text === "string") noteOf[n.patientId] = n.text; });
+      const nameWithNote = (p: Patient) => `${p.firstName} ${p.lastName}${noteOf[p.id] ? ` (${noteOf[p.id]})` : ""}`;
 
       // Patients by group
       const patsByGroup: Record<string, Patient[]> = {};
@@ -121,7 +135,9 @@ export default function AttendanceOverviewPage() {
             absent:       absentPats.length,
             missing:      pats.length - presentPats.length - absentPats.length,
             presentNames: presentPats.map(p => `${p.firstName} ${p.lastName}`),
-            absentNames:  absentPats.map(p => `${p.firstName} ${p.lastName}`),
+            absentNames:  absentPats.map(nameWithNote),
+            late:         presentPats.filter(p => lateIds.has(p.id)).length,
+            leftEarly:    presentPats.filter(p => leftEarlyIds.has(p.id)).length,
           };
         });
 
@@ -147,7 +163,9 @@ export default function AttendanceOverviewPage() {
             absent:       absentPats.length,
             missing:      pats.length - presentPats.length - absentPats.length,
             presentNames: presentPats.map(p => `${p.firstName} ${p.lastName}`),
-            absentNames:  absentPats.map(p => `${p.firstName} ${p.lastName}`),
+            absentNames:  absentPats.map(nameWithNote),
+            late:         presentPats.filter(p => lateIds.has(p.id)).length,
+            leftEarly:    presentPats.filter(p => leftEarlyIds.has(p.id)).length,
           };
         });
         result.push({
@@ -290,6 +308,11 @@ export default function AttendanceOverviewPage() {
                                         )}
                                         {gd.missing > 0 && (
                                           <span className="text-[11px] text-blue-400 font-bold flex-shrink-0">· {gd.missing} לא סומנו</span>
+                                        )}
+                                        {(gd.late > 0 || gd.leftEarly > 0) && (
+                                          <span className="text-[11px] text-[var(--muted)] font-semibold flex-shrink-0">
+                                            · {[gd.late > 0 && `${gd.late} איחורים`, gd.leftEarly > 0 && `${gd.leftEarly} יצאו מוקדם`].filter(Boolean).join(", ")}
+                                          </span>
                                         )}
                                       </div>
                                     </div>
