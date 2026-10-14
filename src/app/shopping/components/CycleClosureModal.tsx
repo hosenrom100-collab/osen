@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import {
-  Package, FileText, Trash2, Plus, X, CheckCircle2, ShoppingBag, Edit2, Lock, ArrowRight, Loader2, Hourglass, Repeat, Zap, MessageSquare
+  Package, FileText, Trash2, Plus, X, CheckCircle2, ShoppingBag, Edit2, Lock, ArrowRight, Loader2, Hourglass, Zap, MessageSquare
 } from "lucide-react";
 import { ShoppingRequest, Product } from "../types";
 import { BottomSheet } from "./BottomSheet";
@@ -16,8 +16,8 @@ export interface CycleClosureModalProps {
   pool: Product[];
   categories: string[];
   onAddProduct: (name: string, category: string, priority?: "low" | "normal" | "urgent", qty?: string, notes?: string) => Promise<void>;
-  onExportList: () => Promise<void>;
-  onCloseCycle: (options: { carryOver: boolean }) => Promise<void>;
+  /** Downloads the PDF of the open items, then archives and clears the list. Throws (clearing nothing) if the PDF fails. */
+  onCloseCycle: () => Promise<void>;
   onRemoveItem: (id: string) => Promise<void>;
   onUpdateQuantity: (id: string, newQty: string) => Promise<void>;
   onVerifyPassword: (password: string) => Promise<{ success: boolean; error?: string }>;
@@ -31,7 +31,6 @@ export function CycleClosureModal({
   pool,
   categories,
   onAddProduct,
-  onExportList,
   onCloseCycle,
   onRemoveItem,
   onUpdateQuantity,
@@ -52,9 +51,6 @@ export function CycleClosureModal({
   const [isExportConfirmOpen, setIsExportConfirmOpen] = useState(false);
   const [confirmPassword, setConfirmPassword] = useState("");
   const [confirmError, setConfirmError] = useState("");
-  // On by default: an unbought item silently vanishing is the costly mistake, an item that
-  // stays on the list one more week is easy to remove.
-  const [carryOver, setCarryOver] = useState(true);
 
   const activeItems = requests.filter(
     (r) =>
@@ -96,12 +92,12 @@ export function CycleClosureModal({
     }
     setIsProcessing(true);
     try {
-      await onExportList();
-      await onCloseCycle({ carryOver: carryOver && unpurchasedCount > 0 });
+      await onCloseCycle();
       setIsExportConfirmOpen(false);
       onClose();
     } catch (err) {
       console.error(err);
+      setConfirmError("הסגירה נכשלה והרשימה לא נמחקה. נסה שוב.");
     } finally {
       setIsProcessing(false);
     }
@@ -115,7 +111,7 @@ export function CycleClosureModal({
                   <span>סה"כ {activeItems.length} מוצרים ב-{Object.keys(grouped).length} קטגוריות</span>
                   {activeItems.length > 0 && (
                     <span className="text-emerald-700 dark:text-emerald-400 flex items-center gap-1">
-                      <CheckCircle2 className="w-4 h-4" /> מוכן להדפסה
+                      <CheckCircle2 className="w-4 h-4" /> מוכן לסגירה
                     </span>
                   )}
                 </div>
@@ -134,7 +130,7 @@ export function CycleClosureModal({
                     className="h-12 px-5 rounded-xl text-sm font-bold btn-primary !text-white transition-all shadow-[var(--shadow-pop)] active:scale-[0.97] cursor-pointer disabled:opacity-50 flex items-center gap-2 border-none"
                   >
                     <FileText className="w-4 h-4 text-white" />
-                    <span>ייצא רשימה להדפסה (Word)</span>
+                    <span>סגור רשימה והורד PDF</span>
                   </button>
                 </div>
               </>
@@ -143,26 +139,10 @@ export function CycleClosureModal({
                 <p className="text-xs text-[var(--foreground)]/80 font-medium leading-relaxed flex items-start gap-2">
                   <Lock className="w-4 h-4 text-rose-500 shrink-0 mt-0.5" />
                   <span>
-                    תופק רשימה להדפסה (Word) עבור <strong>{activeItems.length}</strong> פריטים, והסבב ייסגר
-                    וישמר ב״סבבים קודמים״. אנא הזן סיסמת מנהל לאישור.
+                    יורד קובץ PDF עם <strong>{unpurchasedCount}</strong> המוצרים שלא נרכשו, והרשימה תתנקה לגמרי
+                    ותישמר ב״סבבים קודמים״. אנא הזן סיסמת מנהל לאישור.
                   </span>
                 </p>
-                {unpurchasedCount > 0 && (
-                  <label className="flex items-start gap-2.5 p-3 rounded-xl bg-amber-500/5 border border-amber-500/20 cursor-pointer text-xs font-bold text-[var(--foreground)]">
-                    <input
-                      type="checkbox"
-                      checked={carryOver}
-                      onChange={(e) => setCarryOver(e.target.checked)}
-                      className="mt-0.5 w-4 h-4 accent-amber-500 shrink-0"
-                    />
-                    <span>
-                      העבר את <strong>{unpurchasedCount}</strong> המוצרים שלא נרכשו לסבב הבא
-                      <span className="block text-xs font-semibold text-[var(--muted)] mt-0.5">
-                        {carryOver ? "יישארו ברשימה עם הכמויות וההערות." : "יימחקו מהרשימה (יישמרו רק בהיסטוריה)."}
-                      </span>
-                    </span>
-                  </label>
-                )}
                 <div>
                   <label htmlFor="cycle-closure-password" className="sr-only">סיסמת מנהל</label>
                   <div className="relative">
@@ -198,7 +178,7 @@ export function CycleClosureModal({
                     className="h-12 px-5 rounded-xl text-sm font-bold btn-danger !text-white transition-all shadow-[var(--shadow-pop)] active:scale-[0.97] cursor-pointer disabled:opacity-50 flex items-center gap-2 border-none"
                   >
                     {isProcessing ? <Loader2 className="w-4 h-4 animate-spin text-white" /> : <Lock className="w-4 h-4 text-white" />}
-                    <span>אשר, ייצא וסגור סבב</span>
+                    <span>אשר, הורד וסגור רשימה</span>
                   </button>
                 </div>
               </div>
@@ -210,7 +190,7 @@ export function CycleClosureModal({
     <BottomSheet
       isOpen={isOpen}
       onClose={onClose}
-      title="סגירת סבב קניות"
+      title="סגירת רשימת קניות"
       icon={<Package className="w-5 h-5 text-[var(--accent-text)]" aria-hidden="true" />}
       zIndex={140}
       size="lg"
@@ -220,16 +200,10 @@ export function CycleClosureModal({
             בדיקה סופית לפני ארכוב הסבב של <strong className="text-[var(--foreground)]">{listType === "large" ? "רכש" : "קניות סופר"}</strong>. הסבב נשמר ב״סבבים קודמים״.
           </p>
 
-          <div className="grid grid-cols-3 gap-2 mb-4">
+          <div className="grid grid-cols-2 gap-2 mb-4">
             {[
               { n: purchasedCount, label: "נרכשו", Icon: CheckCircle2, cls: "bg-emerald-500/10 border-emerald-500/25 text-emerald-700 dark:text-emerald-400" },
-              { n: unpurchasedCount, label: "לא נרכשו", Icon: Hourglass, cls: "bg-amber-500/10 border-amber-500/25 text-amber-700 dark:text-amber-400" },
-              {
-                n: carryOver ? unpurchasedCount : 0,
-                label: "יועברו הלאה",
-                Icon: Repeat,
-                cls: "bg-[var(--accent-soft)] border-[var(--accent-line)] text-[var(--accent-text)]",
-              },
+              { n: unpurchasedCount, label: "יופיעו ב-PDF", Icon: Hourglass, cls: "bg-amber-500/10 border-amber-500/25 text-amber-700 dark:text-amber-400" },
             ].map((stat) => (
               <div key={stat.label} className={`rounded-2xl border p-3 text-center ${stat.cls}`}>
                 <stat.Icon className="w-4 h-4 mx-auto mb-1.5 opacity-80" aria-hidden />

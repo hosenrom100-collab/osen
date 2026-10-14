@@ -161,11 +161,42 @@ export function useExport(
     }
   };
 
+  /**
+   * The PDF handed over when a list is closed: one file for the whole list, every framework as its
+   * own section, only what is still unbought and without who ordered it. Throws on failure so the
+   * caller never clears a list whose file was not produced.
+   */
+  const downloadClosingPdf = async (listType: "supermarket" | "large", openItems: ShoppingRequest[]) => {
+    if (openItems.length === 0) return;
+    const items = openItems.map((r) => {
+      const poolMatch = pool.find((p) => (p.name || "").trim().toLowerCase() === (r.name || "").trim().toLowerCase());
+      const fw = r.targetFramework || "main";
+      return {
+        name: r.name || "",
+        category: r.category || "כללי",
+        quantity: r.quantity || "1",
+        notes: r.notes || poolMatch?.defaultNotes || "",
+        frameworkName: FRAMEWORK_LABELS[fw] || fw,
+      };
+    });
+    const isLarge = listType === "large";
+    await generateShoppingListPdf(
+      items,
+      {
+        date: format(new Date(), "dd/MM/yyyy"),
+        title: isLarge ? `רשימת רכש וציוד ${weekLabels.large}` : `רשימת קניות ${weekLabels.supermarket}`,
+        subtitle: "מרכז חוסן - חרבות ברזל",
+      },
+      `${isLarge ? "רשימת_רכש" : "רשימת_קניות"}_${format(new Date(), "yyyy-MM-dd")}.pdf`
+    );
+  };
+
   return {
     exportProcurementList,
     exportOngoingList,
     exportSplitOngoingLists,
     exportSplitProcurementLists,
+    downloadClosingPdf,
   };
 }
 

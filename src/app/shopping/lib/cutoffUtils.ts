@@ -22,7 +22,7 @@ export function getCutoffStatus(config?: CutoffConfig, activeRequests?: Shopping
   let dayDiff = config.day - currentDay;
 
   targetDate.setDate(now.getDate() + dayDiff);
-  targetDate.setHours(targetHour || 16, targetMinute || 0, 0, 0);
+  targetDate.setHours(targetHour ?? 16, targetMinute ?? 0, 0, 0);
 
   // If today is past the cutoff targetDate in the current week cycle
   if (now > targetDate) {

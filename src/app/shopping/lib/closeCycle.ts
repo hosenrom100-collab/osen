@@ -12,24 +12,26 @@ const STATUSES_TO_CLEAR: ShoppingRequest["status"][] = ["pending", "approved", "
 
 interface CloseCycleParams {
   listType: "supermarket" | "large";
-  /** Keep the still-unbought items on the list for the next cycle instead of dropping them. */
-  carryOver: boolean;
+  /**
+   * Runs on the open (unbought) items exactly as they were read, before anything is archived or
+   * deleted. It produces the PDF; if it throws, the list is left untouched.
+   */
+  beforeClear?: (openItems: ShoppingRequest[]) => Promise<void>;
   user: { uid: string; displayName?: string | null; email?: string | null } | null;
 }
 
 export interface CloseCycleResult {
   purchased: number;
-  carriedOver: number;
-  dropped: number;
+  unpurchased: number;
 }
 
 /**
- * Closes the current cycle for one list: the cycle is first saved to `shopping_cycles`
- * (so it is never lost), and only then are the live documents cleared. If the archive
- * write fails this throws before touching anything — a failed close must never delete
- * items that were not recorded.
+ * Closes the current cycle for one list: the open items are handed to `beforeClear` (the PDF),
+ * the cycle is saved to `shopping_cycles` (so it is never lost), and only then are the live
+ * documents cleared. If either step fails this throws before deleting anything. Only the
+ * documents read here are deleted, so an item added meanwhile survives into the next cycle.
  */
-export async function closeCycle({ listType, carryOver, user }: CloseCycleParams): Promise<CloseCycleResult> {
+export async function closeCycle({ listType, beforeClear, user }: CloseCycleParams): Promise<CloseCycleResult> {
   const snap = await getDocs(
     query(collection(db, "shopping_requests"), where("status", "in", STATUSES_TO_CLEAR))
   );
@@ -43,6 +45,10 @@ export async function closeCycle({ listType, carryOver, user }: CloseCycleParams
   const recorded = docs.filter((d) => d.data().status !== "deleted");
   const open = docs.filter((d) => isOpen(d.data().status));
   const purchasedCount = recorded.length - open.length;
+
+  if (beforeClear) {
+    await beforeClear(open.map((d) => ({ id: d.id, ...d.data() }) as ShoppingRequest));
+  }
 
   if (recorded.length > 0) {
     const items: CycleItemSnapshot[] = recorded.map((d) => {
@@ -67,34 +73,18 @@ export async function closeCycle({ listType, carryOver, user }: CloseCycleParams
       closedByName: user?.displayName || user?.email || "",
       purchasedCount,
       unpurchasedCount: open.length,
-      carriedOverCount: carryOver ? open.length : 0,
+      carriedOverCount: 0,
       items,
     });
   }
 
-  const keep = new Set(carryOver ? open.map((d) => d.id) : []);
-  const now = new Date();
-  let carriedOver = 0;
-  let dropped = 0;
-
   for (let i = 0; i < docs.length; i += BATCH_SIZE) {
     const batch = writeBatch(db);
-    for (const d of docs.slice(i, i + BATCH_SIZE)) {
-      if (keep.has(d.id)) {
-        // A fresh createdAt is required, not cosmetic: the cutoff check treats any open item
-        // created before the cutoff as "this week's list is closed", so a carried-over item
-        // with its old timestamp would leave the new cycle frozen from the start.
-        batch.update(d.ref, { createdAt: now, updatedAt: now, updatedBy: user?.uid ?? "" });
-        carriedOver++;
-      } else {
-        batch.delete(d.ref);
-        dropped++;
-      }
-    }
+    for (const d of docs.slice(i, i + BATCH_SIZE)) batch.delete(d.ref);
     await batch.commit();
   }
 
-  return { purchased: purchasedCount, carriedOver, dropped };
+  return { purchased: purchasedCount, unpurchased: open.length };
 }
 
 /** Most recent closed cycles, newest first. Filtered by list client-side to avoid a composite index. */
