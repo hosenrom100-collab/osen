@@ -9,6 +9,9 @@ import { ShoppingRequest, Product, CutoffConfig, TargetFramework } from "../type
 import { findSimilarRequestStrict } from "../lib/stringUtils";
 import { parseQuantity, buildQuantityString, getMinQuantity } from "../lib/quantityUtils";
 import { belongsToList } from "../lib/listFilters";
+import { syncFreeze, isPermissionDenied } from "../lib/syncFreeze";
+
+const FROZEN_MESSAGE = "הרשימה הוקפאה לאחר מועד הקציבה ולא ניתן לשנות אותה.";
 
 export function useShoppingActions(
   user: User | null,
@@ -111,7 +114,7 @@ export function useShoppingActions(
     const requesterName = requestedByOverride?.name ?? (user?.displayName || user?.email || "משתמש");
 
     try {
-      await addDoc(collection(db, "shopping_requests"), {
+      const newItem = {
         name: cleanName,
         category,
         quantity,
@@ -123,7 +126,15 @@ export function useShoppingActions(
         createdAt: new Date(),
         listType,
         targetFramework,
-      });
+      };
+      try {
+        await addDoc(collection(db, "shopping_requests"), newItem);
+      } catch (e) {
+        // The rules freeze the list from `freezeAt`. If this tab is stale (the list was closed or
+        // emptied since), have the server recompute it and try once more before giving up.
+        if (!isPermissionDenied(e) || !(await syncFreeze(user))) throw e;
+        await addDoc(collection(db, "shopping_requests"), newItem);
+      }
 
       if (priority === "urgent") {
         sendPush({
@@ -155,7 +166,7 @@ export function useShoppingActions(
       return true;
     } catch (e) {
       console.error("Error adding product:", e);
-      showToast("שגיאה בהוספת המוצר. נסה שוב.", "warning");
+      showToast(isPermissionDenied(e) ? FROZEN_MESSAGE : "שגיאה בהוספת המוצר. נסה שוב.", "warning");
       return false;
     }
   };
@@ -215,7 +226,7 @@ export function useShoppingActions(
         }
       } catch (e) {
         console.error(e);
-        showToast("שגיאה בעדכון הפריט. נסה שוב.", "warning");
+        showToast(isPermissionDenied(e) ? FROZEN_MESSAGE : "שגיאה בעדכון הפריט. נסה שוב.", "warning");
       }
     },
     [requests, user, showToast]
@@ -233,7 +244,7 @@ export function useShoppingActions(
       });
     } catch (e) {
       console.error(e);
-      showToast("שגיאה בעדכון הכמות. נסה שוב.", "warning");
+      showToast(isPermissionDenied(e) ? FROZEN_MESSAGE : "שגיאה בעדכון הכמות. נסה שוב.", "warning");
     }
   };
 
@@ -243,7 +254,7 @@ export function useShoppingActions(
       showToast("המוצר הועבר לרשימת רכש", "success");
     } catch (e) {
       console.error(e);
-      showToast("שגיאה בהעברת המוצר. נסה שוב.", "warning");
+      showToast(isPermissionDenied(e) ? FROZEN_MESSAGE : "שגיאה בהעברת המוצר. נסה שוב.", "warning");
     }
   };
 
@@ -253,7 +264,7 @@ export function useShoppingActions(
       showToast("המוצר הועבר לרשימת הסופר", "success");
     } catch (e) {
       console.error(e);
-      showToast("שגיאה בהעברת המוצר. נסה שוב.", "warning");
+      showToast(isPermissionDenied(e) ? FROZEN_MESSAGE : "שגיאה בהעברת המוצר. נסה שוב.", "warning");
     }
   };
 
@@ -352,7 +363,7 @@ export function useShoppingActions(
       showToast("הפריט עודכן בהצלחה!", "success");
     } catch (e) {
       console.error(e);
-      showToast("שגיאה בעדכון הפריט. נסה שוב.", "warning");
+      showToast(isPermissionDenied(e) ? FROZEN_MESSAGE : "שגיאה בעדכון הפריט. נסה שוב.", "warning");
     }
   };
 

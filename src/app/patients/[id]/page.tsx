@@ -76,7 +76,10 @@ interface Patient {
 }
 
 interface Group { id: string; name: string }
-interface Attendance { id: string; date: string; status: "present" | "absent" | "late" }
+interface Attendance {
+  id: string; date: string; status: "present" | "absent" | "late";
+  late?: { at?: string | null } | null; leftEarly?: { at?: string | null } | null; updatedAt?: string;
+}
 
 const REHAB_PLAN_SECTION_HEADERS = {
   areas: 'א. באילו תחומים בחייך היית מעוניין לראות שיפור? ציין את התחומים על פי סדר החשיבות:',
@@ -147,6 +150,8 @@ export default function PatientDetailPage() {
 
   const [patient, setPatient] = useState<Patient | null>(null);
   const [attendance, setAttendance] = useState<Attendance[]>([]);
+  // One-line attendance notes by date (staff only; participants cannot read them).
+  const [attendanceNotes, setAttendanceNotes] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const requestedTab = (searchParams.get("tab") as "overview" | "attendance" | "certificates" | "reports") || "overview";
   const initialTab = (requestedTab === "reports" && !REPORTS_ENABLED) ? "overview" : requestedTab;
@@ -437,17 +442,23 @@ export default function PatientDetailPage() {
       const attSnap = await getDocs(attQuery);
       const rawAtt = attSnap.docs.map(d => ({ id: d.id, ...d.data() } as Attendance));
       
-      // De-duplicate by date, keeping the first (latest due to orderBy("date", "desc"))
-      const uniqueAtt: Attendance[] = [];
-      const seenDates = new Set<string>();
+      // One record per date: when older screens left two documents for a day, the last written wins.
+      const byDate = new Map<string, Attendance>();
       rawAtt.forEach(record => {
-        if (!seenDates.has(record.date) && (record.status as string) !== "unset") {
-          seenDates.add(record.date);
-          uniqueAtt.push(record);
-        }
+        const cur = byDate.get(record.date);
+        if (!cur || (record.updatedAt ?? "") > (cur.updatedAt ?? "")) byDate.set(record.date, record);
       });
-      
+      const uniqueAtt = [...byDate.values()]
+        .filter(r => (r.status as string) !== "unset")
+        .sort((a, b) => b.date.localeCompare(a.date));
+
       setAttendance(uniqueAtt);
+      try {
+        const notesSnap = await getDocs(query(collection(db, "attendance_notes"), where("patientId", "==", id)));
+        const notes: Record<string, string> = {};
+        notesSnap.forEach(d => { const n = d.data(); if (n.kind === "day" && typeof n.text === "string") notes[n.date] = n.text; });
+        setAttendanceNotes(notes);
+      } catch { /* not allowed for this role: no notes are shown */ }
       const uSnap = await getDocs(query(collection(db, "users"), where("patientId", "==", id), limit(1)));
       if (!uSnap.empty) setParticipantUid(uSnap.docs[0].id);
 
@@ -2084,7 +2095,10 @@ export default function PatientDetailPage() {
                   const presentDays = attendance.filter(a => a.status === "present").length;
                   const absentDays = totalDays - presentDays;
                   const attendanceRate = totalDays > 0 ? Math.round((presentDays / totalDays) * 100) : 0;
+                  const lateDays = attendance.filter(a => a.status === "present" && a.late).length;
+                  const leftEarlyDays = attendance.filter(a => a.status === "present" && a.leftEarly).length;
                   return (
+                    <div className="space-y-2">
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                       <div className="bg-emerald-500/10 border border-emerald-500/10 rounded-2xl p-4 text-right shadow-sm">
                         <div className="text-[11px] font-bold text-emerald-600 mb-1">נוכחות בפועל</div>
@@ -2114,6 +2128,13 @@ export default function PatientDetailPage() {
                           </div>
                         </div>
                       </div>
+                    </div>
+                    {(lateDays > 0 || leftEarlyDays > 0) && (
+                      <p className="text-[11px] font-semibold text-slate-400 text-right">
+                        {[lateDays > 0 && `${lateDays} איחורים`, leftEarlyDays > 0 && `${leftEarlyDays} יציאות מוקדמות`].filter(Boolean).join(" · ")}
+                        {" "}(נספרים כנוכחות)
+                      </p>
+                    )}
                     </div>
                   );
                 })()}
@@ -2206,10 +2227,21 @@ export default function PatientDetailPage() {
                                 <div className="divide-y divide-slate-100 border-t border-slate-100">
                                   {g.records.map(att => (
                                     <div key={att.id} className="px-6 py-3 flex items-center justify-between hover:bg-slate-50/30 transition-colors">
-                                      <div className="flex items-center gap-2.5">
+                                      <div className="min-w-0">
                                         <span className="text-xs font-bold text-slate-600">
                                           {format(new Date(att.date + "T12:00:00"), "EEEE, dd/MM/yyyy", { locale: he })}
                                         </span>
+                                        {(att.status === "present" && (att.late || att.leftEarly)) || attendanceNotes[att.date] ? (
+                                          <p className="mt-0.5 flex items-center gap-1.5 text-[11px] font-semibold text-slate-400 min-w-0">
+                                            {att.status === "present" && att.late && (
+                                              <span className="shrink-0 px-1.5 py-0.5 rounded-md bg-amber-500/10 text-amber-700">{att.late.at ? `איחור ${att.late.at}` : "איחור"}</span>
+                                            )}
+                                            {att.status === "present" && att.leftEarly && (
+                                              <span className="shrink-0 px-1.5 py-0.5 rounded-md bg-sky-500/10 text-sky-700">{att.leftEarly.at ? `יצא ${att.leftEarly.at}` : "יצא מוקדם"}</span>
+                                            )}
+                                            {attendanceNotes[att.date] && <span className="truncate">{attendanceNotes[att.date]}</span>}
+                                          </p>
+                                        ) : null}
                                       </div>
                                       <div className="flex items-center gap-2">
                                         <span className="text-[11px] font-semibold text-slate-400">

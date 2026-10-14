@@ -3,7 +3,7 @@
 import { RoleGuard } from "@/components/auth/RoleGuard";
 import { useState, useEffect, useMemo } from "react";
 import { db } from "@/lib/firebase/config";
-import { collection, getDocs, query, where, doc, setDoc, deleteDoc } from "firebase/firestore";
+import { collection, getDocs, query, where } from "firebase/firestore";
 import { 
   Loader2, ChevronRight, Download, 
   Search, Calendar as CalendarIcon,
@@ -20,6 +20,9 @@ import { motion, AnimatePresence } from "framer-motion";
 import * as XLSX from "xlsx";
 import { MobileFriendlyGuard } from "@/components/ui/MobileFriendlyGuard";
 import { useAuth } from "@/context/AuthContext";
+import { AttendanceEntry } from "@/lib/attendance/model";
+import { saveDayEntry } from "@/lib/attendance/data";
+import { cellTitle, DayExtra, parseDayDocs, presentCellText } from "@/lib/attendance/matrix";
 
 interface Patient {
   id: string;
@@ -49,12 +52,14 @@ interface AttendanceMap {
 
 export default function AttendanceMatrixPage() {
   const router = useRouter();
-  const { role, roles } = useAuth();
+  const { user, role, roles } = useAuth();
   const [loading, setLoading] = useState(true);
   const [patients, setPatients] = useState<Patient[]>([]);
   const [programs, setPrograms] = useState<Program[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
   const [attendance, setAttendance] = useState<AttendanceMap>({});
+  // Late / early-leave marks and notes per cell, next to the status map the rest of the page uses.
+  const [extras, setExtras] = useState<Record<string, DayExtra>>({});
   
   const canEditMatrix = useMemo(() => {
     const userRoles = roles || (role ? [role] : []);
@@ -88,7 +93,7 @@ export default function AttendanceMatrixPage() {
       const monthStart = format(startOfMonth(currentDate), "yyyy-MM-dd");
       const monthEnd = format(endOfMonth(currentDate), "yyyy-MM-dd");
 
-      const [pSnap, progSnap, groupSnap, attSnap] = await Promise.all([
+      const [pSnap, progSnap, groupSnap, attSnap, notesSnap] = await Promise.all([
         getDocs(query(collection(db, "patients"), where("status", "==", "active"))),
         getDocs(collection(db, "programs")),
         getDocs(collection(db, "groups")),
@@ -96,7 +101,12 @@ export default function AttendanceMatrixPage() {
           collection(db, "attendance"), 
           where("date", ">=", monthStart),
           where("date", "<=", monthEnd)
-        ))
+        )),
+        getDocs(query(
+          collection(db, "attendance_notes"),
+          where("date", ">=", monthStart),
+          where("date", "<=", monthEnd)
+        )).catch(() => null),
       ]);
 
       const pList = pSnap.docs.map(d => ({ id: d.id, ...d.data() } as Patient))
@@ -106,12 +116,15 @@ export default function AttendanceMatrixPage() {
       setPrograms(progSnap.docs.map(d => ({ id: d.id, ...d.data() } as Program)));
       setGroups(groupSnap.docs.map(d => ({ id: d.id, ...d.data() } as Group)));
 
-      const aMap: AttendanceMap = {};
-      attSnap.forEach(d => {
-        const data = d.data();
-        aMap[`${data.patientId}_${data.date}`] = data.status;
+      const parsed = parseDayDocs(attSnap.docs);
+      notesSnap?.forEach(d => {
+        const n = d.data();
+        if (n.kind !== "day" || typeof n.text !== "string") return;
+        const key = `${n.patientId}_${n.date}`;
+        parsed.extras[key] = { ...(parsed.extras[key] ?? { docIds: [] }), note: n.text };
       });
-      setAttendance(aMap);
+      setAttendance(parsed.status);
+      setExtras(parsed.extras);
     } catch (err) {
       console.error("Error fetching matrix data:", err);
     } finally {
@@ -166,84 +179,54 @@ export default function AttendanceMatrixPage() {
     return { present, absent, unmarked, total: expectedPatientsToday.length };
   }, [expectedPatientsToday, attendance, todayStr]);
 
-  const handleToggleAttendance = async (patientId: string, status: "present" | "absent") => {
+  // Both writers save through the shared day model: one document per participant per day, the
+  // note kept as it was, and any older duplicate document removed. A status change clears the
+  // late / early-leave marks (those belong to the present mark that is being replaced).
+  const writeCell = async (patientId: string, dateStr: string, status: "present" | "absent" | "unset") => {
     const patient = patients.find(p => p.id === patientId);
     if (!patient) return;
-    const contextId = patient.hosenType || "general";
-    const attKey = `${patientId}_${todayStr}`;
-    const attId = `${patientId}_${contextId}_${todayStr}`;
-    const currentStatus = attendance[attKey];
+    const attKey = `${patientId}_${dateStr}`;
+    const extra = extras[attKey];
+    const entry: AttendanceEntry = { status, late: null, leftEarly: null, note: extra?.note, source: "manual" };
 
+    const prevStatus = attendance[attKey];
+    setAttendance(prev => {
+      const next = { ...prev };
+      if (status === "unset") delete next[attKey];
+      else next[attKey] = status;
+      return next;
+    });
     try {
-      if (currentStatus === status) {
-        // Unmark
-        await deleteDoc(doc(db, "attendance", attId));
-        setAttendance(prev => {
-          const next = { ...prev };
-          delete next[attKey];
-          return next;
-        });
-      } else {
-        // Mark status
-        await setDoc(doc(db, "attendance", attId), {
-          patientId,
-          date: todayStr,
-          status,
-          contextId,
-          updatedAt: new Date().toISOString()
-        });
-        setAttendance(prev => ({
-          ...prev,
-          [attKey]: status
-        }));
-      }
+      await saveDayEntry({
+        patientId,
+        date: dateStr,
+        entry,
+        uid: user?.uid ?? "",
+        contextId: patient.hosenType || "general",
+        legacyIds: extra?.docIds,
+      });
+      setExtras(prev => ({ ...prev, [attKey]: { note: extra?.note, docIds: [] } }));
     } catch (err) {
       console.error("Error setting attendance:", err);
+      setAttendance(prev => {
+        const next = { ...prev };
+        if (prevStatus) next[attKey] = prevStatus;
+        else delete next[attKey];
+        return next;
+      });
     }
+  };
+
+  const handleToggleAttendance = async (patientId: string, status: "present" | "absent") => {
+    const attKey = `${patientId}_${todayStr}`;
+    await writeCell(patientId, todayStr, attendance[attKey] === status ? "unset" : status);
   };
 
   const handleToggleMatrixCell = async (patientId: string, dateStr: string) => {
     if (!canEditMatrix) return;
-    const patient = patients.find(p => p.id === patientId);
-    if (!patient) return;
-    const contextId = patient.hosenType || "general";
-    const attKey = `${patientId}_${dateStr}`;
-    const attId = `${patientId}_${contextId}_${dateStr}`;
-    const currentStatus = attendance[attKey];
-
-    let newStatus: "present" | "absent" | "unset";
-    if (!currentStatus || currentStatus === "unset") {
-      newStatus = "present";
-    } else if (currentStatus === "present") {
-      newStatus = "absent";
-    } else {
-      newStatus = "unset";
-    }
-
-    try {
-      if (newStatus === "unset") {
-        await deleteDoc(doc(db, "attendance", attId));
-        setAttendance(prev => {
-          const next = { ...prev };
-          delete next[attKey];
-          return next;
-        });
-      } else {
-        await setDoc(doc(db, "attendance", attId), {
-          patientId,
-          date: dateStr,
-          status: newStatus,
-          contextId,
-          updatedAt: new Date().toISOString()
-        });
-        setAttendance(prev => ({
-          ...prev,
-          [attKey]: newStatus
-        }));
-      }
-    } catch (err) {
-      console.error("Error setting matrix cell attendance:", err);
-    }
+    const currentStatus = attendance[`${patientId}_${dateStr}`];
+    const next = !currentStatus || currentStatus === "unset" ? "present" : currentStatus === "present" ? "absent" : "unset";
+    await writeCell(patientId, dateStr, next);
   };
 
   const formatPhoneForWhatsApp = (phoneStr?: string) => {
@@ -470,7 +453,7 @@ export default function AttendanceMatrixPage() {
           progActiveDates.forEach(day => {
             const dateStr = format(day, "yyyy-MM-dd");
             const status = attendance[`${p.id}_${dateStr}`];
-            row.push(status === "present" ? "+" : "");
+            row.push(status === "present" ? presentCellText(extras[`${p.id}_${dateStr}`]) : "");
           });
 
           rows.push(row);
@@ -516,11 +499,7 @@ export default function AttendanceMatrixPage() {
 
       setExportProgress("מעבד נתונים ומייצר גיליונות חודשיים...");
 
-      const annualAttendance: AttendanceMap = {};
-      attSnap.forEach(d => {
-        const data = d.data();
-        annualAttendance[`${data.patientId}_${data.date}`] = data.status;
-      });
+      const { status: annualAttendance, extras: annualExtras } = parseDayDocs(attSnap.docs);
 
       const wb = XLSX.utils.book_new();
 
@@ -556,7 +535,7 @@ export default function AttendanceMatrixPage() {
           progActiveDates.forEach(day => {
             const dateStr = format(day, "yyyy-MM-dd");
             const status = annualAttendance[`${p.id}_${dateStr}`];
-            row.push(status === "present" ? "+" : "");
+            row.push(status === "present" ? presentCellText(annualExtras[`${p.id}_${dateStr}`]) : "");
           });
 
           rows.push(row);
@@ -601,11 +580,7 @@ export default function AttendanceMatrixPage() {
 
       setExportProgress("מעבד נתונים ומייצר גיליונות Excel שנתיים...");
 
-      const annualAttendance: AttendanceMap = {};
-      attSnap.forEach(d => {
-        const data = d.data();
-        annualAttendance[`${data.patientId}_${data.date}`] = data.status;
-      });
+      const { status: annualAttendance, extras: annualExtras } = parseDayDocs(attSnap.docs);
 
       const wb = XLSX.utils.book_new();
 
@@ -641,7 +616,7 @@ export default function AttendanceMatrixPage() {
             progActiveDates.forEach(day => {
               const dateStr = format(day, "yyyy-MM-dd");
               const status = annualAttendance[`${p.id}_${dateStr}`];
-              row.push(status === "present" ? "+" : "");
+              row.push(status === "present" ? presentCellText(annualExtras[`${p.id}_${dateStr}`]) : "");
             });
 
             rows.push(row);
@@ -939,6 +914,7 @@ export default function AttendanceMatrixPage() {
                           {activeDates.map(day => {
                             const dateStr = format(day, "yyyy-MM-dd");
                             const status = attendance[`${p.id}_${dateStr}`];
+                            const extra = extras[`${p.id}_${dateStr}`];
                             const isActiveForThisPatient = pActiveDays.includes(getDay(day));
                             
                             return (
@@ -952,10 +928,11 @@ export default function AttendanceMatrixPage() {
                                     <Minus className="w-2.5 h-2.5 text-[var(--foreground)]/30" />
                                   </div>
                                 ) : (
-                                  <div className="w-full h-full flex items-center justify-center py-2.5">
+                                  <div className="relative w-full h-full flex items-center justify-center py-2.5" title={cellTitle(extra)}>
+                                    {extra?.note && <span className="absolute top-1 left-1 w-1 h-1 rounded-full bg-[var(--foreground)]/40" aria-label="יש הערה" />}
                                     {status === 'present' ? (
                                       <div className="bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 px-2 py-0.5 rounded-md font-bold text-[11px]">
-                                        +
+                                        {presentCellText(extra)}
                                       </div>
                                     ) : status === 'absent' ? (
                                       <div className="bg-rose-500/10 text-rose-500 border border-rose-500/20 px-2 py-0.5 rounded-md font-bold text-[11px]">
