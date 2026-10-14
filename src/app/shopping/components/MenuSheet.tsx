@@ -8,6 +8,7 @@ import {
 import { BottomSheet } from "./BottomSheet";
 import { TargetFramework, ShoppingRequest } from "../types";
 import { TARGET_FRAMEWORKS } from "../lib/constants";
+import { belongsToList } from "../lib/listFilters";
 
 interface MenuSheetProps {
   isOpen: boolean;
@@ -115,10 +116,10 @@ export function MenuSheet({
   };
 
   const activeSupermarket = requests.filter(
-    (r) => (r.status === "approved" || r.status === "pending" || r.status === "purchased") && r.listType !== "large"
+    (r) => (r.status === "approved" || r.status === "pending" || r.status === "purchased") && belongsToList(r, "supermarket")
   );
   const activeProcurement = requests.filter(
-    (r) => (r.status === "approved" || r.status === "pending" || r.status === "purchased") && r.listType === "large"
+    (r) => (r.status === "approved" || r.status === "pending" || r.status === "purchased") && belongsToList(r, "large")
   );
 
   return (

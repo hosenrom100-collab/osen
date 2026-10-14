@@ -34,6 +34,7 @@ import { useShoppingActions } from "./hooks/useShoppingActions";
 import { usePullToRefresh } from "./hooks/usePullToRefresh";
 import { useAdminPasswordGate } from "./hooks/useAdminPasswordGate";
 import { useConfirm } from "@/hooks/useConfirm";
+import { belongsToList } from "./lib/listFilters";
 
 export default function ShoppingPage() {
   const { user, role, isAdmin, isManager, isLogistics } = useAuth();
@@ -200,7 +201,7 @@ export default function ShoppingPage() {
   // Purchased vs total for what the list shows (list type + framework filter) — feeds the header line and the desktop rail.
   const progress = useMemo(() => {
     const inScope = (r: (typeof requests)[number]) =>
-      (listType === "large" ? r.listType === "large" : r.listType !== "large") &&
+      belongsToList(r, listType) &&
       (selectedFramework === "all" || (r.targetFramework || "main") === selectedFramework);
     const done = requests.filter((r) => r.status === "purchased" && inScope(r)).length;
     const open = requests.filter((r) => (r.status === "approved" || r.status === "pending") && inScope(r)).length;

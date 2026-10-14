@@ -22,6 +22,7 @@ import { PageSkeleton, SkeletonRows } from "@/components/ui/Skeleton";
 import { QuickActionGrid, StatRow } from "@/components/ui/Section";
 import { TodaySchedule } from "@/components/home/TodaySchedule";
 import { FRAMEWORK_LABELS } from "@/app/shopping/lib/constants";
+import { belongsToList } from "@/app/shopping/lib/listFilters";
 import { getCutoffStatus } from "@/app/shopping/lib/cutoffUtils";
 import type { CutoffConfig, ShoppingRequest } from "@/app/shopping/types";
 
@@ -347,7 +348,7 @@ export default function Home() {
         try {
           const shoppingSnap = await getDocs(query(
             collection(db, "shopping_requests"),
-            where("status", "in", ["approved", "pending"])
+            where("status", "in", ["approved", "pending", "purchased"])
           ));
           let savedFw = "all";
           try {
@@ -355,7 +356,8 @@ export default function Home() {
             setShoppingFramework(savedFw);
           } catch (e) {}
 
-          const items = shoppingSnap.docs.map((d) => d.data());
+          const allItems = shoppingSnap.docs.map((d) => d.data());
+          const items = allItems.filter((it) => it.status !== "purchased");
           const count = (!savedFw || savedFw === "all")
             ? items.length
             : items.filter((it: any) => (it.targetFramework || "main") === savedFw).length;
@@ -364,8 +366,14 @@ export default function Home() {
           // The weekly list is frozen (cutoff passed) and still holds items: remind to close it and download the PDF.
           const settings = (await getDoc(doc(db, "settings", "shopping"))).data();
           const cfg: CutoffConfig = settings?.cutoffConfig || { enabled: true, day: 1, time: "16:00", deliveryDay: null };
-          const status = getCutoffStatus(cfg, items as unknown as ShoppingRequest[]);
-          setListsToSend(status.isPassed ? items.length : 0);
+          // Same rule as the shopping page: each list is judged on its own items, purchased ones included.
+          let waiting = 0;
+          for (const lt of ["supermarket", "large"] as const) {
+            const listItems = allItems.filter((it) => belongsToList(it, lt)) as unknown as ShoppingRequest[];
+            const status = getCutoffStatus(cfg, listItems);
+            if (status.isPassed && listItems.length > 0) waiting += listItems.length;
+          }
+          setListsToSend(waiting);
         } catch (err) {
           console.error("Error fetching shopping count:", err);
         }

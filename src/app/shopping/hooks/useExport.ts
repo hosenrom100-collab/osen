@@ -7,6 +7,7 @@ import { toDateOrNull } from "../lib/dateUtils";
 import { FRAMEWORK_LABELS, TARGET_FRAMEWORKS } from "../lib/constants";
 import { generateShoppingListPdf } from "@/lib/pdf/shoppingListPdf";
 import { generateShoppingListWord, generateDocxWithLetterhead } from "@/lib/word-generator";
+import { belongsToList } from "../lib/listFilters";
 
 export function useExport(
   requests: ShoppingRequest[],
@@ -65,7 +66,7 @@ export function useExport(
 
   const exportOngoingList = async (framework: "all" | TargetFramework = "all") => {
     const active = requests.filter(
-      (r) => (r.status === "approved" || r.status === "pending") && r.listType !== "large"
+      (r) => (r.status === "approved" || r.status === "pending") && belongsToList(r, "supermarket")
     );
     const filtered = framework === "all" ? active : active.filter((r) => (r.targetFramework || "main") === framework);
 
@@ -89,7 +90,7 @@ export function useExport(
 
   const exportProcurementList = async (framework: "all" | TargetFramework = "all") => {
     const active = requests.filter(
-      (r) => (r.status === "approved" || r.status === "pending") && r.listType === "large"
+      (r) => (r.status === "approved" || r.status === "pending") && belongsToList(r, "large")
     );
     const filtered = framework === "all" ? active : active.filter((r) => (r.targetFramework || "main") === framework);
 
@@ -113,7 +114,7 @@ export function useExport(
 
   const exportSplitOngoingLists = async () => {
     const active = requests.filter(
-      (r) => (r.status === "approved" || r.status === "pending") && r.listType !== "large"
+      (r) => (r.status === "approved" || r.status === "pending") && belongsToList(r, "supermarket")
     );
     const frameworksWithItems = TARGET_FRAMEWORKS.filter((fw) =>
       active.some((r) => (r.targetFramework || "main") === fw.id)
@@ -126,19 +127,15 @@ export function useExport(
 
     for (let i = 0; i < frameworksWithItems.length; i++) {
       const fw = frameworksWithItems[i];
-      if (i === 0) {
-        await exportOngoingList(fw.id);
-      } else {
-        setTimeout(async () => {
-          await exportOngoingList(fw.id);
-        }, i * 800);
-      }
+      // Awaited one after another (not queued with timers) so every file is produced before the caller moves on.
+      if (i > 0) await new Promise((r) => setTimeout(r, 800));
+      await exportOngoingList(fw.id);
     }
   };
 
   const exportSplitProcurementLists = async () => {
     const active = requests.filter(
-      (r) => (r.status === "approved" || r.status === "pending") && r.listType === "large"
+      (r) => (r.status === "approved" || r.status === "pending") && belongsToList(r, "large")
     );
     const frameworksWithItems = TARGET_FRAMEWORKS.filter((fw) =>
       active.some((r) => (r.targetFramework || "main") === fw.id)
@@ -151,13 +148,9 @@ export function useExport(
 
     for (let i = 0; i < frameworksWithItems.length; i++) {
       const fw = frameworksWithItems[i];
-      if (i === 0) {
-        await exportProcurementList(fw.id);
-      } else {
-        setTimeout(async () => {
-          await exportProcurementList(fw.id);
-        }, i * 800);
-      }
+      // Awaited one after another (not queued with timers) so every file is produced before the caller moves on.
+      if (i > 0) await new Promise((r) => setTimeout(r, 800));
+      await exportProcurementList(fw.id);
     }
   };
 

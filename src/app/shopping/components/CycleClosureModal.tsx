@@ -7,6 +7,7 @@ import {
 import { ShoppingRequest, Product } from "../types";
 import { BottomSheet } from "./BottomSheet";
 import { CountUp } from "./CountUp";
+import { belongsToList } from "../lib/listFilters";
 
 export interface CycleClosureModalProps {
   isOpen: boolean;
@@ -47,6 +48,8 @@ export function CycleClosureModal({
   // Edit quantity inline state
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingQtyVal, setEditingQtyVal] = useState("");
+  // The trash button only arms a delete; the item goes away on the second, explicit tap.
+  const [confirmRemoveId, setConfirmRemoveId] = useState<string | null>(null);
 
   const [isExportConfirmOpen, setIsExportConfirmOpen] = useState(false);
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -55,7 +58,7 @@ export function CycleClosureModal({
   const activeItems = requests.filter(
     (r) =>
       (r.status === "approved" || r.status === "pending" || r.status === "purchased") &&
-      (listType === "large" ? r.listType === "large" : r.listType !== "large")
+      belongsToList(r, listType)
   );
 
   // Group by category
@@ -329,13 +332,31 @@ export function CycleClosureModal({
                               </button>
                             )}
 
-                            <button
-                              onClick={() => onRemoveItem(item.id)}
-                              className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-500/10 transition-colors cursor-pointer border-none bg-transparent"
-                              title="הסר מוצר מסבב זה"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
+                            {confirmRemoveId === item.id ? (
+                              <div className="flex items-center gap-1">
+                                <button
+                                  onClick={() => { onRemoveItem(item.id); setConfirmRemoveId(null); }}
+                                  className="px-2 py-1 rounded-lg bg-rose-500 hover:bg-rose-600 !text-white text-xs font-bold cursor-pointer border-none"
+                                >
+                                  מחק
+                                </button>
+                                <button
+                                  onClick={() => setConfirmRemoveId(null)}
+                                  className="px-2 py-1 rounded-lg bg-[var(--fill)] hover:bg-[var(--fill-strong)] text-[var(--foreground)] text-xs font-semibold cursor-pointer border-none"
+                                >
+                                  ביטול
+                                </button>
+                              </div>
+                            ) : (
+                              <button
+                                onClick={() => setConfirmRemoveId(item.id)}
+                                className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-500/10 transition-colors cursor-pointer border-none bg-transparent"
+                                title="הסר מוצר מהרשימה"
+                                aria-label={`הסר את ${item.name} מהרשימה`}
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            )}
                           </div>
                         </div>
                       );

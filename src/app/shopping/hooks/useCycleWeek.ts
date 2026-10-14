@@ -5,6 +5,7 @@ import { ShoppingRequest } from "../types";
 import { fetchRecentCycles } from "../lib/closeCycle";
 import { getDeliveryDate } from "../lib/cycleWeek";
 import { toDateOrNull } from "../lib/dateUtils";
+import { belongsToList } from "../lib/listFilters";
 
 type ListType = "supermarket" | "large";
 
@@ -31,7 +32,7 @@ export function useCycleWeeks(requests: ShoppingRequest[]) {
 
   const labelFor = (listType: ListType) => {
     const inList = requests.filter(
-      (r) => r.status !== "deleted" && (listType === "large" ? r.listType === "large" : r.listType !== "large")
+      (r) => r.status !== "deleted" && belongsToList(r, listType)
     );
     const earliest = inList
       .map((r) => toDateOrNull(r.createdAt))

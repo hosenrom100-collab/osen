@@ -11,6 +11,7 @@ import { CAT_SOLID, TARGET_FRAMEWORKS } from "../lib/constants";
 import { ItemRow } from "./ItemRow";
 import { ItemDetailSheet } from "./ItemDetailSheet";
 import { FrameworkPickerSheet } from "./FrameworkPickerSheet";
+import { belongsToList } from "../lib/listFilters";
 
 type ShoppingStatus = ShoppingRequest["status"] | "permanently_delete";
 type OnChangeStatus = (id: string, next: ShoppingStatus, extra?: Record<string, unknown>) => void;
@@ -85,7 +86,7 @@ export function ShoppingListView({
   const totalCategoryRequests = requests.filter(
     (r) =>
       (r.status === "approved" || r.status === "pending") &&
-      (listType === "large" ? r.listType === "large" : r.listType !== "large")
+      belongsToList(r, listType)
   );
 
   const mainCount = totalCategoryRequests.filter((r) => (r.targetFramework || "main") === "main").length;
@@ -94,21 +95,21 @@ export function ShoppingListView({
   const activeRequests = requests.filter(
     (r) =>
       (r.status === "approved" || r.status === "pending") &&
-      (listType === "large" ? r.listType === "large" : r.listType !== "large") &&
+      belongsToList(r, listType) &&
       (!selectedFramework || selectedFramework === "all" || (r.targetFramework || "main") === selectedFramework)
   );
 
   const sessionPurchased = requests.filter(
     (r) =>
       r.status === "purchased" &&
-      (listType === "large" ? r.listType === "large" : r.listType !== "large") &&
+      belongsToList(r, listType) &&
       (!selectedFramework || selectedFramework === "all" || (r.targetFramework || "main") === selectedFramework)
   );
 
   const sessionDeleted = requests.filter(
     (r) =>
       r.status === "deleted" &&
-      (listType === "large" ? r.listType === "large" : r.listType !== "large") &&
+      belongsToList(r, listType) &&
       (!selectedFramework || selectedFramework === "all" || (r.targetFramework || "main") === selectedFramework)
   );
 
