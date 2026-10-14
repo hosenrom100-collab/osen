@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { User } from "firebase/auth";
 import {
   collection, query, where, doc, onSnapshot, getDoc, setDoc,
@@ -11,6 +11,8 @@ import { getCutoffStatus } from "../lib/cutoffUtils";
 import { DEFAULT_CATEGORIES } from "../lib/constants";
 import { toDateOrNull } from "../lib/dateUtils";
 import { belongsToList } from "../lib/listFilters";
+import { computeFreezeAt, LIST_KEYS, listKeyOf, ListKey } from "../lib/freeze";
+import { syncFreeze } from "../lib/syncFreeze";
 
 const DEFAULT_CUTOFF: CutoffConfig = { enabled: true, day: 1, time: "16:00", deliveryDay: null };
 
@@ -48,10 +50,18 @@ export function useShoppingData(
   const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
   const [categories, setCategories] = useState<string[]>(DEFAULT_CATEGORIES);
   const [cutoffConfig, setCutoffConfig] = useState<CutoffConfig>(DEFAULT_CUTOFF);
+  // `freezeAt` as stored in settings (ms, or null) — only meaningful once a saved cutoff config exists.
+  const [storedFreezeAt, setStoredFreezeAt] = useState<Record<ListKey, number | null> | null>(null);
+  const [clockTick, setClockTick] = useState(0);
+  const lastSyncAttempt = useRef(0);
 
   const applySettingsData = (data: any) => {
     if (!data) return;
     if (data.categories) setCategories(data.categories);
+    if (data.cutoffConfig) {
+      const ms = (v: { toMillis?: () => number } | null | undefined): number | null => v?.toMillis?.() ?? null;
+      setStoredFreezeAt({ supermarket: ms(data.freezeAt?.supermarket), large: ms(data.freezeAt?.large) });
+    }
     const { config, needsUpdate } = normalizeCutoff(data.cutoffConfig);
     setCutoffConfig(config);
     if (needsUpdate) {
@@ -146,6 +156,28 @@ export function useShoppingData(
     () => getCutoffStatus(cutoffConfig, currentActiveItems),
     [cutoffConfig, currentActiveItems]
   );
+
+  // Firestore rules freeze a list for non-managers from `settings/shopping.freezeAt`. Rules cannot
+  // inspect the items, so whenever what the lists say differs from what is stored (a list was
+  // closed, the cutoff was edited, the cutoff passed on an empty list, first run), any open client
+  // asks the server to recompute it. The route is idempotent, so concurrent clients are harmless.
+  useEffect(() => {
+    const t = setInterval(() => setClockTick((c) => c + 1), 60_000);
+    return () => clearInterval(t);
+  }, []);
+
+  useEffect(() => {
+    if (!user || loading || storedFreezeAt === null) return;
+    const now = new Date();
+    const live = liveRequests.filter((r) => r.status !== "deleted");
+    const inSync = LIST_KEYS.every((key) => {
+      const expected = computeFreezeAt(cutoffConfig, live.filter((r) => listKeyOf(r) === key), now);
+      return (expected?.getTime() ?? null) === storedFreezeAt[key];
+    });
+    if (inSync || now.getTime() - lastSyncAttempt.current < 15_000) return;
+    lastSyncAttempt.current = now.getTime();
+    void syncFreeze(user);
+  }, [user, loading, liveRequests, cutoffConfig, storedFreezeAt, clockTick]);
 
   const isListFrozen = cutoffStatus.isEnabled && cutoffStatus.isPassed && currentActiveItems.length > 0;
 

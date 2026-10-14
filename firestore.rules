@@ -14,36 +14,39 @@ service cloud.firestore {
         : null;
     }
     
-    function hasRole(role) {
-      return request.auth != null && getUserData() != null && (
-        getUserData().role == role || 
-        (getUserData().roles != null && role in getUserData().roles)
-      );
+    // Every role the signed-in user holds (`role` and/or the `roles` array), read once per call.
+    // The helpers below used to re-run `getUserData()` and a long chain of comparisons for each
+    // role; for an ordinary staff member that alone exceeded Firestore's limit of 1000 evaluated
+    // expressions per request, so even a simple write was refused before the real rule ran.
+    function userRoles() {
+      let d = getUserData();
+      return d == null
+        ? []
+        : (d.get('roles', null) is list ? d.roles : []).concat(d.get('role', null) is string ? [d.role] : []);
     }
-    
+
+    function hasRole(role) {
+      return request.auth != null && role in userRoles();
+    }
+
     function isAdmin() {
       return hasRole('admin');
     }
 
     function isManager() {
-      return hasRole('manager') || isAdmin();
+      return request.auth != null && userRoles().hasAny(['manager', 'admin']);
     }
 
     function isStaff() {
-      return isAuthenticated() && (
-        isManager() ||
-        hasRole('social_worker') ||
-        hasRole('instructor') ||
-        hasRole('employee') ||
-        hasRole('logistics') ||
-        hasRole('professional_manager')
-      );
+      return isAuthenticated() && userRoles().hasAny([
+        'admin', 'manager', 'social_worker', 'instructor', 'employee', 'logistics', 'professional_manager'
+      ]);
     }
 
     // Manager-equivalent for shopping/inventory flows — mirrors the client's
     // `canPurchase` boundary (page.tsx), which includes logistics alongside admin/manager.
     function isShoppingManager() {
-      return isManager() || hasRole('logistics');
+      return request.auth != null && userRoles().hasAny(['manager', 'admin', 'logistics']);
     }
 
     // ─── Global Rules ────────────────────────────────────────────────────────
@@ -146,29 +149,52 @@ service cloud.firestore {
       );
     }
 
+    // Shopping lists freeze at `settings/shopping.freezeAt.<list>` (kept in line with the real
+    // lists by /api/shopping/sync-freeze). From that instant only shopping managers may change a
+    // list. A missing or null boundary means "not frozen", so this is safe before it is first set.
+    function isShoppingListFrozen(list) {
+      let path = /databases/$(database)/documents/settings/shopping;
+      let at = exists(path)
+        ? get(path).data.get('freezeAt', {}).get(list == 'large' ? 'large' : 'supermarket', null)
+        : null;
+      return at != null && request.time >= at;
+    }
+
+    // Items without a listType (older documents) belong to the supermarket list.
+    function shoppingItemList(data) {
+      return data.get('listType', 'supermarket') == 'large' ? 'large' : 'supermarket';
+    }
+
+    function shoppingChangedKeys() {
+      return request.resource.data.diff(resource.data).affectedKeys();
+    }
+
     // Shopping Requests
     match /shopping_requests/{docId} {
       allow read: if isAuthenticated();
 
       // Any staff member can add an item under their own name; shopping managers
       // (admin/manager/logistics) can also add on someone else's behalf (recurring
-      // list import, approving a queued product request).
+      // list import, approving a queued product request). Staff cannot add to a frozen list.
       allow create: if isShoppingManager() || (
         isStaff() &&
         request.resource.data.requestedBy == request.auth.uid &&
-        request.resource.data.status == 'approved'
+        request.resource.data.status == 'approved' &&
+        !isShoppingListFrozen(shoppingItemList(request.resource.data))
       );
 
-      // Any staff member can check an item off, adjust its quantity/notes/priority,
-      // move it between lists, or soft-delete it — but only shopping managers may
-      // touch an archived item, and nobody may rewrite who requested it or its
-      // archive trail via a plain update.
+      // Any staff member can adjust, move or soft-delete an item while its list is open, but
+      // nothing at all once it is frozen. Moving an item into a frozen list counts as adding to
+      // it. Nobody may rewrite who requested an item or when via a plain update.
       allow update: if isShoppingManager() || (
         isStaff() &&
-        resource.data.status != 'archived' &&
         request.resource.data.status in ['pending', 'approved', 'purchased', 'deleted'] &&
-        !request.resource.data.diff(resource.data).affectedKeys()
-             .hasAny(['requestedBy', 'requestedByName', 'createdAt', 'archivedAt', 'archivedBy'])
+        !shoppingChangedKeys().hasAny(['requestedBy', 'requestedByName', 'createdAt']) &&
+        !isShoppingListFrozen(shoppingItemList(resource.data)) &&
+        (
+          !shoppingChangedKeys().hasAny(['listType']) ||
+          !isShoppingListFrozen(shoppingItemList(request.resource.data))
+        )
       );
 
       // Only shopping managers (admin/manager/logistics) permanently delete items.

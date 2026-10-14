@@ -1,5 +1,5 @@
 import { CutoffConfig, CutoffStatus, ShoppingRequest } from "../types";
-import { toDateOrNull } from "./dateUtils";
+import { getCutoffBoundaries, hasItemBefore } from "./freeze";
 
 export function getCutoffStatus(config?: CutoffConfig, activeRequests?: ShoppingRequest[]): CutoffStatus {
   if (!config || !config.enabled) {
@@ -8,7 +8,6 @@ export function getCutoffStatus(config?: CutoffConfig, activeRequests?: Shopping
 
   const daysHebrew = ["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת"];
   const targetDayName = daysHebrew[config.day] ?? "שני";
-  const [targetHour, targetMinute] = (config.time || "16:00").split(":").map(Number);
   const deliveryDayFormatted =
     config.deliveryDay !== undefined && config.deliveryDay !== null && config.deliveryDay >= 0 && daysHebrew[config.deliveryDay]
       ? `יום ${daysHebrew[config.deliveryDay]}`
@@ -16,25 +15,11 @@ export function getCutoffStatus(config?: CutoffConfig, activeRequests?: Shopping
 
   const now = new Date();
 
-  // The cutoff falls on config.day of the current calendar week. Depending on today it is either
-  // still ahead (the one that passed is last week's) or already behind (the next is next week's).
-  const thisWeekCutoff = new Date(now);
-  thisWeekCutoff.setDate(now.getDate() + (config.day - now.getDay()));
-  thisWeekCutoff.setHours(targetHour ?? 16, targetMinute ?? 0, 0, 0);
-
-  const lastCutoff = new Date(thisWeekCutoff);
-  let targetDate = new Date(thisWeekCutoff);
-  if (thisWeekCutoff > now) lastCutoff.setDate(lastCutoff.getDate() - 7);
-  else targetDate.setDate(targetDate.getDate() + 7);
-
+  // Same boundaries the Firestore freeze uses (Israel time), so the screen and the rules agree.
   // Frozen: the most recent cutoff has passed and the list still holds items from before it
-  // (i.e. it was never closed). Looking at the previous cutoff, not just this week's, keeps a
-  // list that was left open over the weekend frozen until someone closes it.
-  const hasActiveBeforeCutoff = activeRequests?.some((r) => {
-    const createdAt = toDateOrNull(r.createdAt);
-    return createdAt !== null && createdAt < lastCutoff;
-  });
-  if (hasActiveBeforeCutoff) {
+  // (i.e. it was never closed), so a list left open over the weekend stays frozen until closed.
+  const { last: lastCutoff, next: targetDate } = getCutoffBoundaries(config, now);
+  if (hasItemBefore(activeRequests, lastCutoff)) {
     return {
       isEnabled: true,
       isPassed: true,

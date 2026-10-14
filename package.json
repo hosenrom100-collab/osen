@@ -6,7 +6,9 @@
     "dev": "next dev -p 9000",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test:unit": "tsx --test tests/freeze.test.ts",
+    "test:rules": "npx --yes firebase-tools@14 emulators:exec --only firestore --project demo-osen-rules \"tsx --test tests/firestore.rules.test.ts\""
   },
   "dependencies": {
     "@firebase/firestore": "^4.14.1",
@@ -32,6 +34,7 @@
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
+    "@firebase/rules-unit-testing": "^5.0.2",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
@@ -39,6 +42,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.2.6",
     "tailwindcss": "^4",
+    "tsx": "^4.23.15",
     "typescript": "^5"
   }
 }

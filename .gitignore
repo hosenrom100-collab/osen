@@ -43,3 +43,7 @@ next-env.d.ts
 # scratch/temporary
 /scratch
 
+
+# Firebase emulator
+*-debug.log
+.firebase/
