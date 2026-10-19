@@ -15,8 +15,10 @@ import {
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { db } from "@/lib/firebase/config";
-import { doc, updateDoc, collection, serverTimestamp, getDocs, query, where, addDoc } from "firebase/firestore";
+import { doc, updateDoc, collection, serverTimestamp, getDocs, query, where } from "firebase/firestore";
 import { updateProfile } from "firebase/auth";
+import { absenceFromDoc, formatAbsenceRange, StaffAbsence } from "@/lib/attendance/staffAbsence";
+import { addAbsence } from "@/lib/attendance/staffAbsenceData";
 
 export default function ProfilePage() {
   const { 
@@ -38,8 +40,9 @@ export default function ProfilePage() {
   const [editingSchedule, setEditingSchedule] = useState<Record<string, { start: string; end: string; programs?: Record<string, { start: string; end: string }> }>>({});
   const [programs, setPrograms] = useState<{ id: string; name: string }[]>([]);
   const [absenceDate, setAbsenceDate] = useState("");
+  const [absenceEndDate, setAbsenceEndDate] = useState("");
   const [absenceReason, setAbsenceReason] = useState("");
-  const [absenceRequests, setAbsenceRequests] = useState<any[]>([]);
+  const [absenceRequests, setAbsenceRequests] = useState<StaffAbsence[]>([]);
   const [submittingAbsence, setSubmittingAbsence] = useState(false);
   const [loadingAbsences, setLoadingAbsences] = useState(false);
 
@@ -70,8 +73,8 @@ export default function ProfilePage() {
         where("userId", "==", user.uid)
       );
       const snap = await getDocs(q);
-      const list = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as any));
-      list.sort((a, b) => b.date.localeCompare(a.date));
+      const list = snap.docs.map(d => absenceFromDoc(d.id, d.data()));
+      list.sort((a, b) => b.startDate.localeCompare(a.startDate));
       setAbsenceRequests(list);
     } catch (e) {
       console.error("Error fetching absences:", e);
@@ -85,21 +88,22 @@ export default function ProfilePage() {
     if (!absenceDate || !absenceReason.trim() || !user) return;
     setSubmittingAbsence(true);
     try {
-      await addDoc(collection(db, "absence_requests"), {
+      await addAbsence({
         userId: user.uid,
         userName: user.displayName || user.email || "עובד",
-        date: absenceDate,
+        startDate: absenceDate,
+        endDate: absenceEndDate || absenceDate,
         reason: absenceReason,
         status: "pending",
-        createdAt: serverTimestamp()
       });
       setAbsenceDate("");
+      setAbsenceEndDate("");
       setAbsenceReason("");
       setMessage({ type: "success", text: "דיווח ההיעדרות נשלח בהצלחה וממתין לאישור מנהלת." });
       fetchAbsences();
     } catch (err) {
       console.error(err);
-      setMessage({ type: "error", text: "שגיאה בשליחת דיווח ההיעדרות." });
+      setMessage({ type: "error", text: err instanceof Error && /[א-ת]/.test(err.message) ? err.message : "שגיאה בשליחת דיווח ההיעדרות." });
     } finally {
       setSubmittingAbsence(false);
     }
@@ -624,14 +628,24 @@ export default function ProfilePage() {
                   </div>
 
                   <form onSubmit={handleReportAbsence} className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div className="space-y-1.5 text-right">
-                        <label className="block text-[11px] font-bold uppercase tracking-[0.2em] text-[var(--foreground)]/30 mr-1">תאריך היעדרות</label>
+                        <label className="block text-[11px] font-bold uppercase tracking-[0.2em] text-[var(--foreground)]/30 mr-1">מתאריך</label>
                         <input 
                           type="date"
                           required
                           value={absenceDate}
                           onChange={(e) => setAbsenceDate(e.target.value)}
+                          className="w-full bg-[var(--background)] border border-[var(--border)] rounded-2xl px-5 py-4 text-xs font-bold outline-none focus:border-rose-500 transition-all text-right"
+                        />
+                      </div>
+                      <div className="space-y-1.5 text-right">
+                        <label className="block text-[11px] font-bold uppercase tracking-[0.2em] text-[var(--foreground)]/30 mr-1">עד תאריך (ריק ליום אחד)</label>
+                        <input 
+                          type="date"
+                          min={absenceDate || undefined}
+                          value={absenceEndDate}
+                          onChange={(e) => setAbsenceEndDate(e.target.value)}
                           className="w-full bg-[var(--background)] border border-[var(--border)] rounded-2xl px-5 py-4 text-xs font-bold outline-none focus:border-rose-500 transition-all text-right"
                         />
                       </div>
@@ -679,7 +693,7 @@ export default function ProfilePage() {
                               <div className="text-right">
                                 <p className="font-bold text-[var(--foreground)]">{req.reason}</p>
                                 <p className="text-[11px] text-[var(--foreground)]/30 mt-1 font-bold">
-                                  {req.date.split("-").reverse().join(".")}
+                                  {formatAbsenceRange(req)}
                                 </p>
                               </div>
                               <span className={`px-2.5 py-1 rounded-full border text-[11px] font-bold ${statusCls}`}>{statusLabel}</span>

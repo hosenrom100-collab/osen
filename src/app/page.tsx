@@ -25,6 +25,7 @@ import { FRAMEWORK_LABELS } from "@/app/shopping/lib/constants";
 import { belongsToList } from "@/app/shopping/lib/listFilters";
 import { getCutoffStatus } from "@/app/shopping/lib/cutoffUtils";
 import type { CutoffConfig, ShoppingRequest } from "@/app/shopping/types";
+import { loadAbsencesOn } from "@/lib/attendance/staffAbsenceData";
 
 interface GroupStat   { id: string; name: string; present: number; absent: number; total: number }
 interface PresentPat  { id: string; firstName: string; lastName: string; hosenType?: string }
@@ -333,6 +334,13 @@ export default function Home() {
           absentStaffIds.add(data.userId);
         }
       });
+      // Approved absences (single days and ranges) are the source of truth for who is away today.
+      (await loadAbsencesOn(today).catch(() => []))
+        .filter(a => a.status === "approved")
+        .forEach(a => {
+          attRec[a.userId] = { status: "leave", reason: a.reason };
+          absentStaffIds.add(a.userId);
+        });
       setStaffAttendance(attRec);
 
       // 5. Notifications
