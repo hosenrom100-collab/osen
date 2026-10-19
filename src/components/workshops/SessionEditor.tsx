@@ -11,6 +11,7 @@ import { Person, Session, SessionChange, Workshop, DAY_FULL } from "@/lib/worksh
 import { ActivityType, pastel } from "@/lib/workshops/activityTypes";
 import { bindMoves, planSplit } from "@/lib/workshops/splitSeries";
 import { addMinutes, dayOf, shortDate } from "@/lib/workshops/dates";
+import { addGuests, cancelTransfer, transferParticipants } from "@/lib/workshops/transfer";
 
 interface Props {
   session: Session | null;          // null → creating an extra session
@@ -22,6 +23,8 @@ interface Props {
   canEdit: boolean;
   warnings: string[];
   participants?: string[]; // first names of the people attending
+  participantIds?: string[]; // the same people's ids, for sending them to another workshop when the session is cancelled
+  transferTargets?: Session[]; // sessions of other workshops the same day that a cancelled session's participants can join
   groupNames?: string[];
   accent?: number;         // hue of the session, for the header bar
   busyFor?: (staffId: string, date: string, start: string, end: string, workshopId?: string) => string | undefined;
@@ -57,7 +60,7 @@ function WholeWorkshop({ name, id, onEditSeries }: { name: string; id: string; o
 const quickCls = "rounded-lg border border-[var(--border)] px-3 py-2.5 text-sm font-semibold hover:bg-[var(--foreground)]/5 disabled:opacity-50 transition-colors";
 const sameSet = (a: string[], b: string[]) => [...a].sort().join() === [...b].sort().join();
 
-export function SessionEditor({ session, extra, workshops, staff, locations, types = [], canEdit, warnings, participants = [], groupNames = [], accent, busyFor, userId, onClose, onSaved, onEditSeries, onDuplicate, onMarkAttendance }: Props) {
+export function SessionEditor({ session, extra, workshops, staff, locations, types = [], canEdit, warnings, participants = [], participantIds = [], transferTargets = [], groupNames = [], accent, busyFor, userId, onClose, onSaved, onEditSeries, onDuplicate, onMarkAttendance }: Props) {
   const isExtra = !session || session.kind === "extra";
   const ch = session?.change;
   // The change document as it was when this editor opened, so a save can be taken back.
@@ -84,7 +87,9 @@ export function SessionEditor({ session, extra, workshops, staff, locations, typ
     && (start !== session.base.start || end !== session.base.end || locationId !== (session.base.locationId || "") || !sameSet(staffIds, session.base.staffIds) || date !== session.origDate);
   const forward = scope === "forward" && slotEdited && !!workshop;
   // Existing sessions open as a readable summary with one-tap actions; the full form is one step further.
-  const [stage, setStage] = useState<"view" | "edit">(session ? "view" : "edit");
+  // "transfer": picking where a cancelled session's participants go instead.
+  const [stage, setStage] = useState<"view" | "edit" | "transfer">(session ? "view" : "edit");
+  const [afterCancel, setAfterCancel] = useState<{ undo?: () => Promise<void> } | null>(null); // set when the transfer step follows a cancel just made
   const [confirmCancel, setConfirmCancel] = useState(false);
 
   const nameOf = (id: string) => staff.find(s => s.id === id)?.name || "—";
@@ -106,7 +111,10 @@ export function SessionEditor({ session, extra, workshops, staff, locations, typ
   const [name, setName] = useState(session?.workshopName || "");
   const nameChanged = !!session && !session.fixedBlock && name.trim() !== session.workshopName && name.trim() !== "";
 
-  const save = async (o: { cancelled?: boolean; start?: string; end?: string } = {}) => {
+  // Cancelling a session that has participants goes on to ask where they go instead (once).
+  const canTransfer = !!session && !session.fixedBlock && !!session.changeId && participantIds.length > 0 && transferTargets.length > 0 && !ch?.transfer;
+
+  const save = async (o: { cancelled?: boolean; start?: string; end?: string; offerTransfer?: boolean } = {}) => {
     const isCancelled = o.cancelled ?? cancelled, st = o.start ?? start, en = o.end ?? end;
     setSaving(true);
     let undo: (() => Promise<void>) | undefined;
@@ -119,6 +127,7 @@ export function SessionEditor({ session, extra, workshops, staff, locations, typ
         await setDoc(ref, {
           workshopId, slotId: null, originalDate: null, newDate: date, newStart: st, newEnd: en,
           staffIds, locationId, note: note.trim(), dates: [date], published: false, ...(kind !== defaultKind ? { kind } : {}),
+          ...(ch?.guests ? { guests: ch.guests } : {}),
           ...(session && name.trim() && name.trim() !== workshop.name ? { title: name.trim() } : {}),
           updatedAt: serverTimestamp(), updatedBy: userId || null,
         });
@@ -132,12 +141,22 @@ export function SessionEditor({ session, extra, workshops, staff, locations, typ
         if (locationId !== (session.base.locationId || "")) c.locationId = locationId;
         if (note.trim()) c.note = note.trim();
         if (kind !== defaultKind) c.kind = kind;
+        // Participants sent here from a cancelled session stay; a transfer lives only as long as the cancellation.
+        if (ch?.guests && Object.keys(ch.guests).length) c.guests = ch.guests;
+        if (ch?.transfer && isCancelled) c.transfer = ch.transfer;
+        const dropTransfer = !!ch?.transfer && !isCancelled ? ch.transfer : null;
+        if (dropTransfer) await cancelTransfer(session.changeId, dropTransfer, { clearSource: false });
         // A one-time event owns its name; any other session only carries a name for itself.
         if (oneTimeEvent && nameChanged && workshop) await updateDoc(doc(db, "workshops", workshop.id), { name: name.trim() });
         else if (name.trim() && name.trim() !== (workshop?.name ?? session.workshopName)) c.title = name.trim();
         const ref = doc(db, "session_changes", session.changeId);
         const oldName = workshop?.name;
-        undo = async () => { await restoreChange(ref)(); if (oneTimeEvent && nameChanged && workshop && oldName) await updateDoc(doc(db, "workshops", workshop.id), { name: oldName }); };
+        const fromId = session.changeId;
+        undo = async () => {
+          await restoreChange(ref)();
+          if (dropTransfer) await addGuests(fromId, dropTransfer, userId);
+          if (oneTimeEvent && nameChanged && workshop && oldName) await updateDoc(doc(db, "workshops", workshop.id), { name: oldName });
+        };
         if (Object.keys(c).length === 0) await deleteDoc(ref).catch(() => {});
         else await setDoc(ref, {
           workshopId: session.workshopId, slotId: session.slotId, originalDate: session.origDate, ...c,
@@ -145,7 +164,30 @@ export function SessionEditor({ session, extra, workshops, staff, locations, typ
           published: false, updatedAt: serverTimestamp(), updatedBy: userId || null,
         });
       }
+      if (o.offerTransfer && isCancelled && canTransfer) { setAfterCancel({ undo }); setStage("transfer"); return; }
       onSaved(undo);
+    } finally { setSaving(false); }
+  };
+
+  /** Sends the cancelled session's participants to one session of another workshop, for that session only. */
+  const transferTo = async (to: Session | null) => {
+    if (!session) return;
+    if (!to) { if (afterCancel) onSaved(afterCancel.undo); else setStage("view"); return; }
+    setSaving(true);
+    try {
+      const undoTransfer = await transferParticipants(session, to, participantIds, userId);
+      const undoCancel = afterCancel?.undo;
+      onSaved(async () => { await undoTransfer(); if (undoCancel) await undoCancel(); });
+    } finally { setSaving(false); }
+  };
+
+  const undoTransfer = async () => {
+    if (!session?.changeId || !ch?.transfer) return;
+    setSaving(true);
+    const t = ch.transfer, fromId = session.changeId;
+    try {
+      await cancelTransfer(fromId, t);
+      onSaved(() => addGuests(fromId, t, userId).then(() => setDoc(doc(db, "session_changes", fromId), { transfer: t }, { merge: true })));
     } finally { setSaving(false); }
   };
 
@@ -198,10 +240,14 @@ export function SessionEditor({ session, extra, workshops, staff, locations, typ
   const revert = async () => {
     if (!session?.changeId) return;
     setSaving(true);
-    const ref = doc(db, "session_changes", session.changeId);
-    const undo = restoreChange(ref);
-    await deleteDoc(ref);
-    onSaved(undo);
+    const fromId = session.changeId, ref = doc(db, "session_changes", fromId);
+    const t = ch?.transfer;
+    if (t) await cancelTransfer(fromId, t, { clearSource: false });
+    // Participants sent here from another workshop's cancelled session are not this session's change to take back.
+    if (ch?.guests && Object.keys(ch.guests).length && session.slotId !== null) {
+      await setDoc(ref, { workshopId: session.workshopId, slotId: session.slotId, originalDate: session.origDate, dates: [session.origDate], guests: ch.guests, published: false, updatedAt: serverTimestamp(), updatedBy: userId || null });
+    } else await deleteDoc(ref);
+    onSaved(async () => { await restoreChange(ref)(); if (t) await addGuests(fromId, t, userId); });
   };
 
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -232,6 +278,25 @@ export function SessionEditor({ session, extra, workshops, staff, locations, typ
     <>יום {DAY_FULL[dayOf(session.date)]} {shortDate(session.date)} · <span dir="ltr" className="tabular-nums">{session.start}–{session.end}</span>{roomName ? ` · ${roomName}` : ""}</>
   ) : undefined;
   const dead = session?.kind === "cancelled";
+  // Right after cancelling (or later, from the cancelled session): where do its participants go instead?
+  if (session && canEdit && stage === "transfer") {
+    const roomOf = (id?: string) => locations.find(l => l.id === id)?.name;
+    return (
+      <Dialog title="להעביר את המשתתפים לסדנה אחרת?" subtitle={<>{session.workshopName} בוטל · {participantIds.length} משתתפים</>} accent={accent} onClose={() => transferTo(null)}
+        footer={<button onClick={() => transferTo(null)} disabled={saving} className={btnGhost}>{afterCancel ? "לא, רק לבטל" : "חזרה"}</button>}>
+        <p className="text-sm text-[var(--foreground)]/70">המשתתפים יצורפו למפגש אחד של הסדנה שתבחר, באותו יום בלבד. הסדנה עצמה ושאר המפגשים שלה לא משתנים.</p>
+        <ul className="space-y-1.5">{transferTargets.map(t => (
+          <li key={t.id}>
+            <button disabled={saving} onClick={() => transferTo(t)} className={`${quickCls} w-full text-right flex items-center justify-between gap-2`}>
+              <span>{t.workshopName}{roomOf(t.locationId) ? <span className="font-normal text-[var(--foreground)]/60"> · {roomOf(t.locationId)}</span> : null}</span>
+              <span dir="ltr" className="tabular-nums font-normal text-[var(--foreground)]/60">{t.start}–{t.end}</span>
+            </button>
+          </li>
+        ))}</ul>
+      </Dialog>
+    );
+  }
+
   // Summary: what, who, where — readable at a glance. Managers get one-tap actions under it.
   if (session && (!canEdit || stage === "view")) {
     const shown = participants.slice(0, 14);
@@ -241,7 +306,10 @@ export function SessionEditor({ session, extra, workshops, staff, locations, typ
           <button onClick={() => setStage("edit")} className={btnPrimary}>עריכה מלאה</button>
           <button onClick={onClose} className={btnGhost}>סגור</button>
         </> : <button onClick={onClose} className={btnGhost}>סגור</button>}>
-        {dead && <p className="rounded-lg bg-[#fde2e2] text-[#b42318] text-sm font-bold px-3 py-2">המפגש בוטל</p>}
+        {dead && <p className="rounded-lg bg-[#fde2e2] text-[#b42318] text-sm font-bold px-3 py-2">המפגש בוטל
+          {ch?.transfer && <span className="block font-normal mt-0.5">{ch.transfer.patientIds.length} משתתפים הועברו ל{ch.transfer.toName} (<span dir="ltr" className="tabular-nums">{ch.transfer.toStart}</span>)</span>}</p>}
+        {dead && canEdit && ch?.transfer && <button disabled={saving} onClick={undoTransfer} className="block text-xs text-[var(--foreground)]/55 underline">בטל את העברת המשתתפים</button>}
+        {dead && canEdit && canTransfer && <button disabled={saving} onClick={() => setStage("transfer")} className={`${quickCls} w-full`}>העבר את המשתתפים לסדנה אחרת…</button>}
         {warnings.length > 0 && <ul className="rounded-lg bg-[#fff6dc] text-[#8a5a00] text-[13px] px-3 py-2 space-y-0.5">{warnings.map(w => <li key={w}>{w}</li>)}</ul>}
         <Section label={session.audience === "staff" ? "נוכחים" : "מעבירים"}>{session.staffIds.length ? session.staffIds.map(id => <Chip key={id}>{nameOf(id)}</Chip>) : <span className="text-[var(--foreground)]/50">—</span>}</Section>
         {groupNames.length > 0 && <Section label="קבוצות">{groupNames.map(g => <Chip key={g}>{g}</Chip>)}</Section>}
@@ -267,7 +335,7 @@ export function SessionEditor({ session, extra, workshops, staff, locations, typ
               {dead
                 ? <button disabled={saving} onClick={() => save({ cancelled: false })} className={`${quickCls} col-span-2`}>החזר את המפגש</button>
                 : confirmCancel
-                  ? <span className="flex gap-1.5"><button disabled={saving} onClick={() => save({ cancelled: true })} className="flex-1 rounded-lg bg-[#b42318] text-white text-sm font-bold px-2 py-2.5">כן, בטל</button><button onClick={() => setConfirmCancel(false)} className="rounded-lg border border-[var(--border)] text-sm px-3">לא</button></span>
+                  ? <span className="flex gap-1.5"><button disabled={saving} onClick={() => save({ cancelled: true, offerTransfer: true })} className="flex-1 rounded-lg bg-[#b42318] text-white text-sm font-bold px-2 py-2.5">כן, בטל</button><button onClick={() => setConfirmCancel(false)} className="rounded-lg border border-[var(--border)] text-sm px-3">לא</button></span>
                   : <button onClick={() => setConfirmCancel(true)} className={`${quickCls} text-[#b42318]`}>בטל מפגש…</button>}
             </div>
             {ch && !isExtra && <button onClick={revert} disabled={saving} className="mt-3 text-xs text-[var(--foreground)]/55 underline">החזר את כל השינויים למקור</button>}

@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test:unit": "tsx --test tests/freeze.test.ts tests/attendance.test.ts",
+    "test:unit": "tsx --test tests/freeze.test.ts tests/attendance.test.ts tests/transfer.test.ts",
     "test:rules": "npx --yes firebase-tools@14 emulators:exec --only firestore --project demo-osen-rules \"tsx --test tests/firestore.rules.test.ts\""
   },
   "dependencies": {

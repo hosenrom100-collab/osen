@@ -6,6 +6,7 @@ import { dayOf, fromMin as fmtMin, shortDate, toMin } from "@/lib/workshops/date
 import { MapPin, Plus } from "lucide-react";
 import { hueStyle } from "@/lib/workshops/colors";
 import { DayLanes, laneByFrame, laneByGroup, laneStable, timeRows } from "@/lib/workshops/lanes";
+import { guestIdsOf } from "@/lib/workshops/transferCore";
 
 export interface Row { id: string; label: string; hue?: number; match: (s: Session) => boolean; closedReason: (date: string) => string | undefined }
 
@@ -41,6 +42,8 @@ function changeNote(s: Session): string {
   if (s.change?.staffIds) { const l = staffChangeLabel(s); if (l) parts.push(l); }
   if (s.change?.newStart || s.change?.newEnd) parts.push("שעה שונתה");
   if (s.change?.locationId !== undefined) parts.push("מרחב שונה");
+  const guests = guestIdsOf(s).length;
+  if (guests) parts.push(`+${guests} משתתפים מסדנה שבוטלה`);
   return parts.join(", ");
 }
 
