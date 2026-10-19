@@ -14,6 +14,7 @@ import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
+import { clampVegetarian, DEFAULT_VEGETARIAN_DISH, vegetarianLine, vegetarianOf } from "@/lib/catering/vegetarian";
 
 interface Group {
   id: string;
@@ -60,6 +61,8 @@ interface CateringOrder {
   portions: Record<string, number>;
   defaultPortions?: Record<string, number>;
   totalPortions: number;
+  vegetarianDish?: string;
+  vegetarianPortions?: number;
   createdAt?: any;
   createdBy?: string;
   contactName?: string;
@@ -141,6 +144,10 @@ export default function CateringOrderPage() {
   const [arrivalTime, setArrivalTime] = useState("12:30");
 
   const [includeBread, setIncludeBread] = useState(true);
+
+  // Fixed vegetarian main dish: how many of the total portions are vegetarian
+  const [vegetarianDish, setVegetarianDish] = useState(DEFAULT_VEGETARIAN_DISH);
+  const [vegetarianPortions, setVegetarianPortions] = useState(0);
 
   // Archive and saving states
   const [archive, setArchive] = useState<CateringOrder[]>([]);
@@ -358,6 +365,8 @@ export default function CateringOrderPage() {
         portions,
         defaultPortions: portions,
         totalPortions,
+        vegetarianDish: vegetarianDish.trim() || DEFAULT_VEGETARIAN_DISH,
+        vegetarianPortions: clampVegetarian(vegetarianPortions, totalPortions),
         createdAt: serverTimestamp(),
         createdBy: user?.displayName || user?.email || "משתמש מערכת"
       };
@@ -468,6 +477,10 @@ export default function CateringOrderPage() {
 
   const isSelectionValid = meatsCount === 2 && (sidesCount >= 2 && sidesCount <= 3);
 
+  const totalPortionsNow = Object.values(portions).reduce((a, b) => a + b, 0);
+  const vegetarianNow = clampVegetarian(vegetarianPortions, totalPortionsNow);
+  const vegetarianSummary = vegetarianLine(vegetarianNow, totalPortionsNow, vegetarianDish);
+
   // Format YYYY-MM-DD to DD/MM/YYYY
   const formatDeliveryDate = (dateStr: string) => {
     if (!dateStr) return "";
@@ -501,6 +514,7 @@ export default function CateringOrderPage() {
       .join("\n");
       
     const meatsList = selectedMeats.map((m, idx) => `${idx + 1}. ${m}`).join("\n");
+    const vegetarianSection = vegetarianSummary ? `\n🌱 ${vegetarianSummary}` : "";
     const sidesList = selectedSides.map((s, idx) => `${idx + 1}. ${s}`).join("\n");
 
     const dayOfWeek = getHebrewDayOfWeek(deliveryDate);
@@ -516,13 +530,13 @@ export default function CateringOrderPage() {
 
 *פירוט מנות לפי קבוצות:*
 ${groupsBreakdown}
-*סה"כ מנות:* ${totalPortions} מנות
+*סה"כ מנות:* ${totalPortions} מנות${vegetarianSummary ? `\n*מתוכן צמחוניות:* ${vegetarianNow} מנות` : ""}
 
 ------------------------
 *תפריט אחיד שנבחר:*
 
 *בשרים ומנות עיקריות:*
-${meatsList || "_לא נבחרו מנות_"}
+${meatsList || "_לא נבחרו מנות_"}${vegetarianSection}
 
 *תוספות חמות:*
 ${sidesList || "_לא נבחרו תוספות_"}
@@ -935,6 +949,43 @@ ${contactRole}`;
                       </div>
                     </div>
                   )}
+
+                  {/* Fixed vegetarian main dish */}
+                  <div className="p-3.5 bg-[var(--background)] border border-emerald-500/30 rounded-xl space-y-2.5">
+                    <div className="text-[11px] font-bold text-emerald-500">🌱 מנה צמחונית (קבועה)</div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <label htmlFor="vegetarianDish" className="text-[11px] font-bold text-[var(--muted)]">שם המנה</label>
+                        <input
+                          id="vegetarianDish"
+                          type="text"
+                          value={vegetarianDish}
+                          onChange={(e) => setVegetarianDish(e.target.value)}
+                          placeholder={DEFAULT_VEGETARIAN_DISH}
+                          className="w-full bg-[var(--surface)] border border-[var(--border)] text-xs rounded-xl px-3 py-2 focus:outline-none focus:border-emerald-500"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label htmlFor="vegetarianPortions" className="text-[11px] font-bold text-[var(--muted)]">
+                          מנות צמחוניות מתוך {totalPortionsNow}
+                        </label>
+                        <input
+                          id="vegetarianPortions"
+                          type="number"
+                          min="0"
+                          max={totalPortionsNow}
+                          value={vegetarianNow}
+                          onChange={(e) => setVegetarianPortions(clampVegetarian(parseInt(e.target.value) || 0, totalPortionsNow))}
+                          className="w-full bg-[var(--surface)] border border-[var(--border)] text-xs rounded-xl px-3 py-2 focus:outline-none focus:border-emerald-500 font-bold"
+                        />
+                      </div>
+                    </div>
+                    <div className="text-[11px] text-[var(--muted)] font-semibold">
+                      {vegetarianNow > 0
+                        ? `${vegetarianNow} צמחוניות, ${totalPortionsNow - vegetarianNow} רגילות`
+                        : "אין מנות צמחוניות בהזמנה"}
+                    </div>
+                  </div>
                 </div>
 
                 {/* 2. SIDES CATEGORY */}
@@ -1116,6 +1167,11 @@ ${contactRole}`;
                                   <div>
                                     <span className="text-[var(--foreground)] font-bold">🥩 מנות:</span> {order.meats.join(", ")}
                                   </div>
+                                  {vegetarianOf(order) > 0 && (
+                                    <div className="sm:col-span-2">
+                                      <span className="text-[var(--foreground)] font-bold">🌱</span> {vegetarianLine(vegetarianOf(order), order.totalPortions, order.vegetarianDish)}
+                                    </div>
+                                  )}
                                   <div>
                                     <span className="text-[var(--foreground)] font-bold">🍚 תוספות:</span> {order.sides.join(", ")}
                                   </div>
@@ -1141,6 +1197,8 @@ ${contactRole}`;
                                       setSelectedSides(order.sides);
                                       setSelectedSalads(order.salads);
                                       setIncludeBread(order.includeBread);
+                                      setVegetarianDish(order.vegetarianDish || DEFAULT_VEGETARIAN_DISH);
+                                      setVegetarianPortions(vegetarianOf(order));
                                       setDeliveryDate(order.deliveryDate);
                                       setArrivalTime(order.arrivalTime);
                                       setPortions(order.defaultPortions || order.portions);
@@ -1408,6 +1466,12 @@ ${contactRole}`;
                           {Object.values(portions).reduce((a, b) => a + b, 0)} מנות
                         </span>
                       </div>
+                      {vegetarianNow > 0 && (
+                        <div style={{ display: "flex", justifyContent: "space-between" }}>
+                          <span style={{ color: "#047857", fontWeight: "bold" }}>מתוכן צמחוניות:</span>
+                          <span style={{ fontWeight: "800", color: "#047857" }}>{vegetarianNow} מנות</span>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1431,6 +1495,11 @@ ${contactRole}`;
                       ))}
                       {selectedMeats.length === 0 && <li style={{ fontSize: "11px", color: "#94a3b8", fontStyle: "italic" }}>טרם נבחרו מנות עיקריות</li>}
                     </ul>
+                    {vegetarianSummary && (
+                      <div style={{ fontSize: "12px", marginTop: "10px", backgroundColor: "#ecfdf5", border: "1px solid #a7f3d0", color: "#047857", padding: "6px 12px", borderRadius: "8px", fontWeight: "bold" }}>
+                        🌱 {vegetarianSummary}
+                      </div>
+                    )}
                   </div>
 
                   {/* Hot Sides */}
