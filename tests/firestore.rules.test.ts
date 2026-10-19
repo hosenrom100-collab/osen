@@ -285,3 +285,17 @@ test("a screen still running the previous version (id with the group in it) can 
     patientId: "p1", date: "2026-10-14", status: "present", contextId: "group7", updatedAt: "2026-10-14T07:00:00.000Z",
   }));
 });
+
+// ── breakfast duty ──
+
+test("breakfast duty: everyone signed in reads it, only managers write it", async () => {
+  await seed(null);
+  const duty = (uid: string) => doc(as(uid), "daily_duties", "prog1_2026-10-19");
+  const data = { programId: "prog1", date: "2026-10-19", breakfastIds: ["p1", "p2"] };
+  await assertSucceeds(setDoc(duty("manager"), data));
+  await assertFails(setDoc(duty("staff"), data));
+  await assertFails(deleteDoc(duty("logistics")));
+  await assertSucceeds(getDoc(duty("staff")));
+  await assertFails(getDoc(doc(env.unauthenticatedContext().firestore(), "daily_duties", "prog1_2026-10-19")));
+  await assertSucceeds(deleteDoc(duty("manager")));
+});

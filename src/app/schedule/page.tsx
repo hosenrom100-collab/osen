@@ -32,6 +32,8 @@ import { CopyScheduleDialog } from "@/components/workshops/CopyScheduleDialog";
 import { EventPrefill, NewEventDialog } from "@/components/workshops/NewEventDialog";
 import { rangeDates, toISO, weekDates, weekStartOf, shortDate, dayOf } from "@/lib/workshops/dates";
 import { Closure, DAY_FULL, DAY_SHORT, Program, Session, STAFF_ROLES } from "@/lib/workshops/types";
+import { isBreakfast, withDuties } from "@/lib/workshops/duties";
+import { DutyDialog } from "@/components/workshops/DutyDialog";
 
 // The calendar is always shown on white, whatever the app theme is.
 const LIGHT_VARS = {
@@ -61,7 +63,7 @@ export default function SchedulePage() {
   const today = toISO(new Date());
   const [weekStart, setWeekStart] = useState(weekStartOf(new Date()));
   const dates = useMemo(() => weekDates(weekStart), [weekStart]);
-  const { refs, types, workshops, changes, closures, absences, patients, loading, reload: load } = useScheduleData(dates);
+  const { refs, types, workshops, changes, closures, absences, patients, duties, loading, reload: load } = useScheduleData(dates);
   const [mode, setMode] = useState<Mode>(() => readSaved<Mode>("mode", "program"));
   const [onlyMine, setOnlyMine] = useState(false);
   // A link (?program=…&group=…&view=day) wins over what this browser remembered.
@@ -95,6 +97,7 @@ export default function SchedulePage() {
     return () => mq.removeEventListener("change", on);
   }, []);
   const [settingsFor, setSettingsFor] = useState<string | null>(null);
+  const [dutyFor, setDutyFor] = useState<Session | null>(null);
   const [showShift, setShowShift] = useState(false);
   // Saved combinations of programs ("morning: A + B"), kept on the person's account so they follow them between computers.
   const [sets, setSets] = useState<ProgramSet[]>(() => readSaved<ProgramSet[]>("sets", []));
@@ -172,7 +175,7 @@ export default function SchedulePage() {
     return () => { live = false; };
   }, [user, canMarkAttendance, dates, attVersion]);
 
-  const all = useMemo(() => refs ? buildSessions(dates, workshops, refs.programs, changes, closures, types) : [], [dates, workshops, refs, changes, closures, types]);
+  const all = useMemo(() => refs ? withDuties(buildSessions(dates, workshops, refs.programs, changes, closures, types), duties, patients) : [], [dates, workshops, refs, changes, closures, types, duties, patients]);
   const groupName = useCallback((id: string) => refs?.groups.find(g => g.id === id)?.name || "", [refs]);
   const groupsOf = useCallback((ids: string[]) => ids.map(groupName).filter(Boolean).join(", "), [groupName]);
   const sessions = useMemo(() => {
@@ -340,7 +343,7 @@ export default function SchedulePage() {
     keys.current = e => {
       const el = e.target as HTMLElement | null;
       if (el && (/^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName) || el.isContentEditable)) return;
-      if (editing || creating || showCopy || showShift || series || settingsFor || showChanges || showClosures || showTypes || showHelp) return;
+      if (editing || creating || showCopy || showShift || series || settingsFor || dutyFor || showChanges || showClosures || showTypes || showHelp) return;
       const k = e.key.toLowerCase();
       if (e.ctrlKey || e.metaKey) {
         if (!isManager) return;
@@ -404,13 +407,13 @@ export default function SchedulePage() {
       return n || undefined;
     },
     absentOf: (s: Session) => (s.changeId ? absentBy[s.changeId] || undefined : undefined),
-    // A fixed meal/break opens its program's schedule settings; everything else opens the session.
+    // Breakfast opens the day's duty picker, another fixed meal/break its program's schedule settings; everything else opens the session.
     onHover: (s: Session | null) => { hovered.current = s; },
-    onOpen: (s: Session) => (s.fixedBlock ? (isManager && setSettingsFor(s.programId)) : setEditing({ session: s })),
+    onOpen: (s: Session) => (s.fixedBlock ? (isManager && (isBreakfast(s) ? setDutyFor(s) : setSettingsFor(s.programId))) : setEditing({ session: s })),
   };
   // Search: names of the session, people, room, groups and participants; what does not match fades.
   const needle = query.trim().toLowerCase();
-  const matches = (s: Session) => [s.workshopName, s.note, roomOf(s.locationId), ...s.staffIds.map(nameOf), groupsOf(s.groupIds), ...(s.fixedBlock || !s.hasParticipants ? [] : firstNames(participantsOf(s, workshopById.get(s.workshopId), patients)))]
+  const matches = (s: Session) => [s.workshopName, s.note, ...(s.duty || []), roomOf(s.locationId), ...s.staffIds.map(nameOf), groupsOf(s.groupIds), ...(s.fixedBlock || !s.hasParticipants ? [] : firstNames(participantsOf(s, workshopById.get(s.workshopId), patients)))]
     .some(v => !!v && v.toLowerCase().includes(needle));
   const hits = needle ? sessions.filter(matches).length : 0;
   const legendKey = (s: Session) => (colorBy === "type" ? s.activity : colorBy === "program" ? s.programId : s.workshopId);
@@ -711,6 +714,10 @@ export default function SchedulePage() {
 
         {settingsFor && programOf(settingsFor) && (
           <ProgramScheduleSettings program={programOf(settingsFor)!} groups={refs.groups} locations={refs.locations} types={types} onClose={() => setSettingsFor(null)} onSaved={() => { setSettingsFor(null); load(); }} />
+        )}
+        {dutyFor && (
+          <DutyDialog s={dutyFor} programName={programOf(dutyFor.programId)?.name || ""} accent={programHue(programOf(dutyFor.programId))} patients={patients} duties={duties} userId={user?.uid}
+            onClose={() => setDutyFor(null)} onSaved={() => { setDutyFor(null); load(); }} onSettings={() => { setSettingsFor(dutyFor.programId); setDutyFor(null); }} />
         )}
         {showShift && (
           <DayShiftDialog date={selectedDay} userId={user?.uid} scopeLabel={currentProgram ? currentProgram.name : "כל התוכניות"}
