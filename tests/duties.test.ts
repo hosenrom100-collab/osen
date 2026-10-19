@@ -1,9 +1,11 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { buildSessions } from "../src/lib/workshops/buildWeek";
-import { DailyDuty, dutyCandidates, dutyIdFor, dutyNames, dutyText, isBreakfast, withDuties } from "../src/lib/workshops/duties";
+import {
+  DailyDuty, dutyCandidates, dutyIdFor, dutyInstructor, dutyNames, dutyText, instructorCandidates, instructorsLine, isBreakfast, withDuties,
+} from "../src/lib/workshops/duties";
 import type { PatientLite } from "../src/lib/workshops/data";
-import type { Program } from "../src/lib/workshops/types";
+import type { Person, Program } from "../src/lib/workshops/types";
 
 const MON = "2026-10-19"; // a Monday
 const program: Program = {
@@ -63,4 +65,39 @@ test("candidates: the program's participants staying that day, within the block'
 
 test("duty text", () => {
   assert.equal(dutyText(["דנה", "יוסי"]), "תורני ארוחת בוקר: דנה, יוסי");
+});
+
+const staff: Person[] = [
+  { id: "s1", name: "רותם לוי", roles: ["instructor"] },
+  { id: "s2", name: "נועה בר", roles: ["social_worker"] },
+  { id: "s3", name: "עידו גל", roles: ["manager", "instructor"] },
+];
+const withInstructor = (programId: string, date: string, instructorId: string): DailyDuty => ({ ...duty(programId, date, []), instructorId });
+
+test("only staff with the instructor role can be the duty instructor", () => {
+  assert.deepEqual(instructorCandidates(staff).map(p => p.id), ["s1", "s3"]);
+});
+
+test("the duty instructor is per program per day", () => {
+  const duties = [withInstructor("prog1", MON, "s1"), withInstructor("prog2", MON, "s3")];
+  assert.equal(dutyInstructor("prog1", MON, duties, staff), "רותם לוי");
+  assert.equal(dutyInstructor("prog2", MON, duties, staff), "עידו גל");
+  assert.equal(dutyInstructor("prog1", "2026-10-20", duties, staff), "");
+  assert.equal(dutyInstructor("prog1", MON, [withInstructor("prog1", MON, "left")], staff), ""); // no longer on the staff list
+});
+
+test("one line for the programs shown: the program is named only when there are several", () => {
+  const duties = [withInstructor("prog1", MON, "s1"), withInstructor("prog2", MON, "s3")];
+  assert.equal(instructorsLine([program], MON, duties, staff), "מדריך תורן: רותם לוי");
+  assert.equal(instructorsLine([program, other], MON, duties, staff), "מדריך תורן: רותם לוי (חוסן), עידו גל (אחר)");
+  assert.equal(instructorsLine([program, other], MON, [duties[0]], staff), "מדריך תורן: רותם לוי (חוסן)");
+  assert.equal(instructorsLine([program], "2026-10-20", duties, staff), undefined);
+});
+
+test("breakfast duty and the duty instructor live in one document and do not hide each other", () => {
+  const both: DailyDuty = { ...duty("prog1", MON, ["p1"]), instructorId: "s1" };
+  assert.deepEqual(dutyNames("prog1", MON, [both], patients), ["דנה"]);
+  assert.equal(dutyInstructor("prog1", MON, [both], staff), "רותם לוי");
+  const onlyInstructor = withDuties(buildSessions([MON], [], [program], [], []), [withInstructor("prog1", MON, "s1")], patients);
+  assert.equal(onlyInstructor.find(isBreakfast)?.duty, undefined);
 });

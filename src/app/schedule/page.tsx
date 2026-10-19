@@ -33,7 +33,7 @@ import { CopyScheduleDialog } from "@/components/workshops/CopyScheduleDialog";
 import { EventPrefill, NewEventDialog } from "@/components/workshops/NewEventDialog";
 import { rangeDates, toISO, weekDates, weekStartOf, shortDate, dayOf } from "@/lib/workshops/dates";
 import { Closure, DAY_FULL, DAY_SHORT, Program, Session, STAFF_ROLES } from "@/lib/workshops/types";
-import { isBreakfast, withDuties } from "@/lib/workshops/duties";
+import { instructorsLine, isBreakfast, withDuties } from "@/lib/workshops/duties";
 import { DutyDialog } from "@/components/workshops/DutyDialog";
 
 // The calendar is always shown on white, whatever the app theme is.
@@ -98,7 +98,7 @@ export default function SchedulePage() {
     return () => mq.removeEventListener("change", on);
   }, []);
   const [settingsFor, setSettingsFor] = useState<string | null>(null);
-  const [dutyFor, setDutyFor] = useState<Session | null>(null);
+  const [dutyFor, setDutyFor] = useState<{ programId: string; date: string; groupIds?: string[] } | null>(null);
   const [showShift, setShowShift] = useState(false);
   // Saved combinations of programs ("morning: A + B"), kept on the person's account so they follow them between computers.
   const [sets, setSets] = useState<ProgramSet[]>(() => readSaved<ProgramSet[]>("sets", []));
@@ -410,7 +410,7 @@ export default function SchedulePage() {
     absentOf: (s: Session) => (s.changeId ? absentBy[s.changeId] || undefined : undefined),
     // Breakfast opens the day's duty picker, another fixed meal/break its program's schedule settings; everything else opens the session.
     onHover: (s: Session | null) => { hovered.current = s; },
-    onOpen: (s: Session) => (s.fixedBlock ? (isManager && (isBreakfast(s) ? setDutyFor(s) : setSettingsFor(s.programId))) : setEditing({ session: s })),
+    onOpen: (s: Session) => (s.fixedBlock ? (isManager && (isBreakfast(s) ? setDutyFor({ programId: s.programId, date: s.date, groupIds: s.groupIds }) : setSettingsFor(s.programId))) : setEditing({ session: s })),
   };
   // Search: names of the session, people, room, groups and participants; what does not match fades.
   const needle = query.trim().toLowerCase();
@@ -493,10 +493,13 @@ export default function SchedulePage() {
       return hit.length ? hit : own; // for the whole program: all of its lanes
     },
   } : undefined;
+  // The day's duty instructor: under a program's column header, and above the mobile agenda for every program on screen.
+  const instructorSub = (programId: string, date: string) => instructorsLine(refs.programs.filter(p => p.id === programId), date, duties, refs.staff);
+  const instructorsNote = (date: string) => instructorsLine(shownPrograms, date, duties, refs.staff);
   const columns: Column[] = view === "week"
     ? days.map(d => {
         const date = dates[d];
-        const sub = closedFor(onlyProgram || null, date);
+        const sub = closedFor(onlyProgram || null, date) || (onlyProgram ? instructorSub(onlyProgram, date) : undefined);
         return {
           id: date, date, today: date === today, sessions: sessions.filter(s => s.date === date), laneMode: frames ? "frames" as const : weekLanes, groupIds: laneGroups.map(g => g.id), frames,
           showGroups: !frames && weekLanes === "stable" && !groupSel[0],
@@ -507,7 +510,7 @@ export default function SchedulePage() {
     : rows.map(row => ({
         id: row.id, hue: row.hue, sessions: sessions.filter(s => s.date === selectedDay && row.match(s)), laneMode: "stable" as const,
         today: selectedDay === today, header: <span className="block truncate text-sm font-bold pb-0.5" title={row.label}>{row.label}</span>,
-        sub: row.closedReason(selectedDay), onAdd: addFor(selectedDay, row.id.split(":")[0]),
+        sub: row.closedReason(selectedDay) || (mode === "program" ? instructorSub(row.id.split(":")[0], selectedDay) : undefined), onAdd: addFor(selectedDay, row.id.split(":")[0]),
       }));
   const currentProgram = onlyProgram ? programOf(onlyProgram) : undefined;
   const dayLabel = `${DAY_FULL[dayOf(selectedDay)]} ${shortDate(selectedDay)}`;
@@ -605,6 +608,7 @@ export default function SchedulePage() {
                       <li><button className="w-full text-right px-3 py-2 hover:bg-[var(--foreground)]/5" onClick={() => { setMenuOpen(false); setShowTypes(true); }}>סוגי פעילות</button></li>
                       <li><button className="w-full text-right px-3 py-2 hover:bg-[var(--foreground)]/5" onClick={() => { setMenuOpen(false); setSeries({}); }}>ימי פעילות קבועים</button></li>
                       <li><button className="w-full text-right px-3 py-2 hover:bg-[var(--foreground)]/5" onClick={() => { setMenuOpen(false); setShowClosures(true); }}>ימים ללא פעילות</button></li>
+                      {currentProgram && <li><button className="w-full text-right px-3 py-2 hover:bg-[var(--foreground)]/5" onClick={() => { setMenuOpen(false); setDutyFor({ programId: currentProgram.id, date: selectedDay, groupIds: groupSel }); }}>תורנים ליום ({dayLabel})</button></li>}
                       {currentProgram && <li><button className="w-full text-right px-3 py-2 hover:bg-[var(--foreground)]/5" onClick={() => { setMenuOpen(false); setSettingsFor(currentProgram.id); }}>הגדרות לוז: {currentProgram.name}</button></li>}
                       <li><Link className="block px-3 py-2 hover:bg-[var(--foreground)]/5" href="/admin/workshops">ניהול סדנאות</Link></li>
                       <li><Link className="block px-3 py-2 hover:bg-[var(--foreground)]/5" href="/admin/spaces">ניהול מרחבים</Link></li>
@@ -650,7 +654,7 @@ export default function SchedulePage() {
         ) : (
           <div className="md:px-4 md:pt-3 md:pb-6">
             <TimeGrid {...common} columns={columns} mode={mode} groupName={groupName} laneMin={view === "day" ? 8.5 : 6.5} drag={dragApi} laneHints={laneHints} corner={view === "week" ? `שבוע ${getWeek(weekStart, { weekStartsOn: 0 })}` : undefined} />
-            <DayAgenda {...common} dates={dates} days={days} rows={rows} mode={mode} today={today} globalClosure={globalClosure}
+            <DayAgenda {...common} dates={dates} days={days} rows={rows} mode={mode} today={today} globalClosure={globalClosure} dayNote={instructorsNote}
               selected={selectedDay} setSelected={setSelectedDay} canEdit={isManager}
               groupChips={groupOptions.length > 1 ? groupOptions.map(g => ({ ...g, hue: groupHue(g.id, refs.groups, refs.programs) })) : undefined}
               groupPicked={groupSel[0] || ""} onPickGroup={pickGroup}
@@ -719,7 +723,8 @@ export default function SchedulePage() {
           <ProgramScheduleSettings program={programOf(settingsFor)!} groups={refs.groups} locations={refs.locations} types={types} onClose={() => setSettingsFor(null)} onSaved={() => { setSettingsFor(null); load(); }} />
         )}
         {dutyFor && (
-          <DutyDialog s={dutyFor} programName={programOf(dutyFor.programId)?.name || ""} accent={programHue(programOf(dutyFor.programId))} patients={patients} duties={duties} userId={user?.uid}
+          <DutyDialog programId={dutyFor.programId} date={dutyFor.date} groupIds={dutyFor.groupIds} programName={programOf(dutyFor.programId)?.name || ""} accent={programHue(programOf(dutyFor.programId))}
+            patients={patients} staff={refs.staff} duties={duties} userId={user?.uid}
             onClose={() => setDutyFor(null)} onSaved={() => { setDutyFor(null); load(); }} onSettings={() => { setSettingsFor(dutyFor.programId); setDutyFor(null); }} />
         )}
         {showShift && (

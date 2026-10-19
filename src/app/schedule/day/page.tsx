@@ -13,7 +13,7 @@ import { firstNames, participantsOf } from "@/lib/workshops/people";
 import { dayOf, shortDate, toISO, weekDates, weekStartOf } from "@/lib/workshops/dates";
 import { DAY_FULL, Session, staffChangeLabel } from "@/lib/workshops/types";
 import { useScheduleData } from "@/lib/workshops/useScheduleData";
-import { dutyText, withDuties } from "@/lib/workshops/duties";
+import { dutyText, instructorsLine, withDuties } from "@/lib/workshops/duties";
 import { btnGhost, btnPrimary, fieldCls } from "@/components/workshops/Dialog";
 
 const readParam = (k: string) => { try { return new URLSearchParams(window.location.search).get(k) || ""; } catch { return ""; } };
@@ -79,6 +79,7 @@ export default function DaySharePage() {
   const total = attendees.reduce((n, g) => n + g.names.length, 0);
 
   const title = [program?.name || "כל התוכניות", group?.name].filter(Boolean).join(" · ");
+  const instructorsOf = (d: string) => (refs ? instructorsLine(program ? [program] : refs.programs, d, duties, refs.staff) : undefined);
   const dayName = (d: string) => `יום ${DAY_FULL[dayOf(d)]} ${shortDate(d)}`;
   const dayTitle = range === "day" ? dayName(date) : `שבוע ${shortDate(dates[0])} – ${shortDate(dates[6])}`;
   const hue = programHue(program, programId);
@@ -95,6 +96,7 @@ export default function DaySharePage() {
     byDay.forEach((day, i) => {
       if (range === "week") lines.push(`${i ? "\n" : ""}*${dayName(day.date)}*`);
       if (day.closure) lines.push(day.closure.reason || "אין פעילות");
+      else if (instructorsOf(day.date)) lines.push(instructorsOf(day.date)!);
       const shown = day.list.filter(s => forStaff || withStaffEvents || s.audience !== "staff");
       const line = (s: Session, perGroup: boolean) => {
         const shared = perGroup && !s.band && s.groupIds.length !== 1;
@@ -213,6 +215,7 @@ export default function DaySharePage() {
                 <div key={day.date} style={{ marginBottom: range === "week" ? 10 : 0 }}>
                   {range === "week" && <div style={{ fontWeight: 800, fontSize: 14, padding: "6px 2px 2px", color: tint.ink }}>{dayName(day.date)}</div>}
                   {day.closure && <div style={{ padding: "10px 12px", marginBottom: 8, borderRadius: 8, background: "#f3f4f6", fontWeight: 700 }}>{day.closure.reason || "אין פעילות"}</div>}
+                  {!day.closure && instructorsOf(day.date) && <div style={{ padding: "6px 10px", margin: "4px 0", fontSize: 14, fontWeight: 700 }}>{instructorsOf(day.date)}</div>}
                   {(() => {
                   const item = (s: Session) => {
                   const cancelled = s.kind === "cancelled";

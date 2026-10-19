@@ -14,7 +14,7 @@ import { firstNames, participantsOf } from "@/lib/workshops/people";
 import { DAY_FULL, Session, STAFF_ROLES, staffChangeLabel } from "@/lib/workshops/types";
 import { SessionAttendanceSheet } from "@/components/workshops/SessionAttendanceSheet";
 import { useScheduleData } from "@/lib/workshops/useScheduleData";
-import { dutyText, withDuties } from "@/lib/workshops/duties";
+import { dutyText, instructorsLine, withDuties } from "@/lib/workshops/duties";
 import { dayOf } from "@/lib/workshops/dates";
 
 interface Pref { programId: string; groupId: string; mine: boolean }
@@ -69,6 +69,7 @@ export function TodaySchedule() {
 
   const program = refs.programs.find(p => p.id === pref.programId);
   const groups = refs.groups.filter(g => g.programId === pref.programId);
+  const instructors = instructorsLine(program ? [program] : refs.programs, date, duties, refs.staff);
   const closure = closures.find(c => c.date === date && (c.programIds.length === 0 || !pref.programId || c.programIds.includes(pref.programId)));
   const wById = new Map(workshops.map(w => [w.id, w]));
   const nameOf = (id: string) => (refs.staff.find(p => p.id === id)?.name || "").split(" ")[0];
@@ -112,6 +113,7 @@ export function TodaySchedule() {
 
       <div className="px-3 py-2">
         {closure && <p className="px-2 py-2 mb-1 text-sm font-semibold rounded-md bg-[var(--foreground)]/[0.05]">{closure.reason || "אין פעילות"}</p>}
+        {!closure && instructors && <p className="px-2 py-1.5 mb-1 text-sm font-semibold rounded-md bg-[var(--foreground)]/[0.05]">{instructors}</p>}
         {sessions.length === 0 && !closure && <p className="py-8 text-center text-sm text-[var(--foreground)]/50">אין פעילות מתוכננת.</p>}
         <ul>
           {sessions.map(s => {
