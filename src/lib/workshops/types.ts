@@ -139,6 +139,7 @@ export interface Session {
   fixedBlock?: boolean; // generated from a program's daily blocks; not editable as a session
   change?: SessionChange;
   note?: string;
+  duty?: string[];      // first names on breakfast duty, on a program's breakfast entry (see duties.ts)
   base: { start: string; end: string; staffIds: string[]; locationId?: string; groupIds?: string[] };
 }
 

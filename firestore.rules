@@ -332,6 +332,11 @@ service cloud.firestore {
       allow read: if isAuthenticated();
       allow write: if isManager();
     }
+    // Breakfast duty per program per day: doc id = programId_date
+    match /daily_duties/{docId} {
+      allow read: if isAuthenticated();
+      allow write: if isManager();
+    }
     match /programs/{docId} {
       allow read: if isAuthenticated();
       allow write: if isManager();

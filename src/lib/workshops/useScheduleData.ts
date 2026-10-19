@@ -7,6 +7,7 @@ import { loadAbsences, loadPatients, loadRefs, PatientLite, Refs } from "./data"
 import { AbsenceLite } from "./conflicts";
 import { ActivityType, DEFAULT_TYPES, loadActivityTypes } from "./activityTypes";
 import { Closure, SessionChange, Workshop } from "./types";
+import { DailyDuty } from "./duties";
 
 /** Everything the schedule views need for a set of consecutive dates (a week, or a single day). */
 export function useScheduleData(dates: string[]) {
@@ -16,12 +17,13 @@ export function useScheduleData(dates: string[]) {
   const [closures, setClosures] = useState<Closure[]>([]);
   const [absences, setAbsences] = useState<AbsenceLite[]>([]);
   const [patients, setPatients] = useState<PatientLite[]>([]);
+  const [duties, setDuties] = useState<DailyDuty[]>([]);
   const [types, setTypes] = useState<ActivityType[]>(DEFAULT_TYPES);
   const [loading, setLoading] = useState(true);
   const first = dates[0], last = dates[dates.length - 1];
 
   const load = useCallback(async () => {
-    const [r, wSnap, chSnap, clSnap, abs, pts, tps] = await Promise.all([
+    const [r, wSnap, chSnap, clSnap, abs, pts, tps, dSnap] = await Promise.all([
       loadRefs(),
       getDocs(query(collection(db, "workshops"), where("endDate", ">=", first))),
       getDocs(query(collection(db, "session_changes"), where("dates", "array-contains-any", dates))),
@@ -29,6 +31,7 @@ export function useScheduleData(dates: string[]) {
       loadAbsences(dates).catch(() => []),
       loadPatients(),
       loadActivityTypes(),
+      getDocs(query(collection(db, "daily_duties"), where("date", ">=", first), where("date", "<=", last))).catch(() => null),
     ]);
     setTypes(tps);
     setRefs(r);
@@ -37,11 +40,12 @@ export function useScheduleData(dates: string[]) {
     setClosures(clSnap.docs.map(d => ({ id: d.id, ...d.data() } as Closure)));
     setAbsences(abs);
     setPatients(pts);
+    setDuties(dSnap ? dSnap.docs.map(d => ({ id: d.id, ...d.data() } as DailyDuty)) : []);
     setLoading(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [first, last]);
   // eslint-disable-next-line react-hooks/set-state-in-effect -- restores saved choices / loads external data once; nothing to derive during render
   useEffect(() => { load(); }, [load]);
 
-  return { refs, types, workshops, changes, closures, absences, patients, loading, reload: load };
+  return { refs, types, workshops, changes, closures, absences, patients, duties, loading, reload: load };
 }
