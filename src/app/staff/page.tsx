@@ -4,12 +4,14 @@ import { useAuth } from "@/context/AuthContext";
 import { RoleGuard } from "@/components/auth/RoleGuard";
 import { useState, useEffect } from "react";
 import { db } from "@/lib/firebase/config";
-import { doc, getDoc, updateDoc, collection, addDoc, query, where, orderBy, getDocs } from "firebase/firestore";
+import { doc, getDoc, updateDoc, collection, query, where, orderBy, getDocs } from "firebase/firestore";
 import { Shield, Calendar, Clock, CheckCircle, XCircle, AlertCircle, Save, Loader2, ArrowRight, MessageSquare } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 
 import { PageSkeleton } from "@/components/ui/Skeleton";
+import { absenceFromDoc, formatAbsenceRange, StaffAbsence } from "@/lib/attendance/staffAbsence";
+import { addAbsence } from "@/lib/attendance/staffAbsenceData";
 const DAYS = [
   { id: "sunday", label: "ראשון" },
   { id: "monday", label: "שני" },
@@ -26,9 +28,10 @@ export default function StaffHubPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [absenceDate, setAbsenceDate] = useState("");
+  const [absenceEndDate, setAbsenceEndDate] = useState("");
   const [absenceReason, setAbsenceReason] = useState("");
   const [submittingAbsence, setSubmittingAbsence] = useState(false);
-  const [absences, setAbsences] = useState<any[]>([]);
+  const [absences, setAbsences] = useState<StaffAbsence[]>([]);
   const router = useRouter();
 
   useEffect(() => {
@@ -63,11 +66,7 @@ export default function StaffHubPage() {
         orderBy("date", "desc")
       );
       const querySnapshot = await getDocs(q);
-      const list: any[] = [];
-      querySnapshot.forEach(doc => {
-        list.push({ id: doc.id, ...doc.data() });
-      });
-      setAbsences(list);
+      setAbsences(querySnapshot.docs.map(d => absenceFromDoc(d.id, d.data())));
     } catch (error) {
       console.error("Error fetching absences:", error);
     }
@@ -102,21 +101,22 @@ export default function StaffHubPage() {
     
     setSubmittingAbsence(true);
     try {
-      await addDoc(collection(db, "absence_requests"), {
+      await addAbsence({
         userId: user.uid,
-        userName: user.displayName || user.email,
-        date: absenceDate,
+        userName: user.displayName || user.email || "עובד",
+        startDate: absenceDate,
+        endDate: absenceEndDate || absenceDate,
         reason: absenceReason,
         status: "pending",
-        createdAt: new Date().toISOString()
       });
       setAbsenceDate("");
+      setAbsenceEndDate("");
       setAbsenceReason("");
       fetchAbsences();
       alert("בקשת ההיעדרות נשלחה למנהלת!");
     } catch (error) {
       console.error("Error submitting absence:", error);
-      alert("שגיאה בשליחת הבקשה");
+      alert(error instanceof Error && /[א-ת]/.test(error.message) ? error.message : "שגיאה בשליחת הבקשה");
     } finally {
       setSubmittingAbsence(false);
     }
@@ -215,12 +215,22 @@ export default function StaffHubPage() {
               
               <form onSubmit={submitAbsenceRequest} className="space-y-4">
                 <div>
-                  <label className="block text-sm text-slate-400 mb-2">תאריך היעדרות:</label>
+                  <label className="block text-sm text-slate-400 mb-2">מתאריך:</label>
                   <input
                     type="date"
                     required
                     value={absenceDate}
                     onChange={(e) => setAbsenceDate(e.target.value)}
+                    className="w-full bg-slate-900 border border-white/10 rounded-xl p-3 text-white focus:outline-none focus:border-orange-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-slate-400 mb-2">עד תאריך (כולל, ריק ליום אחד):</label>
+                  <input
+                    type="date"
+                    min={absenceDate || undefined}
+                    value={absenceEndDate}
+                    onChange={(e) => setAbsenceEndDate(e.target.value)}
                     className="w-full bg-slate-900 border border-white/10 rounded-xl p-3 text-white focus:outline-none focus:border-orange-500"
                   />
                 </div>
@@ -256,7 +266,7 @@ export default function StaffHubPage() {
                 {absences.map((abs) => (
                   <div key={abs.id} className="border-b border-white/5 py-4 flex items-center justify-between">
                     <div>
-                      <div className="font-bold text-sm">{abs.date}</div>
+                      <div className="font-bold text-sm">{formatAbsenceRange(abs)}</div>
                       <div className="text-xs text-slate-500 truncate max-w-[150px]">{abs.reason || "ללא הערה"}</div>
                     </div>
                     <div className={`px-3 py-1 rounded-full text-[11px] font-bold flex items-center gap-1 ${

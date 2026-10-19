@@ -5,11 +5,13 @@ import { useAuth } from "@/context/AuthContext";
 import { RoleGuard } from "@/components/auth/RoleGuard";
 import { db } from "@/lib/firebase/config";
 import {
-  collection, getDocs, doc, updateDoc, setDoc, deleteDoc, query, where, getDoc
+  collection, getDocs, doc, setDoc, deleteDoc, query, where
 } from "firebase/firestore";
 import { 
-  ClipboardList, ArrowRight, Search, Loader2, Check, X, Calendar, User, Clock, CheckCircle2, ShieldAlert
+  ClipboardList, ArrowRight, Search, Loader2, Check, X, Calendar, User, Clock, ShieldAlert, Plus
 } from "lucide-react";
+import { formatAbsenceRange, StaffAbsence } from "@/lib/attendance/staffAbsence";
+import { addAbsence, loadAbsencesOn, removeAbsenceDay, setAbsenceStatus } from "@/lib/attendance/staffAbsenceData";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { format, getDay, parseISO } from "date-fns";
@@ -24,15 +26,7 @@ interface StaffProfile {
   workSchedule?: Record<string, { start: string; end: string }>;
 }
 
-interface AbsenceRequest {
-  id: string;
-  userId: string;
-  userName: string;
-  date: string;
-  reason: string;
-  status: "pending" | "approved" | "rejected";
-}
-
+/** Only "present" is written now; "absent"/"leave" are read from records made before absences moved to absence_requests. */
 interface StaffAttendanceRecord {
   id: string;
   userId: string;
@@ -58,13 +52,15 @@ export default function StaffAttendancePage() {
   const { user } = useAuth();
   const [selectedDate, setSelectedDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [staff, setStaff] = useState<StaffProfile[]>([]);
-  const [absences, setAbsences] = useState<AbsenceRequest[]>([]);
+  const [absences, setAbsences] = useState<StaffAbsence[]>([]);
   const [attendance, setAttendance] = useState<Record<string, StaffAttendanceRecord>>({});
   const [programs, setPrograms] = useState<{ id: string; name: string; activeDays?: number[] }[]>([]);
   
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [newAbsence, setNewAbsence] = useState({ userId: "", startDate: "", endDate: "", reason: "" });
+  const [savingAbsence, setSavingAbsence] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -85,15 +81,8 @@ export default function StaffAttendancePage() {
       staffList.sort((a, b) => (a.displayName || a.name || "").localeCompare(b.displayName || b.name || "", 'he'));
       setStaff(staffList);
 
-      // 2. Fetch absence requests for the selected date
-      const absSnap = await getDocs(
-        query(collection(db, "absence_requests"), where("date", "==", selectedDate))
-      );
-      const absList: AbsenceRequest[] = [];
-      absSnap.forEach(d => {
-        absList.push({ id: d.id, ...d.data() } as AbsenceRequest);
-      });
-      setAbsences(absList);
+      // 2. Absences covering the selected date (single days and ranges) — the same source the calendar reads
+      setAbsences(await loadAbsencesOn(selectedDate));
 
       // 3. Fetch staff attendance for the selected date
       const attSnap = await getDocs(
@@ -116,61 +105,37 @@ export default function StaffAttendancePage() {
     }
   };
 
-  const handleApproveAbsence = async (req: AbsenceRequest) => {
+  const nameOf = (member: StaffProfile) => member.displayName || member.name || "עובד";
+
+  const clearAttendance = async (userId: string) => {
+    if (!attendance[userId]) return;
+    await deleteDoc(doc(db, "staff_attendance", `${userId}_${selectedDate}`));
+    setAttendance(prev => {
+      const next = { ...prev };
+      delete next[userId];
+      return next;
+    });
+  };
+
+  const handleApproveAbsence = async (req: StaffAbsence) => {
     setActionLoading(req.id);
     try {
-      // Update absence request status
-      await updateDoc(doc(db, "absence_requests", req.id), { status: "approved" });
-      
-      // Auto-set staff attendance to 'leave'
-      const attId = `${req.userId}_${selectedDate}`;
-      await setDoc(doc(db, "staff_attendance", attId), {
-        userId: req.userId,
-        userName: req.userName,
-        date: selectedDate,
-        status: "leave",
-        reason: req.reason,
-        updatedAt: new Date().toISOString()
-      });
-
-      // Update local state
+      await setAbsenceStatus(req.id, "approved");
       setAbsences(prev => prev.map(a => a.id === req.id ? { ...a, status: "approved" } : a));
-      setAttendance(prev => ({
-        ...prev,
-        [req.userId]: {
-          id: attId,
-          userId: req.userId,
-          userName: req.userName,
-          date: selectedDate,
-          status: "leave",
-          reason: req.reason
-        }
-      }));
     } catch (err) {
       console.error(err);
-      alert("שגיאה באapproval בקשת ההיעדרות");
+      alert("שגיאה באישור בקשת ההיעדרות");
     } finally {
       setActionLoading(null);
     }
   };
 
-  const handleRejectAbsence = async (req: AbsenceRequest) => {
+  const handleRejectAbsence = async (req: StaffAbsence) => {
     setActionLoading(req.id);
     try {
-      // Update absence request status
-      await updateDoc(doc(db, "absence_requests", req.id), { status: "rejected" });
-      
-      // If there was a leave record, delete it or set to unset
-      const attId = `${req.userId}_${selectedDate}`;
-      if (attendance[req.userId]?.status === "leave") {
-        await deleteDoc(doc(db, "staff_attendance", attId));
-        setAttendance(prev => {
-          const next = { ...prev };
-          delete next[req.userId];
-          return next;
-        });
-      }
-
+      await setAbsenceStatus(req.id, "rejected");
+      // An older approval also wrote a "leave" attendance record; drop it so the day is not shown as leave.
+      if (attendance[req.userId]?.status === "leave") await clearAttendance(req.userId);
       setAbsences(prev => prev.map(a => a.id === req.id ? { ...a, status: "rejected" } : a));
     } catch (err) {
       console.error(err);
@@ -180,44 +145,83 @@ export default function StaffAttendancePage() {
     }
   };
 
+  /** Takes the selected day out of an approved absence (the rest of its range stays). */
+  const handleCancelAbsenceDay = async (abs: StaffAbsence) => {
+    if (abs.dates.length > 1 && !confirm(`להסיר את ${selectedDate.split("-").reverse().join(".")} מההיעדרות ${formatAbsenceRange(abs)}? שאר הימים יישארו.`)) return;
+    setActionLoading(abs.userId);
+    try {
+      await removeAbsenceDay(abs, selectedDate);
+      await fetchData();
+    } catch (err) {
+      console.error(err);
+      alert("שגיאה בביטול ההיעדרות");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   const handleToggleAttendance = async (member: StaffProfile, newStatus: "present" | "absent") => {
     const userId = member.id;
     const current = attendance[userId]?.status;
-    const nextStatus = current === newStatus ? "unset" : newStatus;
-    const attId = `${userId}_${selectedDate}`;
-    
     setActionLoading(userId);
     try {
-      if (nextStatus === "unset") {
-        await deleteDoc(doc(db, "staff_attendance", attId));
-        setAttendance(prev => {
-          const next = { ...prev };
-          delete next[userId];
-          return next;
-        });
+      if (newStatus === "absent") {
+        if (current === "absent" || current === "leave") {
+          // An absence marked by an older version lives only here — clearing it is the toggle off.
+          await clearAttendance(userId);
+        } else {
+          // Absent is an approved one-day absence, so the calendar sees it too.
+          await addAbsence({
+            userId, userName: nameOf(member), startDate: selectedDate, endDate: selectedDate,
+            reason: "סומן כנעדר/ת בנוכחות צוות", status: "approved",
+            createdBy: user?.uid, createdByName: user?.displayName || user?.email || "מנהל",
+          });
+          await clearAttendance(userId);
+          setAbsences(await loadAbsencesOn(selectedDate));
+        }
+      } else if (current === "present") {
+        await clearAttendance(userId);
       } else {
+        const attId = `${userId}_${selectedDate}`;
         await setDoc(doc(db, "staff_attendance", attId), {
           userId,
-          userName: member.displayName || member.name || "עובד",
+          userName: nameOf(member),
           date: selectedDate,
-          status: nextStatus,
+          status: "present",
           updatedAt: new Date().toISOString()
         });
         setAttendance(prev => ({
           ...prev,
-          [userId]: {
-            id: attId,
-            userId,
-            userName: member.displayName || member.name || "עובד",
-            date: selectedDate,
-            status: nextStatus
-          }
+          [userId]: { id: attId, userId, userName: nameOf(member), date: selectedDate, status: "present" }
         }));
       }
     } catch (err) {
       console.error(err);
+      alert("שגיאה בעדכון הנוכחות");
     } finally {
       setActionLoading(null);
+    }
+  };
+
+  const handleAddRange = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const member = staff.find(m => m.id === newAbsence.userId);
+    if (!member || !newAbsence.startDate) return;
+    setSavingAbsence(true);
+    try {
+      await addAbsence({
+        userId: member.id, userName: nameOf(member),
+        startDate: newAbsence.startDate, endDate: newAbsence.endDate || newAbsence.startDate,
+        reason: newAbsence.reason, status: "approved",
+        createdBy: user?.uid, createdByName: user?.displayName || user?.email || "מנהל",
+      });
+      setNewAbsence({ userId: "", startDate: "", endDate: "", reason: "" });
+      await fetchData();
+    } catch (err) {
+      console.error(err);
+      alert(err instanceof Error && /[א-ת]/.test(err.message) ? err.message : "שגיאה בהוספת ההיעדרות");
+    } finally {
+      setSavingAbsence(false);
     }
   };
 
@@ -262,7 +266,7 @@ export default function StaffAttendancePage() {
             <section className="space-y-4">
               <h2 className="text-sm font-bold text-rose-500 uppercase tracking-wider flex items-center gap-2">
                 <Clock className="w-4.5 h-4.5" />
-                בקשות היעדרות לתאריך זה ({absences.length})
+                היעדרויות בתאריך זה ({absences.length})
               </h2>
               <div className="grid gap-3">
                 <AnimatePresence mode="popLayout">
@@ -286,7 +290,10 @@ export default function StaffAttendancePage() {
                       >
                         <div className="text-right">
                           <p className="font-bold text-sm">{req.userName}</p>
-                          <p className="text-xs text-[var(--muted)] mt-1 font-bold">סיבה: {req.reason}</p>
+                          <p className="text-xs text-[var(--muted)] mt-1 font-bold">
+                            {req.dates.length > 1 && <span className="text-violet-500">{formatAbsenceRange(req)} · </span>}
+                            סיבה: {req.reason || "ללא"}
+                          </p>
                         </div>
                         <div className="flex items-center gap-2">
                           {req.status === "pending" ? (
@@ -321,7 +328,66 @@ export default function StaffAttendancePage() {
             </section>
           )}
 
-          {/* 2. Staff Attendance Console */}
+          {/* 2. Add an absence for a day or a range of days */}
+          <section className="space-y-3">
+            <h2 className="text-sm font-bold uppercase tracking-wider flex items-center gap-2">
+              <Plus className="w-4 h-4 text-violet-500" />
+              הוספת היעדרות
+            </h2>
+            <form onSubmit={handleAddRange} className="bg-[var(--surface)] border border-[var(--border)] p-4 rounded-3xl grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
+              <label className="space-y-1 text-right md:col-span-2">
+                <span className="block text-[11px] font-bold text-[var(--muted)]">עובד/ת</span>
+                <select
+                  required
+                  value={newAbsence.userId}
+                  onChange={e => setNewAbsence(p => ({ ...p, userId: e.target.value }))}
+                  className="w-full bg-[var(--background)] border border-[var(--border)] rounded-xl px-3 py-2 text-xs font-bold focus:outline-none focus:border-violet-500"
+                >
+                  <option value="">בחירה...</option>
+                  {staff.map(m => <option key={m.id} value={m.id}>{nameOf(m)}</option>)}
+                </select>
+              </label>
+              <label className="space-y-1 text-right">
+                <span className="block text-[11px] font-bold text-[var(--muted)]">מתאריך</span>
+                <input
+                  type="date" required
+                  value={newAbsence.startDate}
+                  onChange={e => setNewAbsence(p => ({ ...p, startDate: e.target.value, endDate: p.endDate && p.endDate < e.target.value ? e.target.value : p.endDate }))}
+                  className="w-full bg-[var(--background)] border border-[var(--border)] rounded-xl px-3 py-2 text-xs font-bold focus:outline-none focus:border-violet-500"
+                />
+              </label>
+              <label className="space-y-1 text-right">
+                <span className="block text-[11px] font-bold text-[var(--muted)]">עד תאריך (כולל)</span>
+                <input
+                  type="date"
+                  min={newAbsence.startDate || undefined}
+                  value={newAbsence.endDate}
+                  onChange={e => setNewAbsence(p => ({ ...p, endDate: e.target.value }))}
+                  className="w-full bg-[var(--background)] border border-[var(--border)] rounded-xl px-3 py-2 text-xs font-bold focus:outline-none focus:border-violet-500"
+                />
+              </label>
+              <label className="space-y-1 text-right">
+                <span className="block text-[11px] font-bold text-[var(--muted)]">סיבה</span>
+                <input
+                  type="text"
+                  value={newAbsence.reason}
+                  onChange={e => setNewAbsence(p => ({ ...p, reason: e.target.value }))}
+                  placeholder="חופשה, מחלה..."
+                  className="w-full bg-[var(--background)] border border-[var(--border)] rounded-xl px-3 py-2 text-xs font-bold focus:outline-none focus:border-violet-500"
+                />
+              </label>
+              <button
+                type="submit"
+                disabled={savingAbsence}
+                className="md:col-span-5 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white text-xs font-bold flex items-center justify-center gap-1.5 active:scale-95 transition-all"
+              >
+                {savingAbsence ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
+                הוספת היעדרות מאושרת (מופיעה גם ביומן)
+              </button>
+            </form>
+          </section>
+
+          {/* 3. Staff Attendance Console */}
           <section className="space-y-4">
             <div className="flex items-center justify-between flex-wrap gap-4">
               <div>
@@ -354,9 +420,9 @@ export default function StaffAttendancePage() {
                   const hasSchedule = !!schedule;
                   
                   const att = attendance[member.id];
-                  const isPresent = att?.status === "present";
-                  const isAbsent = att?.status === "absent";
-                  const isLeave = att?.status === "leave";
+                  const approved = absences.find(a => a.userId === member.id && a.status === "approved");
+                  const isPresent = !approved && att?.status === "present";
+                  const isAbsent = !approved && (att?.status === "absent" || att?.status === "leave");
 
                   return (
                     <div 
@@ -402,11 +468,21 @@ export default function StaffAttendancePage() {
 
                       {/* Presence toggle buttons */}
                       <div className="flex items-center gap-2 justify-end">
-                        {isLeave ? (
+                        {approved ? (
                           <div className="flex items-center gap-2 bg-amber-500/10 text-amber-500 border border-amber-500/20 rounded-2xl px-4 py-2 text-xs font-bold">
                             <ShieldAlert className="w-4 h-4 text-amber-500 shrink-0" />
-                            <span>בחופשה / היעדרות מאושרת</span>
-                            {att.reason && <span className="text-[11px] opacity-75 font-bold">({att.reason})</span>}
+                            <span>בהיעדרות מאושרת</span>
+                            {approved.dates.length > 1 && <span className="text-[11px] opacity-75 font-bold">{formatAbsenceRange(approved)}</span>}
+                            {approved.reason && <span className="text-[11px] opacity-75 font-bold">({approved.reason})</span>}
+                            <button
+                              onClick={() => handleCancelAbsenceDay(approved)}
+                              disabled={actionLoading !== null}
+                              className="mr-1 p-1 rounded-lg hover:bg-amber-500/20 transition-all"
+                              title="ביטול ההיעדרות ליום זה"
+                              aria-label="ביטול ההיעדרות ליום זה"
+                            >
+                              {actionLoading === member.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <X className="w-3.5 h-3.5" />}
+                            </button>
                           </div>
                         ) : (
                           <>
