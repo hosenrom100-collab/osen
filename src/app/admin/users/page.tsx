@@ -14,6 +14,8 @@ import { useRouter } from "next/navigation";
 import { StatusBadge } from "@/components/admin/users/StatusBadge";
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
 import { motion, AnimatePresence } from "framer-motion";
+import { absenceFromDoc, formatAbsenceRange, StaffAbsence } from "@/lib/attendance/staffAbsence";
+import { addAbsence } from "@/lib/attendance/staffAbsenceData";
 
 export interface UserProfile {
   id: string;
@@ -56,8 +58,9 @@ export default function UserManagementPage() {
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [submittingAbsenceId, setSubmittingAbsenceId] = useState<string | null>(null);
   const [absenceDates, setAbsenceDates] = useState<Record<string, string>>({});
+  const [absenceEndDates, setAbsenceEndDates] = useState<Record<string, string>>({});
   const [absenceReasons, setAbsenceReasons] = useState<Record<string, string>>({});
-  const [userAbsences, setUserAbsences] = useState<Record<string, any[]>>({});
+  const [userAbsences, setUserAbsences] = useState<Record<string, StaffAbsence[]>>({});
   const [programs, setPrograms] = useState<Program[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
   const [loading, setLoading] = useState(true);
@@ -245,10 +248,7 @@ export default function UserManagementPage() {
         orderBy("date", "desc")
       );
       const querySnapshot = await getDocs(q);
-      const list: any[] = [];
-      querySnapshot.forEach(doc => {
-        list.push({ id: doc.id, ...doc.data() });
-      });
+      const list = querySnapshot.docs.map(d => absenceFromDoc(d.id, d.data()));
       setUserAbsences(prev => ({ ...prev, [userId]: list.slice(0, 5) }));
     } catch (error) {
       console.error("Error fetching absences for user:", error);
@@ -264,23 +264,24 @@ export default function UserManagementPage() {
     }
     setSubmittingAbsenceId(targetUser.id);
     try {
-      await addDoc(collection(db, "absence_requests"), {
+      await addAbsence({
         userId: targetUser.id,
         userName: targetUser.name,
-        date,
+        startDate: date,
+        endDate: absenceEndDates[targetUser.id] || date,
         reason,
         status: "approved", // Pre-approved when entered by manager/admin
-        createdAt: new Date().toISOString(),
         createdBy: currentUser?.uid || "admin",
         createdByName: currentUser?.displayName || currentUser?.email || "מנהל"
       });
       setAbsenceDates(prev => ({ ...prev, [targetUser.id]: "" }));
+      setAbsenceEndDates(prev => ({ ...prev, [targetUser.id]: "" }));
       setAbsenceReasons(prev => ({ ...prev, [targetUser.id]: "" }));
       alert(`ההיעדרות עבור ${targetUser.name} הוזנה ואושרה בהצלחה!`);
       await fetchUserAbsences(targetUser.id);
     } catch (error) {
       console.error("Error adding user absence:", error);
-      alert("שגיאה בהזנת היעדרות");
+      alert(error instanceof Error && /[א-ת]/.test(error.message) ? error.message : "שגיאה בהזנת היעדרות");
     } finally {
       setSubmittingAbsenceId(null);
     }
@@ -761,11 +762,21 @@ export default function UserManagementPage() {
 
                                      {/* Add absence form */}
                                      <div className="space-y-2 bg-[var(--background)]/40 p-3 rounded-xl border border-[var(--border)]">
-                                       <div className="flex gap-2">
+                                       <div className="flex gap-2 items-center">
                                          <input
                                            type="date"
+                                           aria-label="מתאריך"
                                            value={absenceDates[user.id] || ""}
                                            onChange={e => setAbsenceDates(prev => ({ ...prev, [user.id]: e.target.value }))}
+                                           className="bg-[var(--surface)] border border-[var(--border)] text-[11px] font-bold text-[var(--foreground)] rounded-lg px-2 py-1 focus:outline-none focus:border-rose-500/50 w-full"
+                                         />
+                                         <span className="text-[11px] text-[var(--muted)] font-bold shrink-0">עד</span>
+                                         <input
+                                           type="date"
+                                           aria-label="עד תאריך (כולל)"
+                                           min={absenceDates[user.id] || undefined}
+                                           value={absenceEndDates[user.id] || ""}
+                                           onChange={e => setAbsenceEndDates(prev => ({ ...prev, [user.id]: e.target.value }))}
                                            className="bg-[var(--surface)] border border-[var(--border)] text-[11px] font-bold text-[var(--foreground)] rounded-lg px-2 py-1 focus:outline-none focus:border-rose-500/50 w-full"
                                          />
                                        </div>
@@ -799,7 +810,7 @@ export default function UserManagementPage() {
                                        {userAbsences[user.id]?.length > 0 ? (
                                          userAbsences[user.id].map(abs => (
                                             <div key={abs.id} className="flex items-center justify-between text-[11px] bg-[var(--background)]/20 p-1.5 rounded-lg border border-[var(--border)]/50">
-                                              <span className="font-bold">{abs.date}</span>
+                                              <span className="font-bold">{formatAbsenceRange(abs)}</span>
                                               <span className="text-[11px] text-[var(--muted)] max-w-[100px] truncate">{abs.reason || "ללא סיבה"}</span>
                                               <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold ${
                                                 abs.status === "approved"

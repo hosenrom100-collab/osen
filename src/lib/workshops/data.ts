@@ -1,6 +1,8 @@
 import { db } from "@/lib/firebase/config";
 import { collection, getDocs, query, where } from "firebase/firestore";
 import { Group, Person, Program, STAFF_ROLES } from "./types";
+import { approvedDays } from "@/lib/attendance/staffAbsence";
+import { loadApprovedAbsences } from "@/lib/attendance/staffAbsenceData";
 
 export interface Refs {
   programs: Program[];
@@ -51,13 +53,9 @@ export async function loadRefs(): Promise<Refs> {
   return { programs, staff, locations, groups };
 }
 
-/** Approved absence requests for a set of dates. */
+/** Approved absences, one row per absent day, for a set of dates. */
 export async function loadAbsences(dates: string[]) {
-  const snap = await getDocs(query(collection(db, "absence_requests"), where("status", "==", "approved")));
-  const set = new Set(dates);
-  return snap.docs
-    .map(d => ({ userId: d.data().userId as string, date: d.data().date as string }))
-    .filter(a => set.has(a.date));
+  return approvedDays(await loadApprovedAbsences(), dates);
 }
 
 export async function notifyStaff(userIds: string[], title: string, body: string) {
