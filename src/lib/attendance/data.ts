@@ -167,3 +167,43 @@ export async function saveSessionEntry({ session, patientId, entry, uid }: SaveS
   }
   await batch.commit();
 }
+
+export interface AbsenceMarks {
+  /** Session marks: sessionId → participant → status. */
+  session: Map<string, Map<string, AttendanceEntry["status"]>>;
+  /** Participants marked absent for the whole day: date → participant ids. */
+  dayAbsent: Map<string, Set<string>>;
+}
+
+/** Session marks and whole-day absences for a range of dates, for counting who is away (see absentInSession). */
+export async function loadAbsenceMarks(from: string, to: string): Promise<AbsenceMarks> {
+  const [sesSnap, daySnap] = await Promise.all([
+    getDocs(query(collection(db, "session_attendance"), where("date", ">=", from), where("date", "<=", to))),
+    getDocs(query(collection(db, "attendance"), where("date", ">=", from), where("date", "<=", to))),
+  ]);
+  const session: AbsenceMarks["session"] = new Map();
+  sesSnap.forEach((d) => {
+    const x = d.data();
+    if (typeof x.patientId !== "string" || typeof x.sessionId !== "string") return;
+    const m = session.get(x.sessionId) ?? new Map();
+    m.set(x.patientId, entryFromDoc(x).status);
+    session.set(x.sessionId, m);
+  });
+  // Older screens may have left more than one document per participant and day: the newest wins.
+  const picked = new Map<string, Record<string, unknown>>();
+  daySnap.forEach((d) => {
+    const x = d.data();
+    if (typeof x.patientId !== "string" || typeof x.date !== "string") return;
+    const key = `${x.patientId}|${x.date}`;
+    const cur = picked.get(key);
+    picked.set(key, cur ? newest(cur, x) : x);
+  });
+  const dayAbsent: AbsenceMarks["dayAbsent"] = new Map();
+  for (const x of picked.values()) {
+    if (entryFromDoc(x).status !== "absent") continue;
+    const s = dayAbsent.get(x.date as string) ?? new Set();
+    s.add(x.patientId as string);
+    dayAbsent.set(x.date as string, s);
+  }
+  return { session, dayAbsent };
+}

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { RoleGuard } from "@/components/auth/RoleGuard";
 import { useAuth } from "@/context/AuthContext";
 import { db } from "@/lib/firebase/config";
-import { collection, deleteDoc, deleteField, doc, getDoc, getDocs, query, query as fsQuery, serverTimestamp, setDoc, updateDoc, where, writeBatch } from "firebase/firestore";
+import { collection, deleteDoc, deleteField, doc, getDoc, getDocs, query, serverTimestamp, setDoc, updateDoc, where, writeBatch } from "firebase/firestore";
 import { ChevronLeft, ChevronRight, MoreHorizontal, Plus, Search } from "lucide-react";
 import { MiniCalendar } from "@/components/workshops/MiniCalendar";
 import { ProgramScheduleSettings } from "@/components/workshops/ProgramScheduleSettings";
@@ -16,6 +16,7 @@ import { PageSkeleton } from "@/components/ui/Skeleton";
 import { Dialog, fieldCls, labelCls, btnPrimary, btnGhost } from "@/components/workshops/Dialog";
 import { SessionEditor } from "@/components/workshops/SessionEditor";
 import { SessionAttendanceSheet } from "@/components/workshops/SessionAttendanceSheet";
+import { useAbsenceMarks } from "@/lib/attendance/useAbsenceMarks";
 import { SeriesDays } from "@/components/workshops/SeriesDays";
 import { Column, DayAgenda, DragApi, Row, TimeGrid } from "@/components/workshops/WeekView";
 import { clashesAt, findConflicts } from "@/lib/workshops/conflicts";
@@ -131,11 +132,10 @@ export default function SchedulePage() {
   }, [mode, programSel, groupSel, view, colorBy]);
   const [pickedDay, setSelectedDay] = useState(today);
   const [editing, setEditing] = useState<{ session: Session | null; extra?: { date: string; programId?: string } } | null>(null);
-  // Attendance of one session, and how many participants each session of the week has marked absent.
+  // Attendance of one session, and who of each session of the week is marked away.
   const [attending, setAttending] = useState<Session | null>(null);
-  const [absentBy, setAbsentBy] = useState<Record<string, number>>({});
-  const [attVersion, setAttVersion] = useState(0);
   const canMarkAttendance = !!role && STAFF_ROLES.includes(role);
+  const { absentOf: absentIn, reload: reloadAbsent } = useAbsenceMarks(dates, !!user && canMarkAttendance);
   const [showChanges, setShowChanges] = useState(false);
   const [showClosures, setShowClosures] = useState(false);
   const [series, setSeries] = useState<{ id?: string } | null>(null);
@@ -162,19 +162,6 @@ export default function SchedulePage() {
 
   const nameOf = useCallback((id: string) => refs?.staff.find(s => s.id === id)?.name || "—", [refs]);
   const roomOf = useCallback((id?: string) => refs?.locations.find(l => l.id === id)?.name, [refs]);
-
-  useEffect(() => {
-    if (!user || !canMarkAttendance) return;
-    let live = true;
-    getDocs(fsQuery(collection(db, "session_attendance"), where("date", ">=", dates[0]), where("date", "<=", dates[dates.length - 1])))
-      .then(snap => {
-        const m: Record<string, number> = {};
-        snap.forEach(d => { const x = d.data(); if (x.status === "absent" && typeof x.sessionId === "string") m[x.sessionId] = (m[x.sessionId] || 0) + 1; });
-        if (live) setAbsentBy(m);
-      })
-      .catch(() => {});
-    return () => { live = false; };
-  }, [user, canMarkAttendance, dates, attVersion]);
 
   const all = useMemo(() => refs ? withDuties(buildSessions(dates, workshops, refs.programs, changes, closures, types), duties, patients) : [], [dates, workshops, refs, changes, closures, types, duties, patients]);
   const groupName = useCallback((id: string) => refs?.groups.find(g => g.id === id)?.name || "", [refs]);
@@ -407,7 +394,7 @@ export default function SchedulePage() {
       const n = participantsOf(s, workshopById.get(s.workshopId), patients).length;
       return n || undefined;
     },
-    absentOf: (s: Session) => (s.changeId ? absentBy[s.changeId] || undefined : undefined),
+    absentOf: (s: Session) => (s.fixedBlock || !s.hasParticipants ? undefined : absentIn(s.changeId, s.date, participantsOf(s, workshopById.get(s.workshopId), patients).map(p => p.id)).length || undefined),
     // Breakfast opens the day's duty picker, another fixed meal/break its program's schedule settings; everything else opens the session.
     onHover: (s: Session | null) => { hovered.current = s; },
     onOpen: (s: Session) => (s.fixedBlock ? (isManager && (isBreakfast(s) ? setDutyFor({ programId: s.programId, date: s.date, groupIds: s.groupIds }) : setSettingsFor(s.programId))) : setEditing({ session: s })),
@@ -690,7 +677,7 @@ export default function SchedulePage() {
             participants={participantsOf(attending, workshopById.get(attending.workshopId), patients)}
             daySessions={all.filter(x => x.date === attending.date && x.hasParticipants && !x.fixedBlock && x.kind !== "cancelled" && !!x.changeId)}
             onClose={() => setAttending(null)}
-            onChanged={() => setAttVersion(v => v + 1)}
+            onChanged={reloadAbsent}
           />
         )}
 

@@ -16,6 +16,7 @@ import { SessionAttendanceSheet } from "@/components/workshops/SessionAttendance
 import { useScheduleData } from "@/lib/workshops/useScheduleData";
 import { dutyText, instructorsLine, withDuties } from "@/lib/workshops/duties";
 import { dayOf } from "@/lib/workshops/dates";
+import { useAbsenceMarks } from "@/lib/attendance/useAbsenceMarks";
 
 interface Pref { programId: string; groupId: string; mine: boolean }
 const EMPTY: Pref = { programId: "", groupId: "", mine: false };
@@ -33,7 +34,9 @@ export function TodaySchedule() {
   const [offset, setOffset] = useState(0);
   const date = toISO(addDays(new Date(), offset));
   const dates = useMemo(() => [date], [date]);
-  const { refs, types, workshops, changes, closures, patients, duties, loading } = useScheduleData(dates);
+  const { refs, types, workshops, changes, closures, absences, patients, duties, loading } = useScheduleData(dates);
+  // Participants marked away (in the session or for the whole day), same as the full calendar.
+  const { absentOf, reload: reloadAbsent } = useAbsenceMarks(dates, !!user && canMark);
   const [pref, setPref] = useState<Pref>(EMPTY);
   const [editing, setEditing] = useState(false);
   const [now, setNow] = useState(0);
@@ -72,7 +75,9 @@ export function TodaySchedule() {
   const instructors = instructorsLine(program ? [program] : refs.programs, date, duties, refs.staff);
   const closure = closures.find(c => c.date === date && (c.programIds.length === 0 || !pref.programId || c.programIds.includes(pref.programId)));
   const wById = new Map(workshops.map(w => [w.id, w]));
-  const nameOf = (id: string) => (refs.staff.find(p => p.id === id)?.name || "").split(" ")[0];
+  const away = new Set(absences.filter(a => a.date === date).map(a => a.userId));
+  // Staff on an approved absence today stay listed, marked as away.
+  const nameOf = (id: string) => { const n = (refs.staff.find(p => p.id === id)?.name || "").split(" ")[0]; return n && away.has(id) ? `${n} (בהיעדרות)` : n; };
   const roomOf = (id?: string) => refs.locations.find(l => l.id === id)?.name || "";
   const label = [program?.name || "כל התוכניות", groups.find(g => g.id === pref.groupId)?.name].filter(Boolean).join(" · ");
   const dayLabel = offset === 0 ? "היום" : offset === 1 ? "מחר" : `יום ${DAY_FULL[dayOf(date)]}`;
@@ -120,7 +125,9 @@ export function TodaySchedule() {
             const st = state(s);
             const dead = s.kind === "cancelled";
             const t = hueStyle(programHue(refs.programs.find(p => p.id === s.programId), s.programId));
-            const count = s.fixedBlock || !s.hasParticipants ? 0 : firstNames(participantsOf(s, wById.get(s.workshopId), patients)).length;
+            const people = s.fixedBlock || !s.hasParticipants ? [] : participantsOf(s, wById.get(s.workshopId), patients);
+            const count = firstNames(people).length;
+            const absent = absentOf(s.changeId, s.date, people.map(p => p.id));
             const meta = [s.fixedBlock ? "" : s.staffIds.map(nameOf).filter(Boolean).join(", "), roomOf(s.locationId), !pref.groupId ? s.groupIds.map(id => refs.groups.find(g => g.id === id)?.name).filter(Boolean).join(", ") : ""].filter(Boolean).join(" · ");
             const tag = dead ? "בוטל" : s.kind === "moved-in" ? "הוזז אלינו" : s.kind === "extra" ? "מפגש נוסף" : s.change?.newStart || s.change?.newEnd ? "שעה שונתה" : s.change?.staffIds ? staffChangeLabel(s) : "";
             return (
@@ -137,7 +144,7 @@ export function TodaySchedule() {
                       <span className={`text-sm font-bold ${dead ? "line-through text-[var(--foreground)]/45" : ""}`}>{s.workshopName}</span>
                       {st === "now" && <span className="text-[11px] font-bold text-[#d92d20]">עכשיו</span>}
                       {tag && <span className="px-1.5 rounded text-[11px] font-bold leading-4 bg-[#fff0c2] text-[#8a5a00]">{tag}</span>}
-                      {count > 0 && !dead && <span className="mr-auto flex items-center gap-0.5 text-xs font-semibold tabular-nums text-[var(--foreground)]/65"><Users className="w-3 h-3" />{count}</span>}
+                      {count > 0 && !dead && <span className="mr-auto flex items-center gap-0.5 text-xs font-semibold tabular-nums text-[var(--foreground)]/65"><Users className="w-3 h-3" />{count}{absent.length > 0 && <span className="text-[#b42318]"> · {absent.length} חסרים</span>}</span>}
                     </div>
                     {meta && !dead && <p className="text-xs text-[var(--foreground)]/65 mt-0.5">{meta}</p>}
                     {s.note && <p className="text-xs mt-0.5 text-[var(--foreground)]/75">{s.note}</p>}
@@ -163,6 +170,7 @@ export function TodaySchedule() {
           participants={participantsOf(attending, wById.get(attending.workshopId), patients)}
           daySessions={sessions.filter(x => x.hasParticipants && !x.fixedBlock && x.kind !== "cancelled" && !!x.changeId)}
           onClose={() => setAttending(null)}
+          onChanged={reloadAbsent}
         />
       )}
     </section>

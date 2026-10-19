@@ -181,3 +181,21 @@ export function suggestMark(args: {
 export function todayInIsrael(d: Date = new Date()): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: TIME_ZONE, year: "numeric", month: "2-digit", day: "2-digit" }).format(d);
 }
+
+/**
+ * Who of a session's participants is away: marked absent in the session itself, or not marked in
+ * it while their whole day is marked absent. The same rule the session's attendance sheet shows,
+ * so the calendar, the home schedule and the sheet always agree.
+ */
+export function absentInSession(
+  participantIds: string[],
+  /** This session's marks, by participant. */
+  sessionMarks: ReadonlyMap<string, DayStatus> | undefined,
+  /** Participants marked absent for the whole day. */
+  dayAbsent: ReadonlySet<string> | undefined
+): string[] {
+  return participantIds.filter((pid) => {
+    const own = sessionMarks?.get(pid);
+    return own && own !== "unset" ? own === "absent" : !!dayAbsent?.has(pid);
+  });
+}
