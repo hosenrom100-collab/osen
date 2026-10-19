@@ -14,6 +14,7 @@ import { firstNames, participantsOf } from "@/lib/workshops/people";
 import { DAY_FULL, Session, STAFF_ROLES, staffChangeLabel } from "@/lib/workshops/types";
 import { SessionAttendanceSheet } from "@/components/workshops/SessionAttendanceSheet";
 import { useScheduleData } from "@/lib/workshops/useScheduleData";
+import { dutyText, withDuties } from "@/lib/workshops/duties";
 import { dayOf } from "@/lib/workshops/dates";
 
 interface Pref { programId: string; groupId: string; mine: boolean }
@@ -32,7 +33,7 @@ export function TodaySchedule() {
   const [offset, setOffset] = useState(0);
   const date = toISO(addDays(new Date(), offset));
   const dates = useMemo(() => [date], [date]);
-  const { refs, types, workshops, changes, closures, patients, loading } = useScheduleData(dates);
+  const { refs, types, workshops, changes, closures, patients, duties, loading } = useScheduleData(dates);
   const [pref, setPref] = useState<Pref>(EMPTY);
   const [editing, setEditing] = useState(false);
   const [now, setNow] = useState(0);
@@ -57,12 +58,12 @@ export function TodaySchedule() {
 
   const sessions = useMemo(() => {
     if (!refs) return [];
-    let list = buildSessions(dates, workshops, refs.programs, changes, closures, types).filter(s => s.kind !== "moved-away");
+    let list = withDuties(buildSessions(dates, workshops, refs.programs, changes, closures, types), duties, patients).filter(s => s.kind !== "moved-away");
     if (pref.programId) list = list.filter(s => s.programId === pref.programId);
     if (pref.groupId) list = list.filter(s => s.groupIds.length === 0 || s.groupIds.includes(pref.groupId));
     if (pref.mine && user) list = list.filter(s => s.fixedBlock || s.staffIds.includes(user.uid));
     return list;
-  }, [refs, types, dates, workshops, changes, closures, pref, user]);
+  }, [refs, types, dates, workshops, changes, closures, duties, patients, pref, user]);
 
   if (loading || !refs) return <div className="h-40 animate-pulse bg-[var(--foreground)]/[0.04] rounded-lg" aria-hidden />;
 
@@ -126,7 +127,7 @@ export function TodaySchedule() {
                   {s.start}<div className="text-[11px] font-normal text-[var(--foreground)]/50">{s.end}</div>
                 </div>
                 {s.band ? (
-                  <div className="flex-1 min-w-0 self-center rounded-md bg-[var(--foreground)]/[0.05] px-2.5 py-1 text-xs text-[var(--foreground)]/60 font-medium">{s.workshopName}{meta ? ` · ${meta}` : ""}</div>
+                  <div className="flex-1 min-w-0 self-center rounded-md bg-[var(--foreground)]/[0.05] px-2.5 py-1 text-xs text-[var(--foreground)]/60 font-medium">{s.workshopName}{meta ? ` · ${meta}` : ""}{s.duty ? <span className="block text-[var(--foreground)]/75">{dutyText(s.duty)}</span> : null}</div>
                 ) : (
                   <div className="flex-1 min-w-0 rounded-md border border-s-[3px] px-2.5 py-1.5"
                     style={{ backgroundColor: dead ? undefined : t.fill, borderColor: t.soft, borderInlineStartColor: st === "now" ? "#d92d20" : t.bar }}>
