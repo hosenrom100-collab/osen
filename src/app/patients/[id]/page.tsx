@@ -28,6 +28,7 @@ import { Packer } from "docx";
 import { ParticipantProfile, EMPTY_PROFILE } from "@/lib/participantProfile";
 import { composeFunctionalSections, composePeriodicSections, composeRehabPlanSections, PeriodicReportType } from "@/lib/reportContent";
 import { ParticipantSurveyStep } from "@/components/patients/ParticipantSurveyStep";
+import { RehabPlanBuilder } from "@/components/patients/RehabPlanBuilder";
 
 const REPORTS_ENABLED = false;
 
@@ -153,6 +154,7 @@ export default function PatientDetailPage() {
   // One-line attendance notes by date (staff only; participants cannot read them).
   const [attendanceNotes, setAttendanceNotes] = useState<Record<string, string>>({});
   // Workshop sessions this participant was marked in, grouped by workshop.
+  const [showRehabBuilder, setShowRehabBuilder] = useState(false);
   const [workshopStats, setWorkshopStats] = useState<{ id: string; name: string; present: number; absent: number; late: number; leftEarly: number }[]>([]);
   const [loading, setLoading] = useState(true);
   const requestedTab = (searchParams.get("tab") as "overview" | "attendance" | "certificates" | "reports") || "overview";
@@ -2019,6 +2021,15 @@ export default function PatientDetailPage() {
                               </div>
                             ))}
                           </div>
+                          {items.some(item => item.label === "תוכנית שיקום") && (
+                            <button
+                              onClick={() => setShowRehabBuilder(true)}
+                              className="mt-2 w-full flex items-center justify-center gap-1.5 rounded-lg border border-violet-200 bg-violet-50 py-2 text-[12px] font-bold text-violet-700 hover:bg-violet-100 transition-colors cursor-pointer"
+                            >
+                              <FileText className="w-3.5 h-3.5" />
+                              בניית תוכנית שיקום
+                            </button>
+                          )}
                         </div>
                       );
                     })()}
@@ -4232,6 +4243,26 @@ export default function PatientDetailPage() {
 
         {/* Rehab Plan Modal */}
         <AnimatePresence>
+          {showRehabBuilder && patient && (
+            <RehabPlanBuilder
+              patientId={patient.id}
+              patientName={`${patient.firstName} ${patient.lastName}`.trim()}
+              patientIdNumber={patient.idNumber || ""}
+              programIds={patient.programIds || (patient.programId ? [patient.programId] : [])}
+              attendedByWorkshop={Object.fromEntries(workshopStats.map(w => [w.id, w.present]))}
+              defaults={{
+                therapistName: socialWorkers.find(u => u.id === patient.assignedWorkerId)?.name || "",
+                districtWorker: rehabWorkers.find(w => w.id === patient.rehabWorkerId)?.name || "",
+                signerName: authUser?.displayName || "",
+                signerTitle: signatureTitle || "",
+              }}
+              signatureImage={signatureImage || undefined}
+              userId={authUser?.uid}
+              onClose={() => setShowRehabBuilder(false)}
+              onExported={() => { if (!patient.rehabPlanCompleted) toggleRehabPlan(); }}
+            />
+          )}
+
           {REPORTS_ENABLED && showRehabPlanModal && (
             <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
               <motion.div

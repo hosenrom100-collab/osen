@@ -299,3 +299,19 @@ test("breakfast duty: everyone signed in reads it, only managers write it", asyn
   await assertFails(getDoc(doc(env.unauthenticatedContext().firestore(), "daily_duties", "prog1_2026-10-19")));
   await assertSucceeds(deleteDoc(duty("manager")));
 });
+
+// ── rehabilitation plans ──
+
+test("rehab plans: care staff read and write them, participants and logistics cannot", async () => {
+  await seedAttendance();
+  const plan = (uid: string, id = "p1") => doc(as(uid), "rehab_plans", id);
+  const data = { patientId: "p1", goal: "מטרה", areas: [], objectives: [], ways: [], supports: [] };
+  await assertSucceeds(setDoc(plan("staff"), data));
+  await assertSucceeds(getDoc(plan("staff")));
+  await assertSucceeds(setDoc(plan("manager"), { ...data, goal: "מטרה אחרת" }));
+  await assertFails(setDoc(plan("staff", "p2"), data)); // the id must be the participant's
+  await assertFails(getDoc(plan("participant")));       // not even their own
+  await assertFails(setDoc(plan("participant"), data));
+  await assertFails(getDoc(plan("logistics")));
+  await assertFails(setDoc(plan("logistics"), data));
+});

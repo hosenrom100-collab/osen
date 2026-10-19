@@ -120,6 +120,17 @@ service cloud.firestore {
     }
 
     // One short line per participant per day (kind 'day') or per workshop session (kind 'session').
+    // Personal rehabilitation plans, one per participant (doc id = patient id). Therapeutic content:
+    // care staff only. Participants and logistics-only users cannot read them.
+    match /rehab_plans/{patientId} {
+      allow read, delete: if isAuthenticated() && userRoles().hasAny([
+        'admin', 'manager', 'social_worker', 'instructor', 'employee', 'professional_manager'
+      ]);
+      allow create, update: if isAuthenticated() && userRoles().hasAny([
+        'admin', 'manager', 'social_worker', 'instructor', 'employee', 'professional_manager'
+      ]) && request.resource.data.patientId == patientId;
+    }
+
     match /attendance_notes/{docId} {
       allow read: if isStaff();
       allow create, update: if isStaff() &&

@@ -14,6 +14,7 @@ import {
   Footer
 } from "docx";
 import PizZip from "pizzip";
+import { farmActionsLine, type RehabPlan } from "./rehabPlan";
 
 const base64ToUint8Array = (base64String: string | undefined): Uint8Array | null => {
   try {
@@ -679,6 +680,71 @@ export const generateRehabPlanWord = (
   );
 
   return createDocxDocument(children, metadata.logoHeaderData, metadata.logoFooterData);
+};
+
+/**
+ * 1b. Personal rehabilitation plan built in the smart template (RehabPlanBuilder).
+ * Same letterhead flow as the others: pass the result to generateDocxWithLetterhead.
+ */
+export const generatePersonalRehabPlanWord = (
+  plan: RehabPlan,
+  meta: { patientName: string; patientId: string; signatureImage?: string }
+): Document => {
+  const children: any[] = [
+    createParagraph(`תאריך: ${plan.date}`, { alignment: AlignmentType.END, bold: true }),
+    createSpacer(120),
+    createParagraph("תוכנית שיקום אישית", { alignment: AlignmentType.CENTER, bold: true, size: 32, spacingAfter: 360 }),
+    createLabelValueParagraph("שם המשתתף/ת:", meta.patientName || ""),
+    createLabelValueParagraph("ת.ז:", meta.patientId || ""),
+    createLabelValueParagraph("איש הצוות הטיפולי המלווה בחווה:", plan.therapistName || ""),
+    createLabelValueParagraph("שם העו\"ס במחוז:", plan.districtWorker || "", { spacingAfter: 360 }),
+    createParagraph("חלק א': באילו תחומים היית רוצה להביא לשיפור (לפי סדר חשיבות)", { bold: true, spacingAfter: 200 }),
+  ];
+
+  plan.areas.forEach((area, idx) => {
+    children.push(createParagraph(`${idx + 1}. ${area.title}`, { bold: true, spacingAfter: 60 }));
+    if (area.description.trim()) children.push(createMultilineParagraph(area.description.trim(), { spacingAfter: 60 }));
+    const actions = farmActionsLine(area.farmActions);
+    if (actions) children.push(createParagraph(actions, { spacingAfter: 60 }));
+    children.push(createSpacer(80));
+  });
+
+  children.push(createSpacer(120));
+  children.push(createParagraph("חלק ב': הגדרת המטרה באופן ספציפי וברור", { bold: true, spacingAfter: 200 }));
+  children.push(createLabelValueParagraph("הגדרת המטרה:", ""));
+  children.push(createMultilineParagraph(plan.goal.trim(), { spacingAfter: 240 }));
+  const objectives = plan.objectives.map(o => o.trim()).filter(Boolean);
+  if (objectives.length) {
+    children.push(createLabelValueParagraph("יעדים מרכזיים:", ""));
+    objectives.forEach((o, idx) => children.push(createParagraph(`${idx + 1}. ${o}`, { spacingAfter: 60 })));
+  }
+  children.push(createSpacer(240));
+
+  const cell = (text: string, bold = false) => new TableCell({
+    width: { size: 50, type: WidthType.PERCENTAGE },
+    margins: { top: 100, bottom: 100, left: 120, right: 120 },
+    children: [createParagraph(text, { bold, spacingAfter: 0 })],
+  });
+  const ways = plan.ways.map(w => w.trim()).filter(Boolean);
+  const supports = plan.supports.map(s => s.trim()).filter(Boolean);
+  const rows = Math.max(ways.length, supports.length, 1);
+  children.push(new Table({
+    visuallyRightToLeft: true,
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    borders: tableBorders,
+    rows: [
+      new TableRow({ tableHeader: true, children: [
+        cell("דרכים אפשריות להשגת המטרה (בדגש החווה)", true),
+        cell("מקורות סיוע להשגת המטרה - מה או מי יכול לסייע?", true),
+      ] }),
+      ...Array.from({ length: rows }, (_, i) => new TableRow({ children: [cell(ways[i] ?? ""), cell(supports[i] ?? "")] })),
+    ],
+  }));
+  children.push(createSpacer(360));
+
+  children.push(buildSignatureTable(plan.signerName, plan.signerTitle, plan.signerOrg, meta.signatureImage));
+
+  return createDocxDocument(children);
 };
 
 /**
