@@ -23,6 +23,7 @@ import { buildSessions } from "@/lib/workshops/buildWeek";
 import { notifyStaff, Refs } from "@/lib/workshops/data";
 import { useScheduleData } from "@/lib/workshops/useScheduleData";
 import { firstNames, participantsOf } from "@/lib/workshops/people";
+import { transferTargets } from "@/lib/workshops/transferCore";
 import { ColorBy, groupHue, hueStyle, programHue, programShort, sessionHue } from "@/lib/workshops/colors";
 import { typeById } from "@/lib/workshops/activityTypes";
 import { groupsRunInParallel } from "@/lib/workshops/lanes";
@@ -665,6 +666,8 @@ export default function SchedulePage() {
             accent={editing.session ? sessionHue(editing.session, colorBy, types, refs.programs) : undefined}
             groupNames={editing.session ? editing.session.groupIds.map(groupName).filter(Boolean) : []}
             participants={editing.session ? firstNames(participantsOf(editing.session, workshopById.get(editing.session.workshopId), patients)) : []}
+            participantIds={editing.session ? participantsOf(editing.session, workshopById.get(editing.session.workshopId), patients).map(p => p.id) : []}
+            transferTargets={editing.session ? transferTargets(editing.session, all) : []}
             busyFor={(staffId, date, start, end, workshopId) =>
               clashesAt({ staffIds: [staffId], date, start, end, ignoreWorkshopId: workshopId }, all, absences, roomOf).staff.get(staffId)}
             warnings={editing.session ? warnings.get(editing.session.id) || [] : []}

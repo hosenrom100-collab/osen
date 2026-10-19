@@ -47,8 +47,22 @@ export interface SessionChange {
   kind?: string; // activity type for this session only (overrides the workshop's)
   title?: string; // name for this session only (overrides the workshop's)
   note?: string;
+  transfer?: ParticipantTransfer; // a cancelled session whose participants were sent to another workshop's session that day
+  guests?: Record<string, string[]>; // participants joining this session only, keyed by the change id of the cancelled session they came from
   dates: string[]; // every date this change touches — used for the weekly query
   published: boolean;
+}
+
+/** One-time move of a cancelled session's participants to a session of another workshop. */
+export interface ParticipantTransfer {
+  toChangeId: string;
+  toWorkshopId: string;
+  toName: string;
+  toStart: string;
+  toDate: string;
+  toSlotId: string | null;
+  toOrigDate: string | null;
+  patientIds: string[];
 }
 
 export interface Closure {

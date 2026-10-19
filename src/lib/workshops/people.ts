@@ -1,12 +1,22 @@
-import { PatientLite } from "./data";
-import { Session, Workshop } from "./types";
+import type { PatientLite } from "./data";
+import type { Session, Workshop } from "./types";
+import { guestIdsOf } from "./transferCore";
 
 /**
  * Participants attending a session: the workshop's own list when it has one, otherwise everyone
- * in the session's program (and groups) whose stay covers that date.
+ * in the session's program (and groups) whose stay covers that date. Plus anyone sent over from a
+ * cancelled session of another workshop, for this session only.
  */
 export function participantsOf(s: Session, workshop: Workshop | undefined, patients: PatientLite[]): PatientLite[] {
   if (s.fixedBlock || !s.hasParticipants) return [];
+  const own = ownParticipants(s, workshop, patients);
+  const guests = guestIdsOf(s);
+  if (!guests.length) return own;
+  const have = new Set(own.map(p => p.id));
+  return [...own, ...patients.filter(p => guests.includes(p.id) && !have.has(p.id))];
+}
+
+function ownParticipants(s: Session, workshop: Workshop | undefined, patients: PatientLite[]): PatientLite[] {
   if (workshop?.participantIds?.length) {
     const ids = new Set(workshop.participantIds);
     return patients.filter(p => ids.has(p.id));
