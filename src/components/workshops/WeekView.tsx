@@ -520,9 +520,9 @@ export function TimeGrid({ columns, mode, groupName, laneMin, corner, drag: drag
 }
 
 /** Phones: one day at a time, everything in chronological order. */
-export function DayAgenda({ dates, days, mode, today, selected, setSelected, globalClosure, canEdit, onAdd, groupChips, groupPicked, onPickGroup, ...c }: Common & {
+export function DayAgenda({ dates, days, mode, today, selected, setSelected, globalClosure, dayNote, canEdit, onAdd, groupChips, groupPicked, onPickGroup, ...c }: Common & {
   dates: string[]; days: number[]; mode: Mode; today: string; rows?: unknown;
-  selected: string; setSelected: (d: string) => void; globalClosure: (date: string) => string | undefined;
+  selected: string; setSelected: (d: string) => void; globalClosure: (date: string) => string | undefined; dayNote?: (date: string) => string | undefined;
   canEdit: boolean; onAdd: (date: string) => void;
   groupChips?: { id: string; label: string; hue?: number }[]; groupPicked?: string; onPickGroup?: (id: string) => void;
 }) {
@@ -578,6 +578,7 @@ export function DayAgenda({ dates, days, mode, today, selected, setSelected, glo
         </div>
       )}
       {closure && <p className="mx-3 mt-3 px-3 py-2.5 text-sm font-medium text-[var(--cal-muted)] bg-[var(--cal-ink)]/[0.05] rounded-lg">{closure}</p>}
+      {!closure && dayNote?.(selected) && <p className="mx-3 mt-3 px-3 py-2 text-sm font-medium text-[var(--cal-ink)] bg-[var(--cal-ink)]/[0.05] rounded-lg">{dayNote(selected)}</p>}
       <ul className="px-3 py-2">
         {bundles.map((b, bi) => {
           const first = b[0];
