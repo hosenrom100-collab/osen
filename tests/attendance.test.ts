@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-  addMinutes, countEntries, dayAttendanceId, entryFromDoc, entryIsEmpty, isValidTime, newest, timeInIsrael,
+  absentInSession, addMinutes, countEntries, dayAttendanceId, entryFromDoc, entryIsEmpty, isValidTime, newest, timeInIsrael,
 } from "../src/lib/attendance/model";
 
 test("one id per participant per day", () => {
@@ -97,4 +97,15 @@ test("suggestions: a tap well after a session began offers a late mark at the ta
 
 test("suggestions: nothing when the person was already there earlier", () => {
   assert.equal(suggestMark({ ...base, newStatus: "present", session: noon, others: [{ sessionId: "m", status: "present" }] }), null);
+});
+
+test("who is away in a session: its own mark first, else a whole-day absence", () => {
+  const marks = new Map<string, "present" | "absent" | "unset">([["a", "absent"], ["b", "present"]]);
+  const dayAbsent = new Set(["b", "c"]);
+  // a: absent in the session; b: came to this session despite a day absence; c: day absence only; d: nothing.
+  assert.deepEqual(absentInSession(["a", "b", "c", "d"], marks, dayAbsent), ["a", "c"]);
+  assert.deepEqual(absentInSession(["a", "c"], undefined, undefined), []);
+  assert.deepEqual(absentInSession(["c"], undefined, dayAbsent), ["c"]);
+  // Someone marked absent in a session they do not belong to is not counted there.
+  assert.deepEqual(absentInSession(["d"], marks, dayAbsent), []);
 });
