@@ -17,6 +17,7 @@ import { useScheduleData } from "@/lib/workshops/useScheduleData";
 import { dutyText, instructorsLine, withDuties } from "@/lib/workshops/duties";
 import { dayOf } from "@/lib/workshops/dates";
 import { useAbsenceMarks } from "@/lib/attendance/useAbsenceMarks";
+import { opensAttendance } from "@/lib/workshops/attendanceEntry";
 
 interface Pref { programId: string; groupId: string; mine: boolean }
 const EMPTY: Pref = { programId: "", groupId: "", mine: false };
@@ -129,6 +130,8 @@ export function TodaySchedule() {
             const count = firstNames(people).length;
             const absent = absentOf(s.changeId, s.date, people.map(p => p.id));
             const meta = [s.fixedBlock ? "" : s.staffIds.map(nameOf).filter(Boolean).join(", "), roomOf(s.locationId), !pref.groupId ? s.groupIds.map(id => refs.groups.find(g => g.id === id)?.name).filter(Boolean).join(", ") : ""].filter(Boolean).join(" · ");
+            // The whole card opens this session's attendance check (same sheet as the full calendar).
+            const clickable = opensAttendance(s, count, canMark);
             const tag = dead ? "בוטל" : s.kind === "moved-in" ? "הוזז אלינו" : s.kind === "extra" ? "מפגש נוסף" : s.change?.newStart || s.change?.newEnd ? "שעה שונתה" : s.change?.staffIds ? staffChangeLabel(s) : "";
             return (
               <li key={s.id} className={`flex items-stretch gap-3 py-1.5 ${st === "done" ? "opacity-50" : ""}`}>
@@ -138,8 +141,13 @@ export function TodaySchedule() {
                 {s.band ? (
                   <div className="flex-1 min-w-0 self-center rounded-md bg-[var(--foreground)]/[0.05] px-2.5 py-1 text-xs text-[var(--foreground)]/60 font-medium">{s.workshopName}{meta ? ` · ${meta}` : ""}{s.duty ? <span className="block text-[var(--foreground)]/75">{dutyText(s.duty)}</span> : null}</div>
                 ) : (
-                  <div className="flex-1 min-w-0 rounded-md border border-s-[3px] px-2.5 py-1.5"
-                    style={{ backgroundColor: dead ? undefined : t.fill, borderColor: t.soft, borderInlineStartColor: st === "now" ? "#d92d20" : t.bar }}>
+                  <div className={`flex-1 min-w-0 rounded-md border border-s-[3px] px-2.5 py-1.5 ${clickable ? "cursor-pointer transition hover:brightness-95 hover:shadow-sm focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--primary)]" : ""}`}
+                    style={{ backgroundColor: dead ? undefined : t.fill, borderColor: t.soft, borderInlineStartColor: st === "now" ? "#d92d20" : t.bar }}
+                    {...(clickable ? {
+                      role: "button", tabIndex: 0, "aria-label": `בדיקת נוכחות: ${s.workshopName} ${s.start}`,
+                      onClick: () => setAttending(s),
+                      onKeyDown: (e: React.KeyboardEvent) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setAttending(s); } },
+                    } : {})}>
                     <div className="flex items-center gap-2">
                       <span className={`text-sm font-bold ${dead ? "line-through text-[var(--foreground)]/45" : ""}`}>{s.workshopName}</span>
                       {st === "now" && <span className="text-[11px] font-bold text-[#d92d20]">עכשיו</span>}
@@ -148,8 +156,8 @@ export function TodaySchedule() {
                     </div>
                     {meta && !dead && <p className="text-xs text-[var(--foreground)]/65 mt-0.5">{meta}</p>}
                     {s.note && <p className="text-xs mt-0.5 text-[var(--foreground)]/75">{s.note}</p>}
-                    {canMark && count > 0 && !dead && st !== "later" && s.changeId && (
-                      <button type="button" onClick={() => setAttending(s)} className="mt-1.5 h-8 px-3 rounded-md border border-[var(--border)] bg-[var(--background)] text-xs font-bold hover:bg-[var(--foreground)]/5">סמן נוכחות</button>
+                    {clickable && (
+                      <span aria-hidden className="mt-1 flex items-center gap-0.5 text-xs font-bold text-[var(--primary)]">בדיקת נוכחות <ChevronLeft className="w-3 h-3" /></span>
                     )}
                   </div>
                 )}
