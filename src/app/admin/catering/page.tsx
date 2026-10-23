@@ -68,6 +68,7 @@ interface CateringOrder {
   contactName?: string;
   contactRole?: string;
   contactPhone?: string;
+  generalNotes?: string;
 }
 
 export default function CateringOrderPage() {
@@ -167,6 +168,7 @@ export default function CateringOrderPage() {
   const [contactName, setContactName] = useState("מירב סארמילי");
   const [contactRole, setContactRole] = useState("מנהלת תפעול מרכז חוסן חוות רום");
   const [contactPhone, setContactPhone] = useState("052-609-1158");
+  const [generalNotes, setGeneralNotes] = useState("");
 
   const [generatingPdf, setGeneratingPdf] = useState(false);
   const reportRef = React.useRef<HTMLDivElement>(null);
@@ -358,6 +360,7 @@ export default function CateringOrderPage() {
         contactName,
         contactRole,
         contactPhone,
+        generalNotes: generalNotes.trim(),
         meats: selectedMeats,
         sides: selectedSides,
         salads: selectedSalads,
@@ -542,7 +545,7 @@ ${meatsList || "_לא נבחרו מנות_"}${vegetarianSection}
 ${sidesList || "_לא נבחרו תוספות_"}
 
 *סלטים:*
-יישלחו ללא בחירה (מה שיש במטבח)${breadSection}
+יישלחו ללא בחירה (מה שיש במטבח)${breadSection}${generalNotes.trim() ? `\n\n*הערות כלליות:*\n${generalNotes.trim()}` : ""}
 
 בברכה,
 *${contactName}* | ${contactPhone}
@@ -748,6 +751,20 @@ ${contactRole}`;
                       className="w-full bg-[var(--background)] border border-[var(--border)] text-xs rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-amber-500 font-medium"
                     />
                   </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label htmlFor="generalNotes" className="text-[11px] font-bold text-[var(--muted)]">
+                    הערות כלליות
+                  </label>
+                  <textarea
+                    id="generalNotes"
+                    rows={4}
+                    value={generalNotes}
+                    onChange={(e) => setGeneralNotes(e.target.value)}
+                    placeholder="הערות להזמנה (אלרגיות, בקשות מיוחדות, הנחיות הגעה...)"
+                    className="w-full bg-[var(--background)] border border-[var(--border)] text-xs rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-amber-500 font-medium resize-y"
+                  />
                 </div>
 
                 <div className="flex items-center gap-2 border-t border-[var(--border)]/50 pt-4">
@@ -1179,6 +1196,11 @@ ${contactRole}`;
                                     <span className="text-[var(--foreground)] font-bold">🥗 סלטים:</span> {order.salads.join(", ")}
                                     {order.includeBread && " | 🍞 כולל לחם"}
                                   </div>
+                                  {order.generalNotes && (
+                                    <div className="sm:col-span-2 whitespace-pre-line">
+                                      <span className="text-[var(--foreground)] font-bold">📝 הערות:</span> {order.generalNotes}
+                                    </div>
+                                  )}
                                 </div>
 
                                 <div className="flex items-center gap-2 pt-1.5 justify-end">
@@ -1205,6 +1227,7 @@ ${contactRole}`;
                                       setContactName(order.contactName || "מירב סארמילי");
                                       setContactRole(order.contactRole || "מנהלת תפעול מרכז חוסן חוות רום");
                                       setContactPhone(order.contactPhone || "052-609-1158");
+                                      setGeneralNotes(order.generalNotes || "");
                                     }}
                                     className="px-2.5 py-1 bg-amber-500/10 hover:bg-amber-500/20 text-amber-500 text-[11px] font-bold rounded-lg transition-colors"
                                   >
@@ -1445,6 +1468,11 @@ ${contactRole}`;
                           {contactRole}
                         </div>
                       </div>
+                      {generalNotes.trim() && (
+                        <div style={{ borderTop: "1px solid #e2e8f0", paddingTop: "6px", marginTop: "4px", whiteSpace: "pre-line" }}>
+                          <strong style={{ color: "#64748b" }}>הערות:</strong> {generalNotes.trim()}
+                        </div>
+                      )}
                     </div>
                   </div>
 
