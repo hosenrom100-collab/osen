@@ -1,3 +1,5 @@
+import { Milk, Beef, Apple, Wheat, SprayCan, Package, Bath, Soup, Snowflake, ShoppingBasket, type LucideIcon } from "lucide-react";
+
 export const DEFAULT_CATEGORIES = [
   "גבינות ומחלבה", "לחם ומאפים", "חומרי ניקוי",
   "מוצרי נייר וחד פעמי", "שימורים ובישול", "פירות וירקות",
@@ -41,6 +43,19 @@ export const CAT_SOLID: Record<string, string> = {
   "שימורים ובישול":       "bg-slate-500 border-slate-400",
   "קפואים":               "bg-sky-500 border-sky-400",
   "כללי":                 "bg-slate-400 border-slate-300",
+};
+
+export const CAT_ICON: Record<string, LucideIcon> = {
+  "גבינות ומחלבה":       Milk,
+  "בשר ודגים":            Beef,
+  "פירות וירקות":         Apple,
+  "לחם ומאפים":           Wheat,
+  "חומרי ניקוי":          SprayCan,
+  "מוצרי נייר וחד פעמי": Package,
+  "טואלטיקה והיגיינה":   Bath,
+  "שימורים ובישול":       Soup,
+  "קפואים":               Snowflake,
+  "כללי":                 ShoppingBasket,
 };
 
 export const TARGET_FRAMEWORKS = [

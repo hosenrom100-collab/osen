@@ -7,7 +7,7 @@ import {
   Flame, ShoppingBag, ChevronDown, Check, RotateCcw, Undo2, Trash2, Download, Layers,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { CAT_SOLID, TARGET_FRAMEWORKS } from "../lib/constants";
+import { CAT_COLOR, CAT_ICON, TARGET_FRAMEWORKS } from "../lib/constants";
 import { ItemRow } from "./ItemRow";
 import { ItemDetailSheet } from "./ItemDetailSheet";
 import { FrameworkPickerSheet } from "./FrameworkPickerSheet";
@@ -304,10 +304,20 @@ export function ShoppingListView({
           return (
             <section key={cat} className={`${cardClass} mb-4`}>
               {/* Sticky under the chip row (52px) so the current aisle stays named while scrolling */}
-              <header className="sticky top-11 z-10 flex items-center gap-2.5 pl-4 pr-5 py-2.5 bg-[var(--surface)]/95 backdrop-blur border-b border-[var(--border)]">
-                <span aria-hidden className={`absolute right-0 top-0 bottom-0 w-[3px] ${CAT_SOLID[cat] ?? CAT_SOLID["כללי"]}`} />
-                <h2 className="text-sm font-bold text-[var(--foreground)]">{cat}</h2>
-                <span className="text-[13px] font-medium text-[var(--muted)] tabular-nums">{catItems.length}</span>
+              <header className="sticky top-11 z-10 flex items-center gap-2.5 px-4 py-2.5 bg-[var(--surface)]/95 backdrop-blur border-b border-[var(--border)]">
+                {(() => {
+                  const Icon = CAT_ICON[cat] ?? CAT_ICON["כללי"];
+                  const color = CAT_COLOR[cat] ?? CAT_COLOR["כללי"];
+                  return (
+                    <>
+                      <span aria-hidden className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border ${color}`}>
+                        <Icon className="h-3.5 w-3.5" strokeWidth={2} />
+                      </span>
+                      <h2 className="text-sm font-bold text-[var(--foreground)]">{cat}</h2>
+                      <span className={`min-w-[20px] rounded-full border px-1.5 text-center text-[11px] font-semibold tabular-nums ${color}`}>{catItems.length}</span>
+                    </>
+                  );
+                })()}
               </header>
               <div className="divide-y divide-[var(--border)]">
                 {catItems.map((item) => (
