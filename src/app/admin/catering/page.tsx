@@ -74,6 +74,20 @@ interface CateringOrder {
   generalNotes?: string;
 }
 
+const DEFAULT_ARRIVAL_TIME = "12:30";
+const DEFAULT_CONTACT_NAME = "מירב סארמילי";
+const DEFAULT_CONTACT_ROLE = "מנהלת תפעול מרכז חוסן חוות רום";
+const DEFAULT_CONTACT_PHONE = "052-609-1158";
+
+// Default delivery date: next Monday (a week ahead if today is Monday), as YYYY-MM-DD
+const getDefaultDeliveryDate = () => {
+  const date = new Date();
+  const currentDay = date.getDay();
+  const daysToAdd = (1 - currentDay + 7) % 7 === 0 ? 7 : (1 - currentDay + 7) % 7;
+  date.setDate(date.getDate() + daysToAdd);
+  return date.toISOString().split("T")[0];
+};
+
 export default function CateringOrderPage() {
   const router = useRouter();
   const { user } = useAuth();
@@ -138,14 +152,8 @@ export default function CateringOrderPage() {
   const [errorMsg, setErrorMsg] = useState("");
 
   // Delivery details (default to next Monday)
-  const [deliveryDate, setDeliveryDate] = useState(() => {
-    const date = new Date();
-    const currentDay = date.getDay();
-    const daysToAdd = (1 - currentDay + 7) % 7 === 0 ? 7 : (1 - currentDay + 7) % 7;
-    date.setDate(date.getDate() + daysToAdd);
-    return date.toISOString().split("T")[0];
-  });
-  const [arrivalTime, setArrivalTime] = useState("12:30");
+  const [deliveryDate, setDeliveryDate] = useState(getDefaultDeliveryDate);
+  const [arrivalTime, setArrivalTime] = useState(DEFAULT_ARRIVAL_TIME);
 
   const [includeBread, setIncludeBread] = useState(true);
 
@@ -174,9 +182,9 @@ export default function CateringOrderPage() {
     }
   }, [selectedMeats.length, activeMenuStep]);
 
-  const [contactName, setContactName] = useState("מירב סארמילי");
-  const [contactRole, setContactRole] = useState("מנהלת תפעול מרכז חוסן חוות רום");
-  const [contactPhone, setContactPhone] = useState("052-609-1158");
+  const [contactName, setContactName] = useState(DEFAULT_CONTACT_NAME);
+  const [contactRole, setContactRole] = useState(DEFAULT_CONTACT_ROLE);
+  const [contactPhone, setContactPhone] = useState(DEFAULT_CONTACT_PHONE);
   const [generalNotes, setGeneralNotes] = useState("");
 
   const [generatingPdf, setGeneratingPdf] = useState(false);
@@ -427,13 +435,15 @@ export default function CateringOrderPage() {
     setDeliveryDate(order.deliveryDate);
     setArrivalTime(order.arrivalTime);
     setPortions(order.defaultPortions || order.portions);
-    setContactName(order.contactName || "מירב סארמילי");
-    setContactRole(order.contactRole || "מנהלת תפעול מרכז חוסן חוות רום");
-    setContactPhone(order.contactPhone || "052-609-1158");
+    setContactName(order.contactName || DEFAULT_CONTACT_NAME);
+    setContactRole(order.contactRole || DEFAULT_CONTACT_ROLE);
+    setContactPhone(order.contactPhone || DEFAULT_CONTACT_PHONE);
     setGeneralNotes(order.generalNotes || "");
   };
 
-  // Leave edit mode and clear the menu choices, so the next save creates a new order
+  // Leave edit mode and reset the whole form to a blank new-order state
+  // (same defaults as on first load: next Monday, 12:30, default contacts,
+  // portions per group from the attendance stats, bread included)
   const cancelEditing = () => {
     setEditingId(null);
     setSelectedMeats([]);
@@ -444,6 +454,18 @@ export default function CateringOrderPage() {
     setVegetarianPortions(0);
     setFishDish(DEFAULT_FISH_DISH);
     setFishPortions(0);
+    setDeliveryDate(getDefaultDeliveryDate());
+    setArrivalTime(DEFAULT_ARRIVAL_TIME);
+    setPortions(Object.fromEntries(
+      groups.map(g => {
+        const s = stats[g.id];
+        const avg = s?.avg ?? 0;
+        return [g.id, avg > 0 ? avg : Math.round((s?.activeCount ?? 0) * 0.7)];
+      })
+    ));
+    setContactName(DEFAULT_CONTACT_NAME);
+    setContactRole(DEFAULT_CONTACT_ROLE);
+    setContactPhone(DEFAULT_CONTACT_PHONE);
     setGeneralNotes("");
     setActiveMenuStep("meats");
     setErrorMsg("");
