@@ -186,6 +186,7 @@ export default function CateringOrderPage() {
   const [contactRole, setContactRole] = useState(DEFAULT_CONTACT_ROLE);
   const [contactPhone, setContactPhone] = useState(DEFAULT_CONTACT_PHONE);
   const [generalNotes, setGeneralNotes] = useState("");
+  const [isSummaryExpanded, setIsSummaryExpanded] = useState(false);
 
   const [generatingPdf, setGeneratingPdf] = useState(false);
   const reportRef = React.useRef<HTMLDivElement>(null);
@@ -778,6 +779,8 @@ ${contactRole}`;
             {/* Left Column: Configuration */}
             <div className="order-2 xl:order-1 space-y-6">
               
+              <section className="space-y-6">
+                <h2 className="text-sm font-black uppercase tracking-wider text-[var(--foreground)] border-b-2 border-[var(--foreground)]/10 pb-2">פרטים</h2>
               {/* Delivery Details Card */}
               <div className="py-5 border-b border-[var(--border)] space-y-4">
                 <div className="flex items-center gap-2 border-b border-[var(--border)] pb-3">
@@ -853,32 +856,6 @@ ${contactRole}`;
                   </div>
                 </div>
 
-                <div className="space-y-1.5">
-                  <label htmlFor="generalNotes" className="text-[11px] font-bold text-[var(--muted)]">
-                    הערות כלליות
-                  </label>
-                  <textarea
-                    id="generalNotes"
-                    rows={4}
-                    value={generalNotes}
-                    onChange={(e) => setGeneralNotes(e.target.value)}
-                    placeholder="הערות להזמנה (אלרגיות, בקשות מיוחדות, הנחיות הגעה...)"
-                    className="w-full bg-[var(--background)] border border-[var(--border)] text-xs rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-amber-500 font-medium resize-y"
-                  />
-                </div>
-
-                <div className="flex items-center gap-2 border-t border-[var(--border)]/50 pt-4">
-                  <input 
-                    type="checkbox" 
-                    id="includeBread"
-                    checked={includeBread}
-                    onChange={(e) => setIncludeBread(e.target.checked)}
-                    className="w-4 h-4 text-amber-500 bg-[var(--background)] border-[var(--border)] rounded focus:ring-amber-500 cursor-pointer"
-                  />
-                  <label htmlFor="includeBread" className="text-xs font-bold text-[var(--foreground)] cursor-pointer">
-                    להוסיף לחם להזמנה
-                  </label>
-                </div>
               </div>
 
               {/* Portion Calculator Card */}
@@ -950,10 +927,14 @@ ${contactRole}`;
                   </div>
                 )}
               </div>
+              </section>
+
 
               {/* Menu Categories selection */}
               <div className="space-y-6">
                 
+                <section className="space-y-6">
+                  <h2 className="text-sm font-black uppercase tracking-wider text-[var(--foreground)] border-b-2 border-[var(--foreground)]/10 pb-2">מנות</h2>
                 {/* 1. MEAT CATEGORY */}
                 <div className="py-4 border-b border-[var(--border)] space-y-4">
                   <button
@@ -1255,6 +1236,39 @@ ${contactRole}`;
                     </div>
                   )}
                 </div>
+                </section>
+
+                <section className="space-y-6">
+                  <h2 className="text-sm font-black uppercase tracking-wider text-[var(--foreground)] border-b-2 border-[var(--foreground)]/10 pb-2">תוספות</h2>
+                  <div className="py-5 border-b border-[var(--border)] space-y-4">
+                  <div className="space-y-1.5">
+                    <label htmlFor="generalNotes" className="text-[11px] font-bold text-[var(--muted)]">
+                      הערות כלליות
+                    </label>
+                    <textarea
+                      id="generalNotes"
+                      rows={4}
+                      value={generalNotes}
+                      onChange={(e) => setGeneralNotes(e.target.value)}
+                      placeholder="הערות להזמנה (אלרגיות, בקשות מיוחדות, הנחיות הגעה...)"
+                      className="w-full bg-[var(--background)] border border-[var(--border)] text-xs rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-amber-500 font-medium resize-y"
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-2 border-t border-[var(--border)]/50 pt-4">
+                    <input 
+                      type="checkbox" 
+                      id="includeBread"
+                      checked={includeBread}
+                      onChange={(e) => setIncludeBread(e.target.checked)}
+                      className="w-4 h-4 text-amber-500 bg-[var(--background)] border-[var(--border)] rounded focus:ring-amber-500 cursor-pointer"
+                    />
+                    <label htmlFor="includeBread" className="text-xs font-bold text-[var(--foreground)] cursor-pointer">
+                      להוסיף לחם להזמנה
+                    </label>
+                  </div>
+                  </div>
+
 
                 {/* Salads Notice */}
                 <div className="py-4 border-b border-[var(--border)] flex items-center gap-3">
@@ -1264,6 +1278,8 @@ ${contactRole}`;
                     <p className="text-[11px] text-[var(--muted)] mt-0.5">סלטים יישלחו ללא בחירה (מה שיש במטבח במנה היומית).</p>
                   </div>
                 </div>
+
+                </section>
 
                 {/* Catering Orders Archive Card */}
                 <div className="py-5 border-b border-[var(--border)] space-y-4">
@@ -1398,13 +1414,32 @@ ${contactRole}`;
               
               {/* Order Status & Copy Card */}
               <div className="py-4 border-b border-[var(--border)] space-y-4 xl:sticky xl:top-20">
-                <div className="border-b border-[var(--border)] pb-3">
+                {/* Mobile-only toggle header: one line, expands the summary on tap */}
+                <button
+                  type="button"
+                  onClick={() => setIsSummaryExpanded((v) => !v)}
+                  aria-expanded={isSummaryExpanded}
+                  className="xl:hidden w-full flex items-center justify-between border-b border-[var(--border)] pb-3 text-right focus:outline-none"
+                >
+                  <span className="text-xs font-bold uppercase tracking-wider flex items-center gap-2">
+                    <span className="w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold text-white bg-emerald-500 shrink-0">6</span>
+                    סיכום הזמנה
+                  </span>
+                  <span className="text-[11px] font-bold text-[var(--muted)]">
+                    {totalPortionsNow} מנות {isSummaryExpanded ? "▲" : "▼"}
+                  </span>
+                </button>
+
+                {/* Desktop header (always visible on xl+) */}
+                <div className="hidden xl:block border-b border-[var(--border)] pb-3">
                   <h3 className="text-xs font-bold uppercase tracking-wider flex items-center gap-2">
                     <span className="w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold text-white bg-emerald-500 shrink-0">6</span>
                     סיכום ושליחה
                   </h3>
                 </div>
 
+                {/* Full content: hidden on mobile until expanded, always shown on xl+ */}
+                <div className={`${isSummaryExpanded ? "block" : "hidden"} xl:block space-y-4`}>
                 {/* Validation Status message */}
                 <div className="text-[11px] font-bold">
                   {!isSelectionValid ? (
@@ -1524,6 +1559,7 @@ ${contactRole}`;
                       </>
                     )}
                   </button>
+                </div>
                 </div>
               </div>
 
@@ -1723,12 +1759,12 @@ ${contactRole}`;
         </div>
 
         {/* Mobile Floating Action Button (FAB) */}
-        <div className="xl:hidden fixed bottom-4 inset-x-4 z-40">
+        <div className="xl:hidden fixed bottom-4 inset-x-4 z-40 flex justify-center">
           <button
             type="button"
             onClick={sendToWhatsApp}
             disabled={!isSelectionValid}
-            className="w-full py-3.5 px-4 rounded-xl flex items-center justify-center gap-2 text-xs font-bold bg-emerald-600 active:bg-emerald-700 text-white disabled:opacity-50 transition-all active:scale-[0.98] border border-emerald-500/20 shadow-lg"
+            className="h-10 px-6 rounded-xl flex items-center justify-center gap-2 text-sm font-bold bg-emerald-600 active:bg-emerald-700 text-white disabled:opacity-50 transition-all active:scale-[0.98] border border-emerald-500/20 shadow-lg"
           >
             <Share2 className="w-4 h-4 text-white" />
             שלח ישירות בוואטסאפ
