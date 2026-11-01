@@ -397,7 +397,19 @@ export default function CateringOrderPage() {
         await updateDoc(doc(db, "catering_orders", editingId), orderData);
         setEditingId(null);
       } else {
-        await addDoc(collection(db, "catering_orders"), { ...orderData, createdAt: serverTimestamp() });
+        // New order: check whether an order already exists for the same delivery date
+        const dupSnap = await getDocs(
+          query(collection(db, "catering_orders"), where("deliveryDate", "==", deliveryDate))
+        );
+        if (!dupSnap.empty) {
+          const existingId = dupSnap.docs[0].id;
+          const confirmed = confirm(`קיימת כבר הזמנת קייטרינג לתאריך ${formatDeliveryDate(deliveryDate)}. להחליף אותה?`);
+          if (!confirmed) return; // cancel the save; the finally block resets the saving state
+          // Replace the existing order in place (keeps its original createdAt)
+          await updateDoc(doc(db, "catering_orders", existingId), orderData);
+        } else {
+          await addDoc(collection(db, "catering_orders"), { ...orderData, createdAt: serverTimestamp() });
+        }
       }
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3000);
