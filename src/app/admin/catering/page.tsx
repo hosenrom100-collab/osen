@@ -4,17 +4,18 @@ import React, { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { RoleGuard } from "@/components/auth/RoleGuard";
 import { db } from "@/lib/firebase/config";
-import { collection, getDocs, query, where, addDoc, deleteDoc, doc, serverTimestamp, orderBy, limit } from "firebase/firestore";
+import { collection, getDocs, query, where, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, orderBy, limit } from "firebase/firestore";
 import { 
   ArrowRight, Utensils, Clipboard, Check, Plus, Trash2, 
   Users, Calendar, Info, Share2, RefreshCw, AlertTriangle, Clock, FileText,
-  Archive, Save
+  Archive, Save, Pencil
 } from "lucide-react";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { clampVegetarian, DEFAULT_VEGETARIAN_DISH, vegetarianLine, vegetarianOf } from "@/lib/catering/vegetarian";
+import { clampFish, DEFAULT_FISH_DISH, fishLine, fishOf } from "@/lib/catering/fish";
 
 interface Group {
   id: string;
@@ -63,6 +64,8 @@ interface CateringOrder {
   totalPortions: number;
   vegetarianDish?: string;
   vegetarianPortions?: number;
+  fishDish?: string;
+  fishPortions?: number;
   createdAt?: any;
   createdBy?: string;
   contactName?: string;
@@ -150,8 +153,14 @@ export default function CateringOrderPage() {
   const [vegetarianDish, setVegetarianDish] = useState(DEFAULT_VEGETARIAN_DISH);
   const [vegetarianPortions, setVegetarianPortions] = useState(0);
 
+  // Fixed fish main dish: how many of the total portions are fish
+  const [fishDish, setFishDish] = useState(DEFAULT_FISH_DISH);
+  const [fishPortions, setFishPortions] = useState(0);
+
   // Archive and saving states
   const [archive, setArchive] = useState<CateringOrder[]>([]);
+  // Id of the saved order being edited; null means a new order will be created
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [loadingArchive, setLoadingArchive] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
@@ -160,7 +169,7 @@ export default function CateringOrderPage() {
 
   // Auto-advance step logic (only forward to sides when meats completed)
   useEffect(() => {
-    if (selectedMeats.length === 2 && activeMenuStep === "meats") {
+    if (selectedMeats.length >= 1 && activeMenuStep === "meats") {
       setActiveMenuStep("sides");
     }
   }, [selectedMeats.length, activeMenuStep]);
@@ -370,10 +379,17 @@ export default function CateringOrderPage() {
         totalPortions,
         vegetarianDish: vegetarianDish.trim() || DEFAULT_VEGETARIAN_DISH,
         vegetarianPortions: clampVegetarian(vegetarianPortions, totalPortions),
-        createdAt: serverTimestamp(),
+        fishDish: fishDish.trim() || DEFAULT_FISH_DISH,
+        fishPortions: clampFish(fishPortions, totalPortions),
         createdBy: user?.displayName || user?.email || "משתמש מערכת"
       };
-      await addDoc(collection(db, "catering_orders"), orderData);
+      if (editingId) {
+        // Editing an existing order: update it in place and keep its original createdAt
+        await updateDoc(doc(db, "catering_orders", editingId), orderData);
+        setEditingId(null);
+      } else {
+        await addDoc(collection(db, "catering_orders"), { ...orderData, createdAt: serverTimestamp() });
+      }
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3000);
       await fetchArchive();
@@ -389,6 +405,49 @@ export default function CateringOrderPage() {
     fetchStats();
     fetchArchive();
   }, []);
+
+  // Copy a saved order into the form (used by "טען מחדש לטופס" and "ערוך")
+  const loadOrderIntoForm = (order: CateringOrder) => {
+    const customInMeats = order.meats.filter(m => !PREDEFINED_MEATS.includes(m));
+    const customInSides = order.sides.filter(s => !PREDEFINED_SIDES.includes(s));
+    if (customInMeats.length > 0) {
+      setCustomMeats(prev => Array.from(new Set([...prev, ...customInMeats])));
+    }
+    if (customInSides.length > 0) {
+      setCustomSides(prev => Array.from(new Set([...prev, ...customInSides])));
+    }
+    setSelectedMeats(order.meats);
+    setSelectedSides(order.sides);
+    setSelectedSalads(order.salads);
+    setIncludeBread(order.includeBread);
+    setVegetarianDish(order.vegetarianDish || DEFAULT_VEGETARIAN_DISH);
+    setVegetarianPortions(vegetarianOf(order));
+    setFishDish(order.fishDish || DEFAULT_FISH_DISH);
+    setFishPortions(fishOf(order));
+    setDeliveryDate(order.deliveryDate);
+    setArrivalTime(order.arrivalTime);
+    setPortions(order.defaultPortions || order.portions);
+    setContactName(order.contactName || "מירב סארמילי");
+    setContactRole(order.contactRole || "מנהלת תפעול מרכז חוסן חוות רום");
+    setContactPhone(order.contactPhone || "052-609-1158");
+    setGeneralNotes(order.generalNotes || "");
+  };
+
+  // Leave edit mode and clear the menu choices, so the next save creates a new order
+  const cancelEditing = () => {
+    setEditingId(null);
+    setSelectedMeats([]);
+    setSelectedSides([]);
+    setSelectedSalads([]);
+    setIncludeBread(true);
+    setVegetarianDish(DEFAULT_VEGETARIAN_DISH);
+    setVegetarianPortions(0);
+    setFishDish(DEFAULT_FISH_DISH);
+    setFishPortions(0);
+    setGeneralNotes("");
+    setActiveMenuStep("meats");
+    setErrorMsg("");
+  };
 
   // Selection toggle helpers
   const handleToggleMeat = (item: string) => {
@@ -478,11 +537,13 @@ export default function CateringOrderPage() {
   const sidesCount = selectedSides.length;
   const saladsCount = selectedSalads.length;
 
-  const isSelectionValid = meatsCount === 2 && (sidesCount >= 2 && sidesCount <= 3);
+  const isSelectionValid = meatsCount >= 1 && (sidesCount >= 2 && sidesCount <= 3);
 
   const totalPortionsNow = Object.values(portions).reduce((a, b) => a + b, 0);
   const vegetarianNow = clampVegetarian(vegetarianPortions, totalPortionsNow);
   const vegetarianSummary = vegetarianLine(vegetarianNow, totalPortionsNow, vegetarianDish);
+  const fishNow = clampFish(fishPortions, totalPortionsNow);
+  const fishSummary = fishLine(fishNow, totalPortionsNow, fishDish);
 
   // Format YYYY-MM-DD to DD/MM/YYYY
   const formatDeliveryDate = (dateStr: string) => {
@@ -518,6 +579,7 @@ export default function CateringOrderPage() {
       
     const meatsList = selectedMeats.map((m, idx) => `${idx + 1}. ${m}`).join("\n");
     const vegetarianSection = vegetarianSummary ? `\n🌱 ${vegetarianSummary}` : "";
+    const fishSection = fishSummary ? `\n🐟 ${fishSummary}` : "";
     const sidesList = selectedSides.map((s, idx) => `${idx + 1}. ${s}`).join("\n");
 
     const dayOfWeek = getHebrewDayOfWeek(deliveryDate);
@@ -533,13 +595,13 @@ export default function CateringOrderPage() {
 
 *פירוט מנות לפי קבוצות:*
 ${groupsBreakdown}
-*סה"כ מנות:* ${totalPortions} מנות${vegetarianSummary ? `\n*מתוכן צמחוניות:* ${vegetarianNow} מנות` : ""}
+*סה"כ מנות:* ${totalPortions} מנות${vegetarianSummary ? `\n*מתוכן צמחוניות:* ${vegetarianNow} מנות` : ""}${fishSummary ? `\n*מתוכן דג:* ${fishNow} מנות` : ""}
 
 ------------------------
 *תפריט אחיד שנבחר:*
 
 *בשרים ומנות עיקריות:*
-${meatsList || "_לא נבחרו מנות_"}${vegetarianSection}
+${meatsList || "_לא נבחרו מנות_"}${vegetarianSection}${fishSection}
 
 *תוספות חמות:*
 ${sidesList || "_לא נבחרו תוספות_"}
@@ -578,13 +640,13 @@ ${contactRole}`;
       if (!element) return;
       
       const canvas = await html2canvas(element, {
-        scale: 2,
+        scale: 1.5,
         useCORS: true,
         allowTaint: true,
         logging: false
       });
-      
-      const imgData = canvas.toDataURL("image/png");
+
+      const imgData = canvas.toDataURL("image/jpeg", 0.85);
       const pdf = new jsPDF({
         orientation: "portrait",
         unit: "mm",
@@ -594,7 +656,7 @@ ${contactRole}`;
       const imgWidth = 210;
       const imgHeight = (canvas.height * imgWidth) / canvas.width;
       
-      pdf.addImage(imgData, "PNG", 0, 0, imgWidth, imgHeight);
+      pdf.addImage(imgData, "JPEG", 0, 0, imgWidth, imgHeight);
       pdf.save(`הזמנת_קייטרינג_${formatDeliveryDate(deliveryDate).replace(/\//g, "-")}.pdf`);
     } catch (err) {
       console.error("Failed to generate PDF: ", err);
@@ -609,10 +671,10 @@ ${contactRole}`;
       <main dir="rtl" className="min-h-screen bg-[var(--background)] text-[var(--foreground)] p-4 md:p-8">
         {/* Ambient background glow */}
         <div className="pointer-events-none fixed inset-0 overflow-hidden" aria-hidden="true">
-          <div className="absolute top-0 right-1/4 w-[500px] h-[500px] bg-amber-500/3 rounded-full blur-[120px]" />
+          <div className="absolute top-0 right-1/4 w-full max-w-[500px] aspect-square bg-amber-500/3 rounded-full blur-[120px]" />
         </div>
 
-        <div className="max-w-6xl mx-auto space-y-6 relative pb-24 lg:pb-6">
+        <div className="max-w-6xl mx-auto space-y-6 relative pb-24 xl:pb-6">
           
           {/* Header */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[var(--border)] pb-4">
@@ -647,7 +709,7 @@ ${contactRole}`;
             const completedSteps = [
               true, // Step 1 configured (delivery)
               portions && Object.values(portions).some(v => v > 0), // Step 2 portions configured
-              meatsCount === 2, // Step 3 meats
+              meatsCount >= 1, // Step 3 meats
               sidesCount === 2, // Step 4 sides
             ].filter(Boolean).length;
             return (
@@ -666,6 +728,22 @@ ${contactRole}`;
             );
           })()}
 
+          {editingId && (
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 bg-amber-500/10 border border-amber-500/20 text-amber-500 rounded-xl text-xs font-bold">
+              <span className="flex items-center gap-2">
+                <Pencil className="w-4 h-4 shrink-0" />
+                עורך הזמנה קיימת
+              </span>
+              <button
+                type="button"
+                onClick={cancelEditing}
+                className="self-start sm:self-auto px-3 py-1.5 bg-[var(--surface)] border border-[var(--border)] text-[var(--foreground)] rounded-lg hover:bg-[var(--foreground)]/5 transition-colors"
+              >
+                ביטול
+              </button>
+            </div>
+          )}
+
           {errorMsg && (
             <div className="flex items-center gap-2 p-3 bg-red-500/10 border border-red-500/20 text-red-500 rounded-xl text-xs font-bold">
               <AlertTriangle className="w-4 h-4 shrink-0" />
@@ -673,10 +751,10 @@ ${contactRole}`;
             </div>
           )}
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-start">
             
             {/* Left Column: Configuration */}
-            <div className="order-2 lg:order-1 space-y-6">
+            <div className="order-2 xl:order-1 space-y-6">
               
               {/* Delivery Details Card */}
               <div className="py-5 border-b border-[var(--border)] space-y-4">
@@ -820,7 +898,7 @@ ${contactRole}`;
                           
                           <div className="flex items-center justify-between pt-1">
                             <label className="text-[11px] font-bold text-[var(--foreground)] shrink-0">מנות להזמנה:</label>
-                            <div className="flex items-center border-b border-[var(--border)] overflow-hidden w-[100px]">
+                            <div className="flex items-center border-b border-[var(--border)] overflow-hidden w-20 sm:w-24">
                               <button 
                                 type="button"
                                 onClick={() => handlePortionChange(group.id, (portions[group.id] || 0) - 1)}
@@ -863,13 +941,13 @@ ${contactRole}`;
                   >
                     <div className="flex items-center gap-2">
                       <span className="w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold text-white bg-amber-500 shrink-0">3</span>
-                      <h3 className="text-xs font-bold uppercase tracking-wider">בשרים ומנות עיקריות (בחר 2)</h3>
+                      <h3 className="text-xs font-bold uppercase tracking-wider">בשרים ומנות עיקריות (בחר מנה אחת לפחות)</h3>
                     </div>
                     <div className="flex items-center gap-2">
-                      {meatsCount === 2 ? (
-                        <span className="bg-emerald-500/10 text-emerald-500 text-[11px] px-2.5 py-0.5 rounded-full font-bold">✓ הושלם</span>
+                      {meatsCount >= 1 ? (
+                        <span className="bg-emerald-500/10 text-emerald-500 text-[11px] px-2.5 py-0.5 rounded-full font-bold">✓ הושלם ({meatsCount})</span>
                       ) : (
-                        <span className="bg-amber-500/10 text-amber-500 text-[11px] px-2.5 py-0.5 rounded-full font-bold">נבחרו: {meatsCount}/2</span>
+                        <span className="bg-amber-500/10 text-amber-500 text-[11px] px-2.5 py-0.5 rounded-full font-bold">נבחרו: {meatsCount}</span>
                       )}
                       <span className="text-[11px] text-[var(--muted)] font-bold">
                         {activeMenuStep === "meats" ? "▲" : "▼"}
@@ -1001,6 +1079,43 @@ ${contactRole}`;
                       {vegetarianNow > 0
                         ? `${vegetarianNow} צמחוניות, ${totalPortionsNow - vegetarianNow} רגילות`
                         : "אין מנות צמחוניות בהזמנה"}
+                    </div>
+                  </div>
+
+                  {/* Fixed fish main dish */}
+                  <div className="p-3.5 bg-[var(--background)] border border-sky-500/30 rounded-xl space-y-2.5">
+                    <div className="text-[11px] font-bold text-sky-500">🐟 דג (קבוע)</div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <label htmlFor="fishDish" className="text-[11px] font-bold text-[var(--muted)]">שם המנה</label>
+                        <input
+                          id="fishDish"
+                          type="text"
+                          value={fishDish}
+                          onChange={(e) => setFishDish(e.target.value)}
+                          placeholder={DEFAULT_FISH_DISH}
+                          className="w-full bg-[var(--surface)] border border-[var(--border)] text-xs rounded-xl px-3 py-2 focus:outline-none focus:border-sky-500"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label htmlFor="fishPortions" className="text-[11px] font-bold text-[var(--muted)]">
+                          מנות דג מתוך {totalPortionsNow}
+                        </label>
+                        <input
+                          id="fishPortions"
+                          type="number"
+                          min="0"
+                          max={totalPortionsNow}
+                          value={fishNow}
+                          onChange={(e) => setFishPortions(clampFish(parseInt(e.target.value) || 0, totalPortionsNow))}
+                          className="w-full bg-[var(--surface)] border border-[var(--border)] text-xs rounded-xl px-3 py-2 focus:outline-none focus:border-sky-500 font-bold"
+                        />
+                      </div>
+                    </div>
+                    <div className="text-[11px] text-[var(--muted)] font-semibold">
+                      {fishNow > 0
+                        ? `${fishNow} מנות דג, ${totalPortionsNow - fishNow} רגילות`
+                        : "אין מנות דג בהזמנה"}
                     </div>
                   </div>
                 </div>
@@ -1189,6 +1304,11 @@ ${contactRole}`;
                                       <span className="text-[var(--foreground)] font-bold">🌱</span> {vegetarianLine(vegetarianOf(order), order.totalPortions, order.vegetarianDish)}
                                     </div>
                                   )}
+                                  {fishOf(order) > 0 && (
+                                    <div className="sm:col-span-2">
+                                      <span className="text-[var(--foreground)] font-bold">🐟</span> {fishLine(fishOf(order), order.totalPortions, order.fishDish)}
+                                    </div>
+                                  )}
                                   <div>
                                     <span className="text-[var(--foreground)] font-bold">🍚 תוספות:</span> {order.sides.join(", ")}
                                   </div>
@@ -1206,32 +1326,21 @@ ${contactRole}`;
                                 <div className="flex items-center gap-2 pt-1.5 justify-end">
                                   <button
                                     type="button"
-                                    onClick={() => {
-                                      const customInMeats = order.meats.filter(m => !PREDEFINED_MEATS.includes(m));
-                                      const customInSides = order.sides.filter(s => !PREDEFINED_SIDES.includes(s));
-                                      if (customInMeats.length > 0) {
-                                        setCustomMeats(prev => Array.from(new Set([...prev, ...customInMeats])));
-                                      }
-                                      if (customInSides.length > 0) {
-                                        setCustomSides(prev => Array.from(new Set([...prev, ...customInSides])));
-                                      }
-                                      setSelectedMeats(order.meats);
-                                      setSelectedSides(order.sides);
-                                      setSelectedSalads(order.salads);
-                                      setIncludeBread(order.includeBread);
-                                      setVegetarianDish(order.vegetarianDish || DEFAULT_VEGETARIAN_DISH);
-                                      setVegetarianPortions(vegetarianOf(order));
-                                      setDeliveryDate(order.deliveryDate);
-                                      setArrivalTime(order.arrivalTime);
-                                      setPortions(order.defaultPortions || order.portions);
-                                      setContactName(order.contactName || "מירב סארמילי");
-                                      setContactRole(order.contactRole || "מנהלת תפעול מרכז חוסן חוות רום");
-                                      setContactPhone(order.contactPhone || "052-609-1158");
-                                      setGeneralNotes(order.generalNotes || "");
-                                    }}
+                                    onClick={() => loadOrderIntoForm(order)}
                                     className="px-2.5 py-1 bg-amber-500/10 hover:bg-amber-500/20 text-amber-500 text-[11px] font-bold rounded-lg transition-colors"
                                   >
                                     טען מחדש לטופס
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      loadOrderIntoForm(order);
+                                      setEditingId(order.id);
+                                      window.scrollTo({ top: 0, behavior: "smooth" });
+                                    }}
+                                    className="px-2.5 py-1 bg-sky-500/10 hover:bg-sky-500/20 text-sky-500 text-[11px] font-bold rounded-lg transition-colors"
+                                  >
+                                    ערוך
                                   </button>
                                   <button
                                     type="button"
@@ -1263,10 +1372,10 @@ ${contactRole}`;
             </div>
 
             {/* Right Column: Output Preview */}
-            <div className="order-1 lg:order-2 space-y-6">
+            <div className="order-1 xl:order-2 space-y-6">
               
               {/* Order Status & Copy Card */}
-              <div className="py-4 border-b border-[var(--border)] space-y-4 lg:sticky lg:top-20">
+              <div className="py-4 border-b border-[var(--border)] space-y-4 xl:sticky xl:top-20">
                 <div className="border-b border-[var(--border)] pb-3">
                   <h3 className="text-xs font-bold uppercase tracking-wider flex items-center gap-2">
                     <span className="w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold text-white bg-emerald-500 shrink-0">6</span>
@@ -1283,7 +1392,7 @@ ${contactRole}`;
                         הרכבת התפריט לא הושלמה:
                       </p>
                       <ul className="list-disc list-inside mr-2 space-y-0.5 font-medium opacity-90">
-                        {meatsCount !== 2 && <li>מנות עיקריות: נבחרו {meatsCount} (נדרש בדיוק 2)</li>}
+                        {meatsCount < 1 && <li>מנות עיקריות: לא נבחרה מנה (נדרשת לפחות מנה אחת)</li>}
                         {sidesCount < 2 && <li>תוספות חמות: נבחרו {sidesCount} (נדרש לפחות 2)</li>}
                         {sidesCount > 3 && <li>תוספות חמות: נבחרו {sidesCount} (ניתן לבחור עד 3 תוספות)</li>}
                       </ul>
@@ -1301,45 +1410,53 @@ ${contactRole}`;
                   {generateWhatsAppText()}
                 </div>
 
-                {/* Send Directly to WhatsApp Button (Desktop version - hidden on mobile) */}
-                <button
-                  type="button"
-                  onClick={sendToWhatsApp}
-                  disabled={!isSelectionValid}
-                  className="hidden lg:flex w-full py-3 px-4 rounded-xl items-center justify-center gap-2 text-xs font-bold transition-all bg-emerald-600 hover:bg-emerald-700 text-white active:scale-[0.98] disabled:opacity-50"
-                >
-                  <Share2 className="w-4 h-4 text-white" />
-                  שלח ישירות בוואטסאפ
-                </button>
+                {/* Primary actions row: Save (main) and WhatsApp (desktop only, hidden on mobile) */}
+                <div className="flex flex-wrap items-center gap-2">
+                  {/* Save Order Button */}
+                  <button
+                    type="button"
+                    onClick={saveOrder}
+                    disabled={saving || !isSelectionValid}
+                    className={`h-10 px-6 rounded-xl flex items-center justify-center gap-2 text-sm font-bold transition-all ${
+                      saveSuccess
+                        ? "bg-emerald-500 text-white"
+                        : "bg-violet-600 hover:bg-violet-700 text-white active:scale-[0.98] disabled:opacity-50"
+                    }`}
+                  >
+                    {saving ? (
+                      <>
+                        <RefreshCw className="w-4 h-4 animate-spin text-white" />
+                        שומר הזמנה...
+                      </>
+                    ) : saveSuccess ? (
+                      <>
+                        <Check className="w-4 h-4" />
+                        ההזמנה נשמרה בארכיון!
+                      </>
+                    ) : editingId ? (
+                      <>
+                        <Save className="w-4 h-4" />
+                        עדכן הזמנה
+                      </>
+                    ) : (
+                      <>
+                        <Save className="w-4 h-4" />
+                        שמור הזמנה בארכיון
+                      </>
+                    )}
+                  </button>
 
-                {/* Save Order Button */}
-                <button
-                  type="button"
-                  onClick={saveOrder}
-                  disabled={saving || !isSelectionValid}
-                  className={`w-full py-3 px-4 rounded-xl flex items-center justify-center gap-2 text-xs font-bold transition-all ${
-                    saveSuccess 
-                      ? "bg-emerald-500 text-white" 
-                      : "bg-violet-600 hover:bg-violet-700 text-white active:scale-[0.98] disabled:opacity-50"
-                  }`}
-                >
-                  {saving ? (
-                    <>
-                      <RefreshCw className="w-4 h-4 animate-spin text-white" />
-                      שומר הזמנה...
-                    </>
-                  ) : saveSuccess ? (
-                    <>
-                      <Check className="w-4 h-4" />
-                      ההזמנה נשמרה בארכיון!
-                    </>
-                  ) : (
-                    <>
-                      <Save className="w-4 h-4" />
-                      שמור הזמנה בארכיון
-                    </>
-                  )}
-                </button>
+                  {/* Send Directly to WhatsApp Button (Desktop version - hidden on mobile) */}
+                  <button
+                    type="button"
+                    onClick={sendToWhatsApp}
+                    disabled={!isSelectionValid}
+                    className="hidden xl:flex h-10 px-6 rounded-xl items-center justify-center gap-2 text-sm font-bold transition-all bg-emerald-600 hover:bg-emerald-700 text-white active:scale-[0.98] disabled:opacity-50"
+                  >
+                    <Share2 className="w-4 h-4 text-white" />
+                    שלח ישירות בוואטסאפ
+                  </button>
+                </div>
 
                 {/* Compact Copy & PDF buttons row */}
                 <div className="grid grid-cols-2 gap-2">
@@ -1347,8 +1464,8 @@ ${contactRole}`;
                   <button
                     type="button"
                     onClick={copyToClipboard}
-                    className={`py-2.5 px-3 rounded-xl flex items-center justify-center gap-1.5 text-[11px] font-bold transition-all ${
-                      copied 
+                    className={`py-2 px-3 rounded-xl flex items-center justify-center gap-1.5 text-xs font-bold transition-all ${
+                      copied
                         ? "bg-emerald-500 text-white" 
                         : "bg-amber-500 hover:bg-amber-600 text-white active:scale-[0.98]"
                     }`}
@@ -1371,7 +1488,7 @@ ${contactRole}`;
                     type="button"
                     onClick={downloadPDF}
                     disabled={generatingPdf || !isSelectionValid}
-                    className="py-2.5 px-3 rounded-xl flex items-center justify-center gap-1.5 text-[11px] font-bold transition-all bg-[var(--surface)] border border-[var(--border)] hover:bg-[var(--foreground)]/5 text-[var(--foreground)] active:scale-[0.98] disabled:opacity-50"
+                    className="py-2 px-3 rounded-xl flex items-center justify-center gap-1.5 text-xs font-bold transition-all bg-[var(--surface)] border border-[var(--border)] hover:bg-[var(--foreground)]/5 text-[var(--foreground)] active:scale-[0.98] disabled:opacity-50"
                   >
                     {generatingPdf ? (
                       <>
@@ -1500,6 +1617,12 @@ ${contactRole}`;
                           <span style={{ fontWeight: "800", color: "#047857" }}>{vegetarianNow} מנות</span>
                         </div>
                       )}
+                      {fishNow > 0 && (
+                        <div style={{ display: "flex", justifyContent: "space-between" }}>
+                          <span style={{ color: "#0369a1", fontWeight: "bold" }}>מתוכן דג:</span>
+                          <span style={{ fontWeight: "800", color: "#0369a1" }}>{fishNow} מנות</span>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1526,6 +1649,11 @@ ${contactRole}`;
                     {vegetarianSummary && (
                       <div style={{ fontSize: "12px", marginTop: "10px", backgroundColor: "#ecfdf5", border: "1px solid #a7f3d0", color: "#047857", padding: "6px 12px", borderRadius: "8px", fontWeight: "bold" }}>
                         🌱 {vegetarianSummary}
+                      </div>
+                    )}
+                    {fishSummary && (
+                      <div style={{ fontSize: "12px", marginTop: "10px", backgroundColor: "#f0f9ff", border: "1px solid #bae6fd", color: "#0369a1", padding: "6px 12px", borderRadius: "8px", fontWeight: "bold" }}>
+                        🐟 {fishSummary}
                       </div>
                     )}
                   </div>
@@ -1573,7 +1701,7 @@ ${contactRole}`;
         </div>
 
         {/* Mobile Floating Action Button (FAB) */}
-        <div className="lg:hidden fixed bottom-4 inset-x-4 z-40">
+        <div className="xl:hidden fixed bottom-4 inset-x-4 z-40">
           <button
             type="button"
             onClick={sendToWhatsApp}
