@@ -224,7 +224,12 @@ function labelValue(L: Layout, label: string, value: string, after: number): str
 }
 
 function para(L: Layout, text: string, after: number, bold = false): string {
-  return `<p style="margin:0 0 ${sp(L, after)};${bold ? "font-weight:700;" : ""}">${esc(text)}</p>`;
+  // Keep time ranges like 8:00-16:30 on one line (no break after the hyphen).
+  const html = esc(text).replace(
+    /(\d{1,2}:\d{2})\s*[-–]\s*(\d{1,2}:\d{2})/g,
+    '<span style="white-space:nowrap;direction:ltr;unicode-bidi:isolate;">$1-$2</span>'
+  );
+  return `<p style="margin:0 0 ${sp(L, after)};${bold ? "font-weight:700;" : ""}">${html}</p>`;
 }
 
 /**
