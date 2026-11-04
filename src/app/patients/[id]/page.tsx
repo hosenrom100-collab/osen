@@ -4,10 +4,9 @@ import { useAuth } from "@/context/AuthContext";
 import { RoleGuard } from "@/components/auth/RoleGuard";
 import { PatientForm } from "@/components/patients/PatientForm";
 import { useState, useEffect, useRef } from "react";
-import { db, storage } from "@/lib/firebase/config";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { db } from "@/lib/firebase/config";
 import {
-  doc, getDoc, collection, query, where, orderBy, getDocs, limit, updateDoc, serverTimestamp, setDoc, deleteDoc, addDoc,
+  doc, getDoc, collection, query, where, orderBy, getDocs, limit, updateDoc, serverTimestamp, deleteDoc, addDoc,
 } from "firebase/firestore";
 import {
   Calendar, Loader2, Shield,
@@ -23,7 +22,9 @@ import { format, subMonths, addMonths, differenceInCalendarDays, parseISO, isVal
 import { he } from "date-fns/locale";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
-import { generateStayCertificateWord, generateTravelReimbursementWord, generateAttendanceReportWord, generatePeriodicReportWord, downloadDocx, generateDocxWithLetterhead, generateDocxBlobWithLetterhead, generateFunctionalReportWord, generateRehabPlanWord, RehabPlanData } from "@/lib/word-generator";
+import { generateStayCertificateWord, generateTravelReimbursementWord, generateAttendanceReportWord, generatePeriodicReportWord, downloadDocx, generateDocxWithLetterhead, generateFunctionalReportWord, generateRehabPlanWord, RehabPlanData } from "@/lib/word-generator";
+import type { StayCertData, TravelReimbData, AttendanceReportData } from "@/lib/word-generator";
+import { generateStayCertificatePdf, generateTravelReimbursementPdf, generateAttendanceReportPdf } from "@/lib/pdf/certificatePdf";
 import { Packer } from "docx";
 import { ParticipantProfile, EMPTY_PROFILE } from "@/lib/participantProfile";
 import { composeFunctionalSections, composePeriodicSections, composeRehabPlanSections, PeriodicReportType } from "@/lib/reportContent";
@@ -177,6 +178,7 @@ export default function PatientDetailPage() {
     excludeSummaryReport?: boolean;
   }[]>([]);
   const [reportLoading, setReportLoading] = useState(false);
+  const [certFormat, setCertFormat] = useState<'word' | 'pdf'>('word');
   const [selectedMonth, setSelectedMonth] = useState(format(new Date(), "yyyy-MM"));
   const [showEditModal, setShowEditModal] = useState(false);
   const [savingExt, setSavingExt] = useState<string | null>(null);
@@ -531,21 +533,45 @@ export default function PatientDetailPage() {
     setStaySpecialRemarks("");
   };
 
+  // Certificate PDFs are rendered client-side and downloaded only (no upload, no Firestore writes).
+  const downloadCertPdf = (blob: Blob, docxFileName: string) => {
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = docxFileName.replace(/\.docx$/, ".pdf");
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => window.URL.revokeObjectURL(url), 60000);
+  };
+
+  const renderCertFormatSelect = () => (
+    <select
+      value={certFormat}
+      onChange={(e) => setCertFormat(e.target.value as 'word' | 'pdf')}
+      disabled={reportLoading}
+      aria-label="פורמט קובץ להפקה"
+      className="bg-white border border-slate-200 rounded-xl px-3 py-2 text-[11px] font-bold outline-none cursor-pointer text-slate-700 shrink-0"
+    >
+      <option value="word">Word</option>
+      <option value="pdf">PDF</option>
+    </select>
+  );
+
   const executePDFGeneration = async () => {
     if (!patient) return;
     setShowRecipientModal(false);
     setReportLoading(true);
-    
+
     try {
       const patientProgram = programs.find(p => p.id === (patient as any)?.programId);
       const docType = (pendingReportType === 'participation' || pendingReportType === 'stay') ? 'stay' : 'travel';
-      const docTitle = docType === 'stay' ? 'אישור שהייה' : 'אישור נוכחות חודשי';
       const fileName = docType === 'stay' ? 'אישור_שהייה' : 'אישור_נוכחות_חודשי';
 
-      // 1. Generate Word document dynamically
-      let wordDoc;
+      // Same data as the Word generators receive, rendered to PDF in the browser.
+      let pdfBlob: Blob;
       if (docType === 'stay') {
-        wordDoc = generateStayCertificateWord({
+        const stayData: StayCertData = {
           date: stayLetterDate,
           recipient: recipientText || stayRecipient,
           firstName: stayFirstName,
@@ -569,9 +595,10 @@ export default function PatientDetailPage() {
           managerTitle: reportSettings?.professionalManagerTitle,
           managerOrg: "חוות רום - מרכז חוסן",
           managerSignature: reportSettings?.professionalManagerSignature
-        });
+        };
+        pdfBlob = await generateStayCertificatePdf(stayData);
       } else {
-        wordDoc = generateTravelReimbursementWord({
+        const travelData: TravelReimbData = {
           date: travelLetterDate,
           recipient: recipientText || travelRecipient,
           firstName: travelFirstName,
@@ -595,101 +622,12 @@ export default function PatientDetailPage() {
           managerTitle: reportSettings?.professionalManagerTitle,
           managerOrg: "חוות רום - מרכז חוסן",
           managerSignature: reportSettings?.professionalManagerSignature
-        });
+        };
+        pdfBlob = await generateTravelReimbursementPdf(travelData);
       }
 
-      // 2. Generate Docx Blob with letterhead
-      const docxBlob = await generateDocxBlobWithLetterhead(wordDoc);
-
-      // 3. Convert to PDF using the local MS Word API
-      const formData = new FormData();
-      formData.append("file", docxBlob, `${fileName}.docx`);
-
-      const response = await fetch("/api/convert-to-pdf", {
-        method: "POST",
-        body: formData,
-      });
-
-      if (!response.ok) {
-        const errJson = await response.json();
-        throw new Error(errJson.error || "Server failed to convert document");
-      }
-
-      const pdfBlob = await response.blob();
-
-      // Download locally for the admin
-      const url = window.URL.createObjectURL(pdfBlob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${fileName}_${patient.firstName}_${patient.lastName}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      window.URL.revokeObjectURL(url);
-
-      // 4. Upload PDF to Storage
-      let downloadUrl = "";
-      try {
-        const storageRef = ref(storage, `documents/${patient.id}/${Date.now()}_${docType}.pdf`);
-        await uploadBytes(storageRef, pdfBlob, { contentType: "application/pdf" });
-        downloadUrl = await getDownloadURL(storageRef);
-      } catch (storageErr) {
-        console.warn("Storage upload failed, fallback to offline link:", storageErr);
-        downloadUrl = "#";
-      }
-
-      // 5. Register in Firestore
-      try {
-        const newDocRef = doc(collection(db, "documents"));
-        await setDoc(newDocRef, {
-          patientId: patient.id,
-          title: docTitle,
-          type: docType,
-          url: downloadUrl,
-          createdAt: serverTimestamp(),
-          processedBy: authUser?.uid || null,
-        });
-
-        // If responding to a specific request, mark it as completed
-        if (pendingRequest) {
-          await updateDoc(doc(db, "document_requests", pendingRequest.id), {
-            status: "completed",
-            processedAt: serverTimestamp(),
-            documentId: newDocRef.id,
-          });
-        }
-
-        // Notify the participant if their UID is available
-        if (participantUid) {
-          await setDoc(doc(collection(db, "notifications")), {
-            title: 'מסמך מוכן להורדה',
-            body: `${docTitle} מוכן לצפייה ולהורדה באיזור האישי שלך`,
-            recipientIds: [participantUid],
-            senderId: authUser?.uid || null,
-            createdAt: serverTimestamp(),
-            readBy: [],
-            type: 'chat',
-            link: '/portal',
-          });
-
-          fetch('/api/notify', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              title: 'מסמך מוכן להורדה',
-              body: `${docTitle} מוכן לצפייה ולהורדה באיזור האישי שלך`,
-              userId: participantUid,
-              link: '/portal',
-              skipDb: true
-            }),
-          }).catch(console.error);
-        }
-      } catch (firestoreErr) {
-        console.error("Failed to register document in Firestore:", firestoreErr);
-      }
-
-      alert("המסמך הופק ונשלח בהצלחה!");
-      fetchPatientData();
+      downloadCertPdf(pdfBlob, `${fileName}_${patient.firstName}_${patient.lastName}.docx`);
+      alert("המסמך הופק בהצלחה!");
     } catch (e) {
       console.error(e);
       alert("שגיאה בהפקת המסמך");
@@ -955,7 +893,7 @@ export default function PatientDetailPage() {
       ];
       const titleMonth = `${months[parseInt(month) - 1]} ${year}`;
 
-      const doc = generateAttendanceReportWord({
+      const attendanceData: AttendanceReportData = {
         date: format(new Date(), "dd.MM.yyyy"),
         recipient: recipientText,
         patientName: patientName,
@@ -969,10 +907,14 @@ export default function PatientDetailPage() {
         signatoryTitle: signatureTitle || "עו\"ס בחווה",
         logoHeaderData: undefined,
         logoFooterData: undefined
-      });
+      };
 
       const fileName = `דוח_נוכחות_${patient.firstName}_${patient.lastName}_${titleMonth.replace(/\s+/g, "_")}.docx`;
-      await generateDocxWithLetterhead(doc, fileName);
+      if (certFormat === 'pdf') {
+        downloadCertPdf(await generateAttendanceReportPdf(attendanceData), fileName);
+      } else {
+        await generateDocxWithLetterhead(generateAttendanceReportWord(attendanceData), fileName);
+      }
     } catch (err) {
       console.error(err);
       alert("שגיאה בהפקת הדוח");
@@ -997,7 +939,7 @@ export default function PatientDetailPage() {
       ];
       const titleMonth = `${months[parseInt(month) - 1]} ${year}`;
 
-      const doc = generateAttendanceReportWord({
+      const attendanceData: AttendanceReportData = {
         date: format(new Date(), "dd.MM.yyyy"),
         recipient: recipientText,
         patientName: patientName,
@@ -1011,9 +953,14 @@ export default function PatientDetailPage() {
         signatoryTitle: signatureTitle || "עו\"ס בחווה",
         logoHeaderData: undefined,
         logoFooterData: undefined
-      });
+      };
 
-      await generateDocxWithLetterhead(doc, `דוח_נוכחות_${patient.firstName}_${patient.lastName}_${titleMonth.replace(/\s+/g, "_")}.docx`);
+      const fileName = `דוח_נוכחות_${patient.firstName}_${patient.lastName}_${titleMonth.replace(/\s+/g, "_")}.docx`;
+      if (certFormat === 'pdf') {
+        downloadCertPdf(await generateAttendanceReportPdf(attendanceData), fileName);
+      } else {
+        await generateDocxWithLetterhead(generateAttendanceReportWord(attendanceData), fileName);
+      }
     } catch (err) {
       console.error(err);
       alert("שגיאה בהפקת הדוח");
@@ -1028,7 +975,7 @@ export default function PatientDetailPage() {
     setReportLoading(true);
     try {
       const patientProgram = programs.find(p => p.id === (patient as any)?.programId);
-      const doc = generateTravelReimbursementWord({
+      const travelData: TravelReimbData = {
         date: travelLetterDate,
         recipient: travelRecipient,
         firstName: travelFirstName,
@@ -1052,7 +999,7 @@ export default function PatientDetailPage() {
         managerTitle: reportSettings?.professionalManagerTitle,
         managerOrg: "חוות רום - מרכז חוסן",
         managerSignature: reportSettings?.professionalManagerSignature
-      });
+      };
 
       const reqMonth = pendingRequest?.month || selectedMonth;
       const monthNamesHebrew = [
@@ -1074,9 +1021,13 @@ export default function PatientDetailPage() {
       } catch {}
 
       const fileName = `החזר_נסיעות_${travelLastName}_${travelFirstName}${monthSuffix}.docx`;
-      await generateDocxWithLetterhead(doc, fileName);
+      if (certFormat === 'pdf') {
+        downloadCertPdf(await generateTravelReimbursementPdf(travelData), fileName);
+      } else {
+        await generateDocxWithLetterhead(generateTravelReimbursementWord(travelData), fileName);
+      }
 
-      if (pendingRequest) {
+      if (pendingRequest && certFormat === 'word') {
         await updateDoc(doc(db, "document_requests", pendingRequest.id), {
           status: "completed",
           processedAt: serverTimestamp()
@@ -1103,7 +1054,7 @@ export default function PatientDetailPage() {
     setReportLoading(true);
     try {
       const patientProgram = programs.find(p => p.id === (patient as any)?.programId);
-      const doc = generateStayCertificateWord({
+      const stayData: StayCertData = {
         date: stayLetterDate,
         recipient: stayRecipient,
         firstName: stayFirstName,
@@ -1127,12 +1078,16 @@ export default function PatientDetailPage() {
         managerTitle: reportSettings?.professionalManagerTitle,
         managerOrg: "חוות רום - מרכז חוסן",
         managerSignature: reportSettings?.professionalManagerSignature
-      });
+      };
 
       const fileName = `אישור_שהייה_${stayLastName}_${stayFirstName}.docx`;
-      await generateDocxWithLetterhead(doc, fileName);
+      if (certFormat === 'pdf') {
+        downloadCertPdf(await generateStayCertificatePdf(stayData), fileName);
+      } else {
+        await generateDocxWithLetterhead(generateStayCertificateWord(stayData), fileName);
+      }
 
-      if (pendingRequest) {
+      if (pendingRequest && certFormat === 'word') {
         await updateDoc(doc(db, "document_requests", pendingRequest.id), {
           status: "completed",
           processedAt: serverTimestamp()
@@ -2325,7 +2280,13 @@ export default function PatientDetailPage() {
                 {/* Visual Header */}
                 <div className="flex flex-col gap-1 text-right">
                   <h3 className="text-sm font-bold text-slate-800">הפקת אישורים רשמיים</h3>
-                  <p className="text-[11px] text-slate-400 font-bold">בחר את האישור הרלוונטי להפקה מיידית בפורמט Word רשמי</p>
+                  <p className="text-[11px] text-slate-400 font-bold">בחר את האישור הרלוונטי להפקה מיידית בפורמט Word או PDF</p>
+                </div>
+
+                {/* Output format used by every certificate button below */}
+                <div className="flex items-center gap-2 justify-end">
+                  <span className="text-[11px] font-bold text-slate-500">פורמט קובץ:</span>
+                  {renderCertFormatSelect()}
                 </div>
 
                 {/* Manual Generation Grid */}
@@ -3204,7 +3165,7 @@ export default function PatientDetailPage() {
                         className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white py-3 rounded-2xl text-[11px] font-bold transition-all active:scale-[0.98] flex items-center justify-center gap-2 cursor-pointer border-none"
                       >
                         {reportLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
-                        הורד קובץ Word
+                        הורד קובץ {certFormat === 'pdf' ? 'PDF' : 'Word'}
                       </button>
                       <button
                         onClick={() => setTravelStep("signatory")}
@@ -3543,7 +3504,7 @@ export default function PatientDetailPage() {
                         className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white py-3 rounded-2xl text-[11px] font-bold transition-all active:scale-[0.98] flex items-center justify-center gap-2 cursor-pointer border-none"
                       >
                         {reportLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
-                        הורד קובץ Word
+                        הורד קובץ {certFormat === 'pdf' ? 'PDF' : 'Word'}
                       </button>
                       <button
                         onClick={() => setStayStep("signatory")}

@@ -18,6 +18,7 @@ import { he } from "date-fns/locale";
 import { useAlert } from "@/hooks/useAlert";
 import { useConfirm } from "@/hooks/useConfirm";
 import { generateTravelReimbursementWord, generateDocxBlobWithLetterhead, TravelReimbData } from "@/lib/word-generator";
+import { generateTravelReimbursementPdf } from "@/lib/pdf/certificatePdf";
 
 // ─── Types ──────────────────────────────────────────────────────────────
 
@@ -206,6 +207,8 @@ export default function BulkTravelPage() {
   const [generating, setGenerating] = useState(false);
   const [generationProgress, setGenerationProgress] = useState({ done: 0, total: 0 });
   const [generationErrors, setGenerationErrors] = useState<{ name: string; error: string }[]>([]);
+  // Not named `format` on purpose: that would shadow the date-fns `format` import.
+  const [outputFormat, setOutputFormat] = useState<"word" | "pdf">("word");
 
   const selectedProgram = useMemo(() => allPrograms.find(p => p.id === selectedProgramId), [allPrograms, selectedProgramId]);
 
@@ -412,6 +415,7 @@ export default function BulkTravelPage() {
 
     const zip = new JSZip();
     const monthSuffix = monthSuffixFromMonths(selectedMonths);
+    const ext = outputFormat === "pdf" ? "pdf" : "docx";
     const errors: { name: string; error: string }[] = [];
     const usedFilenames = new Set<string>();
 
@@ -439,12 +443,13 @@ export default function BulkTravelPage() {
           managerSignature: reportSettings?.professionalManagerSignature,
         };
 
-        const wordDoc = generateTravelReimbursementWord(data);
-        const blob = await generateDocxBlobWithLetterhead(wordDoc);
+        const blob = outputFormat === "pdf"
+          ? await generateTravelReimbursementPdf(data)
+          : await generateDocxBlobWithLetterhead(generateTravelReimbursementWord(data));
 
-        let filename = `החזר_נסיעות_${sanitizeFilenamePart(row.fullLastName)}_${sanitizeFilenamePart(row.firstName)}_${sanitizeFilenamePart(selectedProgram.name)}_${monthSuffix}.docx`;
+        let filename = `החזר_נסיעות_${sanitizeFilenamePart(row.fullLastName)}_${sanitizeFilenamePart(row.firstName)}_${sanitizeFilenamePart(selectedProgram.name)}_${monthSuffix}.${ext}`;
         if (usedFilenames.has(filename)) {
-          filename = `החזר_נסיעות_${sanitizeFilenamePart(row.fullLastName)}_${sanitizeFilenamePart(row.firstName)}_${row.patientId}_${sanitizeFilenamePart(selectedProgram.name)}_${monthSuffix}.docx`;
+          filename = `החזר_נסיעות_${sanitizeFilenamePart(row.fullLastName)}_${sanitizeFilenamePart(row.firstName)}_${row.patientId}_${sanitizeFilenamePart(selectedProgram.name)}_${monthSuffix}.${ext}`;
         }
         usedFilenames.add(filename);
         zip.file(filename, blob);
@@ -742,14 +747,26 @@ export default function BulkTravelPage() {
                 <button onClick={() => setStep(2)} disabled={generating} className="px-5 py-2.5 text-xs font-bold bg-[var(--foreground)]/5 border border-[var(--border)] rounded-xl hover:bg-[var(--foreground)]/10 transition-all disabled:opacity-40">
                   חזרה
                 </button>
-                <button
-                  onClick={generateAll}
-                  disabled={generating || mergedData.length === 0}
-                  className="flex items-center gap-2 px-5 py-2.5 text-xs font-bold bg-cyan-500 text-white rounded-xl hover:bg-cyan-600 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  {generating ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileArchive className="w-4 h-4" />}
-                  הפקת אישורי נסיעות (ZIP)
-                </button>
+                <div className="flex items-center gap-2">
+                  <select
+                    value={outputFormat}
+                    onChange={e => setOutputFormat(e.target.value as "word" | "pdf")}
+                    disabled={generating}
+                    aria-label="פורמט קובץ"
+                    className="px-3 py-2.5 text-xs font-bold bg-[var(--foreground)]/5 border border-[var(--border)] rounded-xl disabled:opacity-40"
+                  >
+                    <option value="word">Word</option>
+                    <option value="pdf">PDF</option>
+                  </select>
+                  <button
+                    onClick={generateAll}
+                    disabled={generating || mergedData.length === 0}
+                    className="flex items-center gap-2 px-5 py-2.5 text-xs font-bold bg-cyan-500 text-white rounded-xl hover:bg-cyan-600 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    {generating ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileArchive className="w-4 h-4" />}
+                    {outputFormat === "pdf" ? "הפקת אישורי נסיעות (ZIP – PDF)" : "הפקת אישורי נסיעות (ZIP)"}
+                  </button>
+                </div>
               </div>
             </section>
           )}
