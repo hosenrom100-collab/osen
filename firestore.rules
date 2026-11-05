@@ -223,11 +223,7 @@ service cloud.firestore {
     // lists by /api/shopping/sync-freeze). From that instant only shopping managers may change a
     // list. A missing or null boundary means "not frozen", so this is safe before it is first set.
     function isShoppingListFrozen(list) {
-      let path = /databases/$(database)/documents/settings/shopping;
-      let at = exists(path)
-        ? get(path).data.get('freezeAt', {}).get(list == 'large' ? 'large' : 'supermarket', null)
-        : null;
-      return at != null && request.time >= at;
+      return false; // the shopping list is ongoing: no weekly freeze
     }
 
     // Items without a listType (older documents) belong to the supermarket list.

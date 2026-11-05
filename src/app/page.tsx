@@ -8,7 +8,7 @@ import {
   LogOut, Users, User, Calendar, CheckCircle,
   Shield, MapPin, Edit3, ChevronLeft, Clock,
   ClipboardList, Layers, X, Check, ChevronDown, Plus,
-  AlertTriangle, Sparkles, Bell, Coffee, Utensils, ArrowLeftRight,
+  AlertTriangle, Sparkles, Bell, Coffee, ArrowLeftRight,
   ShoppingCart, Share2
 } from "lucide-react";
 import Link from "next/link";
@@ -22,9 +22,6 @@ import { PageSkeleton, SkeletonRows } from "@/components/ui/Skeleton";
 import { QuickActionGrid, StatRow } from "@/components/ui/Section";
 import { TodaySchedule } from "@/components/home/TodaySchedule";
 import { FRAMEWORK_LABELS } from "@/app/shopping/lib/constants";
-import { belongsToList } from "@/app/shopping/lib/listFilters";
-import { getCutoffStatus } from "@/app/shopping/lib/cutoffUtils";
-import type { CutoffConfig, ShoppingRequest } from "@/app/shopping/types";
 import { loadAbsencesOn } from "@/lib/attendance/staffAbsenceData";
 
 interface GroupStat   { id: string; name: string; present: number; absent: number; total: number }
@@ -78,9 +75,7 @@ export default function Home() {
   const [activeShoppingCount, setActiveShoppingCount] = useState(0);
   const [shoppingFramework, setShoppingFramework] = useState<string>("all");
   const [pendingStoreAuthCount, setPendingStoreAuthCount] = useState(0);
-  const [cateringOrdered, setCateringOrdered] = useState(false); // an order already exists for next week
   const [lateToday, setLateToday] = useState(0);                // present today with a late-arrival mark
-  const [listsToSend, setListsToSend] = useState(0);             // open items waiting to be closed once the weekly cutoff has passed
 
   useEffect(() => {
     try {
@@ -373,32 +368,9 @@ export default function Home() {
             ? items.length
             : items.filter((it: any) => (it.targetFramework || "main") === savedFw).length;
           setActiveShoppingCount(count);
-
-          // The weekly list is frozen (cutoff passed) and still holds items: remind to close it and download the PDF.
-          const settings = (await getDoc(doc(db, "settings", "shopping"))).data();
-          const cfg: CutoffConfig = settings?.cutoffConfig || { enabled: true, day: 1, time: "16:00", deliveryDay: null };
-          // Same rule as the shopping page: each list is judged on its own items, purchased ones included.
-          let waiting = 0;
-          for (const lt of ["supermarket", "large"] as const) {
-            const listItems = allItems.filter((it) => belongsToList(it, lt)) as unknown as ShoppingRequest[];
-            const status = getCutoffStatus(cfg, listItems);
-            if (status.isPassed && listItems.length > 0) waiting += listItems.length;
-          }
-          setListsToSend(waiting);
         } catch (err) {
           console.error("Error fetching shopping count:", err);
         }
-      }
-
-      // Catering for next week (Sunday to Saturday) already ordered: the Thursday reminder is not needed.
-      if (isAdmin || isLogistics) {
-        try {
-          const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-          const from = new Date(); from.setDate(from.getDate() + 7 - from.getDay());
-          const to = new Date(from); to.setDate(to.getDate() + 6);
-          const orders = await getDocs(query(collection(db, "catering_orders"), where("deliveryDate", ">=", iso(from)), where("deliveryDate", "<=", iso(to))));
-          setCateringOrdered(!orders.empty);
-        } catch (err) { console.error("Error checking catering orders:", err); }
       }
     } catch (err) { console.error(err); }
     finally { setDataLoaded(true); }
@@ -561,52 +533,6 @@ export default function Home() {
       <div className="px-4 md:px-6 pt-3 max-w-6xl mx-auto">
         <QuickActionGrid actions={quickActions} />
       </div>
-
-      {/* ── Thursday Catering Reminder Banner ── */}
-      {dataLoaded && (isAdmin || isLogistics) && new Date().getDay() === 4 && !cateringOrdered && (
-        <div className="px-4 md:px-6 mt-6 max-w-6xl mx-auto">
-          <div className="p-4 bg-amber-500/10 border border-amber-500/20 text-amber-800 dark:text-amber-300 rounded-3xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-amber-500/20 flex items-center justify-center text-amber-500 shrink-0">
-                <Utensils className="w-5 h-5 animate-bounce" />
-              </div>
-              <div>
-                <h4 className="text-xs font-bold">תזכורת שבועית: ביצוע הזמנת קייטרינג</h4>
-                <p className="text-[11px] opacity-90 mt-0.5 leading-relaxed font-bold">
-                  היום יום חמישי! נא לבצע הזמנת קייטרינג מרוכזת לשבוע הבא עבור קבוצות מרכז החוסן.
-                </p>
-              </div>
-            </div>
-            <Link href="/admin/catering"
-              className="w-full sm:w-auto text-center px-4 py-2 bg-amber-500 hover:bg-amber-600 !text-white text-xs font-bold rounded-2xl shadow-sm transition-all shrink-0">
-              בצע הזמנה כעת
-            </Link>
-          </div>
-        </div>
-      )}
-
-      {/* ── Weekly list frozen: close it and download the PDF ── */}
-      {dataLoaded && (isAdmin || isLogistics) && listsToSend > 0 && (
-        <div className="px-4 md:px-6 mt-6 max-w-6xl mx-auto">
-          <div className="p-4 bg-amber-500/10 border border-amber-500/20 text-amber-800 dark:text-amber-300 rounded-3xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-amber-500/20 flex items-center justify-center text-amber-500 shrink-0">
-                <ShoppingCart className="w-5 h-5" />
-              </div>
-              <div>
-                <h4 className="text-xs font-bold">מועד הקציבה חלף: יש לסגור את רשימת הקניות</h4>
-                <p className="text-[11px] opacity-90 mt-0.5 leading-relaxed font-bold">
-                  {listsToSend} פריטים ממתינים. הסגירה מורידה קובץ PDF למכשיר ומנקה את הרשימה.
-                </p>
-              </div>
-            </div>
-            <Link href="/shopping"
-              className="w-full sm:w-auto text-center px-4 py-2 bg-amber-500 hover:bg-amber-600 !text-white text-xs font-bold rounded-2xl shadow-sm transition-all shrink-0">
-              סגור רשימה
-            </Link>
-          </div>
-        </div>
-      )}
 
       {/* ── Today at a glance ── */}
       {dataLoaded && !isLogistics && (

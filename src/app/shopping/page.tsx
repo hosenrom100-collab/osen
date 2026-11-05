@@ -237,39 +237,7 @@ export default function ShoppingPage() {
           hasMenuBadge={menuHasBadge}
           onOpenMenu={() => setMenuOpen(true)}
           progress={progress}
-          cutoffStatus={cutoffStatus}
         />
-
-        {/* ── Frozen list: the only cutoff state that needs a banner. The countdown lives in the page title. ── */}
-        {cutoffStatus.isEnabled && isListFrozen && (
-          <div className="px-2.5 sm:px-4 md:px-6 pt-2 shrink-0">
-            <div className="max-w-[700px] lg:max-w-[1060px] mx-auto p-3 rounded-2xl bg-amber-500/10 border border-amber-500/25 flex items-center justify-between flex-wrap gap-3 text-right" dir="rtl">
-              <div className="flex items-center gap-2.5 min-w-0">
-                <span aria-hidden className="w-9 h-9 rounded-xl bg-amber-500/15 text-amber-700 dark:text-amber-400 flex items-center justify-center shrink-0"><Lock className="w-[18px] h-[18px]" /></span>
-                <div className="min-w-0">
-                  <h4 className="text-sm font-bold text-amber-700 dark:text-amber-400">
-                    מועד הקציבה השבועי חלף ({cutoffStatus.formattedTarget})
-                  </h4>
-                  <p className="text-[13px] font-medium text-[var(--muted)] mt-0.5">
-                    {isAdmin || isLogistics
-                      ? `הרשימה מוקפאת להזנות (${currentActiveItems.length} מוצרים).`
-                      : `הרשימה הוקפאה להזנות לקראת ביצוע רכש.`}
-                    {cutoffStatus.deliveryDayFormatted && ` משלוח: ${cutoffStatus.deliveryDayFormatted}.`}
-                  </p>
-                </div>
-              </div>
-              {(isAdmin || isLogistics) && (
-                <button
-                  onClick={() => setShowCycleClosureModal(true)}
-                  className="h-10 px-4 rounded-xl bg-amber-500 hover:bg-amber-600 !text-white text-sm font-bold transition-all flex items-center gap-2 cursor-pointer active:scale-[0.97] border-none shrink-0"
-                >
-                  <Package className="w-4 h-4 text-white" />
-                  <span>סגור רשימה והורד PDF</span>
-                </button>
-              )}
-            </div>
-          </div>
-        )}
 
         {/* Main Content Body */}
         <main className="flex-1 overflow-hidden flex flex-col relative bg-[var(--background)]">
@@ -365,7 +333,7 @@ export default function ShoppingPage() {
                 done={progress.done}
                 total={progress.total}
                 canPurchase={canPurchase}
-                showCloseCycle={isListFrozen && (isAdmin || isLogistics)}
+                showCloseCycle={false}
                 onAdd={() => setOverlayOpen(true)}
                 onExport={() =>
                   listType === "large" ? exportProcurementList(selectedFramework) : exportOngoingList(selectedFramework)
@@ -470,40 +438,6 @@ export default function ShoppingPage() {
           }}
           onAddToShoppingList={async (name, cat, priority, qty, notes, requestedByOverride, targetFramework) => {
             await addProduct(name, cat, priority, qty, notes, requestedByOverride, targetFramework ?? orderingFramework);
-          }}
-        />
-
-        {/* Cycle Closure & Pre-Flight Review Modal */}
-        <CycleClosureModal
-          isOpen={showCycleClosureModal}
-          onClose={() => setShowCycleClosureModal(false)}
-          listType={listType}
-          requests={requests}
-          pool={pool}
-          categories={categories}
-          onVerifyPassword={verifyAdminPassword}
-          onAddProduct={async (name, cat, priority, qty, notes) => {
-            await addProduct(name, cat, priority, qty, notes, undefined, orderingFramework);
-          }}
-          onCloseCycle={async () => {
-            const { purchased, unpurchased } = await closeCycle({
-              listType,
-              user,
-              beforeClear: (openItems) => downloadClosingPdf(listType, openItems),
-            });
-            refreshWeeks();
-            showToast(
-              unpurchased > 0
-                ? `הרשימה נסגרה ו-PDF ירד למכשיר (${unpurchased} מוצרים). הרשימה נוקתה ונשמרה בהיסטוריה (${purchased} נרכשו).`
-                : `הרשימה נסגרה ונוקתה, ונשמרה בהיסטוריה (${purchased} נרכשו). לא היו מוצרים פתוחים ל-PDF.`,
-              "success"
-            );
-          }}
-          onRemoveItem={async (id) => {
-            await deleteDoc(doc(db, "shopping_requests", id));
-          }}
-          onUpdateQuantity={async (id, newQty) => {
-            await updateDoc(doc(db, "shopping_requests", id), { quantity: newQty });
           }}
         />
 
