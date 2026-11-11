@@ -43,6 +43,16 @@ service cloud.firestore {
       ]);
     }
 
+    // מדריך מלווה: צפייה בלבד בתיק מטופל. עובד לכל דבר אחר (קניות וכו'), אך ללא כתיבה בתיק.
+    function isCompanion() {
+      return isAuthenticated() && hasRole('accompanying_instructor');
+    }
+
+    // כל עובד, כולל מדריך מלווה (קריאה בתיק מטופל, קניות וכו').
+    function isStaffOrCompanion() {
+      return isStaff() || isCompanion();
+    }
+
     // Manager-equivalent for shopping/inventory flows — mirrors the client's
     // `canPurchase` boundary (page.tsx), which includes logistics alongside admin/manager.
     function isShoppingManager() {
@@ -72,7 +82,7 @@ service cloud.firestore {
     match /patients/{patientId} {
       // Participants can read only their own record. Staff can read all.
       allow read: if isAuthenticated() && (
-        isStaff() || 
+        isStaffOrCompanion() || 
         (getUserData() != null && getUserData().patientId == patientId)
       );
       allow write: if isStaff();
@@ -114,7 +124,7 @@ service cloud.firestore {
     }
 
     match /attendance/{docId} {
-      allow read: if isAuthenticated() && (isStaff() || (resource != null && ownsPatient(resource.data)));
+      allow read: if isAuthenticated() && (isStaffOrCompanion() || (resource != null && ownsPatient(resource.data)));
       allow create, update: if isStaff() && validDayAttendance(docId, request.resource.data);
       allow delete: if isStaff();
     }
@@ -123,7 +133,10 @@ service cloud.firestore {
     // Personal rehabilitation plans, one per participant (doc id = patient id). Therapeutic content:
     // care staff only. Participants and logistics-only users cannot read them.
     match /rehab_plans/{patientId} {
-      allow read, delete: if isAuthenticated() && userRoles().hasAny([
+      allow read: if isAuthenticated() && userRoles().hasAny([
+        'admin', 'manager', 'social_worker', 'instructor', 'employee', 'professional_manager', 'accompanying_instructor'
+      ]);
+      allow delete: if isAuthenticated() && userRoles().hasAny([
         'admin', 'manager', 'social_worker', 'instructor', 'employee', 'professional_manager'
       ]);
       allow create, update: if isAuthenticated() && userRoles().hasAny([
@@ -132,7 +145,7 @@ service cloud.firestore {
     }
 
     match /attendance_notes/{docId} {
-      allow read: if isStaff();
+      allow read: if isStaffOrCompanion();
       allow create, update: if isStaff() &&
         request.resource.data.keys().hasOnly(['text', 'patientId', 'date', 'kind', 'sessionId', 'updatedBy', 'updatedAt']) &&
         request.resource.data.text is string &&
@@ -143,7 +156,7 @@ service cloud.firestore {
 
     // Attendance of a single workshop session: session_attendance/{sessionId}_{patientId}.
     match /session_attendance/{docId} {
-      allow read: if isAuthenticated() && (isStaff() || (resource != null && ownsPatient(resource.data)));
+      allow read: if isAuthenticated() && (isStaffOrCompanion() || (resource != null && ownsPatient(resource.data)));
       allow create, update: if isStaff() &&
         request.resource.data.keys().hasOnly([
           'patientId', 'date', 'sessionId', 'workshopId', 'slotId', 'programId', 'status', 'hasNote',
@@ -161,7 +174,7 @@ service cloud.firestore {
     // Document Requests
     match /document_requests/{docId} {
       allow read: if isAuthenticated() && (
-        isStaff() || 
+        isStaffOrCompanion() || 
         (resource != null && resource.data.patientId == (getUserData() != null ? getUserData().patientId : ''))
       );
       allow write: if isAuthenticated();
@@ -170,7 +183,7 @@ service cloud.firestore {
     // Documents (Issued)
     match /documents/{docId} {
       allow read: if isAuthenticated() && (
-        isStaff() || 
+        isStaffOrCompanion() || 
         (resource != null && resource.data.patientId == (getUserData() != null ? getUserData().patientId : ''))
       );
       allow write: if isStaff();
@@ -243,7 +256,7 @@ service cloud.firestore {
       // (admin/manager/logistics) can also add on someone else's behalf (recurring
       // list import, approving a queued product request). Staff cannot add to a frozen list.
       allow create: if isShoppingManager() || (
-        isStaff() &&
+        isStaffOrCompanion() &&
         request.resource.data.requestedBy == request.auth.uid &&
         request.resource.data.status == 'approved' &&
         !isShoppingListFrozen(shoppingItemList(request.resource.data))
@@ -253,7 +266,7 @@ service cloud.firestore {
       // nothing at all once it is frozen. Moving an item into a frozen list counts as adding to
       // it. Nobody may rewrite who requested an item or when via a plain update.
       allow update: if isShoppingManager() || (
-        isStaff() &&
+        isStaffOrCompanion() &&
         request.resource.data.status in ['pending', 'approved', 'purchased', 'deleted'] &&
         !shoppingChangedKeys().hasAny(['requestedBy', 'requestedByName', 'createdAt']) &&
         !isShoppingListFrozen(shoppingItemList(resource.data)) &&
@@ -270,7 +283,7 @@ service cloud.firestore {
     // Closed shopping cycles — an immutable history written once when a cycle is closed
     // (the live items are cleared right after, so this is the only record of that week).
     match /shopping_cycles/{docId} {
-      allow read: if isStaff();
+      allow read: if isStaffOrCompanion();
       allow create: if isShoppingManager();
       allow update, delete: if false;
     }
@@ -284,7 +297,7 @@ service cloud.firestore {
     // Product Requests Queue
     match /product_requests_queue/{docId} {
       allow read: if isAuthenticated();
-      allow create: if isStaff();
+      allow create: if isStaffOrCompanion();
       allow update, delete: if isShoppingManager();
     }
 

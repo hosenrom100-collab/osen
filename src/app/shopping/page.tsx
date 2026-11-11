@@ -225,7 +225,7 @@ export default function ShoppingPage() {
     (canPurchase && pendingStoreAuthCount > 0) || (isAdmin && pendingRequestsCount > 0);
 
   return (
-    <RoleGuard allowedRoles={["admin", "manager", "instructor", "social_worker", "employee", "logistics"]} redirectTo="/">
+    <RoleGuard allowedRoles={["admin", "manager", "instructor", "social_worker", "employee", "logistics", "accompanying_instructor"]} redirectTo="/">
       {/* One switch for every animation on this screen: honors the OS "reduce motion" setting. */}
       <MotionConfig reducedMotion="user">
       <ConnectionStatusBanner />

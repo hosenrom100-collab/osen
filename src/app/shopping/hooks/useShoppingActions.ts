@@ -9,9 +9,9 @@ import { ShoppingRequest, Product, CutoffConfig, TargetFramework } from "../type
 import { findSimilarRequestStrict } from "../lib/stringUtils";
 import { parseQuantity, buildQuantityString, getMinQuantity } from "../lib/quantityUtils";
 import { belongsToList } from "../lib/listFilters";
-import { syncFreeze, isPermissionDenied } from "../lib/syncFreeze";
+import { isPermissionDenied } from "../lib/syncFreeze";
 
-const FROZEN_MESSAGE = "הרשימה הוקפאה לאחר מועד הקציבה ולא ניתן לשנות אותה.";
+const FROZEN_MESSAGE = "אין לך הרשאה לבצע פעולה זו. אם הבעיה נמשכת, פנה למנהל.";
 
 export function useShoppingActions(
   user: User | null,
@@ -127,14 +127,7 @@ export function useShoppingActions(
         listType,
         targetFramework,
       };
-      try {
-        await addDoc(collection(db, "shopping_requests"), newItem);
-      } catch (e) {
-        // The rules freeze the list from `freezeAt`. If this tab is stale (the list was closed or
-        // emptied since), have the server recompute it and try once more before giving up.
-        if (!isPermissionDenied(e) || !(await syncFreeze(user))) throw e;
-        await addDoc(collection(db, "shopping_requests"), newItem);
-      }
+      await addDoc(collection(db, "shopping_requests"), newItem);
 
       if (priority === "urgent") {
         sendPush({

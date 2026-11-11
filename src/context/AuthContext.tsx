@@ -6,7 +6,7 @@ import { createContext, useContext, useEffect, useState } from "react";
 import { doc, getDoc, getDocFromServer, updateDoc, onSnapshot, setDoc, serverTimestamp, query, where, getDocs, collection, deleteDoc } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 
-export type UserRole = "admin" | "manager" | "instructor" | "social_worker" | "employee" | "logistics" | "participant";
+export type UserRole = "admin" | "manager" | "instructor" | "social_worker" | "employee" | "logistics" | "accompanying_instructor" | "participant";
 export type UserStatus = "pending" | "approved" | "rejected" | "blocked";
 
 interface AuthContextType {

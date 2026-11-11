@@ -112,7 +112,7 @@ export interface Person {
 }
 
 export const ROLE_LABEL: Record<string, string> = {
-  admin: "אדמין", manager: "מנהל/ת", instructor: "מדריך/ה", social_worker: 'עו"ס', employee: "עובד/ת", logistics: "לוגיסטיקה",
+  admin: "אדמין", manager: "מנהל/ת", instructor: "מדריך/ה", social_worker: 'עו"ס', employee: "עובד/ת", logistics: "לוגיסטיקה", accompanying_instructor: "מדריך/ה מלווה",
 };
 
 export type SessionKind = "normal" | "cancelled" | "moved-away" | "moved-in" | "extra";

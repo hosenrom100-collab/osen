@@ -29,6 +29,7 @@ const ROLE_HE: Record<string, string> = {
   social_worker: 'עו"ס',
   employee:      "עובד",
   logistics:     "לוגיסטיקה",
+  accompanying_instructor: "מדריך מלווה",
 };
 
 export function DesktopSidebar() {

@@ -39,6 +39,7 @@ const ROLE_LABELS: Record<UserRole, string> = {
   social_worker: "עו״ס",
   instructor: "מדריך/ה",
   logistics: "לוגיסטיקה",
+  accompanying_instructor: "מדריך/ה מלווה",
   employee: "עובד/ת",
   participant: "משתתף/ת"
 };
@@ -49,6 +50,7 @@ const ROLE_COLORS: Record<UserRole, string> = {
   social_worker: "bg-emerald-500/10 text-emerald-600 border border-emerald-500/20",
   instructor: "bg-amber-500/10 text-amber-600 border border-amber-500/20",
   logistics: "bg-indigo-500/10 text-indigo-600 border border-indigo-500/20",
+  accompanying_instructor: "bg-orange-500/10 text-orange-600 border border-orange-500/20",
   employee: "bg-zinc-500/10 text-zinc-600 border border-zinc-500/20",
   participant: "bg-teal-500/10 text-teal-600 border border-teal-500/20"
 };
@@ -487,7 +489,7 @@ export default function UserManagementPage() {
                                       <div className="px-3 py-1.5 text-[11px] font-bold uppercase text-[var(--muted)] tracking-wider">
                                         בחר תפקידים:
                                       </div>
-                                      {(["social_worker", "instructor", "logistics", "manager", "admin", "employee"] as UserRole[]).map(roleVal => {
+                                      {(["social_worker", "instructor", "accompanying_instructor", "logistics", "manager", "admin", "employee"] as UserRole[]).map(roleVal => {
                                         const isSelected = user.roles?.includes(roleVal);
                                         return (
                                           <div
@@ -939,7 +941,7 @@ export default function UserManagementPage() {
                   <div className="space-y-1.5">
                     <label className="text-[11px] font-bold uppercase tracking-wider text-[var(--muted)]">תפקידים במערכת (בחר לפחות אחד)</label>
                     <div className="grid grid-cols-2 gap-2">
-                      {(["social_worker", "instructor", "logistics", "manager", "admin", "employee"] as UserRole[]).map(r => {
+                      {(["social_worker", "instructor", "accompanying_instructor", "logistics", "manager", "admin", "employee"] as UserRole[]).map(r => {
                         const isSelected = preCreateRoles.includes(r);
                         return (
                           <button

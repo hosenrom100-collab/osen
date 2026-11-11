@@ -13,6 +13,7 @@ export function RoleSelector({ value, onChange, disabled }: RoleSelectorProps) {
     { value: "manager", label: "מנהלת חוסן" },
     { value: "logistics", label: "לוגיסטיקה" },
     { value: "instructor", label: "מדריך" },
+    { value: "accompanying_instructor", label: "מדריך מלווה (צפייה בלבד בתיק מטופל)" },
     { value: "social_worker", label: "עובד סוציאלי" }
   ];
 

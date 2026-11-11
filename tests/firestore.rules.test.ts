@@ -315,3 +315,20 @@ test("rehab plans: care staff read and write them, participants and logistics ca
   await assertFails(getDoc(plan("logistics")));
   await assertFails(setDoc(plan("logistics"), data));
 });
+
+// ── accompanying instructor (מדריך מלווה): read-only patient file, otherwise a regular employee ──
+
+test("accompanying instructor reads patient files but cannot write them; can add shopping items", async () => {
+  await env.clearFirestore();
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    const db = ctx.firestore();
+    await setDoc(doc(db, "users", "companion"), { role: "accompanying_instructor", roles: ["accompanying_instructor"] });
+    await setDoc(doc(db, "patients", "p1"), { firstName: "א" });
+  });
+  await assertSucceeds(getDoc(doc(as("companion"), "patients", "p1")));
+  await assertFails(updateDoc(doc(as("companion"), "patients", "p1"), { firstName: "ב" }));
+  await assertFails(setDoc(doc(as("companion"), "attendance", "p1_2026-01-01"), {
+    patientId: "p1", date: "2026-01-01", status: "present",
+  }));
+  await assertSucceeds(addDoc(collection(as("companion"), "shopping_requests"), newItem({ requestedBy: "companion" })));
+});

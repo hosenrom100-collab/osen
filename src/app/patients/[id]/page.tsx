@@ -145,7 +145,10 @@ function deserializePlanData(text: string): RehabPlanData {
 
 export default function PatientDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const { isAdmin, isManager, user: authUser, signatureTitle, signatureImage, role } = useAuth();
+  const { isAdmin, isManager, user: authUser, signatureTitle, signatureImage, role, roles: authRoles } = useAuth();
+  // מדריך מלווה: צפייה בלבד בתיק המטופל (אלא אם יש לו גם תפקיד עם הרשאת עריכה)
+  const isReadOnly = (authRoles.includes("accompanying_instructor") || role === "accompanying_instructor") &&
+    !["admin", "manager", "social_worker", "logistics", "instructor", "employee"].some(r => authRoles.includes(r as never) || role === r);
   const router = useRouter();
   const searchParams = useSearchParams();
   const reportRef = useRef<HTMLDivElement>(null);
@@ -688,6 +691,7 @@ export default function PatientDetailPage() {
   }
 
   async function toggleExtensionSent() {
+    if (isReadOnly) return;
     if (!patient) return;
     const next = !patient.extensionSent;
     try {
@@ -701,6 +705,7 @@ export default function PatientDetailPage() {
   }
 
   async function toggleExtensionReceived() {
+    if (isReadOnly) return;
     if (!patient) return;
     const next = !patient.extensionReceived;
     try {
@@ -716,6 +721,7 @@ export default function PatientDetailPage() {
   }
 
   async function toggleSummaryReportCompleted() {
+    if (isReadOnly) return;
     if (!patient) return;
     const next = !patient.summaryReportCompleted;
     try {
@@ -725,6 +731,7 @@ export default function PatientDetailPage() {
   }
 
   async function saveEndDate() {
+    if (isReadOnly) return;
     if (!patient || !editEndDateVal) return;
     setSavingExt("date");
     try {
@@ -736,6 +743,7 @@ export default function PatientDetailPage() {
   }
   
   async function toggleRehabPlan() {
+    if (isReadOnly) return;
     if (!patient) return;
     const next = !patient.rehabPlanCompleted;
     try {
@@ -745,6 +753,7 @@ export default function PatientDetailPage() {
   }
 
   async function toggleConfidentialityWaiver() {
+    if (isReadOnly) return;
     if (!patient) return;
     const next = !patient.confidentialityWaiverCompleted;
     try {
@@ -754,6 +763,7 @@ export default function PatientDetailPage() {
   }
 
   async function togglePersonalDetailsForm() {
+    if (isReadOnly) return;
     if (!patient) return;
     const next = !patient.personalDetailsFormCompleted;
     try {
@@ -763,6 +773,7 @@ export default function PatientDetailPage() {
   }
 
   async function toggleGroupContract() {
+    if (isReadOnly) return;
     if (!patient) return;
     const next = !patient.isGroupContract;
     try {
@@ -772,6 +783,7 @@ export default function PatientDetailPage() {
   }
 
   async function setArrivalMethod(method: "private_car" | "taxi") {
+    if (isReadOnly) return;
     if (!patient) return;
     const next = patient.arrivalMethod === method ? undefined : method;
     try {
@@ -1461,9 +1473,14 @@ export default function PatientDetailPage() {
   };
 
   return (
-    <RoleGuard allowedRoles={["admin", "manager", "social_worker", "logistics"]} redirectTo="/login">
+    <RoleGuard allowedRoles={["admin", "manager", "social_worker", "logistics", "accompanying_instructor"]} redirectTo="/login">
       <div dir="rtl" className="min-h-screen bg-[var(--background)] text-[var(--foreground)]">
         
+        {isReadOnly && (
+          <div className="bg-amber-500/10 text-amber-700 text-center text-xs font-bold py-2 border-b border-amber-500/20">
+            מצב צפייה בלבד — למדריך מלווה אין הרשאת עריכה בתיק המטופל
+          </div>
+        )}
         <header className="sticky top-0 z-40 bg-[var(--background)]/70 backdrop-blur-2xl border-b border-[var(--border)]">
           <div className="max-w-7xl mx-auto px-4 md:px-8 h-auto min-h-[5rem] py-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="flex items-center gap-3 md:gap-5">

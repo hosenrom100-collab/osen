@@ -6,7 +6,7 @@ import type { CutoffConfig } from "@/app/shopping/types";
 
 // Same set as `isStaff()` in firestore.rules.
 const STAFF_ROLES = [
-  "admin", "manager", "logistics", "social_worker", "instructor", "employee", "professional_manager",
+  "admin", "manager", "logistics", "social_worker", "instructor", "employee", "professional_manager", "accompanying_instructor",
 ];
 
 function getUserRoles(data: FirebaseFirestore.DocumentData | undefined): string[] {
