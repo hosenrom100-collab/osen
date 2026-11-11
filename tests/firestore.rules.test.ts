@@ -327,7 +327,9 @@ test("accompanying instructor reads patient files but cannot write them; can add
   });
   await assertSucceeds(getDoc(doc(as("companion"), "patients", "p1")));
   await assertFails(updateDoc(doc(as("companion"), "patients", "p1"), { firstName: "ב" }));
-  await assertFails(setDoc(doc(as("companion"), "attendance", "p1_2026-01-01"), {
+  await assertFails(setDoc(doc(as("companion"), "documents", "d1"), { patientId: "p1" }));
+  // like an instructor, they can still mark attendance
+  await assertSucceeds(setDoc(doc(as("companion"), "attendance", "p1_2026-01-01"), {
     patientId: "p1", date: "2026-01-01", status: "present",
   }));
   await assertSucceeds(addDoc(collection(as("companion"), "shopping_requests"), newItem({ requestedBy: "companion" })));

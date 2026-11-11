@@ -35,7 +35,7 @@ const formatPhoneForWhatsApp = (phoneStr?: string) => {
 };
 
 export function AttendanceItem({ patient, entry, onToggle, onSaveNote, onOpenDetails }: AttendanceItemProps) {
-  const { role } = useAuth();
+  const { role, roles } = useAuth();
   const status = entry.status;
   const [editingNote, setEditingNote] = useState(false);
   const [draft, setDraft] = useState("");
@@ -50,7 +50,7 @@ export function AttendanceItem({ patient, entry, onToggle, onSaveNote, onOpenDet
   const hasMarks = !!(entry.late || entry.leftEarly || entry.note);
   const isPresent = status === "present";
   const isAbsent  = status === "absent";
-  const isInstructor = role === "instructor";
+  const isInstructor = role === "instructor" && !roles.includes("accompanying_instructor");
 
   return (
     <motion.div

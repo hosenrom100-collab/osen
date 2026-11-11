@@ -94,7 +94,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const handleUserData = async (data: any, firebaseUser: User) => {
       const userRole   = data.role as UserRole;
-      const userRoles  = (data.roles as UserRole[]) || (userRole ? [userRole] : []);
+      const rawRoles   = (data.roles as UserRole[]) || (userRole ? [userRole] : []);
+      // מדריך מלווה מחזיק גם בהרשאות מדריך (הצפייה-בלבד בתיק מטופל נאכפת בנפרד).
+      const userRoles  = rawRoles.includes("accompanying_instructor") && !rawRoles.includes("instructor")
+        ? [...rawRoles, "instructor" as UserRole]
+        : rawRoles;
       const userStatus = (data.status as UserStatus) || "pending";
 
       setStatus(userStatus);

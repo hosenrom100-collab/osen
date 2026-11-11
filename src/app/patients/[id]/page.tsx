@@ -148,7 +148,7 @@ export default function PatientDetailPage() {
   const { isAdmin, isManager, user: authUser, signatureTitle, signatureImage, role, roles: authRoles } = useAuth();
   // מדריך מלווה: צפייה בלבד בתיק המטופל (אלא אם יש לו גם תפקיד עם הרשאת עריכה)
   const isReadOnly = (authRoles.includes("accompanying_instructor") || role === "accompanying_instructor") &&
-    !["admin", "manager", "social_worker", "logistics", "instructor", "employee"].some(r => authRoles.includes(r as never) || role === r);
+    !["admin", "manager", "social_worker", "logistics", "employee"].some(r => authRoles.includes(r as never) || role === r);
   const router = useRouter();
   const searchParams = useSearchParams();
   const reportRef = useRef<HTMLDivElement>(null);
