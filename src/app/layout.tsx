@@ -1,11 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
-import { AuthProvider } from "@/context/AuthContext";
-import { BottomNav } from "@/components/navigation/BottomNav";
-import { DesktopSidebar } from "@/components/navigation/DesktopSidebar";
-import { SettingsProvider } from "@/context/SettingsContext";
-import { StaffOnboardingModal } from "@/components/auth/StaffOnboardingModal";
+import { AppShell } from "@/components/AppShell";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -27,8 +23,6 @@ export const metadata: Metadata = {
   },
 };
 
-import HelpButton from "@/components/help/HelpButton";
-
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -37,19 +31,7 @@ export default function RootLayout({
   return (
     <html lang="he" dir="rtl" suppressHydrationWarning>
       <body className={`${inter.variable} font-sans antialiased`}>
-        <AuthProvider>
-          <SettingsProvider>
-            <StaffOnboardingModal />
-            <div className="flex min-h-screen">
-              <DesktopSidebar />
-              <div className="flex-1 min-w-0 pb-20 md:pb-0 md:h-screen md:overflow-y-auto">
-                {children}
-              </div>
-            </div>
-            <BottomNav />
-            <HelpButton />
-          </SettingsProvider>
-        </AuthProvider>
+        <AppShell>{children}</AppShell>
       </body>
     </html>
   );
