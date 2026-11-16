@@ -20,6 +20,8 @@ export interface FormDef {
   paragraphs?: { heading?: string; body: string; note?: string }[];
   /** להציג את שדות המילוי לפני הטקסט (ברירת מחדל: אחריו) */
   fieldsFirst?: boolean;
+  /** ה-PDF חייב להיכנס לעמוד A4 אחד (מוקטן אוטומטית אם צריך) */
+  singlePage?: boolean;
   /** האם הטופס דורש אישור וחתימה */
   needsSignature: boolean;
   agreeLabel?: string;
@@ -31,6 +33,7 @@ export type AllForms = Record<FormId, FormValues>;
 export const FORMS: FormDef[] = [
   {
     id: "personal",
+    singlePage: true,
     title: "טופס פרטים אישיים",
     short: "פרטים אישיים",
     fields: [
@@ -78,6 +81,7 @@ export const FORMS: FormDef[] = [
     title: "טופס ויתור סודיות רפואית",
     short: "ויתור סודיות",
     fieldsFirst: true,
+    singlePage: true,
     fields: [
       { key: "firstName", label: "שם פרטי", half: true },
       { key: "lastName", label: "שם משפחה", half: true },
