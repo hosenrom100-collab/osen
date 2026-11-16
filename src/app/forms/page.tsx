@@ -8,7 +8,7 @@ import {
   FormId,
   formToText,
   fullName,
-  missingRequired,
+  fieldErrors,
   noneKey,
   NONE_LABEL,
 } from "@/lib/forms/definitions";
@@ -16,7 +16,7 @@ import { renderFormPdf } from "@/lib/forms/renderPdf";
 
 const STORAGE_KEY = "hosen-public-forms-v1";
 
-function SignaturePad({ value, onChange }: { value?: string; onChange: (v: string) => void }) {
+function SignaturePad({ value, onChange, invalid }: { value?: string; onChange: (v: string) => void; invalid?: boolean }) {
   const ref = useRef<HTMLCanvasElement>(null);
   const drawing = useRef(false);
 
@@ -70,7 +70,7 @@ function SignaturePad({ value, onChange }: { value?: string; onChange: (v: strin
         onPointerMove={move}
         onPointerUp={up}
         onPointerCancel={up}
-        className="w-full h-40 rounded-xl border-2 border-dashed border-[#9fb0cf] bg-white touch-none"
+        className={`w-full h-40 rounded-xl border-2 border-dashed bg-white touch-none ${invalid ? "border-red-500 bg-red-50" : "border-[#9fb0cf]"}`}
       />
       <button type="button" onClick={() => onChange("")} className="mt-1 text-sm text-[#3b5f8f] underline">
         נקה חתימה
@@ -85,6 +85,7 @@ export default function FormsPage() {
   const [active, setActive] = useState<FormId>("personal");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
+  const [attempted, setAttempted] = useState(false);
 
   useEffect(() => {
     /* eslint-disable react-hooks/set-state-in-effect -- טעינה מ-localStorage אפשרית רק אחרי hydration */
@@ -114,13 +115,22 @@ export default function FormsPage() {
   const pick = (id: FormId) => {
     setActive(id);
     setMsg("");
+    setAttempted(false);
     window.history.replaceState(null, "", "#" + id);
   };
 
   const send = async () => {
-    const missing = missingRequired(def, values);
-    if (missing.length) {
-      setMsg("חסר: " + missing.join(", "));
+    const errs = fieldErrors(def, values);
+    const count = Object.keys(errs).length;
+    if (count) {
+      setAttempted(true);
+      setMsg("");
+      // גלילה לשדה הראשון (לפי סדר המסך) שדורש תיקון
+      setTimeout(() => {
+        const el = document.querySelector<HTMLElement>('[data-invalid="1"]');
+        el?.scrollIntoView({ behavior: "smooth", block: "center" });
+        el?.querySelector<HTMLElement>("input:not([type=checkbox]),textarea")?.focus({ preventScroll: true });
+      }, 50);
       return;
     }
     setBusy(true);
@@ -157,10 +167,14 @@ export default function FormsPage() {
     if (!confirm("למחוק את כל מה שמולא בטופס הזה?")) return;
     setData((d) => ({ ...d, [active]: {} }));
     setMsg("");
+    setAttempted(false);
   };
 
-  const input =
+  // אחרי ניסיון שליחה השגיאות מתעדכנות חי – שדה שתוקן מפסיק להיות אדום
+  const errors = attempted ? fieldErrors(def, values) : {};
+  const inputBase =
     "w-full rounded-xl border border-[#cdd5e4] bg-white px-4 py-3 text-base text-[#1f2a44] outline-none focus:border-[#3b5f8f] focus:ring-2 focus:ring-[#3b5f8f]/20";
+  const inputBad = "w-full rounded-xl border-2 border-red-500 bg-red-50 px-4 py-3 text-base text-[#1f2a44] outline-none focus:ring-2 focus:ring-red-300";
 
   return (
     <div dir="rtl" className="min-h-screen bg-[#f5f1ea] text-[#1f2a44]" style={{ fontFamily: '"Assistant Local", Arial, sans-serif' }}>
@@ -207,25 +221,30 @@ export default function FormsPage() {
           <div className={`grid grid-cols-2 gap-4 ${def.fieldsFirst ? "order-1" : "order-2"}`}>
           {def.fields.map((f) => {
             const none = f.allowNone && values[noneKey(f.key)] === "1";
+            const err = errors[f.key];
+            const input = err ? inputBad : inputBase;
             return (
-              <div key={f.key} className={f.half ? "" : "col-span-2"}>
+              <div key={f.key} data-invalid={err ? "1" : undefined} className={f.half ? "" : "col-span-2"}>
                 <label className="block">
-                  <span className="block mb-1 text-sm font-semibold text-[#3b5f8f]">
+                  <span className={`block mb-1 text-sm font-semibold ${err ? "text-red-600" : "text-[#3b5f8f]"}`}>
                     {f.label} <span className="text-red-600">*</span>
                   </span>
                   {f.type === "textarea" ? (
-                    <textarea rows={3} disabled={none} className={input} value={none ? "" : values[f.key] ?? ""} onChange={(e) => set(f.key, e.target.value)} />
+                    <textarea rows={3} disabled={none} aria-invalid={err ? true : undefined} className={input} value={none ? "" : values[f.key] ?? ""} onChange={(e) => set(f.key, e.target.value)} />
                   ) : (
                     <input
                       type={f.type === "tel" ? "tel" : "text"}
-                      inputMode={f.type === "tel" ? "tel" : undefined}
+                      inputMode={f.type === "tel" ? "tel" : f.type === "id" ? "numeric" : undefined}
+                      maxLength={f.type === "id" ? 9 : undefined}
                       disabled={none}
                       className={input}
+                      aria-invalid={err ? true : undefined}
                       value={none ? "" : values[f.key] ?? ""}
-                      onChange={(e) => set(f.key, e.target.value)}
+                      onChange={(e) => set(f.key, f.type === "id" ? e.target.value.replace(/\D/g, "") : e.target.value)}
                     />
                   )}
                 </label>
+                {err && <p className="mt-1 text-sm font-semibold text-red-600">{err}</p>}
                 {f.allowNone && (
                   <label className="mt-1 flex items-center gap-2 text-sm text-[#5b6785]">
                     <input
@@ -244,29 +263,39 @@ export default function FormsPage() {
 
           {def.needsSignature && (
             <div className="order-last flex flex-col gap-4">
-              <label className="flex items-start gap-3 font-semibold">
-                <input
-                  type="checkbox"
-                  className="mt-1 h-5 w-5"
-                  checked={values.agree === "1"}
-                  onChange={(e) => set("agree", e.target.checked ? "1" : "")}
-                />
-                <span>{def.agreeLabel}</span>
-              </label>
+              <div data-invalid={errors.agree ? "1" : undefined} className={errors.agree ? "rounded-xl border-2 border-red-500 bg-red-50 p-3" : ""}>
+                <label className="flex items-start gap-3 font-semibold">
+                  <input
+                    type="checkbox"
+                    className="mt-1 h-5 w-5"
+                    checked={values.agree === "1"}
+                    onChange={(e) => set("agree", e.target.checked ? "1" : "")}
+                  />
+                  <span>{def.agreeLabel}</span>
+                </label>
+                {errors.agree && <p className="mt-1 text-sm font-semibold text-red-600">{errors.agree}</p>}
+              </div>
               <p className="text-sm font-semibold text-[#3b5f8f]">
                 תאריך: <span className="text-[#1f2a44]">{new Date().toLocaleDateString("he-IL")}</span>
               </p>
-              <div>
-                <span className="block mb-1 text-sm font-semibold text-[#3b5f8f]">
+              <div data-invalid={errors.signature ? "1" : undefined}>
+                <span className={`block mb-1 text-sm font-semibold ${errors.signature ? "text-red-600" : "text-[#3b5f8f]"}`}>
                   חתימה <span className="text-red-600">*</span>
                 </span>
-                <SignaturePad value={values.signature} onChange={(v) => set("signature", v)} />
+                <SignaturePad value={values.signature} onChange={(v) => set("signature", v)} invalid={!!errors.signature} />
+                {errors.signature && <p className="mt-1 text-sm font-semibold text-red-600">{errors.signature}</p>}
               </div>
             </div>
           )}
         </div>
 
-        {msg && <p className="mt-4 rounded-xl bg-white border border-[#e6e0d5] px-4 py-3 text-sm">{msg}</p>}
+        {Object.keys(errors).length > 0 ? (
+          <p className="mt-4 rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+            {Object.keys(errors).length === 1 ? "יש שדה אחד שדורש תיקון" : `יש ${Object.keys(errors).length} שדות שדורשים תיקון`} – מסומנים באדום.
+          </p>
+        ) : (
+          msg && <p className="mt-4 rounded-xl border border-[#e6e0d5] bg-white px-4 py-3 text-sm">{msg}</p>
+        )}
 
         <div className="mt-5 flex gap-3">
           <button

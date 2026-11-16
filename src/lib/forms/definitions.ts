@@ -3,7 +3,7 @@ export type FormId = "personal" | "contract" | "waiver";
 export interface FieldDef {
   key: string;
   label: string;
-  type?: "text" | "tel" | "textarea";
+  type?: "text" | "tel" | "textarea" | "id";
   /** מאפשר לסמן "אין" במקום למלא (חובה למלא פרטים או לסמן אין) */
   allowNone?: boolean;
   /** חצי רוחב (שני שדות בשורה אחת) */
@@ -85,7 +85,7 @@ export const FORMS: FormDef[] = [
     fields: [
       { key: "firstName", label: "שם פרטי", half: true },
       { key: "lastName", label: "שם משפחה", half: true },
-      { key: "idNumber", label: "מספר זהות" },
+      { key: "idNumber", label: "מספר זהות", type: "id" },
     ],
     paragraphs: [
       {
@@ -120,14 +120,40 @@ export function fieldValue(f: FieldDef, values: FormValues): string {
   return values[f.key]?.trim() ?? "";
 }
 
-/** כל השדות חובה: מילוי, או סימון "אין" בשדות שמאפשרים זאת */
-export function missingRequired(def: FormDef, values: FormValues): string[] {
-  const missing = def.fields.filter((f) => !fieldValue(f, values)).map((f) => f.label);
-  if (def.needsSignature) {
-    if (values.agree !== "1") missing.push("אישור הסכמה");
-    if (!values.signature) missing.push("חתימה");
+/** בדיקת תקינות מספר זהות ישראלי (אלגוריתם ספרת ביקורת): 5–9 ספרות, משלימים אפסים משמאל ל-9 */
+export function isValidIsraeliId(raw: string): boolean {
+  const digits = raw.trim();
+  if (!/^\d{5,9}$/.test(digits)) return false;
+  const id = digits.padStart(9, "0");
+  if (/^0+$/.test(id)) return false;
+  let sum = 0;
+  for (let i = 0; i < 9; i++) {
+    let n = Number(id[i]) * ((i % 2) + 1);
+    if (n > 9) n -= 9;
+    sum += n;
   }
-  return missing;
+  return sum % 10 === 0;
+}
+
+export const ERR_REQUIRED = "שדה חובה – יש למלא";
+export const ERR_REQUIRED_OR_NONE = 'שדה חובה – יש למלא או לסמן "אין"';
+export const ERR_ID = "מספר זהות לא תקין";
+export const ERR_AGREE = "יש לאשר את ההסכמה";
+export const ERR_SIGNATURE = "יש לחתום";
+
+/** שגיאות לפי מפתח שדה (וגם "agree" ו-"signature"). כל השדות חובה; ת"ז נבדקת באלגוריתם הישראלי */
+export function fieldErrors(def: FormDef, values: FormValues): Record<string, string> {
+  const errors: Record<string, string> = {};
+  for (const f of def.fields) {
+    const v = fieldValue(f, values);
+    if (!v) errors[f.key] = f.allowNone ? ERR_REQUIRED_OR_NONE : ERR_REQUIRED;
+    else if (f.type === "id" && !isValidIsraeliId(v)) errors[f.key] = ERR_ID;
+  }
+  if (def.needsSignature) {
+    if (values.agree !== "1") errors.agree = ERR_AGREE;
+    if (!values.signature) errors.signature = ERR_SIGNATURE;
+  }
+  return errors;
 }
 
 /** סיכום טקסטואלי קצר (גיבוי כשאי אפשר לשתף קובץ) */
