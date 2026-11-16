@@ -6,13 +6,15 @@ import { usePathname } from "next/navigation";
 import { 
   Home, ClipboardList, Users, ShoppingCart, 
   Settings, Clock, MessageSquare, Calendar,
-  Sun, Moon, HelpCircle, Utensils, ShoppingBag, ChevronsLeft, ChevronsRight
+  Sun, Moon, HelpCircle, Utensils, ShoppingBag, ChevronsLeft, ChevronsRight,
+  FileText, Link2, Check
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useSettings } from "@/context/SettingsContext";
 import { db } from "@/lib/firebase/config";
 import { collection, query, where, onSnapshot } from "firebase/firestore";
 import { motion } from "framer-motion";
+import { copyFormsLink } from "@/lib/forms/shareLink";
 
 const NAV = [
   { href: "/",           icon: Home,          label: "בית",           color: "text-indigo-400" },
@@ -34,6 +36,7 @@ const ROLE_HE: Record<string, string> = {
 
 export function DesktopSidebar() {
   const pathname = usePathname();
+  const [formsCopied, setFormsCopied] = useState(false);
   const { user, roles, role, isAdmin, isManager, isLogistics, photoURL } = useAuth();
   const { theme, setTheme } = useSettings();
 
@@ -86,6 +89,14 @@ export function DesktopSidebar() {
   ];
 
   if (pathname === "/login") return null;
+
+  const copyForms = async () => {
+    const ok = await copyFormsLink();
+    if (ok) {
+      setFormsCopied(true);
+      setTimeout(() => setFormsCopied(false), 2000);
+    }
+  };
 
   const initials = (user?.displayName || user?.email || "?").charAt(0).toUpperCase();
   const displayRole = role || roles[0] || "";
@@ -143,6 +154,18 @@ export function DesktopSidebar() {
                 </Link>
               );
             })}
+            {/* טפסים – עמוד ציבורי נפרד (נפתח בלשונית חדשה) + העתקת הקישור לשליחה */}
+            <div className={`flex items-center ${collapsed ? "flex-col gap-1" : "gap-1"}`}>
+              <Link href="/forms" target="_blank" rel="noopener" title={collapsed ? "טפסים למילוי" : undefined}
+                className={`flex-1 flex items-center gap-3 ${collapsed ? "justify-center px-0" : "px-4"} py-2.5 rounded-lg text-sm font-bold transition-colors duration-150 group text-[var(--foreground)]/50 hover:text-[var(--primary)] hover:bg-[var(--foreground)]/5`}>
+                <FileText className="w-4 h-4 shrink-0 text-[var(--foreground)]/30 group-hover:text-[var(--primary)]/60" />
+                {!collapsed && <span>טפסים למילוי</span>}
+              </Link>
+              <button type="button" onClick={copyForms} title="העתקת קישור לטפסים"
+                className="p-2 rounded-lg text-[var(--foreground)]/40 hover:text-[var(--primary)] hover:bg-[var(--foreground)]/5 transition-colors">
+                {formsCopied ? <Check className="w-4 h-4 text-emerald-500" /> : <Link2 className="w-4 h-4" />}
+              </button>
+            </div>
           </div>
         </div>
         

@@ -13,6 +13,7 @@ import { useState, useEffect, useRef } from "react";
 import { db } from "@/lib/firebase/config";
 import { collection, query, where, onSnapshot } from "firebase/firestore";
 import { motion, AnimatePresence } from "framer-motion";
+import { copyFormsLink, formsUrl } from "@/lib/forms/shareLink";
 
 export function BottomNav() {
   const pathname = usePathname();
@@ -197,6 +198,27 @@ export function BottomNav() {
       show: !!(isManager || isLogistics || role === "social_worker" || roles?.includes("social_worker")),
       iconColor: "text-purple-600 dark:text-purple-400",
       iconBg: "bg-purple-500/10"
+    },
+    {
+      key: "forms",
+      label: "טפסים – שיתוף קישור",
+      icon: FileText,
+      show: true,
+      iconColor: "text-sky-600 dark:text-sky-400",
+      iconBg: "bg-sky-500/10",
+      onClick: async () => {
+        setActiveOverlay(null);
+        // בנייד: חלון שיתוף (וואטסאפ); אחרת – העתקה ללוח
+        if (navigator.share) {
+          try {
+            await navigator.share({ title: "טפסים למילוי – חוות רום", url: formsUrl() });
+            return;
+          } catch (e) {
+            if ((e as { name?: string })?.name === "AbortError") return;
+          }
+        }
+        alert((await copyFormsLink()) ? "הקישור לטפסים הועתק" : formsUrl());
+      },
     },
     {
       key: "help", 
