@@ -188,22 +188,23 @@ export default function FormsPage() {
       </nav>
 
       <main className="max-w-2xl mx-auto px-5 py-5 pb-16">
-        <div className="rounded-2xl bg-white p-5 shadow-sm border border-[#e6e0d5] space-y-4">
-          <h2 className="text-xl font-bold">{def.title}</h2>
-          {def.intro && <p className="text-xs text-amber-700 bg-amber-50 rounded-lg px-3 py-2">{def.intro}</p>}
+        <div className="rounded-2xl bg-white p-5 shadow-sm border border-[#e6e0d5] flex flex-col gap-4">
+          <h2 className="order-first text-xl font-bold">{def.title}</h2>
+          {def.intro && <p className="order-first text-xs text-amber-700 bg-amber-50 rounded-lg px-3 py-2">{def.intro}</p>}
 
           {def.paragraphs && (
-            <div className="space-y-3 rounded-xl bg-[#f8f6f1] p-4 text-[15px] leading-relaxed">
+            <div className={`space-y-3 rounded-xl bg-[#f8f6f1] p-4 text-[15px] leading-relaxed ${def.fieldsFirst ? "order-2" : "order-1"}`}>
               {def.paragraphs.map((p, i) => (
                 <div key={i}>
                   {p.heading && <p className="font-bold">{p.heading}</p>}
                   <p>{p.body}</p>
+                  {p.note && <p className="font-bold text-[#9a4b2f]">* {p.note}</p>}
                 </div>
               ))}
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className={`grid grid-cols-2 gap-4 ${def.fieldsFirst ? "order-1" : "order-2"}`}>
           {def.fields.map((f) => {
             const none = f.allowNone && values[noneKey(f.key)] === "1";
             return (
@@ -242,7 +243,7 @@ export default function FormsPage() {
           </div>
 
           {def.needsSignature && (
-            <>
+            <div className="order-last flex flex-col gap-4">
               <label className="flex items-start gap-3 font-semibold">
                 <input
                   type="checkbox"
@@ -252,13 +253,16 @@ export default function FormsPage() {
                 />
                 <span>{def.agreeLabel}</span>
               </label>
+              <p className="text-sm font-semibold text-[#3b5f8f]">
+                תאריך: <span className="text-[#1f2a44]">{new Date().toLocaleDateString("he-IL")}</span>
+              </p>
               <div>
                 <span className="block mb-1 text-sm font-semibold text-[#3b5f8f]">
                   חתימה <span className="text-red-600">*</span>
                 </span>
                 <SignaturePad value={values.signature} onChange={(v) => set("signature", v)} />
               </div>
-            </>
+            </div>
           )}
         </div>
 

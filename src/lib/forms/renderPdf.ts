@@ -81,21 +81,33 @@ export async function renderFormPdf(def: FormDef, values: FormValues): Promise<B
   ctx.fillRect(X_LEFT, y, X_RIGHT - X_LEFT, 3);
   y += 28;
 
-  for (const p of def.paragraphs ?? []) {
-    if (p.heading) text(p.heading, 28, 700, INK);
-    text(p.body, 26, 400, INK);
-    y += 12;
-  }
-  if (def.paragraphs?.length) y += 8;
-
-  for (const f of def.fields) {
-    const v = fieldValue(f, values);
-    ensure(90);
-    text(f.label, 22, 400, MUTED, 1.3);
-    text(v || "—", 28, 700, INK, 1.4);
-    ctx.fillStyle = "#d5dae6";
-    ctx.fillRect(X_LEFT, y + 2, X_RIGHT - X_LEFT, 1.5);
-    y += 20;
+  const drawParagraphs = () => {
+    for (const p of def.paragraphs ?? []) {
+      ensure(p.heading ? 130 : 60);
+      if (p.heading) text(p.heading, 28, 700, INK);
+      text(p.body, 25, 400, INK);
+      if (p.note) text("* " + p.note, 24, 700, "#9a4b2f");
+      y += 14;
+    }
+    if (def.paragraphs?.length) y += 8;
+  };
+  const drawFields = () => {
+    for (const f of def.fields) {
+      const v = fieldValue(f, values);
+      ensure(90);
+      text(f.label, 22, 400, MUTED, 1.3);
+      text(v || "—", 28, 700, INK, 1.4);
+      ctx.fillStyle = "#d5dae6";
+      ctx.fillRect(X_LEFT, y + 2, X_RIGHT - X_LEFT, 1.5);
+      y += 20;
+    }
+  };
+  if (def.fieldsFirst) {
+    drawFields();
+    drawParagraphs();
+  } else {
+    drawParagraphs();
+    drawFields();
   }
 
   if (def.needsSignature) {
