@@ -18,6 +18,9 @@ import { useRouter, useParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 
 import { PageSkeleton } from "@/components/ui/Skeleton";
+import { useAuth } from "@/context/AuthContext";
+import { ConfirmModal } from "@/components/ui/ConfirmModal";
+import { getProgramImpact, deleteProgramCascade, type ProgramImpact } from "@/lib/programs/deleteProgram";
 interface Program {
   id: string;
   name: string;
@@ -49,6 +52,11 @@ const AVATAR_COLORS = [
 
 export default function ProgramDetailPage() {
   const router  = useRouter();
+  const { isManager } = useAuth(); // isManager = מנהלת חוסן או אדמין
+  const [showDelete, setShowDelete] = useState(false);
+  const [impact, setImpact] = useState<ProgramImpact | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
   const params  = useParams();
   const progId  = params.id as string;
 
@@ -305,6 +313,32 @@ export default function ProgramDetailPage() {
       ));
     } catch (err) {
       console.error("Error deleting group:", err);
+    }
+  };
+
+  const openDeleteProgram = async () => {
+    if (!isManager) return;
+    setDeleteError("");
+    setImpact(null);
+    setShowDelete(true);
+    try {
+      setImpact(await getProgramImpact(progId));
+    } catch (err) {
+      console.error("Error loading program impact:", err);
+    }
+  };
+
+  const confirmDeleteProgram = async () => {
+    if (!isManager) return;
+    setDeleting(true);
+    setDeleteError("");
+    try {
+      await deleteProgramCascade(progId);
+      router.push("/admin/programs");
+    } catch (err) {
+      console.error("Error deleting program:", err);
+      setDeleteError("המחיקה נכשלה. נסו שוב; אם הבעיה חוזרת – בדקו הרשאות או חיבור.");
+      setDeleting(false);
     }
   };
 
@@ -877,9 +911,42 @@ export default function ProgramDetailPage() {
             </section>
           )}
 
+          {/* ── מחיקת תוכנית (מנהל/אדמין בלבד) ── */}
+          {isManager && (
+            <section className="rounded-2xl border border-rose-500/30 bg-rose-500/5 p-4">
+              <p className="text-sm font-bold text-rose-500 mb-1">מחיקת תוכנית</p>
+              <p className="text-[11px] font-bold text-[var(--foreground)]/50 mb-3">
+                מוחק את התוכנית יחד עם הקבוצות והסדנאות שלה, ומסיר את השיוך אליה ממשתתפים ואנשי צוות. לא ניתן לשחזר.
+              </p>
+              <button
+                onClick={openDeleteProgram}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-rose-500 text-white hover:bg-rose-600 active:scale-95 transition-all"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                מחיקת התוכנית
+              </button>
+            </section>
+          )}
+
         </div>
+
+        <ConfirmModal
+          isOpen={showDelete}
+          onClose={() => { if (!deleting) setShowDelete(false); }}
+          onConfirm={confirmDeleteProgram}
+          title={`מחיקת התוכנית "${program?.name ?? ""}"`}
+          message={
+            (impact
+              ? `יימחקו: ${impact.groups} קבוצות ו-${impact.workshops} סדנאות/פעילויות של התוכנית. השיוך לתוכנית יוסר מ-${impact.patients} משתתפים ומ-${impact.staff} אנשי צוות. נתוני נוכחות היסטוריים יישמרו. `
+              : "בודק מה יושפע מהמחיקה… ") +
+            "הפעולה אינה הפיכה. להמשיך?" +
+            (deleteError ? `\n\n${deleteError}` : "")
+          }
+          confirmLabel="מחק תוכנית"
+          type="danger"
+          isLoading={deleting || (showDelete && !impact && !deleteError)}
+        />
       </div>
     </RoleGuard>
   );
 }
-

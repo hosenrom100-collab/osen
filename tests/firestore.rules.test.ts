@@ -334,3 +334,37 @@ test("accompanying instructor reads patient files but cannot write them; can add
   }));
   await assertSucceeds(addDoc(collection(as("companion"), "shopping_requests"), newItem({ requestedBy: "companion" })));
 });
+
+// ── programs & groups: delete is for manager/admin only ──
+async function seedProgram() {
+  await env.clearFirestore();
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    const db = ctx.firestore();
+    for (const [uid, role] of Object.entries({ admin: "admin", manager: "manager", instructor: "instructor", employee: "employee", logistics: "logistics" })) {
+      await setDoc(doc(db, "users", uid), { role, roles: [role] });
+    }
+    await setDoc(doc(db, "programs", "p1"), { name: "תוכנית", activeDays: [1, 2, 3], status: "active" });
+    await setDoc(doc(db, "groups", "g1"), { name: "קבוצה", programId: "p1" });
+  });
+}
+
+test("admin and manager can delete a program and its groups", async () => {
+  for (const uid of ["admin", "manager"]) {
+    await seedProgram();
+    await assertSucceeds(deleteDoc(doc(as(uid), "groups", "g1")));
+    await assertSucceeds(deleteDoc(doc(as(uid), "programs", "p1")));
+  }
+});
+
+test("instructor, employee and logistics cannot delete a program or a group", async () => {
+  for (const uid of ["instructor", "employee", "logistics"]) {
+    await seedProgram();
+    await assertFails(deleteDoc(doc(as(uid), "programs", "p1")));
+    await assertFails(deleteDoc(doc(as(uid), "groups", "g1")));
+  }
+});
+
+test("an unauthenticated visitor cannot delete a program", async () => {
+  await seedProgram();
+  await assertFails(deleteDoc(doc(env.unauthenticatedContext().firestore(), "programs", "p1")));
+});
