@@ -5,13 +5,13 @@ import { User } from "firebase/auth";
 import { collection, addDoc, doc, updateDoc, deleteDoc, setDoc, writeBatch } from "firebase/firestore";
 import { db } from "@/lib/firebase/config";
 import { sendPush } from "@/lib/notify";
-import { ShoppingRequest, Product, CutoffConfig, TargetFramework } from "../types";
+import { ShoppingRequest, Product, TargetFramework } from "../types";
 import { findSimilarRequestStrict } from "../lib/stringUtils";
 import { parseQuantity, buildQuantityString, getMinQuantity } from "../lib/quantityUtils";
 import { belongsToList } from "../lib/listFilters";
-import { isPermissionDenied } from "../lib/syncFreeze";
+import { isPermissionDenied } from "../lib/errors";
 
-const FROZEN_MESSAGE = "אין לך הרשאה לבצע פעולה זו. אם הבעיה נמשכת, פנה למנהל.";
+const PERMISSION_MESSAGE = "אין לך הרשאה לבצע פעולה זו. אם הבעיה נמשכת, פנה למנהל.";
 
 export function useShoppingActions(
   user: User | null,
@@ -22,7 +22,6 @@ export function useShoppingActions(
   listType: "supermarket" | "large",
   categories: string[],
   setCategories: (next: string[]) => void,
-  setCutoffConfig: (next: CutoffConfig) => void,
   setLoading: (next: boolean) => void,
   showToast: (message: string, type: "success" | "warning") => void,
   confirmDialog: (options: { title: string; message: string; type?: "danger" | "info" | "success" }) => Promise<boolean>
@@ -159,7 +158,7 @@ export function useShoppingActions(
       return true;
     } catch (e) {
       console.error("Error adding product:", e);
-      showToast(isPermissionDenied(e) ? FROZEN_MESSAGE : "שגיאה בהוספת המוצר. נסה שוב.", "warning");
+      showToast(isPermissionDenied(e) ? PERMISSION_MESSAGE : "שגיאה בהוספת המוצר. נסה שוב.", "warning");
       return false;
     }
   };
@@ -219,7 +218,7 @@ export function useShoppingActions(
         }
       } catch (e) {
         console.error(e);
-        showToast(isPermissionDenied(e) ? FROZEN_MESSAGE : "שגיאה בעדכון הפריט. נסה שוב.", "warning");
+        showToast(isPermissionDenied(e) ? PERMISSION_MESSAGE : "שגיאה בעדכון הפריט. נסה שוב.", "warning");
       }
     },
     [requests, user, showToast]
@@ -237,7 +236,7 @@ export function useShoppingActions(
       });
     } catch (e) {
       console.error(e);
-      showToast(isPermissionDenied(e) ? FROZEN_MESSAGE : "שגיאה בעדכון הכמות. נסה שוב.", "warning");
+      showToast(isPermissionDenied(e) ? PERMISSION_MESSAGE : "שגיאה בעדכון הכמות. נסה שוב.", "warning");
     }
   };
 
@@ -247,7 +246,7 @@ export function useShoppingActions(
       showToast("המוצר הועבר לרשימת רכש", "success");
     } catch (e) {
       console.error(e);
-      showToast(isPermissionDenied(e) ? FROZEN_MESSAGE : "שגיאה בהעברת המוצר. נסה שוב.", "warning");
+      showToast(isPermissionDenied(e) ? PERMISSION_MESSAGE : "שגיאה בהעברת המוצר. נסה שוב.", "warning");
     }
   };
 
@@ -257,7 +256,7 @@ export function useShoppingActions(
       showToast("המוצר הועבר לרשימת הסופר", "success");
     } catch (e) {
       console.error(e);
-      showToast(isPermissionDenied(e) ? FROZEN_MESSAGE : "שגיאה בהעברת המוצר. נסה שוב.", "warning");
+      showToast(isPermissionDenied(e) ? PERMISSION_MESSAGE : "שגיאה בהעברת המוצר. נסה שוב.", "warning");
     }
   };
 
@@ -317,17 +316,6 @@ export function useShoppingActions(
     }
   };
 
-  const handleSaveCutoffConfig = async (newConfig: CutoffConfig) => {
-    try {
-      await setDoc(doc(db, "settings", "shopping"), { cutoffConfig: newConfig }, { merge: true });
-      setCutoffConfig(newConfig);
-      showToast("הגדרות מועד הקציבה השבועי עודכנו בהצלחה!", "success");
-    } catch (e) {
-      console.error(e);
-      showToast("שגיאה בשמירת הגדרות מועד הקציבה. נסה שוב.", "warning");
-    }
-  };
-
   const toggleStarProduct = async (productId: string, currentIsStar?: boolean) => {
     try {
       await setDoc(doc(db, "product_pool", productId), { isStar: !currentIsStar }, { merge: true });
@@ -356,7 +344,7 @@ export function useShoppingActions(
       showToast("הפריט עודכן בהצלחה!", "success");
     } catch (e) {
       console.error(e);
-      showToast(isPermissionDenied(e) ? FROZEN_MESSAGE : "שגיאה בעדכון הפריט. נסה שוב.", "warning");
+      showToast(isPermissionDenied(e) ? PERMISSION_MESSAGE : "שגיאה בעדכון הפריט. נסה שוב.", "warning");
     }
   };
 
@@ -364,6 +352,6 @@ export function useShoppingActions(
     requestNewProduct,
     addProduct, changeStatus, updateQuantity, moveToEquipment, moveToSupermarket,
     toggleStarProduct, updateItem,
-    handleAddCategory, handleRenameCategory, handleDeleteCategory, handleSaveCutoffConfig,
+    handleAddCategory, handleRenameCategory, handleDeleteCategory,
   };
 }

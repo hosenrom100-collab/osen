@@ -21,7 +21,7 @@ interface BottomSheetProps {
 
 /**
  * Shared bottom-sheet shell used by every panel in the shopping list (add item, item
- * detail, menu, category/recurring/star/cutoff settings, receipt scan). Handles the
+ * detail, menu, category/recurring/star settings, receipt scan). Handles the
  * backdrop, drag handle, safe-area padding, and focus trapping so each panel only has
  * to provide its own content.
  */

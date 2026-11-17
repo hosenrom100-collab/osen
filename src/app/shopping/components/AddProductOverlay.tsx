@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { CycleItemSnapshot, Product, ShoppingRequest, TargetFramework } from "../types";
-import { Lock, Plus, Search, X, Flame, CheckCircle2, AlertTriangle, Minus, ArrowRight, Sparkles, MapPin, History, Send, Info } from "lucide-react";
+import { Plus, Search, X, Flame, CheckCircle2, AlertTriangle, Minus, ArrowRight, Sparkles, MapPin, History, Send, Info } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { SwitchVisual } from "./Switch";
 import { rankSimilarProducts, findSimilarProduct } from "../lib/stringUtils";
@@ -18,7 +18,6 @@ interface AddProductOverlayProps {
   isAdmin: boolean;
   isManager?: boolean;
   isLogistics?: boolean;
-  isFrozen?: boolean;
   targetFramework?: TargetFramework;
   onTargetFrameworkChange?: (fw: TargetFramework) => void;
   onAddProduct: (name: string, category?: string, priority?: "normal" | "urgent", quantity?: string, notes?: string, requestedByOverride?: { uid: string; name: string }, targetFramework?: TargetFramework) => Promise<boolean>;
@@ -51,7 +50,6 @@ export function AddProductOverlay({
   isAdmin,
   isManager,
   isLogistics,
-  isFrozen,
   categories = [],
   lastCycleItems = [],
   targetFramework = "main",
@@ -70,7 +68,6 @@ export function AddProductOverlay({
   const searchInputRef = useRef<HTMLInputElement | null>(null);
 
   const canAddDirectly = isAdmin || isManager || isLogistics;
-  const isUserBlockedByFreeze = isFrozen && !canAddDirectly;
 
   // Reset state on open
   useEffect(() => {
@@ -120,7 +117,7 @@ export function AddProductOverlay({
   // flag (state, not a ref) so the guard never runs into "ref read during render" lint.
   const [favBusy, setFavBusy] = useState(false);
   const quickAdd = async (product: Pick<Product, "name" | "category" | "defaultUnit" | "defaultNotes">) => {
-    if (isUserBlockedByFreeze || favBusy) return;
+    if (favBusy) return;
     setFavBusy(true);
     const success = await onAddProduct(product.name, product.category, "normal", "1", product.defaultNotes, undefined, selectedFramework);
     setFavBusy(false);
@@ -147,7 +144,7 @@ export function AddProductOverlay({
   });
 
   const addFromLast = async (item: CycleItemSnapshot) => {
-    if (isUserBlockedByFreeze || favBusy) return;
+    if (favBusy) return;
     setFavBusy(true);
     const success = await onAddProduct(item.name, item.category, "normal", item.quantity, item.notes || undefined, undefined, selectedFramework);
     setFavBusy(false);
@@ -157,7 +154,7 @@ export function AddProductOverlay({
   };
 
   const addAllFromLast = async () => {
-    if (isUserBlockedByFreeze || favBusy) return;
+    if (favBusy) return;
     setFavBusy(true);
     let added = 0;
     for (const item of lastOrdered) {
@@ -179,7 +176,7 @@ export function AddProductOverlay({
   };
 
   const selectProduct = (product: Pick<Product, "name" | "category" | "defaultUnit" | "defaultNotes">) => {
-    if (isUserBlockedByFreeze || alreadyInList(product.name)) return;
+    if (alreadyInList(product.name)) return;
     const unit = product.defaultUnit || "יחידות";
     const initialQty = unit === "גרם" || unit === "מ״ל" ? 200 : 1;
     setPending({ name: product.name, category: product.category, defaultNotes: product.defaultNotes, isNew: false });
@@ -190,7 +187,7 @@ export function AddProductOverlay({
 
   const selectNewProduct = (name: string) => {
     const cleanName = name.trim();
-    if (!cleanName || isUserBlockedByFreeze) return;
+    if (!cleanName) return;
     setCategoryError(false);
     setPending({ name: cleanName, category: "", isNew: true });
     setQtyValue(1);
@@ -563,13 +560,6 @@ export function AddProductOverlay({
                   )}
                 </div>
 
-                {isUserBlockedByFreeze && (
-                  <div className="mb-3 p-3 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-300 text-sm font-medium flex items-center gap-2 text-right shrink-0">
-                    <Lock className="w-5 h-5 shrink-0" />
-                    <span>הרשימה מוקפאת כרגע לקראת רכש. הזנת מוצרים חדשים תתאפשר מחדש לאחר פתיחת סבב חדש.</span>
-                  </div>
-                )}
-
                 {inputVal.trim() ? (
                   /* Search results */
                   <div
@@ -589,7 +579,6 @@ export function AddProductOverlay({
                                 <span className="text-sm font-semibold">אולי כבר קיים &quot;{similarProduct.name}&quot; ברשימה?</span>
                               </div>
                               <button
-                                disabled={isUserBlockedByFreeze}
                                 onClick={() => selectProduct(similarProduct)}
                                 className="w-full h-10 px-3 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-700 dark:text-amber-300 font-bold text-sm border border-amber-500/20 transition-all active:scale-[0.97] flex items-center justify-center gap-2 cursor-pointer disabled:opacity-40"
                               >
@@ -602,7 +591,6 @@ export function AddProductOverlay({
                           {!hasExactMatch && (
                             <button
                               onClick={() => selectNewProduct(inputVal)}
-                              disabled={isUserBlockedByFreeze}
                               className="w-full h-14 flex items-center justify-between px-5 rounded-2xl btn-primary !text-white font-bold text-[15px] shadow-[var(--shadow-card)] active:scale-[0.97] transition-all cursor-pointer border-none shrink-0 disabled:opacity-40"
                             >
                               <span className="!text-white truncate">
@@ -614,7 +602,7 @@ export function AddProductOverlay({
 
                           {suggestions.map((p) => {
                             const inList = alreadyInList(p.name);
-                            const disabled = inList || isUserBlockedByFreeze;
+                            const disabled = inList;
                             return (
                               <button
                                 key={p.id}
@@ -664,7 +652,7 @@ export function AddProductOverlay({
                           <button
                             type="button"
                             onClick={addAllFromLast}
-                            disabled={isUserBlockedByFreeze || favBusy}
+                            disabled={favBusy}
                             className="h-9 px-3.5 rounded-lg btn-primary !text-white text-[13px] font-bold border-none cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
                           >
                             הוסף הכל
@@ -678,7 +666,7 @@ export function AddProductOverlay({
                                 key={item.name}
                                 type="button"
                                 onClick={() => addFromLast(item)}
-                                disabled={isUserBlockedByFreeze || favBusy}
+                                disabled={favBusy}
                                 className="h-10 flex items-center gap-1.5 pr-2.5 pl-3 rounded-xl border border-[var(--accent-line)] bg-[var(--surface)] text-sm font-semibold text-[var(--foreground)] cursor-pointer hover:bg-[var(--accent-soft-hover)] disabled:opacity-40 disabled:cursor-not-allowed"
                               >
                                 <Plus className="w-4 h-4 text-[var(--accent-text)] stroke-[2.5]" />
@@ -725,7 +713,6 @@ export function AddProductOverlay({
                                           type="button"
                                           aria-label={`הפחת ${p.name}`}
                                           onClick={() => quickDec(request)}
-                                          disabled={isUserBlockedByFreeze}
                                           className="w-9 h-9 rounded-full border border-emerald-500/40 bg-[var(--surface)] text-emerald-700 dark:text-emerald-400 flex items-center justify-center cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
                                         >
                                           <Minus className="w-4 h-4 stroke-[3]" />
@@ -735,7 +722,6 @@ export function AddProductOverlay({
                                           type="button"
                                           aria-label={`הוסף עוד ${p.name}`}
                                           onClick={() => quickInc(request)}
-                                          disabled={isUserBlockedByFreeze}
                                           className="w-9 h-9 rounded-full border-none bg-emerald-600 text-white flex items-center justify-center cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
                                         >
                                           <Plus className="w-4 h-4 stroke-[3]" />
@@ -751,7 +737,7 @@ export function AddProductOverlay({
                                   type="button"
                                   aria-label={`הוסף ${p.name}`}
                                   onClick={() => quickAdd(p)}
-                                  disabled={isUserBlockedByFreeze || favBusy}
+                                  disabled={favBusy}
                                   className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow-card)] p-3 min-h-[92px] flex flex-col justify-between gap-2 text-right cursor-pointer transition-all active:scale-[0.97] hover:-translate-y-px hover:border-[var(--accent-line)] disabled:opacity-40 disabled:cursor-not-allowed"
                                 >
                                   <span className="text-[15px] font-semibold leading-snug line-clamp-2 text-[var(--foreground)]">{p.name}</span>
@@ -787,7 +773,7 @@ export function AddProductOverlay({
                 <button
                   type="button"
                   onClick={handleConfirmAdd}
-                  disabled={isUserBlockedByFreeze || !qtyValue}
+                  disabled={!qtyValue}
                   className={`w-full h-[52px] text-[15px] font-bold rounded-xl transition-all active:scale-[0.97] cursor-pointer border-none disabled:opacity-40 disabled:cursor-not-allowed shadow-[var(--shadow-card)] flex items-center justify-center gap-2 ${
                     !pending.category
                       ? "bg-amber-600 hover:bg-amber-700 text-white"
@@ -890,7 +876,7 @@ export function AddProductOverlay({
 
                   <button
                     onClick={handleConfirmAdd}
-                    disabled={isUserBlockedByFreeze || !qtyValue}
+                    disabled={!qtyValue}
                     className="w-full mt-2.5 h-[52px] btn-primary !text-white text-[15px] font-bold rounded-xl transition-all active:scale-[0.97] cursor-pointer border-none disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     הוסף לרשימה

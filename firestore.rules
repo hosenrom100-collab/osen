@@ -229,18 +229,6 @@ service cloud.firestore {
       );
     }
 
-    // Shopping lists freeze at `settings/shopping.freezeAt.<list>` (kept in line with the real
-    // lists by /api/shopping/sync-freeze). From that instant only shopping managers may change a
-    // list. A missing or null boundary means "not frozen", so this is safe before it is first set.
-    function isShoppingListFrozen(list) {
-      return false; // the shopping list is ongoing: no weekly freeze
-    }
-
-    // Items without a listType (older documents) belong to the supermarket list.
-    function shoppingItemList(data) {
-      return data.get('listType', 'supermarket') == 'large' ? 'large' : 'supermarket';
-    }
-
     function shoppingChangedKeys() {
       return request.resource.data.diff(resource.data).affectedKeys();
     }
@@ -251,26 +239,19 @@ service cloud.firestore {
 
       // Any staff member can add an item under their own name; shopping managers
       // (admin/manager/logistics) can also add on someone else's behalf (recurring
-      // list import, approving a queued product request). Staff cannot add to a frozen list.
+      // list import, approving a queued product request). The list is ongoing and never closes.
       allow create: if isShoppingManager() || (
         isStaff() &&
         request.resource.data.requestedBy == request.auth.uid &&
-        request.resource.data.status == 'approved' &&
-        !isShoppingListFrozen(shoppingItemList(request.resource.data))
+        request.resource.data.status == 'approved'
       );
 
-      // Any staff member can adjust, move or soft-delete an item while its list is open, but
-      // nothing at all once it is frozen. Moving an item into a frozen list counts as adding to
-      // it. Nobody may rewrite who requested an item or when via a plain update.
+      // Any staff member can adjust, move or soft-delete an item at any time. Nobody may rewrite
+      // who requested an item or when via a plain update.
       allow update: if isShoppingManager() || (
         isStaff() &&
         request.resource.data.status in ['pending', 'approved', 'purchased', 'deleted'] &&
-        !shoppingChangedKeys().hasAny(['requestedBy', 'requestedByName', 'createdAt']) &&
-        !isShoppingListFrozen(shoppingItemList(resource.data)) &&
-        (
-          !shoppingChangedKeys().hasAny(['listType']) ||
-          !isShoppingListFrozen(shoppingItemList(request.resource.data))
-        )
+        !shoppingChangedKeys().hasAny(['requestedBy', 'requestedByName', 'createdAt'])
       );
 
       // Only shopping managers (admin/manager/logistics) permanently delete items.

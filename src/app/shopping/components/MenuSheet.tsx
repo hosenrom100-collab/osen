@@ -143,7 +143,7 @@ export function MenuSheet({
         {canPurchase && (
           <div className="space-y-2">
             <MenuSectionLabel>ניהול הרשימה</MenuSectionLabel>
-            <MenuItem icon={<Edit3 className="w-4 h-4 text-[var(--accent-text)]" />} label="ניהול קטגוריות ומועד קציבה" onClick={wrap(onOpenCategories)} />
+            <MenuItem icon={<Edit3 className="w-4 h-4 text-[var(--accent-text)]" />} label="ניהול קטגוריות" onClick={wrap(onOpenCategories)} />
             {(isAdmin || isManager || isLogistics) && (
               <MenuItem icon={<Star className="w-4 h-4" />} label="ניהול מוצרים נפוצים" onClick={wrap(onOpenStarManager)} />
             )}

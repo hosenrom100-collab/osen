@@ -3,36 +3,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { User } from "firebase/auth";
 import {
-  collection, query, where, doc, onSnapshot, getDoc, setDoc,
+  collection, query, where, doc, onSnapshot, getDoc,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase/config";
-import { ShoppingRequest, Product, CutoffConfig } from "../types";
-import { getCutoffStatus } from "../lib/cutoffUtils";
+import { ShoppingRequest, Product } from "../types";
 import { DEFAULT_CATEGORIES } from "../lib/constants";
 import { toDateOrNull } from "../lib/dateUtils";
 import { belongsToList } from "../lib/listFilters";
-
-const DEFAULT_CUTOFF: CutoffConfig = { enabled: true, day: 1, time: "16:00", deliveryDay: null };
-
-function normalizeCutoff(saved?: CutoffConfig): { config: CutoffConfig; needsUpdate: boolean } {
-  if (!saved) {
-    return { config: DEFAULT_CUTOFF, needsUpdate: true };
-  }
-  // Only a config with no day at all is repaired. A day/time the admin saved (Thursday, 18:00...)
-  // is always respected — it used to be silently reset to Monday 16:00 on the next load.
-  if (saved.day === undefined) {
-    return {
-      config: {
-        enabled: saved.enabled ?? true,
-        day: DEFAULT_CUTOFF.day,
-        time: saved.time || DEFAULT_CUTOFF.time,
-        deliveryDay: saved.deliveryDay !== undefined ? saved.deliveryDay : null,
-      },
-      needsUpdate: true,
-    };
-  }
-  return { config: saved, needsUpdate: false };
-}
 
 // `loadArchive`: the archive is the full purchase history and can grow indefinitely, so it's
 // only streamed from Firestore once something actually needs it (the Archive tab is open),
@@ -47,16 +24,10 @@ export function useShoppingData(
   const [loading, setLoading] = useState(true);
   const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
   const [categories, setCategories] = useState<string[]>(DEFAULT_CATEGORIES);
-  const [cutoffConfig, setCutoffConfig] = useState<CutoffConfig>(DEFAULT_CUTOFF);
 
   const applySettingsData = (data: any) => {
     if (!data) return;
     if (data.categories) setCategories(data.categories);
-    const { config, needsUpdate } = normalizeCutoff(data.cutoffConfig);
-    setCutoffConfig(config);
-    if (needsUpdate) {
-      setDoc(doc(db, "settings", "shopping"), { cutoffConfig: config }, { merge: true }).catch(console.error);
-    }
   };
 
   const refetchSettings = async () => {
@@ -70,11 +41,7 @@ export function useShoppingData(
     if (!user) return;
 
     const unsubSettings = onSnapshot(doc(db, "settings", "shopping"), (s) => {
-      if (s.exists()) {
-        applySettingsData(s.data());
-      } else {
-        setDoc(doc(db, "settings", "shopping"), { cutoffConfig: DEFAULT_CUTOFF }, { merge: true }).catch(console.error);
-      }
+      if (s.exists()) applySettingsData(s.data());
     });
 
     const unsubPool = onSnapshot(collection(db, "product_pool"), (snap) => {
@@ -142,17 +109,9 @@ export function useShoppingData(
     [liveRequests, listType]
   );
 
-  const cutoffStatus = useMemo(
-    () => getCutoffStatus(cutoffConfig, currentActiveItems),
-    [cutoffConfig, currentActiveItems]
-  );
-
-  // The list is ongoing: no weekly freeze, no closing and no reset. Items can be added at any time.
-  const isListFrozen = false;
-
   return {
-    requests, pool, loading, setLoading, pendingRequestsCount, categories, setCategories, cutoffConfig, setCutoffConfig,
-    activeRequests, sessionPurchased, currentActiveItems, cutoffStatus, isListFrozen,
+    requests, pool, loading, setLoading, pendingRequestsCount, categories, setCategories,
+    activeRequests, sessionPurchased, currentActiveItems,
     refetchSettings,
   };
 }

@@ -1,6 +1,6 @@
 name: Firestore rules
 
-# Tests the rules and the freeze arithmetic on every change, and deploys the rules when a change
+# Tests the rules on every change, and deploys the rules when a change
 # to them reaches main. Deploying needs two things set once in the repository settings:
 #   secret   FIREBASE_SERVICE_ACCOUNT  JSON key of a service account with the "Firebase Rules Admin" role
 #   variable FIREBASE_PROJECT_ID       the Firebase project id
@@ -11,7 +11,6 @@ on:
       - firestore.rules
       - firebase.json
       - tests/**
-      - src/app/shopping/lib/freeze.ts
       - package.json
       - package-lock.json
       - .github/workflows/firestore-rules.yml
@@ -21,7 +20,6 @@ on:
       - firestore.rules
       - firebase.json
       - tests/**
-      - src/app/shopping/lib/freeze.ts
       - package.json
       - package-lock.json
       - .github/workflows/firestore-rules.yml

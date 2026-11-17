@@ -1,16 +1,15 @@
 "use client";
 
-import { useState, useEffect, memo } from "react";
+import { useState, memo } from "react";
 import { User } from "firebase/auth";
-import { Product, CutoffConfig } from "../types";
+import { Product } from "../types";
 import { findSimilarProduct } from "../lib/stringUtils";
 import {
   Edit3, Settings, X, Plus, Minus, Trash2, Check, ShoppingBag, CheckCircle2,
-  Receipt, Star, Upload, Loader2, Search, MessageSquare, Clock
+  Receipt, Star, Upload, Search, MessageSquare
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { BottomSheet } from "./BottomSheet";
-import { Switch } from "./Switch";
 
 const CAT_COLOR: Record<string, string> = {
   "גבינות ומחלבה":       "text-amber-500 bg-amber-500/10 border-amber-500/20",
@@ -42,8 +41,6 @@ interface ShoppingModalsProps {
   setShowManageStarModal: (val: boolean) => void;
   onToggleStarProduct: (productId: string, currentIsStar?: boolean) => void;
 
-  cutoffConfig?: CutoffConfig;
-  onSaveCutoffConfig?: (config: CutoffConfig) => Promise<void>;
 }
 
 export function ShoppingModals({
@@ -59,29 +56,11 @@ export function ShoppingModals({
   showManageStarModal,
   setShowManageStarModal,
   onToggleStarProduct,
-  cutoffConfig,
-  onSaveCutoffConfig,
 }: ShoppingModalsProps) {
   // Local state for category management
   const [newCatName, setNewCatName] = useState("");
   const [editingCatName, setEditingCatName] = useState<string | null>(null);
   const [editingCatNewValue, setEditingCatNewValue] = useState("");
-
-  // Local state for cutoff config
-  const [cutoffEnabled, setCutoffEnabled] = useState(cutoffConfig?.enabled ?? true);
-  const [cutoffDay, setCutoffDay] = useState(cutoffConfig?.day ?? 1);
-  const [cutoffTime, setCutoffTime] = useState(cutoffConfig?.time ?? "16:00");
-  const [cutoffDeliveryDay, setCutoffDeliveryDay] = useState<number | null>(cutoffConfig?.deliveryDay !== undefined ? cutoffConfig.deliveryDay : null);
-  const [isSavingCutoff, setIsSavingCutoff] = useState(false);
-
-  useEffect(() => {
-    if (cutoffConfig) {
-      setCutoffEnabled(cutoffConfig.enabled);
-      setCutoffDay(cutoffConfig.day ?? 1);
-      setCutoffTime(cutoffConfig.time || "16:00");
-      setCutoffDeliveryDay(cutoffConfig.deliveryDay !== undefined ? cutoffConfig.deliveryDay : null);
-    }
-  }, [cutoffConfig]);
 
   // Local state for star products search
   const [starModalSearchVal, setStarModalSearchVal] = useState("");
@@ -209,99 +188,6 @@ export function ShoppingModals({
                   })}
                 </div>
               </div>
-
-              {/* Cutoff Deadline Settings Section */}
-              {onSaveCutoffConfig && (
-                <div className="pt-3 border-t border-[var(--border)] mb-4 shrink-0 text-right" dir="rtl">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-bold flex items-center gap-1.5 text-[var(--foreground)]">
-                      <Clock className="w-4 h-4 text-[var(--accent-text)]" />
-                      מועד קציבה שבועי (Cutoff)
-                    </span>
-                    <Switch checked={cutoffEnabled} onChange={setCutoffEnabled} label="הפעל מועד קציבה שבועי" />
-                  </div>
-
-                  {cutoffEnabled && (
-                    <div className="space-y-2.5 mb-3">
-                      <div className="grid grid-cols-2 gap-2">
-                        <div>
-                          <label className="text-xs font-bold text-[var(--muted)] mb-1 block">יום סגירת הזנות:</label>
-                          <select
-                            value={cutoffDay}
-                            onChange={(e) => setCutoffDay(Number(e.target.value))}
-                            className="w-full bg-[var(--background)] border border-[var(--border)] rounded-xl py-2 px-2 text-xs font-bold text-[var(--foreground)]"
-                          >
-                            <option value={0}>יום ראשון</option>
-                            <option value={1}>יום שני</option>
-                            <option value={2}>יום שלישי</option>
-                            <option value={3}>יום רביעי</option>
-                            <option value={4}>יום חמישי</option>
-                            <option value={5}>יום שישי</option>
-                            <option value={6}>יום שבת</option>
-                          </select>
-                        </div>
-
-                        <div>
-                          <label className="text-xs font-bold text-[var(--muted)] mb-1 block">שעת סגירה:</label>
-                          <input
-                            type="time"
-                            value={cutoffTime}
-                            onChange={(e) => setCutoffTime(e.target.value)}
-                            className="w-full bg-[var(--background)] border border-[var(--border)] rounded-xl py-2 px-2 text-xs font-bold text-center text-[var(--foreground)]"
-                          />
-                        </div>
-                      </div>
-
-                      <div>
-                        <div className="flex items-center justify-between mb-1">
-                          <label className="text-xs font-bold text-[var(--muted)]">יום קבלת משלוח (ללא שעה):</label>
-                          {cutoffDeliveryDay !== null && (
-                            <button
-                              type="button"
-                              onClick={() => setCutoffDeliveryDay(null)}
-                              className="text-xs text-[var(--accent-text)] hover:underline bg-transparent border-none cursor-pointer p-0 font-bold"
-                            >
-                              נקה בחירה
-                            </button>
-                          )}
-                        </div>
-                        <select
-                          value={cutoffDeliveryDay !== null && cutoffDeliveryDay !== undefined ? cutoffDeliveryDay : ""}
-                          onChange={(e) => setCutoffDeliveryDay(e.target.value === "" ? null : Number(e.target.value))}
-                          className="w-full bg-[var(--background)] border border-[var(--border)] rounded-xl py-2 px-2 text-xs font-bold text-[var(--foreground)]"
-                        >
-                          <option value="">ללא / לא מוגדר</option>
-                          <option value={0}>יום ראשון</option>
-                          <option value={1}>יום שני</option>
-                          <option value={2}>יום שלישי</option>
-                          <option value={3}>יום רביעי</option>
-                          <option value={4}>יום חמישי</option>
-                          <option value={5}>יום שישי</option>
-                          <option value={6}>יום שבת</option>
-                        </select>
-                      </div>
-                    </div>
-                  )}
-
-                  <button
-                    onClick={async () => {
-                      setIsSavingCutoff(true);
-                      await onSaveCutoffConfig({
-                        enabled: cutoffEnabled,
-                        day: cutoffDay,
-                        time: cutoffTime,
-                        deliveryDay: cutoffDeliveryDay !== null && cutoffDeliveryDay !== undefined && cutoffDeliveryDay >= 0 ? cutoffDeliveryDay : null,
-                      });
-                      setIsSavingCutoff(false);
-                    }}
-                    disabled={isSavingCutoff}
-                    className="w-full py-2 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:hover:bg-indigo-900/60 text-[var(--accent-text)] text-xs font-bold rounded-xl transition-all cursor-pointer border-none flex items-center justify-center gap-1.5"
-                  >
-                    {isSavingCutoff ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
-                    <span>שמור הגדרות קציבה ומשלוח</span>
-                  </button>
-                </div>
-              )}
 
       </BottomSheet>
 

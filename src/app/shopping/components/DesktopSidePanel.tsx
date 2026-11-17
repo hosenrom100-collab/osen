@@ -9,7 +9,7 @@ interface DesktopSidePanelProps {
   done: number;
   total: number;
   canPurchase: boolean;
-  /** Admin / logistics with a frozen list: the "close the cycle" action belongs here too. */
+  /** Admin / logistics: the "close the cycle" action belongs here too. */
   showCloseCycle: boolean;
   onAdd: () => void;
   onExport: () => void;

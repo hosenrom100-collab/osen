@@ -297,7 +297,7 @@
    stroke-[n] utilities on checkmarks and such still win. */
 :where(.shopping-theme svg.lucide) { stroke-width: 1.75; }
 
-/* Attention pulse for the cutoff tag; off for people who asked for less motion. */
+/* Attention pulse (animate-ping); off for people who asked for less motion. */
 @media (prefers-reduced-motion: reduce) {
   .shopping-theme .animate-ping { animation: none; }
 }

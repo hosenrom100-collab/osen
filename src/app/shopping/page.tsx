@@ -108,8 +108,7 @@ export default function ShoppingPage() {
 
   const {
     requests, pool, loading, setLoading, pendingRequestsCount, categories, setCategories,
-    cutoffConfig, setCutoffConfig,
-    activeRequests, sessionPurchased, currentActiveItems, cutoffStatus, isListFrozen,
+    activeRequests, sessionPurchased, currentActiveItems,
     refetchSettings,
   } = useShoppingData(user, isAdmin, listType);
 
@@ -184,10 +183,10 @@ export default function ShoppingPage() {
     requestNewProduct,
     addProduct, changeStatus, updateQuantity, moveToEquipment, moveToSupermarket,
     toggleStarProduct, updateItem,
-    handleAddCategory, handleRenameCategory, handleDeleteCategory, handleSaveCutoffConfig,
+    handleAddCategory, handleRenameCategory, handleDeleteCategory,
   } = useShoppingActions(
     user, isAdmin, isLogistics, requests, pool, listType,
-    categories, setCategories, setCutoffConfig, setLoading, showToast, confirm
+    categories, setCategories, setLoading, showToast, confirm
   );
 
   const {
@@ -389,7 +388,6 @@ export default function ShoppingPage() {
           isAdmin={isAdmin}
           isManager={isManager}
           isLogistics={isLogistics}
-          isFrozen={isListFrozen}
         />
 
         {/* Unified "⋯" Menu */}
@@ -461,8 +459,6 @@ export default function ShoppingPage() {
           showManageStarModal={showManageStarModal}
           setShowManageStarModal={setShowManageStarModal}
           onToggleStarProduct={toggleStarProduct}
-          cutoffConfig={cutoffConfig}
-          onSaveCutoffConfig={handleSaveCutoffConfig}
         />
 
         {/* Global Toast Alert */}

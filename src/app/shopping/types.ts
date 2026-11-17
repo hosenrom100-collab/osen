@@ -49,25 +49,6 @@ export interface NewProductRequest {
   targetFramework?: TargetFramework;
 }
 
-export interface CutoffConfig {
-  enabled: boolean;
-  day: number; // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
-  time: string; // "HH:MM" format e.g. "16:00"
-  deliveryDay?: number | null; // 0 = Sunday, 1 = Monday, ..., 6 = Saturday, null = not set
-}
-
-export interface CutoffStatus {
-  isEnabled: boolean;
-  isPassed: boolean;
-  /** The moment this week's cutoff passed; only set when it has passed. */
-  cutoffAt?: Date;
-  formattedTarget: string;
-  timeLeftFormatted: string;
-  /** Milliseconds until the cutoff; only set while the cutoff hasn't passed. */
-  msLeft?: number;
-  deliveryDayFormatted?: string;
-}
-
 export interface StoreAuthorizationItem {
   productName: string;
   quantity: string;
