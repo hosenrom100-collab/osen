@@ -11,7 +11,7 @@ import { buildSessions } from "@/lib/workshops/buildWeek";
 import { hueStyle, programHue } from "@/lib/workshops/colors";
 import { shortDate, toISO, toMin } from "@/lib/workshops/dates";
 import { firstNames, participantsOf } from "@/lib/workshops/people";
-import { DAY_FULL, Session, STAFF_ROLES, staffChangeLabel } from "@/lib/workshops/types";
+import { DAY_FULL, Session, STAFF_ROLES, canMarkSessionAttendance, staffChangeLabel } from "@/lib/workshops/types";
 import { SessionAttendanceSheet } from "@/components/workshops/SessionAttendanceSheet";
 import { useScheduleData } from "@/lib/workshops/useScheduleData";
 import { dutyText, instructorsLine, withDuties } from "@/lib/workshops/duties";
@@ -29,8 +29,8 @@ const mins = toMin;
 
 /** Home-screen schedule: one day, for the program/group each person picks for themselves. */
 export function TodaySchedule() {
-  const { user, isManager, role } = useAuth();
-  const canMark = !!role && STAFF_ROLES.includes(role);
+  const { user, isManager, role, roles } = useAuth();
+  const canMark = canMarkSessionAttendance(role, roles);
   const [attending, setAttending] = useState<Session | null>(null);
   const [offset, setOffset] = useState(0);
   const date = toISO(addDays(new Date(), offset));

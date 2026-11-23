@@ -33,7 +33,7 @@ import { ActivityTypesDialog } from "@/components/workshops/ActivityTypesDialog"
 import { CopyScheduleDialog } from "@/components/workshops/CopyScheduleDialog";
 import { EventPrefill, NewEventDialog } from "@/components/workshops/NewEventDialog";
 import { rangeDates, toISO, weekDates, weekStartOf, shortDate, dayOf } from "@/lib/workshops/dates";
-import { Closure, DAY_FULL, DAY_SHORT, Program, Session, STAFF_ROLES } from "@/lib/workshops/types";
+import { Closure, DAY_FULL, DAY_SHORT, Program, Session, STAFF_ROLES, canMarkSessionAttendance } from "@/lib/workshops/types";
 import { instructorsLine, isBreakfast, withDuties } from "@/lib/workshops/duties";
 import { DutyDialog } from "@/components/workshops/DutyDialog";
 
@@ -61,7 +61,7 @@ const COLOR_BY: [ColorBy, string][] = [["type", "סוג פעילות"], ["progra
 const VIEWS: [View, string][] = [["week", "שבוע"], ["day", "יום"]];
 
 export default function SchedulePage() {
-  const { user, isManager, role } = useAuth();
+  const { user, isManager, role, roles } = useAuth();
   const today = toISO(new Date());
   const [weekStart, setWeekStart] = useState(weekStartOf(new Date()));
   const dates = useMemo(() => weekDates(weekStart), [weekStart]);
@@ -134,7 +134,7 @@ export default function SchedulePage() {
   const [editing, setEditing] = useState<{ session: Session | null; extra?: { date: string; programId?: string } } | null>(null);
   // Attendance of one session, and who of each session of the week is marked away.
   const [attending, setAttending] = useState<Session | null>(null);
-  const canMarkAttendance = !!role && STAFF_ROLES.includes(role);
+  const canMarkAttendance = canMarkSessionAttendance(role, roles);
   const { absentOf: absentIn, reload: reloadAbsent } = useAbsenceMarks(dates, !!user && canMarkAttendance);
   const [showChanges, setShowChanges] = useState(false);
   const [showClosures, setShowClosures] = useState(false);

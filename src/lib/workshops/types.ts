@@ -148,6 +148,11 @@ export const DAY_FULL = ["ראשון", "שני", "שלישי", "רביעי", "ח
 
 export const STAFF_ROLES = ["admin", "manager", "instructor", "social_worker", "employee", "logistics"];
 
+/** מי רשאי לסמן נוכחות במפגש — תואם ל-isStaff() בכללי Firestore (כולל מדריך מלווה ומנהל מקצועי). */
+export const ATTENDANCE_MARK_ROLES = [...STAFF_ROLES, "accompanying_instructor", "professional_manager"];
+export const canMarkSessionAttendance = (role?: string | null, roles?: string[] | null): boolean =>
+  [role, ...(roles || [])].some((r) => !!r && ATTENDANCE_MARK_ROLES.includes(r));
+
 /** How a session's staff differs from the standing team: someone added is a substitute; only removals are just a change. */
 export function staffChangeLabel(s: Pick<Session, "staffIds" | "base">): string {
   const added = s.staffIds.some(id => !s.base.staffIds.includes(id));
