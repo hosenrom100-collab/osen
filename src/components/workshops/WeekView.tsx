@@ -507,7 +507,7 @@ export function TimeGrid({ columns, mode, groupName, laneMin, corner, drag: drag
         const warn = dragApi?.conflict(drag.s, drag.to);
         const d = drag.to.date;
         return (
-          <div className="fixed z-[60] pointer-events-none px-3 py-2 rounded-lg bg-[#2b1e17] text-white text-xs shadow-[0_8px_24px_rgba(0,0,0,0.3)] max-w-[16rem]" style={{ left: drag.x + 14, top: drag.y + 14 }} dir="rtl">
+          <div className="fixed z-[60] pointer-events-none px-3 py-2 rounded-lg bg-[#243e58] text-white text-xs shadow-[0_8px_24px_rgba(0,0,0,0.3)] max-w-[16rem]" style={{ left: drag.x + 14, top: drag.y + 14 }} dir="rtl">
             <div className="font-bold text-[13px]">{drag.s.workshopName}</div>
             <div className="tabular-nums mt-0.5">{d !== drag.s.date ? `${shortDate(d)} · ` : ""}{drag.to.start}–{drag.to.end}</div>
             {warn && <div className="mt-1 text-[#ffb4a8] font-semibold">{warn}</div>}

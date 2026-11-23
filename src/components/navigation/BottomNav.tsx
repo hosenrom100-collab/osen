@@ -271,7 +271,7 @@ export function BottomNav() {
                       className={`w-5 h-5 transition-all duration-200 ${
                         isActive
                           ? "text-[var(--primary)] scale-105"
-                          : "text-[#c9bcaf] group-hover:text-white"
+                          : "text-[#d3e0ef] group-hover:text-white"
                       }`}
                       strokeWidth={isActive ? 2.4 : 1.8}
                     />
@@ -279,7 +279,7 @@ export function BottomNav() {
                       className={`text-[11px] font-bold tracking-tight transition-colors duration-200 ${
                         isActive
                           ? "text-[var(--primary)]"
-                          : "text-[#c9bcaf] group-hover:text-white"
+                          : "text-[#d3e0ef] group-hover:text-white"
                       }`}
                     >
                       {item.label}

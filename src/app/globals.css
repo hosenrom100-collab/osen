@@ -108,6 +108,18 @@
   --color-cyan-800: var(--color-olive-800); --color-cyan-900: var(--color-olive-900);
   --color-cyan-950: var(--color-olive-950);
 
+  --color-emerald-50: var(--color-olive-50); --color-emerald-100: var(--color-olive-100);
+  --color-emerald-200: var(--color-olive-200); --color-emerald-300: var(--color-olive-300);
+  --color-emerald-400: var(--color-olive-400); --color-emerald-500: var(--color-olive-500);
+  --color-emerald-600: var(--color-olive-600); --color-emerald-700: var(--color-olive-700);
+  --color-emerald-800: var(--color-olive-800); --color-emerald-900: var(--color-olive-900);
+  --color-emerald-950: var(--color-olive-950);
+  --color-green-50: var(--color-olive-50); --color-green-100: var(--color-olive-100);
+  --color-green-200: var(--color-olive-200); --color-green-300: var(--color-olive-300);
+  --color-green-400: var(--color-olive-400); --color-green-500: var(--color-olive-500);
+  --color-green-600: var(--color-olive-600); --color-green-700: var(--color-olive-700);
+  --color-green-800: var(--color-olive-800); --color-green-900: var(--color-olive-900);
+  --color-green-950: var(--color-olive-950);
   --color-teal-50: var(--color-olive-50);   --color-teal-100: var(--color-olive-100);
   --color-teal-200: var(--color-olive-200); --color-teal-300: var(--color-olive-300);
   --color-teal-400: var(--color-olive-400); --color-teal-500: var(--color-olive-500);
@@ -229,7 +241,7 @@
 
   /* Buttons: espresso */
   --btn:             #386088;
-  --btn-hover:       #2b1e17;
+  --btn-hover:       #2d4d6e;
   --btn-text:        #ffffff;
   --btn-soft:        #f0e9e3;
   --btn-soft-hover:  #e6dcd3;
@@ -497,20 +509,20 @@ button[class*="border-[var(--border)]"]:not([class*=" bg-"]):not([class^="bg-"])
    Re-scopes the design tokens, so everything inside the sidebar / bottom bar follows.
    ════════════════════════════════════════════════════════════════════ */
 .nav-espresso {
-  --sidebar-bg: #2b1e17;
-  --foreground: #f4ede6;
+  --sidebar-bg: #386088;
+  --foreground: #ffffff;
   --border: rgba(255, 255, 255, 0.12);
   --border-subtle: rgba(255, 255, 255, 0.07);
-  --primary: #9bbbe0;
-  --primary-faint: rgba(106, 144, 187, 0.30);
-  --accent: #4d77a6;
-  --accent-soft: rgba(106, 144, 187, 0.30);
-  --accent-line: rgba(155, 187, 224, 0.38);
+  --primary: #ffffff;
+  --primary-faint: rgba(255, 255, 255, 0.18);
+  --accent: #ffffff;
+  --accent-soft: rgba(255, 255, 255, 0.18);
+  --accent-line: rgba(255, 255, 255, 0.38);
   --btn-soft: rgba(255, 255, 255, 0.08);
   --btn-soft-hover: rgba(255, 255, 255, 0.16);
-  --btn-soft-text: #f4ede6;
-  background-color: #2b1e17;
-  color: #f4ede6;
+  --btn-soft-text: #ffffff;
+  background-color: #386088;
+  color: #ffffff;
 }
 
 /* ════════════════════════════════════════════════════════════════════

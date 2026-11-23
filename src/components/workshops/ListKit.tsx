@@ -6,7 +6,7 @@ import { ArrowDown, ArrowUp, ChevronsUpDown } from "lucide-react";
 export const WHITE_VARS = {
   "--background": "#ffffff", "--card-bg": "#ffffff", "--foreground": "#1f2937",
   "--border": "#D3CCC1", "--border-subtle": "#E7E2D9", "--accent": "#1f5c46", "--accent-soft": "rgba(31,92,70,0.07)",
-  "--btn": "#3a2a21", "--btn-hover": "#2b1e17", "--btn-text": "#ffffff", "--btn-soft": "#f0e9e3", "--btn-soft-hover": "#e6dcd3", "--btn-soft-text": "#3a2a21",
+  "--btn": "#386088", "--btn-hover": "#2d4d6e", "--btn-text": "#ffffff", "--btn-soft": "#e6edf5", "--btn-soft-hover": "#d9e4f0", "--btn-soft-text": "#2d4d6e",
 } as React.CSSProperties;
 
 export type Dir = "asc" | "desc";

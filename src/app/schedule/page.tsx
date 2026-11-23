@@ -41,7 +41,7 @@ import { DutyDialog } from "@/components/workshops/DutyDialog";
 const LIGHT_VARS = {
   "--background": "#ffffff", "--card-bg": "#ffffff", "--foreground": "#1f2937",
   "--border": "#D3CCC1", "--border-subtle": "#E7E2D9", "--accent": "#1f5c46", "--accent-soft": "rgba(31,92,70,0.07)",
-  "--btn": "#3a2a21", "--btn-hover": "#2b1e17", "--btn-text": "#ffffff", "--btn-soft": "#f0e9e3", "--btn-soft-hover": "#e6dcd3", "--btn-soft-text": "#3a2a21",
+  "--btn": "#386088", "--btn-hover": "#2d4d6e", "--btn-text": "#ffffff", "--btn-soft": "#e6edf5", "--btn-soft-hover": "#d9e4f0", "--btn-soft-text": "#2d4d6e",
 } as React.CSSProperties;
 
 // Filter choices are remembered per browser (best effort — storage can be unavailable).
@@ -746,7 +746,7 @@ export default function SchedulePage() {
             onClose={() => setShowCopy(false)} onDone={(text, undo) => { setToast({ text, undo: async () => { await undo(); load(); } }); load(); }} />
         )}
         {toast && (
-          <div role="status" className="no-print fixed bottom-20 md:bottom-6 inset-x-0 z-[70] mx-auto w-fit max-w-[92vw] flex items-center gap-3 bg-[#2b1e17] text-white text-sm pl-3 pr-4 py-2.5 rounded-lg shadow-[0_8px_24px_rgba(0,0,0,0.3)]">
+          <div role="status" className="no-print fixed bottom-20 md:bottom-6 inset-x-0 z-[70] mx-auto w-fit max-w-[92vw] flex items-center gap-3 bg-[#243e58] text-white text-sm pl-3 pr-4 py-2.5 rounded-lg shadow-[0_8px_24px_rgba(0,0,0,0.3)]">
             <span>{toast.text}</span>
             {toast.undo && <button onClick={async () => { await toast.undo!(); setToast(null); }} className="font-bold underline text-[#8fd3b4]">בטל</button>}
           </div>

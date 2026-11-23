@@ -1683,8 +1683,8 @@ ${contactRole}`;
                       </div>
                       {vegetarianNow > 0 && (
                         <div style={{ display: "flex", justifyContent: "space-between" }}>
-                          <span style={{ color: "#047857", fontWeight: "bold" }}>מתוכן צמחוניות:</span>
-                          <span style={{ fontWeight: "800", color: "#047857" }}>{vegetarianNow} מנות</span>
+                          <span style={{ color: "#2d4d6e", fontWeight: "bold" }}>מתוכן צמחוניות:</span>
+                          <span style={{ fontWeight: "800", color: "#2d4d6e" }}>{vegetarianNow} מנות</span>
                         </div>
                       )}
                       {fishNow > 0 && (
@@ -1717,7 +1717,7 @@ ${contactRole}`;
                       {selectedMeats.length === 0 && <li style={{ fontSize: "11px", color: "#94a3b8", fontStyle: "italic" }}>טרם נבחרו מנות עיקריות</li>}
                     </ul>
                     {vegetarianSummary && (
-                      <div style={{ fontSize: "12px", marginTop: "10px", backgroundColor: "#ecfdf5", border: "1px solid #a7f3d0", color: "#047857", padding: "6px 12px", borderRadius: "8px", fontWeight: "bold" }}>
+                      <div style={{ fontSize: "12px", marginTop: "10px", backgroundColor: "#eef3f9", border: "1px solid #bfd2e6", color: "#2d4d6e", padding: "6px 12px", borderRadius: "8px", fontWeight: "bold" }}>
                         🌱 {vegetarianSummary}
                       </div>
                     )}
