@@ -19,7 +19,6 @@ type OnUpdateQuantity = (id: string, currentQtyStr: string, increment: number) =
 type OnMoveList = (id: string) => void;
 
 interface ShoppingListViewProps {
-  weekLabel?: string;
   requests: ShoppingRequest[];
   pool?: Product[];
   categories: string[];
@@ -46,7 +45,6 @@ interface ShoppingListViewProps {
 const UNDO_TIMEOUT_MS = 5000;
 
 export function ShoppingListView({
-  weekLabel,
   requests,
   categories,
   listType,
@@ -55,6 +53,8 @@ export function ShoppingListView({
   selectedFramework = "all",
   setSelectedFramework,
   canPurchase,
+  isAdmin,
+  isLogistics,
   onChangeStatus,
   onUpdateItem,
   onMoveToEquipment,
@@ -67,6 +67,13 @@ export function ShoppingListView({
   const [deletedCollapsed, setDeletedCollapsed] = useState(true);
   const [showUrgentOnly, setShowUrgentOnly] = useState(false);
   const [detailItem, setDetailItem] = useState<ShoppingRequest | null>(null);
+
+  const canBulkClear = !!(isAdmin || isLogistics);
+  const clearAll = (items: ShoppingRequest[], what: string) => {
+    if (items.length === 0) return;
+    if (!window.confirm(`למחוק לצמיתות ${items.length} מוצרים ${what}?`)) return;
+    items.forEach((item) => onChangeStatus(item.id, "permanently_delete"));
+  };
 
   // Undo snackbar for check-off / delete — replaces a confirmation dialog with a fast,
   // reversible action: the write already happened, "בטל" just flips it back.
@@ -237,10 +244,6 @@ export function ShoppingListView({
         </div>
       </div>
 
-      {weekLabel && (
-        <div className="mt-1 mb-2 text-center text-[13px] font-bold text-[var(--muted)]">{weekLabel}</div>
-      )}
-
       {/* ── Active items, grouped into one card per category ── */}
       {allDone ? (
         <div className="mt-2 py-12 px-6 text-center bg-emerald-500/[0.06] border border-emerald-500/20 rounded-2xl my-2">
@@ -350,6 +353,14 @@ export function ShoppingListView({
                 exit={{ height: 0, opacity: 0 }}
                 className="overflow-hidden"
               >
+                {canBulkClear && (
+                  <button
+                    onClick={() => clearAll(sessionPurchased, "שנרכשו")}
+                    className="mt-3 h-9 px-3 rounded-lg bg-rose-500/10 text-rose-600 dark:text-rose-400 hover:bg-rose-500/20 cursor-pointer border-none flex items-center gap-1.5 text-[13px] font-semibold"
+                  >
+                    <Trash2 className="w-4 h-4" /> נקה את כל הנרכשים
+                  </button>
+                )}
                 <div className={`${cardClass} mt-3 divide-y divide-[var(--border)]`}>
                   {sessionPurchased.map((item) => (
                     <button
@@ -394,6 +405,14 @@ export function ShoppingListView({
                 exit={{ height: 0, opacity: 0 }}
                 className="overflow-hidden"
               >
+                {canBulkClear && (
+                  <button
+                    onClick={() => clearAll(sessionDeleted, "שנמחקו")}
+                    className="mt-3 h-9 px-3 rounded-lg bg-rose-500/10 text-rose-600 dark:text-rose-400 hover:bg-rose-500/20 cursor-pointer border-none flex items-center gap-1.5 text-[13px] font-semibold"
+                  >
+                    <Trash2 className="w-4 h-4" /> נקה את כל המחוקים
+                  </button>
+                )}
                 <div className={`${cardClass} divide-y divide-[var(--border)]`}>
                   {sessionDeleted.map((item) => (
                     <div key={item.id} className="flex items-center justify-between gap-3 px-4 min-h-[52px] text-sm text-[var(--muted)]">

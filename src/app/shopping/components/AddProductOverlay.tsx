@@ -104,12 +104,12 @@ export function AddProductOverlay({
   // separately for each framework, so a "lower" request must not block "main", etc.
   const alreadyInList = (name: string) =>
     requests.some(
-      (r) => r.name === name && r.status !== "deleted" && (r.targetFramework || "main") === selectedFramework
+      (r) => r.name === name && r.status !== "deleted" && r.status !== "purchased" && (r.targetFramework || "main") === selectedFramework
     );
 
   const getActiveRequest = (name: string) =>
     requests.find(
-      (r) => r.name === name && r.status !== "deleted" && (r.targetFramework || "main") === selectedFramework
+      (r) => r.name === name && r.status !== "deleted" && r.status !== "purchased" && (r.targetFramework || "main") === selectedFramework
     );
 
   // Favorites tap-to-add: one tap adds qty 1 directly, no quantity screen in between.

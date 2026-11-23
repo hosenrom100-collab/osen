@@ -97,6 +97,7 @@ export function useShoppingActions(
     const activeRequestsList = requests.filter(
       (r) =>
         r.status !== "deleted" &&
+        r.status !== "purchased" &&
         belongsToList(r, listType) &&
         (r.targetFramework || "main") === targetFramework
     );

@@ -297,7 +297,6 @@ export default function ShoppingPage() {
                 </div>
               ) : (
                 <ShoppingListView
-                  weekLabel={weekLabels[listType]}
                   requests={requests}
                   categories={categories}
                   listType={listType}
