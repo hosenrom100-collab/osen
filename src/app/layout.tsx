@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { AppShell } from "@/components/AppShell";
@@ -8,6 +8,10 @@ const inter = Inter({
   variable: "--font-inter",
 });
 
+
+export const viewport: Viewport = {
+  themeColor: "#386088",
+};
 
 export const metadata: Metadata = {
   title: "מרכז חוסן | חוות רום",

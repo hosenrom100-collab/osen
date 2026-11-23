@@ -46,24 +46,25 @@
   --color-subtle:       #475569;
 
   /* Brand tokens */
-  --color-primary:      #4f977a;
-  --color-primary-faint:rgba(79, 151, 122, 0.14);
+  --color-primary:      #6a90bb;
+  --color-brand-2: #c9786a;
+  --color-primary-faint:rgba(106, 144, 187, 0.14);
 
   /* ── ONE brand palette: deep green ──────────────────────────────────────
      Every decorative hue used to be a different colour (violet, indigo, blue, teal,
      cyan...). They all resolve to the single deep-green scale now. Semantic colours
      (emerald = success, rose = alert, amber = pending) are left alone on purpose. */
-  --color-olive-50:  #eef6f2;
-  --color-olive-100: #eaefd8;
-  --color-olive-200: #d6e0b3;
-  --color-olive-300: #b9c985;
-  --color-olive-400: #9bb15c;
-  --color-olive-500: #7a9040;
-  --color-olive-600: #5f7332;
-  --color-olive-700: #4a5a28;
-  --color-olive-800: #3b4922;
-  --color-olive-900: #2f3a1d;
-  --color-olive-950: #171e0d;
+  --color-olive-50:  #eef3f9;
+  --color-olive-100: #dce7f2;
+  --color-olive-200: #bfd2e6;
+  --color-olive-300: #94b3d3;
+  --color-olive-400: #6a90bb;
+  --color-olive-500: #4d77a6;
+  --color-olive-600: #386088;
+  --color-olive-700: #2d4d6e;
+  --color-olive-800: #243e58;
+  --color-olive-900: #1c3045;
+  --color-olive-950: #101d2b;
 
   --color-violet-50: var(--color-olive-50);   --color-violet-100: var(--color-olive-100);
   --color-violet-200: var(--color-olive-200); --color-violet-300: var(--color-olive-300);
@@ -163,12 +164,12 @@
   --text-secondary:  #94a3b8;
   --text-muted:      #64748b;
 
-  --primary:         #4f977a;
-  --primary-rgb:     79, 151, 122;
-  --primary-faint:   rgba(79, 151, 122, 0.14);
+  --primary:         #5f88b8;
+  --primary-rgb:     106, 144, 187;
+  --primary-faint:   rgba(106, 144, 187, 0.14);
 
   /* Buttons: espresso (a lighter roast on dark backgrounds) */
-  --btn:             #7a5a45;
+  --btn:             #4d77a6;
   --btn-hover:       #8c6a52;
   --btn-text:        #ffffff;
   --btn-soft:        rgba(214, 180, 150, 0.14);
@@ -179,11 +180,11 @@
   --scrollbar-thumb: #1e293b;
 
   --muted:           #94a3b8;
-  --accent:          #2f7a5e;
-  --accent-text:     #80b89e;
-  --accent-soft:     rgba(79, 151, 122, 0.16);
-  --accent-soft-hover: rgba(79, 151, 122, 0.26);
-  --accent-line:     rgba(79, 151, 122, 0.32);
+  --accent:          #4d77a6;
+  --accent-text:     #a9c6e6;
+  --accent-soft:     rgba(106, 144, 187, 0.16);
+  --accent-soft-hover: rgba(106, 144, 187, 0.26);
+  --accent-line:     rgba(106, 144, 187, 0.32);
   --shadow-card:     none;
   --shadow-pop:      0 12px 40px rgba(0,0,0,0.5);
 }
@@ -194,55 +195,55 @@
 .light {
   color-scheme: light;
 
-  --color-background:  #F7F7F3;
+  --color-background:  #F5F7FA;
   --color-surface:     #ffffff;
-  --color-surface-hi:  #F1F2EC;
+  --color-surface-hi:  #ECF0F5;
   --color-card:        #ffffff;
-  --color-border:      #E5E7E0;
-  --color-border-hi:   #D3D6CB;
+  --color-border:      #DEE3EA;
+  --color-border-hi:   #C9D1DC;
   --color-sidebar:     #ffffff;
   --color-foreground:  #1e293b;
   --color-muted:       #475569;
   --color-subtle:      #94a3b8;
-  --color-primary:     #1f5c46;
+  --color-primary:     #386088;
   --color-primary-faint: #e6f0eb;
 
-  --background:      #F7F7F3;
+  --background:      #F5F7FA;
   --surface:         #ffffff;
-  --surface-raised:  #F1F2EC;
+  --surface-raised:  #ECF0F5;
   --card-bg:         #ffffff;
   --card-pattern:    none;
   --sidebar-bg:      #ffffff;
 
-  --border:          #E5E7E0;
-  --border-strong:   #D3D6CB;
+  --border:          #DEE3EA;
+  --border-strong:   #C9D1DC;
   --border-subtle:   #EEF0E9;
 
   --foreground:      #1e293b;
   --text-secondary:  #475569;
   --text-muted:      #64748b;
 
-  --primary:         #1f5c46;
-  --primary-rgb:     31, 92, 70;
+  --primary:         #386088;
+  --primary-rgb:     56, 96, 136;
   --primary-faint:   #e6f0eb;
 
   /* Buttons: espresso */
-  --btn:             #3a2a21;
+  --btn:             #386088;
   --btn-hover:       #2b1e17;
   --btn-text:        #ffffff;
   --btn-soft:        #f0e9e3;
   --btn-soft-hover:  #e6dcd3;
-  --btn-soft-text:   #3a2a21;
+  --btn-soft-text:   #2d4d6e;
 
-  --scrollbar-track: #F7F7F3;
+  --scrollbar-track: #F5F7FA;
   --scrollbar-thumb: #cbd5e1;
 
   --muted:           #475569;
-  --accent:          #1f5c46;
-  --accent-text:     #174a38;
-  --accent-soft:     rgba(31, 92, 70, 0.09);
-  --accent-soft-hover: rgba(31, 92, 70, 0.16);
-  --accent-line:     rgba(31, 92, 70, 0.24);
+  --accent:          #386088;
+  --accent-text:     #2d4d6e;
+  --accent-soft:     rgba(56, 96, 136, 0.09);
+  --accent-soft-hover: rgba(56, 96, 136, 0.16);
+  --accent-line:     rgba(56, 96, 136, 0.24);
   --shadow-card:     none;
   --shadow-pop:      0 12px 40px rgba(15,23,42,0.16);
 }
@@ -252,12 +253,12 @@
    "fill" tints stay scoped here.
    ════════════════════════════════════════════════════════════════════ */
 .shopping-theme {
-  --fill:            rgba(79, 151, 122, 0.08);
-  --fill-strong:     rgba(79, 151, 122, 0.15);
+  --fill:            rgba(106, 144, 187, 0.08);
+  --fill-strong:     rgba(106, 144, 187, 0.15);
 }
 .light .shopping-theme {
-  --fill:            rgba(31, 92, 70, 0.06);
-  --fill-strong:     rgba(31, 92, 70, 0.11);
+  --fill:            rgba(56, 96, 136, 0.06);
+  --fill-strong:     rgba(56, 96, 136, 0.11);
 }
 
 /* ── Shopping: shared interaction language ─────────────────────────── */
@@ -399,11 +400,11 @@ body {
    SELECTION & FOCUS
    ════════════════════════════════════════════════════════════════════ */
 ::selection {
-  background-color: rgba(79,151,122,0.22);
+  background-color: rgba(106,144,187,0.22);
   color: var(--foreground);
 }
 .light ::selection {
-  background-color: rgba(31,92,70,0.16);
+  background-color: rgba(56,96,136,0.16);
 }
 
 :focus-visible {
@@ -500,11 +501,11 @@ button[class*="border-[var(--border)]"]:not([class*=" bg-"]):not([class^="bg-"])
   --foreground: #f4ede6;
   --border: rgba(255, 255, 255, 0.12);
   --border-subtle: rgba(255, 255, 255, 0.07);
-  --primary: #8fd3b4;
-  --primary-faint: rgba(79, 151, 122, 0.30);
-  --accent: #2f7a5e;
-  --accent-soft: rgba(79, 151, 122, 0.30);
-  --accent-line: rgba(143, 211, 180, 0.38);
+  --primary: #9bbbe0;
+  --primary-faint: rgba(106, 144, 187, 0.30);
+  --accent: #4d77a6;
+  --accent-soft: rgba(106, 144, 187, 0.30);
+  --accent-line: rgba(155, 187, 224, 0.38);
   --btn-soft: rgba(255, 255, 255, 0.08);
   --btn-soft-hover: rgba(255, 255, 255, 0.16);
   --btn-soft-text: #f4ede6;

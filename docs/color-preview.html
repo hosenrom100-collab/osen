@@ -1,0 +1,37 @@
+<!doctype html><html lang="he" dir="rtl"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>הדמיית צבעי האפליקציה</title>
+<style>
+:root{--bg:#F5F7FA;--surface:#fff;--raised:#ECF0F5;--border:#DEE3EA;--fg:#1e293b;--muted:#475569;--primary:#386088;--accent-text:#2d4d6e;--soft:rgba(56,96,136,.09);--line:rgba(56,96,136,.24);--terra:#c9786a}
+.dark{--bg:#0b1120;--surface:#111827;--raised:#1e293b;--border:rgba(255,255,255,.1);--fg:#f1f5f9;--muted:#94a3b8;--primary:#5f88b8;--accent-text:#a9c6e6;--soft:rgba(106,144,187,.16);--line:rgba(106,144,187,.32)}
+*{box-sizing:border-box}body{margin:0;font-family:system-ui,Arial;background:#d9dee6;display:flex;gap:24px;justify-content:center;padding:24px;flex-wrap:wrap}
+.phone{width:360px;background:var(--bg);color:var(--fg);border-radius:28px;overflow:hidden;border:1px solid var(--border);display:flex;flex-direction:column;min-height:700px}
+.top{background:var(--surface);padding:14px 16px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border)}
+.top img{width:40px;height:40px;border-radius:10px;background:#fff}.top b{font-size:16px}.top small{color:var(--muted);display:block}
+.pad{padding:14px;display:flex;flex-direction:column;gap:12px;flex:1}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:12px}
+h3{margin:0 0 8px;font-size:14px;color:var(--accent-text)}
+.days{display:flex;gap:6px}.days span{flex:1;text-align:center;padding:8px 0;border-radius:10px;font-size:13px;background:var(--raised);color:var(--muted)}.days .on{background:var(--primary);color:#fff}
+.sess{display:flex;gap:10px;align-items:center;padding:10px;border-radius:12px;background:var(--soft);border:1px solid var(--line);margin-top:6px;font-size:14px}
+.sess i{width:4px;height:30px;border-radius:2px;background:var(--primary)}.sess.t i{background:var(--terra)}
+.bar{height:8px;border-radius:4px;background:var(--raised);overflow:hidden}.bar div{height:100%;background:var(--primary)}
+.btn{background:var(--primary);color:#fff;border:0;border-radius:12px;padding:11px;font-size:14px;font-weight:600;width:100%}
+.chips{display:flex;gap:6px;flex-wrap:wrap}.chip{font-size:12px;padding:4px 10px;border-radius:99px;background:var(--soft);color:var(--accent-text);border:1px solid var(--line)}.chip.ok{background:#10b9811a;color:#059669;border-color:#10b98140}.chip.warn{background:#f59e0b1a;color:#b45309;border-color:#f59e0b40}.chip.t{background:#c9786a1f;color:#a8503f;border-color:#c9786a55}
+.nav{display:flex;background:var(--surface);border-top:1px solid var(--border);padding:8px 0}.nav span{flex:1;text-align:center;font-size:11px;color:var(--muted)}.nav .on{color:var(--primary);font-weight:700}
+.sw{display:flex;gap:6px}.sw u{flex:1;height:34px;border-radius:8px;text-decoration:none;font-size:10px;color:#fff;display:flex;align-items:end;justify-content:center;padding-bottom:2px}
+</style>
+<body>
+<template id="t">
+<div class="phone {{c}}">
+ <div class="top"><img src="../public/icon-192.png"><div><b>שלום, דנה</b><small>מרכז חוסן · חוות רום</small></div></div>
+ <div class="pad">
+  <div class="card"><h3>לוח זמנים להיום</h3><div class="days"><span>א׳</span><span class="on">ב׳</span><span>ג׳</span><span>ד׳</span></div>
+   <div class="sess"><i></i><div><b>סדנת מאפים</b><br><small>09:00–11:00 · 12 משתתפים</small></div></div>
+   <div class="sess t"><i></i><div><b>קבוצת בוקר</b><br><small>11:30–12:30 · 8 משתתפים</small></div></div></div>
+  <div class="card"><h3>נוכחות השבוע</h3><div class="bar"><div style="width:68%"></div></div>
+   <div class="chips" style="margin-top:10px"><span class="chip">פעיל</span><span class="chip ok">הושלם</span><span class="chip warn">ממתין</span><span class="chip t">מיוחד</span></div></div>
+  <button class="btn">בדיקת נוכחות</button>
+  <div class="sw"><u style="background:#2d4d6e">700</u><u style="background:#386088">ראשי</u><u style="background:#6a90bb">400</u><u style="background:#bfd2e6;color:#2d4d6e">200</u><u style="background:#c9786a">טרקוטה</u></div>
+ </div>
+ <div class="nav"><span class="on">בית</span><span>לוח</span><span>קניות</span><span>עוד</span></div>
+</div></template>
+<script>const t=document.getElementById('t').innerHTML;document.body.innerHTML=t.replace('{{c}}','')+t.replace('{{c}}','dark')</script>
