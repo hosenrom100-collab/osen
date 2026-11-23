@@ -7,7 +7,7 @@ export default function manifest(): MetadataRoute.Manifest {
     description: 'מערכת ניהול חוסן וקשר',
     start_url: '/',
     display: 'standalone',
-    background_color: '#020617',
+    background_color: '#ffffff',
     theme_color: '#10b981',
     icons: [
       {
@@ -19,6 +19,12 @@ export default function manifest(): MetadataRoute.Manifest {
         src: '/icon-512.png',
         sizes: '512x512',
         type: 'image/png',
+      },
+      {
+        src: '/icon-maskable-512.png',
+        sizes: '512x512',
+        type: 'image/png',
+        purpose: 'maskable',
       },
     ],
   }

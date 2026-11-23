@@ -12,7 +12,14 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "מרכז חוסן | חוות רום",
   description: "מערכת ניהול מתקדמת - מרכז חוסן, חוות רום",
-  manifest: "/manifest.ts",
+  manifest: "/manifest.webmanifest",
+  icons: {
+    icon: [
+      { url: "/favicon.ico" },
+      { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
+    ],
+    apple: "/apple-touch-icon.png",
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
