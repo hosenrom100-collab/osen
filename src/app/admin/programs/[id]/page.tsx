@@ -10,7 +10,7 @@ import {
 } from "firebase/firestore";
 import {
   ArrowRight, Save, Trash2, Plus, Loader2, Calendar,
-  Users, Edit3, Check, X, ChevronLeft, Layers, User, UserMinus
+  Users, Edit3, Check, X, ChevronLeft, Layers, User, UserMinus, Power
 } from "lucide-react";
 import { useAutoSave } from "@/hooks/useAutoSave";
 import { AutoSaveIndicator } from "@/components/ui/AutoSaveIndicator";
@@ -41,6 +41,7 @@ interface Group {
   id: string;
   name: string;
   programId: string;
+  status?: "active" | "archived";
 }
 
 const DAY_SHORT = ["א׳","ב׳","ג׳","ד׳","ה׳","ו׳","ש׳"];
@@ -268,6 +269,31 @@ export default function ProgramDetailPage() {
     setEditGroupId(null);
   };
 
+  // הפיכת קבוצה לפעילה/לא פעילה — לא משפיע על התוכנית
+  const toggleGroupActive = async (id: string, active: boolean) => {
+    const status = active ? "active" : "archived";
+    await updateDoc(doc(db, "groups", id), { status });
+    setGroups(gs => gs.map(g => g.id === id ? { ...g, status } : g));
+  };
+
+  // הפיכת תוכנית לפעילה/לא פעילה — כשהופכת ללא פעילה, כל הקבוצות שלה הופכות ללא פעילות
+  const toggleProgramActive = async (active: boolean) => {
+    if (!program) return;
+    const status = active ? "active" : "archived";
+    if (!active && !window.confirm("הפיכת התוכנית ללא פעילה תהפוך גם את כל הקבוצות שבתוכה ללא פעילות. להמשיך?")) return;
+    try {
+      const batch = writeBatch(db);
+      batch.update(doc(db, "programs", progId), { status });
+      if (!active) groups.forEach(g => batch.update(doc(db, "groups", g.id), { status: "archived" }));
+      await batch.commit();
+      setProgram(p => p ? { ...p, status } : p);
+      if (!active) setGroups(gs => gs.map(g => ({ ...g, status: "archived" })));
+    } catch (e) {
+      console.error(e);
+      alert("שגיאה בעדכון הסטטוס");
+    }
+  };
+
   const deleteGroup = async (id: string) => {
     if (!window.confirm("מחיקת הקבוצה תסיר את השיוך אליה מכל המטופלים ואנשי הצוות המשויכים. להמשיך?")) return;
     try {
@@ -453,6 +479,17 @@ export default function ProgramDetailPage() {
               <Link href={`/schedule?program=${progId}`} className="text-[11px] underline text-[var(--foreground)]/55">צבע, ארוחות, הפסקות וקישורי קהילה מגדירים ביומן (⋯, הגדרות לוז)</Link>
             </div>
             <div className="flex items-center gap-2">
+              <button
+                onClick={() => toggleProgramActive(program?.status === "archived")}
+                className={`flex items-center gap-1 px-3 py-2 rounded-xl text-xs font-bold border ${
+                  program?.status === "archived"
+                    ? "bg-[var(--foreground)]/5 border-[var(--border)] text-[var(--foreground)]/50"
+                    : "bg-emerald-500/15 border-emerald-500/30 text-emerald-500"
+                }`}
+              >
+                <Power className="w-3.5 h-3.5" />
+                {program?.status === "archived" ? "לא פעילה" : "פעילה"}
+              </button>
               <AutoSaveIndicator
                 status={autoSave.status}
                 error={autoSave.error}
@@ -704,7 +741,9 @@ export default function ProgramDetailPage() {
                             <button onClick={() => setEditGroupId(null)} className="p-1.5 rounded-lg bg-[var(--foreground)]/5 border border-[var(--border)] text-[var(--foreground)]/40"><X className="w-3.5 h-3.5" /></button>
                           </div>
                         ) : (
-                          <p className="font-bold text-xs leading-tight">{group.name}</p>
+                          <p className={`font-bold text-xs leading-tight ${group.status === "archived" ? "opacity-40" : ""}`}>
+                            {group.name}{group.status === "archived" && " (לא פעילה)"}
+                          </p>
                         )}
                       </div>
 
@@ -722,6 +761,11 @@ export default function ProgramDetailPage() {
                           <button onClick={() => { setEditGroupId(group.id); setEditGroupName(group.name); }}
                             className="p-1.5 rounded-lg hover:bg-[var(--foreground)]/5 text-[var(--foreground)]/40 hover:text-blue-500 transition-colors">
                             <Edit3 className="w-3.5 h-3.5" />
+                          </button>
+                          <button onClick={() => toggleGroupActive(group.id, group.status === "archived")}
+                            title={group.status === "archived" ? "הפעל קבוצה" : "השבת קבוצה"}
+                            className={`p-1.5 rounded-lg hover:bg-[var(--foreground)]/5 transition-colors ${group.status === "archived" ? "text-[var(--foreground)]/40" : "text-emerald-500"}`}>
+                            <Power className="w-3.5 h-3.5" />
                           </button>
                           <button onClick={() => deleteGroup(group.id)}
                             className="p-1.5 rounded-lg hover:bg-rose-500/10 text-[var(--foreground)]/40 hover:text-rose-500 transition-colors">
