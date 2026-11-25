@@ -93,7 +93,7 @@ export default function AttendanceOverviewPage() {
       ]);
 
       const programs: Program[] = progSnap.docs.map(d => ({ id: d.id, name: d.data().name }));
-      const groups:   Group[]   = groupSnap.docs.map(d => ({ id: d.id, ...d.data() as any }));
+      const groups:   Group[]   = groupSnap.docs.filter(d => d.data().status !== "archived").map(d => ({ id: d.id, ...d.data() as any }));
       const patients: Patient[] = patientSnap.docs.map(d => ({ id: d.id, ...d.data() as any }));
 
       const attMap: Record<string, "present" | "absent"> = {};

@@ -59,7 +59,7 @@ function AttendanceLogPageContent() {
         getDocs(collection(db, "programs")),
       ]);
       const groupList: Group[] = [];
-      groupsSnap.forEach(doc => groupList.push({ id: doc.id, name: doc.data().name, programId: doc.data().programId }));
+      groupsSnap.forEach(doc => doc.data().status !== "archived" && groupList.push({ id: doc.id, name: doc.data().name, programId: doc.data().programId }));
       setGroups(groupList);
 
       const programList: Program[] = [];

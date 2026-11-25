@@ -250,7 +250,7 @@ export default function ProfilePage() {
         getDocs(collection(db, "groups"))
       ]);
       setAllPrograms(progSnap.docs.map(d => ({ id: d.id, name: d.data().name || "" })));
-      setAllGroups(groupSnap.docs.map(d => ({ id: d.id, name: d.data().name || "", programId: d.data().programId || "" })));
+      setAllGroups(groupSnap.docs.filter(d => d.data().status !== "archived").map(d => ({ id: d.id, name: d.data().name || "", programId: d.data().programId || "" })));
     } catch (e) {
       console.error("Error fetching programs/groups for preferences:", e);
     }

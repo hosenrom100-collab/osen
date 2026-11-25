@@ -242,7 +242,7 @@ export default function BulkTravelPage() {
           .filter(p => p.status !== "archived");
         setAllPrograms(progs);
         setVisiblePrograms(isManager ? progs : progs.filter(p => assignedProgramIds.includes(p.id)));
-        setAllGroups(groupsSnap.docs.map(d => ({ id: d.id, ...d.data() } as Group)));
+        setAllGroups(groupsSnap.docs.filter(d => d.data().status !== "archived").map(d => ({ id: d.id, ...d.data() } as Group)));
         if (settingsSnap.exists()) setReportSettings(settingsSnap.data());
       } catch (e) {
         console.error(e);

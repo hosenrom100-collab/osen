@@ -48,6 +48,7 @@ export async function loadRefs(): Promise<Refs> {
     .map(d => ({ id: d.id, name: d.data().name }))
     .sort((a, b) => a.name.localeCompare(b.name, "he"));
   const groups: Group[] = groupSnap.docs
+    .filter(d => d.data().status !== "archived")
     .map(d => ({ id: d.id, name: d.data().name, programId: d.data().programId, color: d.data().scheduleColor }))
     .sort((a, b) => a.name.localeCompare(b.name, "he"));
   return { programs, staff, locations, groups };

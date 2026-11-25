@@ -211,7 +211,7 @@ export default function CateringOrderPage() {
       // 2. Fetch groups for this program
       const groupsSnap = await getDocs(collection(db, "groups"));
       let matchedGroups = groupsSnap.docs
-        .filter(d => d.data().programId === targetProgId)
+        .filter(d => d.data().programId === targetProgId && d.data().status !== "archived")
         .map(d => ({ id: d.id, name: d.data().name }));
         
       if (matchedGroups.length === 0) {

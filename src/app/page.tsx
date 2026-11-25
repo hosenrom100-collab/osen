@@ -138,7 +138,7 @@ export default function Home() {
       const activeProgList = progListAll.filter(p => !p.activeDays || p.activeDays.length === 0 || p.activeDays.includes(currentDayNum));
       const activeProgIds = new Set(activeProgList.map(p => p.id));
       
-      const groupList = groupListAll.filter(g => !g.programId || activeProgIds.has(g.programId));
+      const groupList = groupListAll.filter(g => g.status !== "archived" && (!g.programId || activeProgIds.has(g.programId)));
       
       setGroups(groupList);
       setPrograms(activeProgList);
